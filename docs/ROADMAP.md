@@ -1,6 +1,6 @@
 # OP-3 — Roadmap
 
-Sale del mapa de controles del [Tratado de UX/UI](DESIGN.md#1-mapa-de-controles): cada botón de la MK3 tiene asignada una idea, y este roadmap es el orden en que se construyen. Cada paso se prueba primero en el Twin (`docs/op3-twin.html`) y después en Rust.
+Sale del [mapa de botones](BOTONES.md) y de [INSTRUMENTOS.md](INSTRUMENTOS.md): cada botón de la MK3 tiene asignada una idea, y este roadmap es el orden en que se construyen. Cada paso se prueba primero en el Twin (`docs/op3-twin.html`) y después en Rust.
 
 ## Hecho
 
@@ -28,22 +28,29 @@ Sale del mapa de controles del [Tratado de UX/UI](DESIGN.md#1-mapa-de-controles)
 - TEMPO, SWING y VOLUME con el encoder 4D.
 - AUTO: automatización por perilla.
 
-## 4. Sonido
+## 4. Instrumentos (lo central)
 
-- PLUG-IN: cambiar el cartridge de la pista.
+- Lista de registro de cartridges y PLUG-IN para elegir el de cada pista.
+- Instrumento **macro** a partir del código de Plaits (MIT).
+- Kit de dibujos reusables en `op3-gfx` (osciloscopio, envolvente, onda polar).
+- Cargar instrumentos como paquete aparte desde `cartridges/` (etapa 2 de [INSTRUMENTOS.md](INSTRUMENTOS.md)).
+- Más instrumentos: resonator, drums, sampler.
+
+## 5. Sonido de la pista
+
 - BROWSER: presets por cartridge.
 - Módulos fx (botón 7) y mod/LFO (botón 8) por pista.
 - MACRO (Auxiliar): envíos de efectos y Brain.
 - NOTE REPEAT y arpegiador (players, botón 3).
 
-## 5. Estructura
+## 6. Estructura
 
 - PATTERN: 16 patrones por pista.
 - SCENE y ARRANGER: escenas y canción.
 - DUPLICATE, SELECT, SOLO, VARIATION, EVENTS, LOCK.
 - FILE: proyectos, guardar y abrir.
 
-## 6. Mezcla y samples
+## 7. Mezcla y samples
 
 - MIXER: nivel, paneo, EQ y compresor master.
 - SAMPLING y un cartridge sampler.
