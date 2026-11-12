@@ -31,7 +31,7 @@ jobs:
         run: cargo check --target aarch64-unknown-linux-gnu -p op3 --no-default-features --features mk3
 
   macos:
-    runs-on: macos-14 # Apple Silicon
+    runs-on: macos-latest # Apple Silicon
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
