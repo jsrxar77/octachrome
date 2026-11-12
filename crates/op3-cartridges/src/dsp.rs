@@ -63,6 +63,10 @@ impl Adsr {
         self.stage = Stage::Idle;
         self.level = 0.0;
     }
+    /// Current envelope output, 0..=1.
+    pub fn level(&self) -> f32 {
+        self.level
+    }
     pub fn is_active(&self) -> bool {
         self.stage != Stage::Idle
     }

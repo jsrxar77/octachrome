@@ -1,26 +1,27 @@
-//! Screen layouts. Pure drawing: give it state, get pixels.
+//! Screen layouts. Pure drawing: give it state, get pixels. Every rule here
+//! comes from `docs/DESIGN.md` (Tratado de UX/UI).
 //!
-//! Left screen (fixed: sequencer & time)
+//! Left screen (fixed: time, encoders 1–4)
 //! ```text
-//! y   0 ┌ BPM · Brain chord · mode · playhead ───────────────┐
-//! y  30 ├ A  B  C  D  E  F  G  H   (accent, Brain link, LED) ─┤
-//! y  66 ├ 16-step tape for the selected track  ─ or ─         │
-//! y 166 │ 8 mini lanes showing every track's polymeter        │
-//! y     │   (Inspector replaces both while a pad is held)     │
-//! y 224 ├ footer: 4 × 120 px, encoders 1–4 ───────────────────┤
+//! y   0 ┌ ▶ tempo · chord · track dots ─────────────────────┐
+//! y  32 │ polymeter rings          pad mirror (4×4)          │
+//! y     │   (inspector / brain / punch replace this area)   │
+//! y 224 ├ four dials in the colours of encoders 1–4 ────────┤
 //! ```
-//! Right screen (dynamic: active instrument)
+//! Right screen (active instrument, encoders 5–8)
 //! ```text
-//! y   0 ┌ instrument name · category · track ────────────────┐
-//! y  34 │ cartridge's own draw_ui (scope, envelopes …)        │
-//! y 224 ├ footer: 4 × 120 px, encoders 5–8 ───────────────────┤
+//! y   0 ┌ ● instrument name                    page dots ───┐
+//! y  32 │ cartridge's animated drawing (draw_ui)            │
+//! y 224 ├ four dials in the colours of encoders 5–8 ────────┤
 //! ```
 
+mod anim;
 mod left;
 mod right;
 mod theme;
 
-pub use left::{draw_left, left_footer};
+pub use anim::{animate, Anim};
+pub use left::{comp_glyph, draw_left, left_footer};
 pub use right::draw_right;
 pub use theme::*;
 
@@ -37,9 +38,9 @@ pub enum Mode {
 impl Mode {
     pub const fn label(self) -> &'static str {
         match self {
-            Mode::Step => "STEP",
-            Mode::Brain => "BRAIN",
-            Mode::Punch => "PUNCH FX",
+            Mode::Step => "step",
+            Mode::Brain => "brain",
+            Mode::Punch => "punch",
         }
     }
 }
@@ -64,6 +65,8 @@ pub struct UiState {
     /// Activity LED per track: frames left lit.
     pub activity: [u8; 8],
     pub shift: bool,
+    /// Smoothed animation state, advanced by [`animate`].
+    pub anim: Anim,
 }
 
 /// The menu knob 4 scrolls through in the inspector.
@@ -150,15 +153,40 @@ mod tests {
     fn moving_playhead_is_a_small_update() {
         let p = project();
         let st = EngineStatus::default();
-        let ui = UiState::default();
+        st.playing.store(true, std::sync::atomic::Ordering::Relaxed);
+        let mut ui = UiState::default();
         let mut fb = FrameBuffer480x272::new();
         let mut dirty = DirtyTracker::new();
+        animate(&mut ui, &p, &st);
         draw_left(&mut fb, &ui, &p, &st);
         dirty.diff(&fb);
         st.playhead[0].store(1, std::sync::atomic::Ordering::Relaxed);
         st.playhead[1].store(1, std::sync::atomic::Ordering::Relaxed);
+        animate(&mut ui, &p, &st);
         draw_left(&mut fb, &ui, &p, &st);
         let px = dirty.diff(&fb).pixel_count();
         assert!(px > 0 && px < Rect::FULL.area() / 4, "{px}");
+    }
+
+    #[test]
+    fn every_theme_draws_both_screens() {
+        let p = project();
+        let st = EngineStatus::default();
+        let c: SharedCartridge = Arc::new(Mutex::new(
+            Box::new(op3_cartridges::KickSyn::new()) as Box<dyn InstrumentCartridge>
+        ));
+        let mut fb = FrameBuffer480x272::new();
+        for id in op3_gfx::ThemeId::ALL {
+            op3_gfx::set_theme(id);
+            let mut ui = UiState::default();
+            ui.knob_touch[5] = true;
+            for _ in 0..10 {
+                animate(&mut ui, &p, &st);
+            }
+            draw_left(&mut fb, &ui, &p, &st);
+            draw_right(&mut fb, &ui, Some(&c), &[0.5; 8]);
+            assert!(fb.pixels().iter().filter(|&&px| px != 0).count() > 2000);
+        }
+        op3_gfx::set_theme(op3_gfx::ThemeId::Op1);
     }
 }

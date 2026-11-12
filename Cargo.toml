@@ -27,6 +27,7 @@ op3-hw = { path = "crates/op3-hw" }
 op3-ui = { path = "crates/op3-ui" }
 embedded-graphics = "0.8"
 rtrb = "0.3"
+fontdue = "0.9"
 anyhow = "1"
 
 [profile.release]

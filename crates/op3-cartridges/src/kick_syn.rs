@@ -12,7 +12,6 @@ use op3_cartridge::{
     choice_index, state, FrameBuffer480x272, InstrumentCartridge, InstrumentInfo, NoteEvent,
     NoteKind, ParamDescriptor, ParamUnit, Rgb565, SAMPLE_RATE,
 };
-use op3_gfx::{text, Align, FontSize};
 
 const PARAMS: [ParamDescriptor; 4] = [
     ParamDescriptor::new(
@@ -188,53 +187,67 @@ impl InstrumentCartridge for KickSyn {
         self.amp = 0.0;
     }
 
-    fn draw_ui(&self, frame: &mut FrameBuffer480x272, accent_color: Rgb565) {
-        let y = ui::AREA_Y;
-        // Left: amplitude (white) and pitch (accent) envelopes.
-        let decay = self.val(1);
-        let pdecay = self.val(5);
-        let punch = self.values[2];
-        text(
+    /// A drum head seen from above (DESIGN.md: drawings, not text). Tune sets
+    /// its size, decay the arc around it, punch the pitch rings that ripple
+    /// out on a hit, drive the spikes on the shell. Colours: encoders 5–8.
+    fn draw_ui(&self, frame: &mut FrameBuffer480x272, _accent_color: Rgb565) {
+        use op3_gfx::{knob, paint::*, theme};
+        use std::f32::consts::{FRAC_PI_2, TAU};
+        let t = theme();
+        let (cx, cy) = (240.0, 124.0);
+        let r = 34.0 + self.values[0] * 40.0;
+        let hit = self.amp.clamp(0.0, 1.0);
+        let lvl = (ui::scope_rms(&self.scope) * 3.0).min(1.0);
+        let orbit = ui::clock() * 1.2;
+        // shell
+        ring(frame, cx, cy, r + 14.0, 6.0, t.faint);
+        // membrane, wobbling with drive and level
+        let lobes = 3.0 + (self.values[3] * 8.0).round();
+        let pts: Vec<(f32, f32)> = (0..96)
+            .map(|i| {
+                let a = i as f32 / 96.0 * TAU;
+                let rr = r * (1.0 + lvl * 0.06 * (a * lobes + orbit * 6.0).sin());
+                (cx + a.cos() * rr, cy + a.sin() * rr)
+            })
+            .collect();
+        path(frame, &pts, 2.0, true, t.fg);
+        // punch (encoder 7): pitch rings rippling out on each hit
+        for i in 0..3 {
+            let k = ((1.0 - hit) + i as f32 / 3.0) % 1.0;
+            let a = ((1.0 - k) * hit * self.values[2] * 1.4).min(1.0);
+            if a > 0.02 {
+                ring(frame, cx, cy, r * k, 2.0, Rgb565::BLACK.lerp(knob(6), a));
+            }
+        }
+        // beater (encoder 5: tune)
+        fill_circle(frame, cx, cy, 6.0 + hit * 10.0, knob(4));
+        // decay (encoder 6): arc around the shell
+        let span = TAU * self.values[1] * (0.6 + 0.4 * hit);
+        arc(
             frame,
-            "ENV",
-            16,
-            y + 4,
-            FontSize::Small,
-            Rgb565::WHITE.scale(0.6),
-            Align::Left,
+            cx,
+            cy,
+            r + 24.0,
+            3.0,
+            -FRAC_PI_2,
+            -FRAC_PI_2 + span.max(0.05),
+            knob(5),
         );
-        let w = 200;
-        ui::draw_curve(
-            frame,
-            |u| (-u * 2000.0 / decay * 6.9).exp(),
-            16,
-            y + 20,
-            w,
-            150,
-            2,
-            Rgb565::WHITE,
-        );
-        ui::draw_curve(
-            frame,
-            |u| punch * (-u * 2000.0 / pdecay * 6.9).exp(),
-            16,
-            y + 20,
-            w,
-            150,
-            1,
-            accent_color,
-        );
-        // Right: live scope.
-        text(
-            frame,
-            "OUT",
-            248,
-            y + 4,
-            FontSize::Small,
-            Rgb565::WHITE.scale(0.6),
-            Align::Left,
-        );
-        ui::draw_scope(frame, &self.scope, 248, y + 20, 216, 150, accent_color);
+        // drive (encoder 8): spikes
+        let n = (self.values[3] * 16.0).round() as i32;
+        for i in 0..n {
+            let a = i as f32 / n as f32 * TAU + orbit * 0.2;
+            let (r0, r1) = (r + 30.0, r + 36.0 + lvl * 8.0);
+            line_aa(
+                frame,
+                cx + a.cos() * r0,
+                cy + a.sin() * r0,
+                cx + a.cos() * r1,
+                cy + a.sin() * r1,
+                2.0,
+                knob(7),
+            );
+        }
     }
 
     fn save_state(&self) -> Vec<u8> {

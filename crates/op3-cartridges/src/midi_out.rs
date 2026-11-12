@@ -5,12 +5,10 @@
 //! position and pushed into a lock-free queue; the host's MIDI thread drains
 //! it and writes to the port (see `op3::midi`).
 
-use crate::ui;
 use op3_cartridge::{
     choice_index, state, FrameBuffer480x272, InstrumentCartridge, InstrumentInfo, NoteEvent,
     NoteKind, ParamDescriptor, ParamUnit, Rgb565,
 };
-use op3_gfx::{text, Align, FontSize};
 use std::sync::Mutex;
 
 /// A short MIDI message with its timing.
@@ -180,70 +178,64 @@ impl InstrumentCartridge for MidiOutBridge {
         self.release_all(0);
     }
 
+    /// The DIN socket, its channel in the middle (encoder 5), and the last
+    /// notes leaving along the cable.
     fn draw_ui(&self, frame: &mut FrameBuffer480x272, accent_color: Rgb565) {
-        let y = ui::AREA_Y;
-        let dim = Rgb565::WHITE.scale(0.6);
-        text(
-            frame,
-            "DIN OUT",
-            16,
-            y + 4,
-            FontSize::Small,
-            dim,
-            Align::Left,
-        );
-        text(
-            frame,
-            CHANNELS[self.channel() as usize],
-            16,
-            y + 24,
-            FontSize::Large,
-            accent_color,
-            Align::Left,
-        );
-        text(
-            frame,
-            &format!("SENT {}", self.sent),
-            16,
-            y + 60,
-            FontSize::Small,
-            Rgb565::WHITE,
-            Align::Left,
-        );
-        if self.dropped > 0 {
-            text(
+        use op3_gfx::{knob, paint::*, text_v, theme, Align, FontSize, VAlign};
+        use std::f32::consts::PI;
+        let t = theme();
+        let (cx, cy, r) = (150.0, 124.0, 56.0);
+        ring(frame, cx, cy, r, 2.0, t.fg);
+        // key notch
+        fill_round_rect(frame, cx - 8.0, cy + r - 10.0, 16.0, 12.0, 1.0, t.bg);
+        stroke_round_rect(frame, cx - 8.0, cy + r - 12.0, 16.0, 12.0, 1.0, 2.0, t.fg);
+        for i in 0..5 {
+            let a = PI + i as f32 / 4.0 * PI;
+            let c = if i == 2 { knob(4) } else { t.faint };
+            fill_circle(
                 frame,
-                &format!("DROPPED {}", self.dropped),
-                16,
-                y + 74,
-                FontSize::Small,
-                Rgb565::from_hex(0xff3030),
-                Align::Left,
+                cx + a.cos() * 32.0,
+                cy + a.sin() * 32.0 * 0.9,
+                6.0,
+                c,
             );
         }
-        // Recent notes as a little piano-roll strip.
-        text(
+        let ch = self.channel() + 1;
+        text_v(
             frame,
-            "RECENT",
-            248,
-            y + 4,
-            FontSize::Small,
-            dim,
-            Align::Left,
+            &ch.to_string(),
+            cx as i32,
+            cy as i32 + 8,
+            FontSize::Big,
+            knob(4),
+            Align::Center,
+            VAlign::Middle,
         );
-        op3_gfx::rect_outline(frame, 248, y + 20, 216, 160, 1, Rgb565::WHITE.scale(0.25));
-        for (i, &n) in self.recent[..self.recent_len].iter().enumerate() {
-            let x = 256 + i as i32 * 26;
-            let h = (n as i32 * 150) / 127;
-            frame.fill_rect(x, y + 176 - h, 18, 2, accent_color);
-            text(
+        // cable
+        line_aa(frame, cx + r, cy, 460.0, cy, 6.0, t.faint);
+        let notes = &self.recent[..self.recent_len];
+        for (i, &n) in notes.iter().enumerate() {
+            let k = (notes.len() - 1 - i) as f32 / RECENT as f32;
+            let x = cx + r + 20.0 + (1.0 - k) * 230.0;
+            let y = cy - (n as f32 - 60.0) * 1.4;
+            fill_circle(
                 frame,
-                note_name(n),
-                x + 9,
-                y + 182 - h - 14,
+                x,
+                y.clamp(40.0, 210.0),
+                5.0 - k * 3.0,
+                accent_color.scale(1.0 - k * 0.8),
+            );
+        }
+        if self.dropped > 0 {
+            text_v(
+                frame,
+                &format!("{} lost", self.dropped),
+                450,
+                200,
                 FontSize::Small,
-                Rgb565::WHITE,
-                Align::Center,
+                t.rec,
+                Align::Right,
+                VAlign::Middle,
             );
         }
     }
@@ -254,12 +246,6 @@ impl InstrumentCartridge for MidiOutBridge {
     fn load_state(&mut self, data: &[u8]) {
         state::decode_f32s(STATE_VERSION, data, &mut self.values);
     }
-}
-
-fn note_name(n: u8) -> &'static str {
-    [
-        "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B",
-    ][(n % 12) as usize]
 }
 
 #[cfg(test)]

@@ -8,7 +8,36 @@ use crate::dsp::Scope;
 use op3_gfx::{line, polyline, rect_outline, FrameBuffer480x272, Rgb565};
 
 pub const AREA_Y: i32 = 34;
-pub const AREA_H: i32 = 188;
+pub const AREA_H: i32 = 184;
+
+/// Seconds since the first frame: the clock for idle animation.
+pub fn clock() -> f32 {
+    use std::sync::OnceLock;
+    use std::time::Instant;
+    static START: OnceLock<Instant> = OnceLock::new();
+    START.get_or_init(Instant::now).elapsed().as_secs_f32()
+}
+
+/// RMS of the scope buffer, 0..~1.
+pub fn scope_rms(scope: &Scope) -> f32 {
+    let (mut s, mut n) = (0.0, 0);
+    for x in scope.samples() {
+        s += x * x;
+        n += 1;
+    }
+    if n == 0 {
+        0.0
+    } else {
+        (s / n as f32).sqrt()
+    }
+}
+
+/// Index of the first rising zero crossing, so waveforms stand still.
+pub fn trigger_index(samples: &[f32]) -> usize {
+    (1..samples.len() / 2)
+        .find(|&i| samples[i - 1] <= 0.0 && samples[i] > 0.0)
+        .unwrap_or(0)
+}
 
 /// Oscilloscope in the given box.
 pub fn draw_scope(

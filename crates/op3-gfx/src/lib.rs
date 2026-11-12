@@ -14,12 +14,16 @@
 mod color;
 mod dirty;
 mod draw;
+mod font;
 mod framebuffer;
+pub mod paint;
+pub mod theme;
 
 pub use color::Rgb565;
 pub use dirty::{DirtyTracker, DirtyUpdate};
 pub use draw::*;
 pub use framebuffer::{FrameBuffer480x272, Rect, HEIGHT, WIDTH};
+pub use theme::{knob, set_theme, theme, theme_id, Theme, ThemeId};
 
 /// Re-export so cartridges can draw without adding their own dependency.
 pub use embedded_graphics as eg;

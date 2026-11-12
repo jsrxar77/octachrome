@@ -47,6 +47,7 @@ impl<S: ControlSurface> App<S> {
         }
         self.ctl.tick(&self.handle, now_ms);
 
+        op3_ui::animate(&mut self.ctl.ui, &self.handle.project, &self.handle.status);
         op3_ui::draw_left(
             &mut self.screens[0],
             &self.ctl.ui,

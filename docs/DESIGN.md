@@ -84,7 +84,21 @@ Las pantallas son de 480×272 reales, así que la letra tiene que leerse a 11–
 
 **FlipMono no se usa:** el archivo `FlipMono.ttf` de Flip Tracker+ es SF Mono de Apple, cuya licencia solo permite usarla en equipos Apple. No se puede distribuir en una Raspberry Pi.
 
-En Rust, Jost (300 y 400) se incrusta con `include_bytes!` y se rasteriza con `fontdue` (MIT/Apache) a un atlas con alfa que se mezcla sobre el framebuffer RGB565, en lugar de las fuentes mono de `embedded-graphics`.
+En Rust, Jost (300 y 400, `assets/fonts/`) se incrusta con `include_bytes!` y se rasteriza con `fontdue` (MIT/Apache); cada glifo se guarda en caché y se mezcla con alfa sobre el framebuffer RGB565 (`crates/op3-gfx/src/font.rs`).
+
+## 3b. Dónde vive cada cosa en el código
+
+| Qué | Archivo |
+| :-- | :-- |
+| Temas y colores de encoder | `crates/op3-gfx/src/theme.rs` (`theme()`, `knob(i)`) |
+| Letra y escala tipográfica | `crates/op3-gfx/src/font.rs` |
+| Líneas, arcos, círculos y cajas con antialiasing | `crates/op3-gfx/src/paint.rs` |
+| Pie de diales y overlay de toque | `crates/op3-ui/src/theme.rs` |
+| Pantalla izquierda | `crates/op3-ui/src/left.rs` |
+| Pantalla derecha (marco) | `crates/op3-ui/src/right.rs` |
+| Dibujo de cada instrumento | `draw_ui` de cada cartridge en `crates/op3-cartridges/src/` |
+
+El tema se elige con `op3 run -t op-1|op-1-field|op-xy` o `OP3_THEME`.
 
 ## 4. Estructura de pantalla
 

@@ -1,11 +1,17 @@
-use op3_gfx::Rgb565;
+//! Screen furniture shared by both screens: track colours, the four-dial
+//! footer and the cap-touch overlay (DESIGN.md §4–§5). Colours come from the
+//! active [`op3_gfx::Theme`]; knob `i` always draws in `knob(i)`.
 
-pub const BG: Rgb565 = Rgb565::BLACK;
-pub const FG: Rgb565 = Rgb565::WHITE;
-pub const DIM: Rgb565 = Rgb565::from_hex(0x6a6a6a);
-pub const FAINT: Rgb565 = Rgb565::from_hex(0x262626);
+use crate::Anim;
+use op3_gfx::{
+    knob,
+    paint::{arc, fill_circle, ring, DIAL_A0, DIAL_A1},
+    text, text_v, theme, Align, FontSize, FrameBuffer480x272, Rgb565, VAlign,
+};
+use op3_seq::StepComponent;
 
-/// Accent per group A–H (matched to the pad palette in the app).
+/// Accent per group A–H (matched to the pad LED palette in the app). Used
+/// only to identify the track: dots, rings, pad fills (DESIGN.md rule 10).
 pub const TRACK_COLORS: [Rgb565; 8] = [
     Rgb565::from_hex(0xff3b30), // A red
     Rgb565::from_hex(0xff9500), // B orange
@@ -21,66 +27,158 @@ pub const TRACK_NAMES: [&str; 8] = ["A", "B", "C", "D", "E", "F", "G", "H"];
 
 pub const FOOTER_Y: i32 = 224;
 pub const FOOTER_COL: i32 = 120;
+/// Drawing area between the top bar and the footer.
+pub const AREA_Y: i32 = 32;
+pub const AREA_H: i32 = 186;
 
+/// A small picture that replaces the dial for some parameters.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum FooterGlyph {
+    /// Track length as dots on a ring.
+    Length(u8),
+    /// A step component.
+    Component(StepComponent),
+}
+
+#[derive(Clone, Debug, PartialEq)]
 pub struct FooterCell {
     pub label: String,
     pub value: String,
-    /// 0..=1 bar, or None for no bar.
+    /// 0..=1 dial position, or None for no dial.
     pub bar: Option<f32>,
+    pub glyph: Option<FooterGlyph>,
 }
 
 impl FooterCell {
     pub fn new(label: impl Into<String>, value: impl Into<String>, bar: Option<f32>) -> Self {
         Self {
-            label: label.into(),
+            label: label.into().to_lowercase(),
             value: value.into(),
             bar,
+            glyph: None,
         }
+    }
+    pub fn with_glyph(mut self, g: FooterGlyph) -> Self {
+        self.glyph = Some(g);
+        self
     }
     pub fn empty() -> Self {
         Self::new("", "", None)
     }
 }
 
-/// Draw the four 120 px footer columns. `touched[i]` inverts the label, the
-/// visual response to cap-touch on that encoder.
-pub fn draw_footer(
-    fb: &mut op3_gfx::FrameBuffer480x272,
-    cells: &[FooterCell; 4],
-    touched: &[bool],
-    accent: Rgb565,
-) {
-    use op3_gfx::{text, value_bar, Align, FontSize};
-    fb.fill_rect(0, FOOTER_Y - 2, 480, 1, FAINT);
+/// 270° dial in the encoder's colour.
+pub fn dial(fb: &mut FrameBuffer480x272, cx: f32, cy: f32, r: f32, v: f32, c: Rgb565) {
+    let t = theme();
+    arc(fb, cx, cy, r, 3.0, DIAL_A0, DIAL_A1, t.faint);
+    let a = DIAL_A0 + (DIAL_A1 - DIAL_A0) * v.clamp(0.0, 1.0);
+    if a > DIAL_A0 + 0.01 {
+        arc(fb, cx, cy, r, 3.0, DIAL_A0, a, c);
+    }
+    fill_circle(fb, cx + a.cos() * r, cy + a.sin() * r, 3.0, c);
+}
+
+/// Draw the four footer columns for encoders `base + 0..4`.
+pub fn draw_footer(fb: &mut FrameBuffer480x272, cells: &[FooterCell; 4], base: usize) {
+    let t = theme();
     for (i, c) in cells.iter().enumerate() {
-        let x = i as i32 * FOOTER_COL;
-        let t = touched.get(i).copied().unwrap_or(false);
-        if t {
-            fb.fill_rect(x + 2, FOOTER_Y, FOOTER_COL - 4, 12, accent);
+        if c.label.is_empty() && c.value.is_empty() {
+            continue;
         }
-        text(
-            fb,
-            &c.label,
-            x + FOOTER_COL / 2,
-            FOOTER_Y + 1,
-            FontSize::Small,
-            if t { BG } else { DIM },
-            Align::Center,
-        );
+        let x = i as i32 * FOOTER_COL;
+        let col = knob(base + i);
+        let (cx, cy) = (x as f32 + 26.0, 247.0);
+        match c.glyph {
+            Some(FooterGlyph::Length(len)) => {
+                ring(fb, cx, cy, 13.0, 1.0, t.faint);
+                for s in 0..len {
+                    let a = -std::f32::consts::FRAC_PI_2
+                        + s as f32 / len as f32 * std::f32::consts::TAU;
+                    fill_circle(fb, cx + a.cos() * 13.0, cy + a.sin() * 13.0, 2.0, col);
+                }
+            }
+            Some(FooterGlyph::Component(comp)) if comp != StepComponent::None => {
+                crate::left::comp_glyph(fb, comp, cx - 17.0, cy - 11.0, col)
+            }
+            _ => {
+                if let Some(v) = c.bar {
+                    dial(fb, cx, cy, 14.0, v, col)
+                }
+            }
+        }
         text(
             fb,
             &c.value,
-            x + FOOTER_COL / 2,
-            FOOTER_Y + 14,
+            x + 48,
+            233,
             FontSize::Medium,
-            FG,
-            Align::Center,
+            t.fg,
+            Align::Left,
         );
-        if let Some(v) = c.bar {
-            value_bar(fb, x + 10, FOOTER_Y + 34, FOOTER_COL - 20, 8, v, accent);
+        text(
+            fb,
+            &c.label,
+            x + 48,
+            253,
+            FontSize::Small,
+            col.scale(0.85),
+            Align::Left,
+        );
+    }
+}
+
+/// "What am I touching": fades in while an encoder of this screen is touched.
+pub fn touch_overlay(
+    fb: &mut FrameBuffer480x272,
+    cells: &[FooterCell; 4],
+    base: usize,
+    anim: &Anim,
+) {
+    let (mut best, mut v) = (None, 0.05);
+    for i in 0..4 {
+        if anim.touch[base + i] > v {
+            v = anim.touch[base + i];
+            best = Some(i);
         }
-        if i > 0 {
-            fb.fill_rect(x, FOOTER_Y + 2, 1, 44, FAINT);
+    }
+    let Some(i) = best else { return };
+    let c = &cells[i];
+    if c.label.is_empty() {
+        return;
+    }
+    let t = theme();
+    let col = knob(base + i);
+    // darken the drawing area
+    let k = 1.0 - 0.88 * v;
+    for y in AREA_Y..AREA_Y + AREA_H {
+        for x in 0..480 {
+            let p = fb.get(x as usize, y as usize);
+            fb.put(x, y, p.scale(k));
         }
+    }
+    let fade = |c: Rgb565| Rgb565::BLACK.lerp(c, v);
+    text_v(
+        fb,
+        &c.label,
+        240,
+        64,
+        FontSize::Large,
+        fade(col),
+        Align::Center,
+        VAlign::Middle,
+    );
+    text_v(
+        fb,
+        &c.value,
+        240,
+        128,
+        FontSize::Huge,
+        fade(t.fg),
+        Align::Center,
+        VAlign::Middle,
+    );
+    if let Some(b) = c.bar {
+        fb.fill_rect(120, 182, 240, 3, fade(t.faint));
+        fb.fill_rect(120, 182, (240.0 * b.clamp(0.0, 1.0)) as i32, 3, fade(col));
     }
 }

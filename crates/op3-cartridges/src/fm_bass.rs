@@ -13,7 +13,6 @@ use op3_cartridge::{
     choice_index, state, FrameBuffer480x272, InstrumentCartridge, InstrumentInfo, NoteEvent,
     NoteKind, ParamDescriptor, ParamUnit, Rgb565, SAMPLE_RATE,
 };
-use op3_gfx::{text, Align, FontSize};
 
 const RATIOS: [f32; 5] = [0.5, 1.0, 2.0, 3.0, 4.0];
 const PARAMS: [ParamDescriptor; 4] = [
@@ -212,53 +211,55 @@ impl InstrumentCartridge for FmBass {
         self.env.kill();
     }
 
-    fn draw_ui(&self, frame: &mut FrameBuffer480x272, accent_color: Rgb565) {
-        let y = ui::AREA_Y;
-        let dim = Rgb565::WHITE.scale(0.6);
-        // Topology: MOD -> CAR -> OUT, with the ratio on the modulator.
-        text(frame, "ALGO", 16, y + 4, FontSize::Small, dim, Align::Left);
-        let ratio = PARAMS[0].format(self.values[0]);
-        op3_gfx::rect_outline(frame, 16, y + 22, 64, 30, 2, accent_color);
-        text(
-            frame,
-            &format!("x{ratio}"),
-            48,
-            y + 30,
-            FontSize::Small,
-            Rgb565::WHITE,
-            Align::Center,
-        );
-        op3_gfx::line(frame, 80, y + 37, 104, y + 37, 1, Rgb565::WHITE);
-        op3_gfx::rect_outline(frame, 104, y + 22, 64, 30, 2, Rgb565::WHITE);
-        text(
-            frame,
-            "CAR",
-            136,
-            y + 30,
-            FontSize::Small,
-            Rgb565::WHITE,
-            Align::Center,
-        );
-        op3_gfx::line(frame, 168, y + 37, 200, y + 37, 1, Rgb565::WHITE);
-        // index amount as a bar between them
-        op3_gfx::value_bar(frame, 16, y + 58, 152, 10, self.values[1], accent_color);
-        // ADSR
-        text(frame, "ENV", 16, y + 80, FontSize::Small, dim, Align::Left);
-        ui::draw_adsr(
-            frame,
-            2.0,
-            self.val(2),
-            self.values[6],
-            self.val(3),
-            16,
-            y + 94,
-            200,
-            90,
-            accent_color,
-        );
-        // Scope
-        text(frame, "OUT", 248, y + 4, FontSize::Small, dim, Align::Left);
-        ui::draw_scope(frame, &self.scope, 248, y + 20, 216, 164, accent_color);
+    /// A carrier planet with a modulator moon. Ratio (encoder 5) sets how
+    /// fast the moon orbits, index (6) how close and how big; the output
+    /// waveform wraps the planet in polar form. On the right, the envelope
+    /// as a mountain: decay (7) and release (8).
+    fn draw_ui(&self, frame: &mut FrameBuffer480x272, _accent_color: Rgb565) {
+        use op3_gfx::{knob, paint::*, theme};
+        use std::f32::consts::{FRAC_PI_2, TAU};
+        let t = theme();
+        let (cx, cy) = (200.0, 124.0);
+        let ratio = RATIOS[choice_index(self.values[0], RATIOS.len())];
+        let idx = self.values[1];
+        let samples: Vec<f32> = self.scope.samples().collect();
+        let st = ui::trigger_index(&samples);
+        // polar waveform (encoder 6 colour: the index shapes it)
+        let n = 180;
+        let pts: Vec<(f32, f32)> = (0..n)
+            .map(|i| {
+                let s = samples.get(st + i).copied().unwrap_or(0.0);
+                let s = (s * 2.2).clamp(-1.0, 1.0);
+                let a = -FRAC_PI_2 + i as f32 / n as f32 * TAU;
+                let r = 44.0 + s * 26.0;
+                (cx + a.cos() * r, cy + a.sin() * r)
+            })
+            .collect();
+        path(frame, &pts, 1.5, true, knob(5));
+        // carrier
+        fill_circle(frame, cx, cy, 20.0 + self.env.level() * 4.0, t.fg);
+        // modulator orbit
+        let or = 92.0 - idx * 22.0;
+        let a = ui::clock() * 1.2 * ratio;
+        ring(frame, cx, cy, or, 1.0, t.faint);
+        let (mx, my) = (cx + a.cos() * or, cy + a.sin() * or);
+        line_aa(frame, cx, cy, mx, my, 1.0, knob(4).scale(0.4));
+        fill_circle(frame, mx, my, 5.0 + idx * 9.0, knob(4));
+        // envelope mountain
+        let (ex, ey) = (330.0, 168.0);
+        let d = 18.0 + self.values[2] * 50.0;
+        let r = 10.0 + self.values[3] * 60.0;
+        let sus = self.values[6];
+        let pts = [
+            (ex, ey),
+            (ex + 6.0, ey - 70.0),
+            (ex + 6.0 + d, ey - 70.0 * sus),
+            (ex + 30.0 + d, ey - 70.0 * sus),
+            (ex + 30.0 + d + r, ey),
+        ];
+        path(frame, &pts, 2.0, false, t.fg);
+        fill_circle(frame, ex + 6.0 + d, ey - 70.0 * sus, 4.0, knob(6));
+        fill_circle(frame, ex + 30.0 + d + r, ey, 4.0, knob(7));
     }
 
     fn save_state(&self) -> Vec<u8> {

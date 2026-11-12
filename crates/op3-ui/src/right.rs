@@ -1,100 +1,81 @@
-use crate::{draw_footer, theme::*, FooterCell, UiState};
-use op3_engine::SharedCartridge;
-use op3_gfx::{text, Align, FontSize, FrameBuffer480x272};
+//! Right screen: the instrument of the selected track. Encoders 5–8.
+//!
+//! The host draws the top bar, the calibration crosshairs and the footer;
+//! the cartridge draws its own animated picture in between with `draw_ui`,
+//! using `op3_gfx::knob(4..8)` for what encoders 5–8 move.
 
-/// Right screen: header, the cartridge's own UI, and its 4 knobs.
-///
-/// `params` is the host's view of the slot's 8 normalised values (main page
-/// then secondary). If the cartridge is busy on the audio thread the frame
-/// keeps its previous instrument area rather than waiting.
+use crate::{draw_footer, theme::*, touch_overlay, FooterCell, UiState};
+use op3_engine::SharedCartridge;
+use op3_gfx::{
+    paint::{crosshairs, fill_circle, line_aa, ring},
+    text_v, theme, Align, FontSize, FrameBuffer480x272, VAlign,
+};
+
 pub fn draw_right(
     fb: &mut FrameBuffer480x272,
     ui: &UiState,
     cartridge: Option<&SharedCartridge>,
     params: &[f32; 8],
 ) {
+    let t = theme();
     let accent = TRACK_COLORS[ui.track];
     let Some(c) = cartridge else {
-        fb.clear(BG);
-        text(
+        fb.clear(t.bg);
+        fill_circle(fb, 16.0, 15.0, 6.0, accent);
+        text_v(
             fb,
-            TRACK_NAMES[ui.track],
-            12,
-            6,
+            "empty",
+            30,
+            15,
             FontSize::Large,
-            accent,
+            t.dim,
             Align::Left,
+            VAlign::Middle,
         );
-        text(
-            fb,
-            "EMPTY SLOT",
-            240,
-            120,
-            FontSize::Large,
-            DIM,
-            Align::Center,
-        );
+        ring(fb, 240.0, 126.0, 50.0, 2.0, t.faint);
+        line_aa(fb, 205.0, 161.0, 275.0, 91.0, 2.0, t.faint);
         return;
     };
+    // If the audio thread holds the cartridge, keep the previous frame.
     let Ok(c) = c.try_lock() else { return };
-    fb.clear(BG);
-    let info = c.info();
-    text(
+    fb.clear(t.bg);
+    fill_circle(fb, 16.0, 15.0, 6.0, accent);
+    text_v(
         fb,
-        TRACK_NAMES[ui.track],
-        12,
-        6,
+        &c.info().name.to_lowercase(),
+        30,
+        15,
         FontSize::Large,
-        accent,
+        t.fg,
         Align::Left,
+        VAlign::Middle,
     );
-    text(
-        fb,
-        &info.name.to_uppercase(),
-        36,
-        6,
-        FontSize::Large,
-        FG,
-        Align::Left,
-    );
-    text(
-        fb,
-        &info.category.to_uppercase(),
-        472,
-        10,
-        FontSize::Small,
-        DIM,
-        Align::Right,
-    );
-    let page_count = if c.secondary_parameters().is_some() {
+    let pages = if c.secondary_parameters().is_some() {
         2
     } else {
         1
     };
-    if page_count > 1 {
-        text(
-            fb,
-            &format!("PG {}/{}", ui.right_page + 1, page_count),
-            400,
-            10,
-            FontSize::Small,
-            DIM,
-            Align::Right,
-        );
+    if pages > 1 {
+        for i in 0..pages {
+            let col = if i == ui.right_page { t.fg } else { t.faint };
+            fill_circle(fb, 456.0 + i as f32 * 12.0, 15.0, 3.0, col);
+        }
     }
-    fb.fill_rect(0, 30, 480, 1, FAINT);
 
     c.draw_ui(fb, accent);
+
+    // Keep the cartridge inside its area.
+    fb.fill_rect(0, AREA_Y + AREA_H, 480, 272 - (AREA_Y + AREA_H), t.bg);
+    crosshairs(fb, 14, 34, 452, 184, t.dim);
 
     let (descs, base) = match (ui.right_page, c.secondary_parameters()) {
         (1, Some(s)) => (s, 4),
         _ => (c.parameters(), 0),
     };
-    // Clear the footer band in case draw_ui spilled into it.
-    fb.fill_rect(0, FOOTER_Y - 2, 480, 50, BG);
     let cells: [FooterCell; 4] = std::array::from_fn(|i| {
         let v = c.parameter_value(base + i).unwrap_or(params[base + i]);
-        FooterCell::new(descs[i].name, descs[i].format(v), Some(v))
+        FooterCell::new(descs[i].name, descs[i].format(v).to_lowercase(), Some(v))
     });
-    draw_footer(fb, &cells, &ui.knob_touch[4..], accent);
+    draw_footer(fb, &cells, 4);
+    touch_overlay(fb, &cells, 4, &ui.anim);
 }

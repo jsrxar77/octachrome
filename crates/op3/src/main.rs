@@ -29,6 +29,17 @@ fn main() -> Result<()> {
             .cloned()
     };
     let seconds: Option<f32> = opt("-s", "--seconds").and_then(|s| s.parse().ok());
+    // Screen theme (docs/DESIGN.md §2): op-1 (default), op-1-field, op-xy.
+    let theme = opt("-t", "--theme").or_else(|| std::env::var("OP3_THEME").ok());
+    if let Some(name) = theme {
+        let id = match name.as_str() {
+            "op-1" | "op1" => op3_gfx::ThemeId::Op1,
+            "op-1-field" | "field" => op3_gfx::ThemeId::Op1Field,
+            "op-xy" | "opxy" => op3_gfx::ThemeId::OpXy,
+            other => anyhow::bail!("unknown theme {other:?} (op-1, op-1-field, op-xy)"),
+        };
+        op3_gfx::set_theme(id);
+    }
     match cmd {
         "run" => run(),
         "sim" => sim(
@@ -37,7 +48,7 @@ fn main() -> Result<()> {
         ),
         "hw-test" => hw_test(seconds.unwrap_or(30.0)),
         "-h" | "--help" | "help" => {
-            println!("usage: op3 [run | sim [-s SECS] [-o DIR] | hw-test [-s SECS]]");
+            println!("usage: op3 [run | sim [-s SECS] [-o DIR] | hw-test [-s SECS]] [-t op-1|op-1-field|op-xy]");
             Ok(())
         }
         other => anyhow::bail!("unknown command {other:?} (try --help)"),
