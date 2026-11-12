@@ -1,22 +1,24 @@
-//! The first three native cartridges. Each one depends only on the
+//! The native cartridges. Each one depends only on the
 //! `op3-cartridge` contract — none of them know the sequencer or the MK3
 //! exist.
 
 pub mod dsp;
 pub mod fm_bass;
 pub mod kick_syn;
+pub mod macro_osc;
 pub mod midi_out;
 pub mod ui;
 
 pub use fm_bass::FmBass;
 pub use kick_syn::KickSyn;
+pub use macro_osc::MacroOsc;
 pub use midi_out::{MidiMessage, MidiOutBridge};
 
 use op3_cartridge::InstrumentCartridge;
 
 /// Every built-in cartridge, by name, for the slot browser.
 pub fn builtin_names() -> &'static [&'static str] {
-    &["KickSyn", "FmBass"]
+    &["KickSyn", "FmBass", "macro"]
 }
 
 /// Construct a built-in audio cartridge by name. (MidiOutBridge is created
@@ -25,6 +27,7 @@ pub fn create(name: &str) -> Option<Box<dyn InstrumentCartridge>> {
     match name {
         "KickSyn" => Some(Box::new(KickSyn::new())),
         "FmBass" => Some(Box::new(FmBass::new())),
+        "macro" => Some(Box::new(MacroOsc::new())),
         _ => None,
     }
 }

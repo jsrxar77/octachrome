@@ -1,6 +1,7 @@
 [workspace]
 resolver = "2"
 members = [
+    "crates/op3-plaits",
     "crates/op3-gfx",
     "crates/op3-cartridge",
     "crates/op3-seq",
@@ -25,6 +26,7 @@ op3-engine = { path = "crates/op3-engine" }
 op3-cartridges = { path = "crates/op3-cartridges" }
 op3-hw = { path = "crates/op3-hw" }
 op3-ui = { path = "crates/op3-ui" }
+op3-plaits = { path = "crates/op3-plaits" }
 embedded-graphics = "0.8"
 rtrb = "0.3"
 fontdue = "0.9"

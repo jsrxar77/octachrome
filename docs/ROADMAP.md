@@ -5,7 +5,7 @@ Sale del [mapa de botones](BOTONES.md) y de [INSTRUMENTOS.md](INSTRUMENTOS.md): 
 ## Hecho
 
 - Motor, secuenciador con polimetría, Step Components, Brain y Punch-in FX.
-- Cartridges KickSyn, FmBass y MidiOutBridge.
+- Cartridges KickSyn, FmBass, MidiOutBridge y **macro** (24 motores, a partir del código de Plaits, MIT).
 - Driver MK3 (pads, perillas, botones, LEDs, pantallas), Pi 5 y systemd. **Falta probarlo en una MK3 real.**
 - Lenguaje visual: 8 colores de perilla, tres temas, Jost, dibujos por instrumento.
 - Botones: STEP, CHORDS (Brain), PERFORM (Punch-in), grupos A–H, MUTE, ERASE + pad, PLAY, STOP, RESTART, SHIFT, pantalla 5–6.
@@ -31,7 +31,6 @@ Sale del [mapa de botones](BOTONES.md) y de [INSTRUMENTOS.md](INSTRUMENTOS.md): 
 ## 4. Instrumentos (lo central)
 
 - Lista de registro de cartridges y PLUG-IN para elegir el de cada pista.
-- Instrumento **macro** a partir del código de Plaits (MIT).
 - Kit de dibujos reusables en `op3-gfx` (osciloscopio, envolvente, onda polar).
 - Cargar instrumentos como paquete aparte desde `cartridges/` (etapa 2 de [INSTRUMENTOS.md](INSTRUMENTOS.md)).
 - Más instrumentos: resonator, drums, sampler.

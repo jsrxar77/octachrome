@@ -244,6 +244,14 @@ fn sim(seconds: f32, out: PathBuf) -> Result<()> {
         }
         if at(6.0) {
             app.surface.push(ControlEvent::Strip { position: None });
+            button(&mut app, op3_hw::Button::Group(3)); // macro track
+            app.surface.push(ControlEvent::Knob {
+                index: 6,
+                delta: 60,
+            }); // brighter timbre
+        }
+        if at(6.8) {
+            shot(&app, "6-macro")?;
         }
         // ---- one frame of audio, then one UI frame -------------------------
         for _ in 0..spf / 100 {

@@ -807,6 +807,7 @@ version = "0.1.0"
 dependencies = [
  "op3-cartridge",
  "op3-gfx",
+ "op3-plaits",
  "rtrb",
 ]
 
@@ -837,6 +838,13 @@ dependencies = [
  "libc",
  "nusb",
  "op3-gfx",
+]
+
+[[package]]
+name = "op3-plaits"
+version = "0.1.0"
+dependencies = [
+ "cc",
 ]
 
 [[package]]

@@ -31,7 +31,7 @@ En tres etapas, de la más simple a la más abierta:
 
 | Etapa | Cómo | Para quién | Estado |
 | :-- | :-- | :-- | :-- |
-| **1. En el código** | Un crate de Rust que implementa `InstrumentCartridge` y se registra en una lista. Se compila con OP-3 | Nosotros y quien sepa Rust | ◐ (el contrato existe; falta la lista de registro y elegirlos con PLUG-IN) |
+| **1. En el código** | Un crate de Rust que implementa `InstrumentCartridge` y se registra en `builtin_names()` / `create()` (`crates/op3-cartridges/src/lib.rs`). Se compila con OP-3. Puede envolver código C/C++ MIT (como macro) | Nosotros y quien sepa Rust | ◐ (contrato y lista hechos; falta elegirlos con PLUG-IN) |
 | **2. Paquete aparte** | El instrumento se compila como librería (`.so` en la Pi, `.dylib` en Mac) y se copia a una carpeta `cartridges/`. OP-3 lo carga al arrancar | Cualquiera que programe, sin tocar OP-3 | ○ |
 | **3. Sin compilar** | Instrumentos descritos con un lenguaje de patches (por ejemplo Faust o un formato propio) que OP-3 convierte | Gente que diseña sonido pero no programa | ○ (a investigar) |
 
@@ -46,6 +46,7 @@ En tres etapas, de la más simple a la más abierta:
 | **KickSyn** | Kick sintético: tono, caída, golpe, saturación | Parche de tambor visto desde arriba |
 | **FmBass** | Bajo FM de dos operadores | Planeta y luna en órbita, envolvente como montaña |
 | **MidiOutBridge** | Manda la pista por el MIDI DIN de la MK3 a un sintetizador externo | Conector DIN y notas saliendo por el cable |
+| **macro** | 24 motores en uno (analógico, FM, wavetable, acordes, voz, cuerdas, percusión), a partir del código de Plaits (MIT, `crates/op3-plaits`). Sonido: `engine`, `harmonics`, `timbre`, `morph`. Forma: `decay`, `color`, `variant`, `level` | Anillo de 24 motores, onda polar que late con el nivel, y un campo timbre × morph |
 
 ### Candidatos (motores conocidos que corren en una Pi)
 
@@ -62,7 +63,7 @@ Nota legal sobre Mutable Instruments: el código de los módulos STM32 (Plaits, 
 
 ### Orden propuesto
 
-1. **macro** (a partir de Plaits): un solo instrumento que da muchos sonidos con 4 perillas (motor, armonía, timbre, morph). Es el que más rinde para empezar.
+1. ~~**macro**~~ (a partir de Plaits): hecho.
 2. **resonator** (a partir de Rings): cuerdas y campanas.
 3. **drums**: un instrumento de batería con 8 sonidos en los pads 9–16 (PAD MODE).
 4. **sampler**: grabar con SAMPLING y tocar con el teclado.

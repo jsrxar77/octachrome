@@ -2,7 +2,7 @@
 //! `op3 run` on first boot and by `op3 sim`.
 
 use op3_cartridge::InstrumentCartridge;
-use op3_cartridges::{FmBass, KickSyn, MidiMessage, MidiOutBridge};
+use op3_cartridges::{FmBass, KickSyn, MacroOsc, MidiMessage, MidiOutBridge};
 use op3_engine::{Engine, EngineHandle, SharedCartridge};
 use op3_seq::{Project, Step, StepComponent, TRACKS};
 use std::sync::{Arc, Mutex};
@@ -13,7 +13,7 @@ fn shared(c: impl InstrumentCartridge + 'static) -> Option<SharedCartridge> {
     )))
 }
 
-/// A: KickSyn, B: FmBass, C: MidiOutBridge; D–H empty.
+/// A: KickSyn, B: FmBass, C: MidiOutBridge, D: macro; E–H empty.
 pub fn slots() -> (
     [Option<SharedCartridge>; TRACKS],
     rtrb::Consumer<MidiMessage>,
@@ -23,6 +23,7 @@ pub fn slots() -> (
     s[0] = shared(KickSyn::new());
     s[1] = shared(FmBass::new());
     s[2] = shared(bridge);
+    s[3] = shared(MacroOsc::new());
     (s, midi_rx)
 }
 
@@ -56,6 +57,14 @@ pub fn project() -> Project {
     arp.steps[1] = Step::on(64);
     arp.steps[2] = Step::on(67).with(StepComponent::RandomNote(5));
     arp.steps[4] = Step::on(72).with(StepComponent::Chance(60));
+
+    // macro: a slow chord-ish line on the 'va' engine, linked to the Brain.
+    let synth = &mut p.tracks[3];
+    synth.length = 16;
+    synth.brain_link = true;
+    synth.steps[0] = Step::on(60);
+    synth.steps[6] = Step::on(67);
+    synth.steps[10] = Step::on(64).with(StepComponent::Octave(1));
     p
 }
 
