@@ -18,7 +18,7 @@ La referencia viva es **OP-3 Twin** (`docs/op3-twin.html`). Todo diseño nuevo s
 6. **Calmo hasta que se activa.** Lo inactivo es línea fina; lo activo (paso en edición, pista elegida, encoder tocado) se ilumina.
 7. **Tocar es preguntar.** Al tocar un encoder (sensor capacitivo) aparece en grande qué es y cuánto vale, en su color. Al soltarlo, desaparece. No hay instrucciones en pantalla.
 8. **Minúsculas y sin código.** `decay`, `fmbass`, `126ms`. Nada de corchetes, guiones bajos, IDs ni `0x`.
-9. **Una letra.** Una sola familia tipográfica con antialiasing, en la escala fija de la sección 3. Nunca fuentes pixeladas de terminal.
+9. **Una letra.** Jost, con antialiasing, en la escala fija de la sección 3. Nunca fuentes pixeladas de terminal.
 10. **La pista es un punto.** El color de pista (A–H) identifica la pista en los pads y LEDs físicos, y en pantalla solo como punto, aro o relleno de pad. Nunca compite con los colores de encoder.
 
 ---
@@ -71,28 +71,20 @@ Los cuatro primeros siguen el orden de los encoders de cada equipo de referencia
 
 Las pantallas son de 480×272 reales, así que la letra tiene que leerse a 11–15 px. Se renderiza con antialiasing (TrueType).
 
-En evaluación en el Twin (botón **letra**):
+**Letra: Jost** (OFL), elegida por Javi el 2026-11-12, ajustada para parecerse a la pantalla del OP-XY: pesos livianos, etiquetas chicas con algo de aire entre letras y números grandes en el peso más fino. Una sola familia para todo. Teenage Engineering no publica qué letra usa el OP-XY, así que el ajuste es a ojo sobre lo que se ve en el equipo, no una copia.
 
-| Opción | Etiquetas | Valores | Títulos | Licencia |
+| Nivel | px | Peso | Espaciado | Uso |
 | :-- | :-- | :-- | :-- | :-- |
-| **A · jost** (recomendada) | Jost 500 | Jost 500 | Jost 500 | OFL |
-| B · space | Space Grotesk 500 | Space Mono 400 | Space Grotesk 500 | OFL |
-| C · roboto mono | Roboto Mono 400 | Roboto Mono 500 | Roboto Mono 500 | Apache 2.0 |
-
-Jost es una geométrica tipo Futura: redonda, limpia y con aire industrial, sin ser la letra de TE.
-
-| Nivel | px | Uso |
-| :-- | :-- | :-- |
-| `s` | 11 | Nombre de parámetro bajo el dial |
-| `m` | 15 | Valor bajo el dial |
-| `l` | 20 | Valores del inspector |
-| `mid` | 21 | Instrumento, acorde, letra de pista |
-| `big` | 32 | Número de paso en el inspector |
-| `huge` | 58 | Valor al tocar un encoder |
+| `s` | 11 | 400 | +0.6 px | Nombre de parámetro bajo el dial |
+| `m` | 15 | 400 | +0.3 px | Valor bajo el dial |
+| `l` | 20 | 400 | +0.2 px | Valores del inspector |
+| `mid` | 21 | 400 | +0.2 px | Instrumento, acorde, letra de pista |
+| `big` | 34 | 300 | 0 | Número de paso en el inspector |
+| `huge` | 62 | 300 | −1 px | Valor al tocar un encoder |
 
 **FlipMono no se usa:** el archivo `FlipMono.ttf` de Flip Tracker+ es SF Mono de Apple, cuya licencia solo permite usarla en equipos Apple. No se puede distribuir en una Raspberry Pi.
 
-En Rust, la letra elegida se incrusta con `include_bytes!` y se rasteriza con `fontdue` (MIT/Apache) a un atlas con alfa que se mezcla sobre el framebuffer RGB565, en lugar de las fuentes mono de `embedded-graphics`.
+En Rust, Jost (300 y 400) se incrusta con `include_bytes!` y se rasteriza con `fontdue` (MIT/Apache) a un atlas con alfa que se mezcla sobre el framebuffer RGB565, en lugar de las fuentes mono de `embedded-graphics`.
 
 ## 4. Estructura de pantalla
 

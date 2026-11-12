@@ -2,7 +2,7 @@
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Space+Grotesk:wght@500;700&family=Jost:wght@400;500;600&family=Space+Mono&family=Roboto+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Space+Grotesk:wght@500;700&family=Jost:wght@300;400;500&display=swap">
 <style>
 /* Layout: a top-down Maschine MK3 faceplate — screens + knobs on top, controls left, 4x4 pads right; notes below. Single dark look on purpose (the hardware is black). */
 :root {
@@ -127,7 +127,6 @@ canvas.lcd {
     <p>Gemelo de la Maschine MK3 con el motor OP-3: las mismas pantallas de 480×272, los mismos controles y un secuenciador con polimetría, Step Components, Brain y Punch-in FX. Tocá PLAY para escuchar.</p>
     <div class="look">
       <span>tema</span><button data-look="theme" data-v="op1">op-1</button><button data-look="theme" data-v="field">op-1 field</button><button data-look="theme" data-v="opxy">op-xy</button>
-      <span>letra</span><button data-look="font" data-v="jost">A · jost</button><button data-look="font" data-v="space">B · space</button><button data-look="font" data-v="roboto">C · roboto mono</button>
     </div>
   </header>
 
@@ -643,20 +642,16 @@ const THEMES = {
   field: { name: "op-1 field", bg: "#000", fg: "#F4EFE6", dim: "#8E918F", faint: "#262A30", panel: "#12161D", knobs: ["#3B8EBA", "#D9822B", "#A9AFB8", "#F2652A", "#7FB58A", "#E3C77A", "#A88BC7", "#D9677A"], rec: "#E63946" },
   opxy:  { name: "op-xy",      bg: "#000", fg: "#EEF0F5", dim: "#80858F", faint: "#24262C", panel: "#0F1014", knobs: ["#94A8C6", "#00F076", "#EEF0F5", "#FF3844", "#FFD60A", "#34D3E8", "#9D7BFF", "#FF8A1F"], rec: "#FF2244" },
 };
-const FONTSETS = {
-  jost:   { name: "jost",          lab: "Jost",         val: "Jost",          disp: "Jost",          w: [500, 500, 500] },
-  space:  { name: "space",         lab: "Space Grotesk",val: "Space Mono",    disp: "Space Grotesk", w: [500, 400, 500] },
-  roboto: { name: "roboto mono",   lab: "Roboto Mono",  val: "Roboto Mono",   disp: "Roboto Mono",   w: [400, 500, 500] },
-};
 let BG, FG, DIM, FAINT, KC, PANEL, REC, FONT;
 const prefs = (() => { try { return JSON.parse(localStorage.getItem("op3-look") || "{}"); } catch { return {}; } })();
-const LOOK = { theme: THEMES[prefs.theme] ? prefs.theme : "op1", font: FONTSETS[prefs.font] ? prefs.font : "jost" };
+const LOOK = { theme: THEMES[prefs.theme] ? prefs.theme : "op1" };
 function applyLook() {
-  const t = THEMES[LOOK.theme], f = FONTSETS[LOOK.font];
+  const t = THEMES[LOOK.theme];
   BG = t.bg; FG = t.fg; DIM = t.dim; FAINT = t.faint; KC = t.knobs; PANEL = t.panel; REC = t.rec;
-  const L = `"${f.lab}"`, V = `"${f.val}"`, D = `"${f.disp}"`;
-  FONT = { s: `${f.w[0]} 11px ${L}, sans-serif`, m: `${f.w[1]} 15px ${V}, sans-serif`, l: `${f.w[1]} 20px ${V}, sans-serif`,
-    mid: `${f.w[2]} 21px ${D}, sans-serif`, big: `${f.w[2]} 32px ${D}, sans-serif`, huge: `${f.w[2]} 58px ${D}, sans-serif` };
+  // One family (Jost), tuned toward the OP-XY screen: light weights, small
+  // labels with open tracking, big numbers in the lightest weight.
+  FONT = { s: '400 11px "Jost", sans-serif', m: '400 15px "Jost", sans-serif', l: '400 20px "Jost", sans-serif',
+    mid: '400 21px "Jost", sans-serif', big: '300 34px "Jost", sans-serif', huge: '300 62px "Jost", sans-serif' };
   if (document.fonts) Object.values(FONT).forEach(x => document.fonts.load(x).catch(() => {}));
   try { localStorage.setItem("op3-look", JSON.stringify(LOOK)); } catch {}
   document.querySelectorAll("[data-look]").forEach(b => b.classList.toggle("on", LOOK[b.dataset.look] === b.dataset.v));
@@ -667,7 +662,8 @@ applyLook();
 function crosshairs(g, x, y, w, h, c, arm = 3) {
   for (const [px, py] of [[x, y], [x + w, y], [x, y + h], [x + w, y + h]]) { line(g, px - arm, py + 0.5, px + arm + 1, py + 0.5, c); line(g, px + 0.5, py - arm, px + 0.5, py + arm + 1, c); }
 }
-function txt(g, s, x, y, size, color, align = "left", base = "top") { g.font = FONT[size]; g.fillStyle = color; g.textAlign = align; g.textBaseline = base; g.fillText(s, x, y); }
+const TRACK_SP = { s: "0.6px", m: "0.3px", l: "0.2px", mid: "0.2px", big: "0px", huge: "-1px" };
+function txt(g, s, x, y, size, color, align = "left", base = "top") { g.font = FONT[size]; if ("letterSpacing" in g) g.letterSpacing = TRACK_SP[size]; g.fillStyle = color; g.textAlign = align; g.textBaseline = base; g.fillText(s, x, y); }
 function box(g, x, y, w, h, c, lw = 1) { g.strokeStyle = c; g.lineWidth = lw; g.strokeRect(x + lw / 2, y + lw / 2, w - lw, h - lw); }
 function fill(g, x, y, w, h, c) { g.fillStyle = c; g.fillRect(x, y, w, h); }
 function dot(g, x, y, r, c) { g.fillStyle = c; g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill(); }
