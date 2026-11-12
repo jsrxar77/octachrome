@@ -110,6 +110,13 @@ mod tests {
     use op3_seq::{Project, Step};
     use std::sync::{Arc, Mutex};
 
+    /// The theme is global; tests that draw take this lock so one test
+    /// switching themes cannot change another test's pixels mid-way.
+    static THEME_LOCK: Mutex<()> = Mutex::new(());
+    fn lock() -> std::sync::MutexGuard<'static, ()> {
+        THEME_LOCK.lock().unwrap_or_else(|e| e.into_inner())
+    }
+
     fn project() -> Project {
         let mut p = Project::default();
         p.tracks[0].steps[0] = Step::on(36).with(StepComponent::Ratchet(2));
@@ -121,6 +128,7 @@ mod tests {
 
     #[test]
     fn left_screen_draws_every_mode_and_inspector() {
+        let _guard = lock();
         let p = project();
         let st = EngineStatus::default();
         let mut fb = FrameBuffer480x272::new();
@@ -140,6 +148,7 @@ mod tests {
 
     #[test]
     fn right_screen_with_and_without_cartridge() {
+        let _guard = lock();
         let c: SharedCartridge = Arc::new(Mutex::new(
             Box::new(op3_cartridges::FmBass::new()) as Box<dyn InstrumentCartridge>
         ));
@@ -151,6 +160,7 @@ mod tests {
 
     #[test]
     fn moving_playhead_is_a_small_update() {
+        let _guard = lock();
         let p = project();
         let st = EngineStatus::default();
         st.playing.store(true, std::sync::atomic::Ordering::Relaxed);
@@ -170,6 +180,7 @@ mod tests {
 
     #[test]
     fn every_theme_draws_both_screens() {
+        let _guard = lock();
         let p = project();
         let st = EngineStatus::default();
         let c: SharedCartridge = Arc::new(Mutex::new(
