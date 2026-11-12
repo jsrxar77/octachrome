@@ -8,7 +8,7 @@ La referencia viva es **OP-3 Twin** (`docs/op3-twin.html`). Todo diseño nuevo s
 
 ---
 
-## Las 10 reglas
+## Las 12 reglas
 
 1. **Ocho encoders, ocho colores.** Cada encoder tiene un color propio y fijo. Ese color pinta en pantalla, y solo eso, lo que el encoder mueve.
 2. **1–4 tiempo, 5–8 sonido.** Los encoders 1 a 4 manejan el secuenciador y se ven en la pantalla izquierda. Los encoders 5 a 8 manejan el instrumento de la pista elegida y se ven en la pantalla derecha. Nunca se cruzan.
