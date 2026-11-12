@@ -1,0 +1,40 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/op3-gfx",
+    "crates/op3-cartridge",
+    "crates/op3-seq",
+    "crates/op3-engine",
+    "crates/op3-cartridges",
+    "crates/op3-hw",
+    "crates/op3-ui",
+    "crates/op3",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+rust-version = "1.80"
+
+[workspace.dependencies]
+op3-gfx = { path = "crates/op3-gfx" }
+op3-cartridge = { path = "crates/op3-cartridge" }
+op3-seq = { path = "crates/op3-seq" }
+op3-engine = { path = "crates/op3-engine" }
+op3-cartridges = { path = "crates/op3-cartridges" }
+op3-hw = { path = "crates/op3-hw" }
+op3-ui = { path = "crates/op3-ui" }
+embedded-graphics = "0.8"
+rtrb = "0.3"
+anyhow = "1"
+
+[profile.release]
+opt-level = 3
+lto = "fat"
+codegen-units = 1
+panic = "abort"
+
+# Audio code is unusable in debug at 64-frame buffers; keep deps optimised.
+[profile.dev.package."*"]
+opt-level = 2

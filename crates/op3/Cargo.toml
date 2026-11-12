@@ -1,0 +1,34 @@
+[package]
+name = "op3"
+description = "OP-3: standalone groovebox on a Maschine MK3"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+default-run = "op3"
+
+[features]
+default = ["audio", "mk3", "midi"]
+# Real audio output through cpal (CoreAudio / ALSA).
+audio = ["dep:cpal"]
+# Real Maschine MK3 over USB.
+mk3 = ["op3-hw/mk3"]
+# CoreMIDI output on macOS (Linux writes ALSA raw MIDI directly).
+midi = ["dep:midir"]
+
+[dependencies]
+op3-gfx.workspace = true
+op3-cartridge.workspace = true
+op3-seq.workspace = true
+op3-engine.workspace = true
+op3-cartridges.workspace = true
+op3-hw.workspace = true
+op3-ui.workspace = true
+rtrb.workspace = true
+anyhow.workspace = true
+cpal = { version = "0.15", optional = true }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+midir = { version = "0.10", optional = true }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+libc = "0.2"

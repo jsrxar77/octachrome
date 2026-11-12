@@ -1,0 +1,11 @@
+[package]
+name = "op3-cartridges"
+description = "Built-in instrument cartridges: KickSyn, FmBass, MidiOutBridge"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+op3-cartridge.workspace = true
+op3-gfx.workspace = true
+rtrb.workspace = true
