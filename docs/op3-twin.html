@@ -2,7 +2,7 @@
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Space+Grotesk:wght@500;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Space+Grotesk:wght@500;700&family=Jost:wght@400;500;600&family=Space+Mono&family=Roboto+Mono:wght@400;500&display=swap">
 <style>
 /* Layout: a top-down Maschine MK3 faceplate — screens + knobs on top, controls left, 4x4 pads right; notes below. Single dark look on purpose (the hardware is black). */
 :root {
@@ -56,7 +56,7 @@ canvas.lcd {
   content: ""; position: absolute; left: 50%; top: 8%; width: 2px; height: 32%;
   background: var(--ink); transform-origin: 50% 132%; transform: translateX(-50%) rotate(var(--rot, 0deg)); border-radius: 1px;
 }
-.knob.touched .dial { box-shadow: 0 2px 0 #050505, 0 0 0 2px var(--accent); }
+.knob.touched .dial { box-shadow: 0 2px 0 #050505, 0 0 0 2px var(--ink); }
 .knob span { font: 600 10px var(--font-mono); color: var(--ink-faint); }
 
 .lower { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr); gap: clamp(14px, 2.5vw, 28px); align-items: start; }
@@ -113,6 +113,11 @@ canvas.lcd {
   .lower { grid-template-columns: 1fr; }
   .pads-col { order: -1; }
 }
+.look { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; width: 100%; font-size: 12px; }
+.look span { color: var(--ink-dim); margin: 0 2px 0 8px; }
+.look span:first-child { margin-left: 0; }
+.look button { font: inherit; color: var(--ink); background: var(--rubber); border: 1px solid transparent; border-radius: 999px; padding: 5px 11px; cursor: pointer; }
+.look button.on { border-color: var(--ink); }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
 
@@ -120,6 +125,10 @@ canvas.lcd {
   <header class="top">
     <h1>OP-3 Twin</h1>
     <p>Gemelo de la Maschine MK3 con el motor OP-3: las mismas pantallas de 480×272, los mismos controles y un secuenciador con polimetría, Step Components, Brain y Punch-in FX. Tocá PLAY para escuchar.</p>
+    <div class="look">
+      <span>tema</span><button data-look="theme" data-v="op1">op-1</button><button data-look="theme" data-v="field">op-1 field</button><button data-look="theme" data-v="opxy">op-xy</button>
+      <span>letra</span><button data-look="font" data-v="jost">A · jost</button><button data-look="font" data-v="space">B · space</button><button data-look="font" data-v="roboto">C · roboto mono</button>
+    </div>
   </header>
 
   <section class="plate" aria-label="Maschine MK3">
@@ -623,115 +632,270 @@ function controllerTick() {
   }
 }
 
-// ======================= screens (mirrors op3-ui) =======================
-const BG = "#000", FG = "#fff", DIM = "#6a6a6a", FAINT = "#262626";
-const FONT = { s: '10px "IBM Plex Mono", monospace', m: '600 14px "IBM Plex Mono", monospace', l: '600 19px "IBM Plex Mono", monospace' };
-function txt(g, s, x, y, size, color, align = "left") { g.font = FONT[size]; g.fillStyle = color; g.textAlign = align; g.textBaseline = "top"; g.fillText(s, x, y); }
+// ======================= screens: OP-3 design language =======================
+// Black ground, 1–2 px white strokes, one accent per track, and four fixed
+// knob colours: every on-screen element takes the colour of the knob that
+// moves it, so the screens need almost no words.
+// Design tokens: see docs/DESIGN.md. Three themes, each with four encoder
+// colours: knobs 1–4 drive the sequencer (left screen), 5–8 the instrument (right) and three type families to compare.
+const THEMES = {
+  op1:   { name: "op-1",       bg: "#000", fg: "#F2F4F8", dim: "#7E8794", faint: "#232831", panel: "#0D1118", knobs: ["#0099FF", "#00E56A", "#F2F4F8", "#FF4F00", "#8B6CFF", "#FFD21F", "#2ED3E6", "#FF4FA0"], rec: "#FF3B30" },
+  field: { name: "op-1 field", bg: "#000", fg: "#F4EFE6", dim: "#8E918F", faint: "#262A30", panel: "#12161D", knobs: ["#3B8EBA", "#D9822B", "#A9AFB8", "#F2652A", "#7FB58A", "#E3C77A", "#A88BC7", "#D9677A"], rec: "#E63946" },
+  opxy:  { name: "op-xy",      bg: "#000", fg: "#EEF0F5", dim: "#80858F", faint: "#24262C", panel: "#0F1014", knobs: ["#94A8C6", "#00F076", "#EEF0F5", "#FF3844", "#FFD60A", "#34D3E8", "#9D7BFF", "#FF8A1F"], rec: "#FF2244" },
+};
+const FONTSETS = {
+  jost:   { name: "jost",          lab: "Jost",         val: "Jost",          disp: "Jost",          w: [500, 500, 500] },
+  space:  { name: "space",         lab: "Space Grotesk",val: "Space Mono",    disp: "Space Grotesk", w: [500, 400, 500] },
+  roboto: { name: "roboto mono",   lab: "Roboto Mono",  val: "Roboto Mono",   disp: "Roboto Mono",   w: [400, 500, 500] },
+};
+let BG, FG, DIM, FAINT, KC, PANEL, REC, FONT;
+const prefs = (() => { try { return JSON.parse(localStorage.getItem("op3-look") || "{}"); } catch { return {}; } })();
+const LOOK = { theme: THEMES[prefs.theme] ? prefs.theme : "op1", font: FONTSETS[prefs.font] ? prefs.font : "jost" };
+function applyLook() {
+  const t = THEMES[LOOK.theme], f = FONTSETS[LOOK.font];
+  BG = t.bg; FG = t.fg; DIM = t.dim; FAINT = t.faint; KC = t.knobs; PANEL = t.panel; REC = t.rec;
+  const L = `"${f.lab}"`, V = `"${f.val}"`, D = `"${f.disp}"`;
+  FONT = { s: `${f.w[0]} 11px ${L}, sans-serif`, m: `${f.w[1]} 15px ${V}, sans-serif`, l: `${f.w[1]} 20px ${V}, sans-serif`,
+    mid: `${f.w[2]} 21px ${D}, sans-serif`, big: `${f.w[2]} 32px ${D}, sans-serif`, huge: `${f.w[2]} 58px ${D}, sans-serif` };
+  if (document.fonts) Object.values(FONT).forEach(x => document.fonts.load(x).catch(() => {}));
+  try { localStorage.setItem("op3-look", JSON.stringify(LOOK)); } catch {}
+  document.querySelectorAll("[data-look]").forEach(b => b.classList.toggle("on", LOOK[b.dataset.look] === b.dataset.v));
+  document.querySelectorAll(".knob-dot").forEach((d, i) => d.style.color = KC[i]);
+}
+applyLook();
+// Calibration crosshairs in the corners of a technical view.
+function crosshairs(g, x, y, w, h, c, arm = 3) {
+  for (const [px, py] of [[x, y], [x + w, y], [x, y + h], [x + w, y + h]]) { line(g, px - arm, py + 0.5, px + arm + 1, py + 0.5, c); line(g, px + 0.5, py - arm, px + 0.5, py + arm + 1, c); }
+}
+function txt(g, s, x, y, size, color, align = "left", base = "top") { g.font = FONT[size]; g.fillStyle = color; g.textAlign = align; g.textBaseline = base; g.fillText(s, x, y); }
 function box(g, x, y, w, h, c, lw = 1) { g.strokeStyle = c; g.lineWidth = lw; g.strokeRect(x + lw / 2, y + lw / 2, w - lw, h - lw); }
 function fill(g, x, y, w, h, c) { g.fillStyle = c; g.fillRect(x, y, w, h); }
+function dot(g, x, y, r, c) { g.fillStyle = c; g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill(); }
+function ring(g, x, y, r, c, lw = 1, a0 = 0, a1 = Math.PI * 2) { g.strokeStyle = c; g.lineWidth = lw; g.beginPath(); g.arc(x, y, r, a0, a1); g.stroke(); }
+function rrect(g, x, y, w, h, r, c, stroke = 0) { g.beginPath(); g.roundRect(x, y, w, h, r); if (stroke) { g.strokeStyle = c; g.lineWidth = stroke; g.stroke(); } else { g.fillStyle = c; g.fill(); } }
+function line(g, x0, y0, x1, y1, c, lw = 1) { g.strokeStyle = c; g.lineWidth = lw; g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke(); }
 function mix(hex, k) { const n = parseInt(hex.slice(1), 16); const f = c => Math.round(((n >> c) & 255) * k); return `rgb(${f(16)},${f(8)},${f(0)})`; }
-function vbar(g, x, y, w, h, v, c) { box(g, x, y, w, h, "#808080"); fill(g, x + 2, y + 2, Math.round((w - 4) * clamp(v, 0, 1)), h - 4, c); }
-function footer(g, cells, touched, accent) {
-  fill(g, 0, 222, 480, 1, FAINT);
+const ease = (cur, target, k = 0.25) => cur + (target - cur) * k;
+
+// Smoothed animation state
+const A = { ph: Array(8).fill(0), hit: Array(8).fill(0), lastCount: Array(8).fill(0), level: Array(8).fill(0), touchFade: Array(8).fill(0), lastTouch: -1, orbit: 0, chordPulse: 0, lastChord: "" };
+const rmsBuf = new Float32Array(1024);
+function trackLevel(t) {
+  if (!actx || !analysers[t]) return 0;
+  analysers[t].getFloatTimeDomainData(rmsBuf);
+  let s = 0; for (let i = 0; i < rmsBuf.length; i++) s += rmsBuf[i] * rmsBuf[i];
+  return Math.sqrt(s / rmsBuf.length);
+}
+function animate() {
+  for (let t = 0; t < 8; t++) {
+    if (S.noteCount[t] !== A.lastCount[t]) { A.lastCount[t] = S.noteCount[t]; A.hit[t] = 1; }
+    A.hit[t] *= 0.86;
+    const len = P.tracks[t].length, target = S.playhead[t];
+    let d = target - A.ph[t]; if (d < -len / 2) d += len; if (d > len / 2) d -= len;
+    A.ph[t] = ((A.ph[t] + d * 0.35) % len + len) % len;
+    A.level[t] = ease(A.level[t], trackLevel(t), 0.4);
+    A.touchFade[t] = ease(A.touchFade[t], UI.touch[t] ? 1 : 0, 0.3);
+  }
+  const cn = chordName(S.chord); if (cn !== A.lastChord) { A.lastChord = cn; A.chordPulse = 1; } A.chordPulse *= 0.9;
+  A.orbit += 0.02 + A.level[UI.track] * 0.4;
+}
+
+// ---- footer: four coloured dials, no labels unless touched ----
+function dial(g, cx, cy, r, v, c) {
+  const a0 = Math.PI * 0.75, a1 = Math.PI * 2.25;
+  ring(g, cx, cy, r, FAINT, 3, a0, a1);
+  ring(g, cx, cy, r, c, 3, a0, a0 + (a1 - a0) * clamp(v, 0, 1));
+  const a = a0 + (a1 - a0) * clamp(v, 0, 1);
+  dot(g, cx + Math.cos(a) * r, cy + Math.sin(a) * r, 3, c);
+}
+// cells: [name, valueText, normalised|null, glyph(g,cx,cy,color)|null]
+function footer(g, cells, touchBase) {
   cells.forEach((c, i) => {
-    const x = i * 120;
-    if (touched[i]) fill(g, x + 2, 224, 116, 12, accent);
-    txt(g, c[0], x + 60, 225, "s", touched[i] ? BG : DIM, "center");
-    txt(g, c[1], x + 60, 238, "m", FG, "center");
-    if (c[2] != null) vbar(g, x + 10, 258, 100, 8, c[2], accent);
-    if (i) fill(g, x, 226, 1, 44, FAINT);
+    const x = i * 120, col = KC[(touchBase || 0) + i], cx = x + 26, cy = 247;
+    if (c[3]) c[3](g, cx, cy, col); else dial(g, cx, cy, 14, c[2] ?? 0, col);
+    txt(g, c[1], x + 48, 239, "m", FG);
+    txt(g, c[0].toLowerCase(), x + 48, 255, "s", mix(col, 0.8));
   });
 }
-const GX = Math.floor((480 - 29 * 16 + 2) / 2);
+// Big "what am I touching" overlay, faded in by cap-touch.
+function touchOverlay(g, cells, base) {
+  let best = -1, v = 0;
+  for (let i = 0; i < 4; i++) if (A.touchFade[base + i] > v) { v = A.touchFade[base + i]; best = i; }
+  if (best < 0 || v < 0.05) return;
+  const c = cells[best], col = KC[base + best];
+  g.globalAlpha = v;
+  fill(g, 0, 32, 480, 186, "rgba(0,0,0,0.88)");
+  txt(g, c[0].toLowerCase(), 240, 70, "mid", col, "center");
+  txt(g, c[1], 240, 100, "huge", FG, "center");
+  if (c[2] != null) { fill(g, 120, 176, 240, 3, FAINT); fill(g, 120, 176, 240 * clamp(c[2], 0, 1), 3, col); }
+  g.globalAlpha = 1;
+}
+
+// ---- left screen ----
+const RING = { cx: 118, cy: 126, r0: 26, step: 11 };
 function drawLeft(g) {
-  const tr = P.tracks[UI.track], accent = TRACK_COLORS[UI.track];
+  animate();
+  const accent = TRACK_COLORS[UI.track];
   fill(g, 0, 0, 480, 272, BG);
-  // top bar
-  if (S.playing) { g.fillStyle = FG; g.beginPath(); g.moveTo(8, 7); g.lineTo(20, 14); g.lineTo(8, 21); g.fill(); } else fill(g, 8, 8, 12, 12, DIM);
-  txt(g, P.bpm.toFixed(1), 28, 4, "l", FG); txt(g, "BPM", 92, 12, "s", DIM);
-  box(g, 130, 4, 76, 22, P.brain.live ? accent : DIM);
-  txt(g, chordName(S.chord), 168, 7, "m", FG, "center");
-  const modeLabel = UI.mode === "punch" && punchState.slot != null ? `${PUNCH[punchState.slot][0]} ${Math.round(punchState.amount * 100)}%` : { step: "STEP", brain: "BRAIN", punch: "PUNCH FX" }[UI.mode];
-  txt(g, modeLabel, 300, 7, "m", accent, "center");
-  txt(g, `${String(S.playhead[UI.track] + 1).padStart(2, "0")}/${String(tr.length).padStart(2, "0")}`, 472, 7, "m", FG, "right");
-  fill(g, 0, 28, 480, 1, FAINT);
-  // track strip
-  for (let i = 0; i < 8; i++) {
-    const x = i * 60, c = TRACK_COLORS[i], sel = i === UI.track;
-    fill(g, x + 4, 32, 52, 3, P.tracks[i].muted ? FAINT : c);
-    if (sel) box(g, x + 2, 30, 56, 32, FG);
-    txt(g, TRACK_NAMES[i], x + 12, 40, "m", sel ? FG : DIM);
-    if (P.tracks[i].link) txt(g, "B", x + 30, 43, "s", c);
-    fill(g, x + 44, 44, 6, 6, UI.activity[i] > 0 ? c : FAINT);
-  }
-  fill(g, 0, 64, 480, 1, FAINT);
+  topBar(g, accent);
   if (UI.mode === "step" && UI.inspect != null) inspector(g, accent);
   else if (UI.mode === "brain") brainView(g, accent);
   else if (UI.mode === "punch") punchView(g, accent);
-  else { tape(g, accent); lanes(g); }
-  footer(g, leftFooter(), UI.touch.slice(0, 4), accent);
+  else { rings(g); padGrid(g, accent); }
+  const cells = leftFooter();
+  footer(g, cells);
+  touchOverlay(g, cells, 0);
 }
-function tape(g, accent) {
-  const tr = P.tracks[UI.track], ph = S.playhead[UI.track];
-  for (let s = 0; s < 16; s++) {
-    const x = GX + s * 29, st = tr.steps[s], inLen = s < tr.length;
-    if (st.active && inLen) { const h = Math.round(84 * (0.35 + 0.65 * st.vel / 127)); fill(g, x, 70 + 84 - h, 27, h, accent); }
-    else if (st.active) fill(g, x, 70 + 84 - 6, 27, 6, FAINT);
-    box(g, x, 70, 27, 84, inLen ? (s % 4 === 0 ? FG : DIM) : FAINT);
-    st.comps.slice(0, 6).forEach((_, k) => fill(g, x + 3 + k * 4, 73, 2, 2, FG));
-    if (S.playing && s === ph) fill(g, x, 157, 27, 3, FG);
+function topBar(g, accent) {
+  if (S.playing) { g.fillStyle = FG; g.beginPath(); g.moveTo(10, 8); g.lineTo(20, 14); g.lineTo(10, 20); g.fill(); }
+  else fill(g, 10, 9, 10, 10, DIM);
+  txt(g, P.bpm.toFixed(0), 28, 3, "mid", FG);
+  // tempo pulse: a dot that blinks on each beat
+  const beat = S.playing ? (S.playhead[0] % 4 === 0 ? A.hit[0] : 0) : 0;
+  dot(g, 72, 15, 3, mix("#ffffff", 0.25 + 0.75 * beat));
+  // Brain chord, centred, pulses on change
+  const cn = chordName(S.chord), s = 1 + A.chordPulse * 0.25;
+  g.save(); g.translate(240, 15); g.scale(s, s); txt(g, cn, 0, 0, "mid", P.brain.live ? accent : FG, "center", "middle"); g.restore();
+  // track dots
+  for (let t = 0; t < 8; t++) {
+    const x = 338 + t * 18, y = 15, c = TRACK_COLORS[t], sel = t === UI.track, tr = P.tracks[t];
+    dot(g, x, y, (sel ? 6 : 4) + A.hit[t] * 2, tr.muted ? FAINT : sel ? c : mix(c, 0.55));
+    if (tr.link) ring(g, x, y, sel ? 8.5 : 6.5, c, 1);
   }
-  const xe = GX + tr.length * 29 - 2;
-  fill(g, xe - 1, 66, 2, 94, accent);
-  txt(g, "L" + tr.length, Math.min(xe, 460) + 3, 66, "s", accent);
 }
-function lanes(g) {
-  P.tracks.forEach((tr, i) => {
-    const y = 170 + i * 6, c = TRACK_COLORS[i], empty = !tr.steps.slice(0, tr.length).some(s => s.active);
-    for (let s = 0; s < tr.length; s++) {
-      const col = S.playing && s === S.playhead[i] ? (empty ? DIM : FG) : tr.steps[s].active ? (i === UI.track ? c : mix(c, .6)) : FAINT;
-      fill(g, GX + s * 29, y, 27, 4, col);
+function rings(g) {
+  const { cx, cy, r0, step } = RING;
+  // outer ring = track A … inner = track H
+  for (let t = 7; t >= 0; t--) {
+    const tr = P.tracks[t], r = r0 + (7 - t) * step, len = tr.length, sel = t === UI.track, c = TRACK_COLORS[t];
+    ring(g, cx, cy, r, sel ? mix(c, 0.35) : "#141414", sel ? 2 : 1);
+    for (let s = 0; s < len; s++) {
+      const a = -Math.PI / 2 + s / len * Math.PI * 2, x = cx + Math.cos(a) * r, y = cy + Math.sin(a) * r;
+      if (tr.steps[s].active) dot(g, x, y, sel ? 3.6 : 2.6, tr.muted ? FAINT : sel ? c : mix(c, 0.7));
+      else if (sel) dot(g, x, y, 1.2, DIM);
     }
-  });
+    if (S.playing) {
+      const a = -Math.PI / 2 + A.ph[t] / len * Math.PI * 2;
+      dot(g, cx + Math.cos(a) * r, cy + Math.sin(a) * r, (sel ? 2.4 : 1.6) + A.hit[t] * 2.2, FG);
+    }
+  }
+  txt(g, TRACK_NAMES[UI.track], cx, cy + 1, "mid", TRACK_COLORS[UI.track], "center", "middle");
+}
+function padGrid(g, accent) {
+  const tr = P.tracks[UI.track], x0 = 262, y0 = 38, cs = 40, gap = 6;
+  for (let s = 0; s < 16; s++) {
+    const x = x0 + (s % 4) * (cs + gap), y = y0 + Math.floor(s / 4) * (cs + gap), st = tr.steps[s], inLen = s < tr.length;
+    const isPh = S.playing && s === S.playhead[UI.track];
+    if (!inLen) { dot(g, x + cs / 2, y + cs / 2, 1.5, FAINT); continue; }
+    if (st.active) {
+      const k = 0.45 + 0.55 * st.vel / 127;
+      rrect(g, x, y, cs, cs, 6, mix(accent, isPh ? 1 : k));
+      // components: little white ticks along the bottom edge
+      st.comps.forEach((_, i) => fill(g, x + 6 + i * 5, y + cs - 7, 3, 3, "#000"));
+    } else rrect(g, x + 0.5, y + 0.5, cs - 1, cs - 1, 6, FAINT, 1);
+    if (isPh) rrect(g, x - 2.5, y - 2.5, cs + 5, cs + 5, 8, FG, 2);
+  }
+}
+// component glyphs: small pictures instead of words
+function compGlyph(g, c, x, y, col) {
+  const w = 34, h = 22;
+  switch (c.t) {
+    case "ratchet": for (let i = 0; i < c.v; i++) fill(g, x + 2 + i * (w - 4) / c.v, y + 3, Math.max(2, (w - 4) / c.v - 3), h - 6, col); break;
+    case "chance": ring(g, x + w / 2, y + h / 2, 9, mix(col, .4), 2); ring(g, x + w / 2, y + h / 2, 9, col, 2, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * c.v / 100); break;
+    case "every": for (let i = 0; i < c.v[1]; i++) { const px = x + 6 + i * (w - 12) / Math.max(1, c.v[1] - 1); i === c.v[0] - 1 ? dot(g, px, y + h / 2, 4, col) : ring(g, px, y + h / 2, 3.5, col, 1); } break;
+    case "vel": { const up = c.v > 0; line(g, x + 4, y + (up ? h - 4 : 4), x + w - 4, y + (up ? 4 : h - 4), col, 2); break; }
+    case "trans": case "oct": { const up = c.v > 0, n = c.t === "oct" ? 2 : 1; for (let i = 0; i < n; i++) { const ox = x + w / 2 - (n - 1) * 5 + i * 10; g.fillStyle = col; g.beginPath(); g.moveTo(ox, y + (up ? 3 : h - 3)); g.lineTo(ox - 6, y + (up ? 13 : h - 13)); g.lineTo(ox + 6, y + (up ? 13 : h - 13)); g.fill(); } break; }
+    case "hold": fill(g, x + 3, y + h / 2 - 3, w - 6, 6, col); break;
+    case "delay": fill(g, x + 3, y + h - 4, w - 6, 1, mix(col, .5)); fill(g, x + 14, y + 4, 4, h - 8, col); break;
+    case "rand": [[6,6],[16,15],[25,8],[11,17],[28,17]].forEach(([dx, dy]) => dot(g, x + dx, y + dy, 2, col)); break;
+  }
 }
 function inspector(g, accent) {
   const s = P.tracks[UI.track].steps[UI.inspect];
-  txt(g, `STEP ${String(UI.inspect + 1).padStart(2, "0")}`, 12, 72, "l", accent);
-  txt(g, s.active ? "ON" : "OFF", 130, 76, "m", s.active ? FG : DIM);
-  txt(g, `${noteName(s.note)}  VEL ${s.vel}  GATE ${s.gate}%`, 180, 76, "m", FG);
-  txt(g, "STEP COMPONENTS", 12, 100, "s", DIM);
+  // big step number + note
+  txt(g, String(UI.inspect + 1), 30, 40, "huge", s.active ? accent : DIM);
+  txt(g, noteName(s.note), 30, 104, "mid", KC[0]);
+  // velocity as a vertical bar, gate as a horizontal bar (knob colours)
+  fill(g, 120, 44, 10, 100, FAINT); fill(g, 120, 44 + 100 * (1 - s.vel / 127), 10, 100 * s.vel / 127, KC[1]);
+  fill(g, 30, 140, 80, 6, FAINT); fill(g, 30, 140, 80 * s.gate / 100, 6, KC[2]);
+  // component stack
+  const x0 = 160, y0 = 42;
   s.comps.forEach((c, i) => {
-    const x = 12 + (i % 3) * 156, y = 114 + Math.floor(i / 3) * 26, sel = i === UI.compCursor;
-    if (sel) fill(g, x - 2, y - 2, 150, 20, accent); else box(g, x - 2, y - 2, 150, 20, DIM);
-    txt(g, compLabel(c), x + 4, y + 1, "m", sel ? BG : FG);
+    const x = x0 + (i % 3) * 104, y = y0 + Math.floor(i / 3) * 60, sel = i === UI.compCursor;
+    rrect(g, x, y, 96, 52, 8, sel ? KC[3] : FAINT, sel ? 2 : 1);
+    compGlyph(g, c, x + 8, y + 6, sel ? KC[3] : FG);
+    txt(g, compLabel(c).toLowerCase(), x + 8, y + 34, "s", sel ? KC[3] : DIM);
   });
   const n = s.comps.length;
   if (n < 6) {
-    const x = 12 + (n % 3) * 156, y = 114 + Math.floor(n / 3) * 26, sel = UI.compCursor >= n;
-    box(g, x - 2, y - 2, 150, 20, sel ? accent : FAINT); txt(g, "+ ADD", x + 4, y + 1, "m", sel ? accent : DIM);
+    const x = x0 + (n % 3) * 104, y = y0 + Math.floor(n / 3) * 60, sel = UI.compCursor >= n;
+    rrect(g, x, y, 96, 52, 8, sel ? KC[3] : FAINT, sel ? 2 : 1);
+    txt(g, "+", x + 48, y + 26, "big", sel ? KC[3] : DIM, "center", "middle");
   }
-  txt(g, "JOG: select   KNOB 4: set", 12, 196, "s", DIM);
 }
 function brainView(g, accent) {
-  const b = P.brain;
-  txt(g, `KEY ${NOTE_NAMES[b.key]} ${SCALES[b.scale][0]}`, 12, 70, "m", FG);
-  const active = S.playing ? S.chordSlot : 0, w = Math.floor(464 / b.len);
+  const b = P.brain, active = S.playing ? S.chordSlot : 0;
+  // progression: circles sized by length, current one filled
+  const total = b.prog.slice(0, b.len).reduce((s, x) => s + x.length, 0);
+  let x = 20;
   for (let i = 0; i < b.len; i++) {
-    const sl = b.prog[i], c = diatonic(b.key, b.scale, sl.degree, sl.kind), x = 8 + i * w, on = i === active && !b.live;
-    if (on) fill(g, x, 92, w - 4, 50, accent); else box(g, x, 92, w - 4, 50, DIM);
-    txt(g, chordName(c), x + (w - 4) / 2, 100, "m", on ? BG : FG, "center");
-    txt(g, sl.length + " st", x + (w - 4) / 2, 122, "s", on ? BG : DIM, "center");
+    const sl = b.prog[i], w = 440 * sl.length / total, cx = x + w / 2, on = i === active && !b.live;
+    const c = diatonic(b.key, b.scale, sl.degree, sl.kind), r = Math.min(30, w / 2 - 4);
+    if (on) dot(g, cx, 82, r, accent); else ring(g, cx, 82, r, DIM, 1.5);
+    txt(g, chordName(c), cx, 82, "m", on ? BG : FG, "center", "middle");
+    x += w;
   }
-  txt(g, "PADS 1-7 TRIADS  9-15 SEVENTHS  HOLD = LIVE", 12, 152, "s", DIM);
-  if (b.live) txt(g, "LIVE " + chordName(b.live), 12, 170, "l", accent);
-  const linked = P.tracks.map((t, i) => t.link ? TRACK_NAMES[i] : null).filter(Boolean);
-  txt(g, "LINKED: " + (linked.length ? linked.join(" ") : "-"), 12, 200, "s", FG);
+  // the chord as notes on a 12-tone circle
+  const cx = 240, cy = 168, R = 38, ch = S.chord;
+  ring(g, cx, cy, R, FAINT, 1);
+  for (let pc = 0; pc < 12; pc++) {
+    const a = -Math.PI / 2 + pc / 12 * Math.PI * 2, px = cx + Math.cos(a) * R, py = cy + Math.sin(a) * R;
+    const inScale = SCALES[b.scale][1].includes((pc - b.key + 12) % 12), inChord = (ch.mask >> pc) & 1;
+    if (inChord) dot(g, px, py, pc === ch.root ? 7 : 5, b.live ? accent : FG);
+    else dot(g, px, py, inScale ? 2.5 : 1.2, inScale ? DIM : FAINT);
+  }
+  g.strokeStyle = b.live ? accent : FG; g.lineWidth = 1.5; g.beginPath();
+  let first = true;
+  for (let pc = 0; pc < 12; pc++) if ((ch.mask >> pc) & 1) { const a = -Math.PI / 2 + pc / 12 * Math.PI * 2, px = cx + Math.cos(a) * R, py = cy + Math.sin(a) * R; first ? g.moveTo(px, py) : g.lineTo(px, py); first = false; }
+  g.closePath(); g.stroke();
+  // linked tracks as dots on the left
+  P.tracks.forEach((t, i) => { if (t.link) dot(g, 30 + i * 14, 168, 4, TRACK_COLORS[i]); });
+  txt(g, NOTE_NAMES[b.key] + " " + SCALES[b.scale][0].toLowerCase(), 450, 168, "s", DIM, "right", "middle");
 }
+// FX glyphs
+function fxGlyph(g, kind, x, y, w, h, col, amt) {
+  g.strokeStyle = col; g.fillStyle = col; g.lineWidth = 2;
+  const mx = x + w / 2, my = y + h / 2;
+  if (kind === "lpf" || kind === "hpf") {
+    const f = kind === "lpf" ? 1 : -1, cut = 0.65 - amt * 0.4;
+    g.beginPath();
+    for (let i = 0; i <= w; i += 2) { const u = i / w, v = kind === "lpf" ? u : 1 - u; const yy = v < cut ? 0 : Math.min(1, (v - cut) * 3) ** 1.5; g.lineTo(x + i, y + 4 + yy * (h - 8)); }
+    g.stroke(); void f;
+  } else if (kind === "crush" || kind === "down") {
+    const n = kind === "crush" ? 6 : 3; g.beginPath(); g.moveTo(x, y + h - 2);
+    for (let i = 0; i < n; i++) { const px = x + i * w / n; const py = y + h - 2 - (i + 1) * (h - 4) / n; g.lineTo(px, py); g.lineTo(px + w / n, py); } g.stroke();
+  } else if (kind === "gate16" || kind === "gate8") {
+    const n = kind === "gate16" ? 4 : 2; g.beginPath(); g.moveTo(x, y + h - 2);
+    for (let i = 0; i < n; i++) { const px = x + i * w / n; g.lineTo(px, y + 2); g.lineTo(px + w / n / 2, y + 2); g.lineTo(px + w / n / 2, y + h - 2); g.lineTo(px + w / n, y + h - 2); } g.stroke();
+  } else if (kind === "tape") {
+    g.beginPath(); for (let a = 0; a < 6 * Math.PI; a += 0.2) { const r = 2 + a * 1.1; g.lineTo(mx + Math.cos(a) * r * w / 50, my + Math.sin(a) * r * h / 50); } g.stroke();
+  } else if (kind === "kill") { line(g, mx - 9, my - 9, mx + 9, my + 9, col, 3); line(g, mx + 9, my - 9, mx - 9, my + 9, col, 3); }
+  else if (kind === "echo") { for (let i = 0; i < 4; i++) ring(g, mx - 14 + i * 9, my, 7 - i * 1.2, col, 2 - i * 0.3); }
+  else { // repeat / stutter: loop arrow + bars
+    const n = typeof kind === "number" ? Math.max(1, Math.round(96 / kind)) : 1;
+    ring(g, mx, my, Math.min(w, h) / 2 - 3, col, 2, -0.4, Math.PI * 1.6);
+    txt(g, kind >= 12 ? `${96 / kind === Math.floor(96 / kind) ? "1/" + (4 * 96 / kind / 4 * 4 / 4 * 4 / 4) : ""}` : "", mx, my, "s", col, "center", "middle");
+    void n;
+  }
+}
+const FX_SUB = { 96: "1/4", 48: "1/8", 24: "1/16", 12: "1/32", 16: "1/16T", 6: "1/16", 3: "1/32" };
 function punchView(g, accent) {
-  PUNCH.forEach(([name], i) => {
-    const col = i % 4, row = 3 - Math.floor(i / 4), x = 8 + col * 118, y = 70 + row * 38, on = punchState.slot === i;
-    if (on) fill(g, x, y, 112, 34, mix(accent, 0.4 + 0.6 * punchState.amount)); else box(g, x, y, 112, 34, DIM);
-    txt(g, name, x + 56, y + 10, "m", on ? BG : FG, "center");
+  PUNCH.forEach(([name, kind], i) => {
+    const col = i % 4, row = 3 - Math.floor(i / 4), x = 12 + col * 116, y = 36 + row * 46, on = punchState.slot === i;
+    if (on) rrect(g, x, y, 108, 40, 8, mix(accent, 0.35 + 0.65 * punchState.amount)); else rrect(g, x + .5, y + .5, 107, 39, 8, FAINT, 1);
+    fxGlyph(g, typeof kind === "number" ? "loop" : kind, x + 10, y + 8, 40, 24, on ? BG : FG, on ? punchState.amount : 0.5);
+    if (typeof kind === "number") txt(g, (name.startsWith("STUT") ? "s " : "") + FX_SUB[kind], x + 30, y + 20, "s", on ? BG : FG, "center", "middle");
+    txt(g, name.toLowerCase().replace(/ .*/, ""), x + 98, y + 20, "s", on ? BG : DIM, "right", "middle");
   });
 }
 function leftFooter() {
@@ -739,71 +903,99 @@ function leftFooter() {
   if (UI.mode === "step" && UI.inspect != null) {
     const s = tr.steps[UI.inspect], cur = s.comps[UI.compCursor] || null;
     const pi = Math.max(0, COMPONENT_PRESETS.findIndex(c => sameComp(c, cur)));
-    return [["NOTE", noteName(s.note), s.note / 127], ["VELOCITY", String(s.vel), s.vel / 127], ["GATE", s.gate + "%", s.gate / 100],
-      ["COMPONENT", UI.compCursor >= s.comps.length ? "+ ADD" : compLabel(cur), pi / (COMPONENT_PRESETS.length - 1)]];
+    return [["note", noteName(s.note), s.note / 127], ["velocity", String(s.vel), s.vel / 127], ["gate", s.gate + "%", s.gate / 100],
+      ["component", UI.compCursor >= s.comps.length ? "+" : compLabel(cur).toLowerCase(), pi / (COMPONENT_PRESETS.length - 1), cur ? (g, cx, cy, c) => compGlyph(g, cur, cx - 17, cy - 11, c) : null]];
   }
-  if (UI.mode === "brain") return [["KEY", NOTE_NAMES[P.brain.key], P.brain.key / 11], ["SCALE", SCALES[P.brain.scale][0], null], ["MODE", BRAIN_MODES[P.brain.mode], null], ["CHORDS", String(P.brain.len), P.brain.len / 8]];
-  if (UI.mode === "punch") return [["FX", punchState.slot == null ? "-" : PUNCH[punchState.slot][0], null], ["AMOUNT", punchState.slot == null ? "-" : Math.round(punchState.amount * 100) + "%", punchState.slot == null ? null : punchState.amount],
-    ["STRIP", UI.strip == null ? "-" : Math.round(UI.strip * 100) + "%", UI.strip], ["BPM", P.bpm.toFixed(1), null]];
-  return [["LENGTH", String(tr.length), tr.length / 16], ["DIVISION", DIVS[tr.div][0], null], ["SWING", Math.round(P.swing * 100) + "%", (P.swing - 0.5) * 4], ["BPM", P.bpm.toFixed(1), (P.bpm - 20) / 280]];
+  if (UI.mode === "brain") return [["key", NOTE_NAMES[P.brain.key], P.brain.key / 11], ["scale", SCALES[P.brain.scale][0].toLowerCase(), P.brain.scale / 6], ["mode", BRAIN_MODES[P.brain.mode].toLowerCase(), P.brain.mode / 2], ["chords", String(P.brain.len), P.brain.len / 8]];
+  if (UI.mode === "punch") return [["fx", punchState.slot == null ? "-" : PUNCH[punchState.slot][0].toLowerCase(), null], ["amount", punchState.slot == null ? "-" : Math.round(punchState.amount * 100) + "%", punchState.slot == null ? 0 : punchState.amount],
+    ["strip", UI.strip == null ? "-" : Math.round(UI.strip * 100) + "%", UI.strip ?? 0.5], ["tempo", P.bpm.toFixed(1), (P.bpm - 20) / 280]];
+  const lenGlyph = (g, cx, cy, c) => { ring(g, cx, cy, 13, FAINT, 1); for (let s = 0; s < tr.length; s++) { const a = -Math.PI / 2 + s / tr.length * Math.PI * 2; dot(g, cx + Math.cos(a) * 13, cy + Math.sin(a) * 13, 2, c); } };
+  return [["length", String(tr.length), tr.length / 16, lenGlyph], ["division", DIVS[tr.div][0], tr.div / 4], ["swing", Math.round(P.swing * 100) + "%", (P.swing - 0.5) * 4], ["tempo", P.bpm.toFixed(1), (P.bpm - 20) / 280]];
 }
+
+// ---- right screen: one original animated drawing per instrument ----
 const scopeBuf = new Float32Array(2048);
-function drawScope(g, t, x, y, w, h, color) {
-  const mid = y + h / 2; fill(g, x, mid, w, 1, "#333");
-  if (!actx || !analysers[t]) return;
-  analysers[t].getFloatTimeDomainData(scopeBuf);
-  let start = 0; for (let i = 0; i < 1024; i++) if (scopeBuf[i] <= 0 && scopeBuf[i + 1] > 0) { start = i + 1; break; }
-  g.strokeStyle = color; g.lineWidth = 1.2; g.beginPath();
-  for (let i = 0; i < 720; i++) {
-    const s = clamp(scopeBuf[start + i] * 1.2, -1, 1), px = x + (i / 719) * w, py = mid - s * (h / 2 - 2);
-    i ? g.lineTo(px, py) : g.moveTo(px, py);
-  }
-  g.stroke();
-}
-function curve(g, f, x, y, w, h, lw, c) { g.strokeStyle = c; g.lineWidth = lw; g.beginPath(); for (let i = 0; i <= w; i += 2) { const py = y + h - clamp(f(i / w), 0, 1) * h; i ? g.lineTo(x + i, py) : g.moveTo(x + i, py); } g.stroke(); }
-function adsr(g, a, d, s, r, x, y, w, h, accent) {
-  box(g, x, y, w, h, "#404040");
-  const L = ms => Math.log(1 + ms), tot = L(a) + L(d) + L(300) + L(r), k = (w - 8) / tot;
-  const x0 = x + 4, base = y + h - 4, top = y + 4, sy = base - (base - top) * s;
-  const xa = x0 + L(a) * k, xd = xa + L(d) * k, xs = xd + L(300) * k, xr = xs + L(r) * k;
-  g.strokeStyle = FG; g.lineWidth = 2; g.beginPath(); g.moveTo(x0, base); g.lineTo(xa, top); g.lineTo(xd, sy); g.lineTo(xs, sy); g.lineTo(xr, base); g.stroke();
-  fill(g, xa - 2, top - 2, 5, 5, accent); fill(g, xd - 2, sy - 2, 5, 5, accent); fill(g, xs - 2, sy - 2, 5, 5, accent);
-}
+function readScope(t) { if (!actx || !analysers[t]) { scopeBuf.fill(0); return 0; } analysers[t].getFloatTimeDomainData(scopeBuf); let st = 0; for (let i = 0; i < 1024; i++) if (scopeBuf[i] <= 0 && scopeBuf[i + 1] > 0) { st = i + 1; break; } return st; }
 function drawRight(g) {
   const t = UI.track, accent = TRACK_COLORS[t], slot = SLOTS[t];
   fill(g, 0, 0, 480, 272, BG);
-  txt(g, TRACK_NAMES[t], 12, 6, "l", accent);
-  if (!slot) { txt(g, "EMPTY SLOT", 240, 120, "l", DIM, "center"); return; }
+  dot(g, 16, 15, 6, accent);
+  if (!slot) { txt(g, "empty", 30, 8, "m", DIM); ring(g, 240, 126, 50, FAINT, 2); line(g, 205, 161, 275, 91, FAINT, 2); return; }
   const cart = CARTS[slot], p = PARAMS[t];
-  txt(g, cart.name, 36, 6, "l", FG); txt(g, cart.cat, 472, 10, "s", DIM, "right");
+  txt(g, cart.name.toLowerCase(), 30, 6, "mid", FG);
   const pages = cart.params.length > 4 ? 2 : 1;
-  if (pages > 1) txt(g, `PG ${UI.page + 1}/${pages}`, 400, 10, "s", DIM, "right");
-  fill(g, 0, 30, 480, 1, FAINT);
-  const y = 34;
-  if (slot === "kick") {
-    const dec = expMap(p[1], 60, 2000), pd = expMap(p[5], 5, 200);
-    txt(g, "ENV", 16, y + 4, "s", DIM);
-    curve(g, u => Math.exp(-u * 2000 / dec * 6.9), 16, y + 20, 200, 150, 2, FG);
-    curve(g, u => p[2] * Math.exp(-u * 2000 / pd * 6.9), 16, y + 20, 200, 150, 1, accent);
-    txt(g, "OUT", 248, y + 4, "s", DIM); drawScope(g, t, 248, y + 20, 216, 150, accent);
-  } else if (slot === "fm") {
-    txt(g, "ALGO", 16, y + 4, "s", DIM);
-    box(g, 16, y + 22, 64, 30, accent, 2); txt(g, "x" + cart.params[0][2](p[0]), 48, y + 30, "s", FG, "center");
-    fill(g, 80, y + 37, 24, 1, FG); box(g, 104, y + 22, 64, 30, FG, 2); txt(g, "CAR", 136, y + 30, "s", FG, "center"); fill(g, 168, y + 37, 32, 1, FG);
-    vbar(g, 16, y + 58, 152, 10, p[1], accent);
-    txt(g, "ENV", 16, y + 80, "s", DIM);
-    adsr(g, 2, expMap(p[2], 20, 2000), p[6], expMap(p[3], 5, 1500), 16, y + 94, 200, 90, accent);
-    txt(g, "OUT", 248, y + 4, "s", DIM); drawScope(g, t, 248, y + 20, 216, 164, accent);
-  } else {
-    txt(g, "DIN OUT", 16, y + 4, "s", DIM);
-    txt(g, cart.params[0][2](p[0]), 16, y + 24, "l", accent);
-    txt(g, "SENT " + S.noteCount[t] * 2, 16, y + 60, "s", FG);
-    txt(g, "RECENT", 248, y + 4, "s", DIM); box(g, 248, y + 20, 216, 160, "#404040");
-    recentMidi.forEach((n, i) => { const x = 256 + i * 26, h = Math.round(n * 150 / 127); fill(g, x, y + 176 - h, 18, 2, accent); txt(g, NOTE_NAMES[n % 12], x + 9, y + 168 - h, "s", FG, "center"); });
-  }
-  fill(g, 0, 220, 480, 52, BG);
+  if (pages > 1) for (let i = 0; i < pages; i++) dot(g, 456 + i * 12, 15, 3, i === UI.page ? FG : FAINT);
+  if (slot === "kick") kickArt(g, t, p);
+  else if (slot === "fm") fmArt(g, t, p);
+  else midiArt(g, t, p, accent);
+  crosshairs(g, 14, 34, 452, 184, DIM);
   const base = UI.page === 1 && pages > 1 ? 4 : 0;
-  footer(g, [0,1,2,3].map(i => { const d = cart.params[base + i]; return [d[0], d[2](p[base + i]), p[base + i]]; }), UI.touch.slice(4), accent);
+  const cells = [0, 1, 2, 3].map(i => { const d = cart.params[base + i]; return d ? [d[0], d[2](p[base + i]), p[base + i]] : ["", "", 0]; });
+  footer(g, cells, 4);
+  touchOverlay(g, cells, 4);
+}
+// KickSyn: a drum head seen from above. Tune sets its size, decay how long it
+// ripples, punch the pitch-drop rings, drive bends the edge.
+function kickArt(g, t, p) {
+  const cx = 240, cy = 124, R = 34 + p[0] * 40, lvl = Math.min(1, A.level[t] * 3), hit = A.hit[t];
+  // shell
+  ring(g, cx, cy, R + 14, FAINT, 6);
+  // membrane edge, wobbling with drive
+  g.strokeStyle = FG; g.lineWidth = 2; g.beginPath();
+  for (let a = 0; a <= Math.PI * 2 + 0.01; a += Math.PI / 48) {
+    const wob = 1 + lvl * 0.06 * Math.sin(a * (3 + Math.round(p[3] * 8)) + A.orbit * 6);
+    const r = R * wob; a === 0 ? g.moveTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r) : g.lineTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r);
+  }
+  g.closePath(); g.stroke();
+  // punch: expanding pitch rings (blue = knob 3 colour family)
+  for (let i = 0; i < 3; i++) { const k = ((1 - hit) + i / 3) % 1; ring(g, cx, cy, R * k, mix(KC[6], (1 - k) * hit * p[2] * 1.4), 2); }
+  // beater dot
+  dot(g, cx, cy, 6 + hit * 10, KC[4]);
+  // decay tail as an arc around the shell
+  const dec = p[1];
+  ring(g, cx, cy, R + 24, KC[5], 3, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * dec * (0.3 + 0.7 * hit + 0.3));
+  // drive: spikes on the shell
+  const n = Math.round(p[3] * 16);
+  for (let i = 0; i < n; i++) { const a = i / n * Math.PI * 2 + A.orbit * 0.2; line(g, cx + Math.cos(a) * (R + 30), cy + Math.sin(a) * (R + 30), cx + Math.cos(a) * (R + 36 + lvl * 8), cy + Math.sin(a) * (R + 36 + lvl * 8), KC[7], 2); }
+}
+// FmBass: a carrier planet with a modulator moon. Ratio sets how fast the moon
+// orbits, index how close and how big; the output waveform is drawn in polar
+// form around the planet.
+function fmArt(g, t, p) {
+  const cx = 200, cy = 124, ratio = [0.5, 1, 2, 3, 4][Math.min(4, Math.floor(p[0] * 5))], idx = p[1];
+  const st = readScope(t);
+  // polar waveform
+  g.strokeStyle = KC[5]; g.lineWidth = 1.5; g.beginPath();
+  for (let i = 0; i <= 360; i++) { const s = clamp(scopeBuf[st + i * 2] * 2.2, -1, 1), a = -Math.PI / 2 + i / 360 * Math.PI * 2, r = 44 + s * 26; i ? g.lineTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r) : g.moveTo(cx + Math.cos(a) * r, cy + Math.sin(a) * r); }
+  g.stroke();
+  // carrier
+  dot(g, cx, cy, 20 + A.hit[t] * 4, FG);
+  // modulator orbit
+  const orR = 92 - idx * 22, a = A.orbit * ratio;
+  ring(g, cx, cy, orR, "#1e1e1e", 1);
+  const mx = cx + Math.cos(a) * orR, my = cy + Math.sin(a) * orR;
+  line(g, cx, cy, mx, my, mix(KC[4], 0.4), 1);
+  dot(g, mx, my, 5 + idx * 9, KC[4]);
+  // envelope: a tiny mountain on the right (decay = knob 3, release = knob 4)
+  const ex = 330, ey = 168, d = 18 + p[2] * 50, r = 10 + p[3] * 60, sus = PARAMS[t][6];
+  g.strokeStyle = FG; g.lineWidth = 2; g.beginPath(); g.moveTo(ex, ey); g.lineTo(ex + 6, ey - 70);
+  g.lineTo(ex + 6 + d, ey - 70 * sus); g.lineTo(ex + 30 + d, ey - 70 * sus); g.lineTo(ex + 30 + d + r, ey); g.stroke();
+  dot(g, ex + 6 + d, ey - 70 * sus, 4, KC[6]); dot(g, ex + 30 + d + r, ey, 4, KC[7]);
+}
+// MidiOutBridge: the DIN socket. Notes leave as dots along the cable.
+function midiArt(g, t, p, accent) {
+  const cx = 150, cy = 124, R = 56, hit = A.hit[t];
+  ring(g, cx, cy, R, FG, 2);
+  fill(g, cx - 8, cy + R - 10, 16, 10, BG); box(g, cx - 8, cy + R - 12, 16, 12, FG, 2);
+  for (let i = 0; i < 5; i++) { const a = Math.PI + i / 4 * Math.PI; dot(g, cx + Math.cos(a) * 32, cy + Math.sin(a) * 32 * 0.9, 6, i === 2 ? mix(KC[4], 0.4 + 0.6 * hit) : FAINT); }
+  const ch = Math.min(15, Math.floor(p[0] * 16)) + 1;
+  txt(g, String(ch), cx, cy + 8, "big", KC[4], "center", "middle");
+  // cable
+  line(g, cx + R, cy, 460, cy, FAINT, 6);
+  recentMidi.slice(-8).forEach((n, i, arr) => {
+    const k = (arr.length - 1 - i) / 8, x = cx + R + 20 + (1 - k) * 230, y = cy - (n - 60) * 1.4;
+    dot(g, x, y, 5 - k * 3, mix(accent, 1 - k * 0.8));
+  });
 }
 
 // ======================= surface (DOM) =======================
@@ -817,7 +1009,7 @@ const knobEls = [];
 for (let k = 0; k < 8; k++) {
   const el = document.createElement("div"); el.className = "knob"; el.tabIndex = 0;
   el.setAttribute("role", "slider"); el.setAttribute("aria-label", "Perilla " + (k + 1));
-  el.innerHTML = `<div class="dial"></div><span>${k + 1}</span>`;
+  el.innerHTML = `<div class="dial"></div><span class="knob-dot" style="color:${KC[k]}">● ${k + 1}</span>`;
   let lastY = null, rot = 0;
   const turn = d => { rot += d * 0.36; el.style.setProperty("--rot", rot + "deg"); knob(k, d); };
   el.addEventListener("pointerdown", e => { el.setPointerCapture(e.pointerId); lastY = e.clientY; UI.touch[k] = true; });
@@ -942,4 +1134,6 @@ function frame() {
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
+document.querySelectorAll("[data-look]").forEach(b => b.addEventListener("click", () => { LOOK[b.dataset.look] = b.dataset.v; applyLook(); }));
+applyLook();
 </script>
