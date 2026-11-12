@@ -1,0 +1,945 @@
+<title>OP-3 Twin</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Space+Grotesk:wght@500;700&display=swap">
+<style>
+/* Layout: a top-down Maschine MK3 faceplate — screens + knobs on top, controls left, 4x4 pads right; notes below. Single dark look on purpose (the hardware is black). */
+:root {
+  color-scheme: dark;
+  --bg: #0d0e10;          /* room */
+  --plate: #17181b;       /* anodised faceplate */
+  --plate-edge: #24262b;
+  --rubber: #2a2c31;      /* pads / buttons at rest */
+  --ink: #e9e9ea;         /* silkscreen */
+  --ink-dim: #8a8d94;
+  --ink-faint: #4a4d54;
+  --accent: #ff9500;      /* selected track, replaced live from JS */
+  --font-ui: "Space Grotesk", "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+html, body { height: auto; }
+body {
+  background: var(--bg); color: var(--ink); font-family: var(--font-ui);
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 20px 40px;
+}
+.wrap { max-width: 1120px; margin: 0 auto; display: grid; gap: 18px; }
+header.top { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px 20px; }
+header.top h1 { font-size: 22px; letter-spacing: 0.04em; margin: 0; font-weight: 700; }
+header.top p { margin: 0; color: var(--ink-dim); font-size: 13px; max-width: 62ch; }
+
+.plate {
+  background: linear-gradient(180deg, #1b1c20, var(--plate));
+  border: 1px solid var(--plate-edge); border-radius: 14px;
+  padding: clamp(12px, 2.4vw, 24px);
+  display: grid; gap: clamp(14px, 2vw, 22px);
+  box-shadow: 0 30px 60px -30px rgba(0,0,0,.8), inset 0 1px 0 rgba(255,255,255,.04);
+}
+.screens { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.screen-col { display: grid; gap: 8px; min-width: 0; }
+.screen-btns { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+canvas.lcd {
+  width: 100%; max-width: 100%; aspect-ratio: 480 / 272; display: block;
+  background: #000; border-radius: 4px; image-rendering: pixelated;
+  box-shadow: 0 0 0 3px #08090a, 0 0 0 4px #2e3036;
+}
+.knobs { display: grid; grid-template-columns: repeat(8, 1fr); gap: 6px; }
+.knob { display: grid; justify-items: center; gap: 4px; touch-action: none; cursor: ns-resize; user-select: none; -webkit-user-select: none; }
+.knob .dial {
+  width: clamp(34px, 5vw, 52px); aspect-ratio: 1; border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #4a4c52, #232428 70%);
+  box-shadow: 0 2px 0 #050505, inset 0 0 0 1px #3a3c42; position: relative;
+}
+.knob .dial::after {
+  content: ""; position: absolute; left: 50%; top: 8%; width: 2px; height: 32%;
+  background: var(--ink); transform-origin: 50% 132%; transform: translateX(-50%) rotate(var(--rot, 0deg)); border-radius: 1px;
+}
+.knob.touched .dial { box-shadow: 0 2px 0 #050505, 0 0 0 2px var(--accent); }
+.knob span { font: 600 10px var(--font-mono); color: var(--ink-faint); }
+
+.lower { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr); gap: clamp(14px, 2.5vw, 28px); align-items: start; }
+.controls { display: grid; gap: 14px; min-width: 0; }
+.row { display: flex; flex-wrap: wrap; gap: 6px; }
+.lbl { font: 600 10px var(--font-mono); letter-spacing: .12em; color: var(--ink-faint); text-transform: uppercase; }
+.grp { display: grid; gap: 6px; }
+.btn {
+  font: 600 11px var(--font-mono); letter-spacing: .06em; color: var(--ink-dim);
+  background: var(--rubber); border: 1px solid #34363c; border-radius: 5px;
+  padding: 9px 10px; min-width: 52px; cursor: pointer; touch-action: manipulation;
+  box-shadow: 0 2px 0 #0a0a0b; transition: color .1s, box-shadow .1s, background .1s;
+}
+.btn:active, .btn.down { transform: translateY(1px); box-shadow: 0 1px 0 #0a0a0b; }
+.btn.lit { color: var(--ink); box-shadow: 0 2px 0 #0a0a0b, inset 0 0 0 1px var(--ink-dim); }
+.btn.on { color: #0b0b0b; background: var(--ink); }
+.btn:focus-visible, .pad:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.groups { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.groups .btn { --c: #888; border-bottom: 3px solid color-mix(in srgb, var(--c) 45%, transparent); }
+.groups .btn.sel { color: var(--ink); border-color: var(--c); box-shadow: 0 2px 0 #0a0a0b, 0 0 14px -4px var(--c); }
+.groups .btn.flash { background: color-mix(in srgb, var(--c) 30%, var(--rubber)); }
+.btn.play.on { background: #34c759; color: #04140a; }
+
+.strip {
+  position: relative; height: 34px; border-radius: 6px; background: #0b0c0d;
+  box-shadow: inset 0 0 0 1px #2c2e33; touch-action: none; cursor: ew-resize; overflow: hidden;
+}
+.strip .leds { position: absolute; inset: 0; display: grid; grid-template-columns: repeat(25, 1fr); gap: 2px; padding: 13px 8px; }
+.strip .leds i { background: #1c1e22; border-radius: 1px; }
+.strip .leds i.on { background: var(--accent); box-shadow: 0 0 8px var(--accent); }
+.strip .mid { position: absolute; left: 50%; top: 6px; bottom: 6px; width: 1px; background: #2c2e33; }
+
+.pads { display: grid; grid-template-columns: repeat(4, 1fr); gap: clamp(6px, 1vw, 10px); touch-action: none; }
+.pad {
+  aspect-ratio: 1; border-radius: 8px; border: 0; cursor: pointer; position: relative;
+  background: var(--rubber); box-shadow: inset 0 -3px 0 rgba(0,0,0,.35), 0 2px 0 #060607;
+  --glow: transparent; --lvl: 0;
+  background-image: radial-gradient(circle at 50% 55%, color-mix(in srgb, var(--glow) calc(var(--lvl) * 100%), transparent), transparent 75%);
+  transition: background-image .06s;
+}
+.pad b { position: absolute; left: 7px; top: 5px; font: 600 10px var(--font-mono); color: rgba(255,255,255,.35); }
+.pad.held { box-shadow: inset 0 0 0 2px var(--ink), 0 1px 0 #060607; }
+
+.notes { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px 28px; color: var(--ink-dim); font-size: 13px; line-height: 1.55; }
+.notes h2 { font-size: 13px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink); margin: 0 0 6px; }
+.notes p, .notes ul { margin: 0; }
+.notes ul { padding-left: 18px; }
+.notes code, .notes kbd { font-family: var(--font-mono); font-size: 12px; color: var(--ink); }
+.toast { font: 600 11px var(--font-mono); color: var(--ink-dim); min-height: 1.2em; }
+
+@media (max-width: 760px) {
+  .screens { grid-template-columns: 1fr; }
+  .knobs { grid-template-columns: repeat(4, 1fr); row-gap: 10px; }
+  .lower { grid-template-columns: 1fr; }
+  .pads-col { order: -1; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <h1>OP-3 Twin</h1>
+    <p>Gemelo de la Maschine MK3 con el motor OP-3: las mismas pantallas de 480×272, los mismos controles y un secuenciador con polimetría, Step Components, Brain y Punch-in FX. Tocá PLAY para escuchar.</p>
+  </header>
+
+  <section class="plate" aria-label="Maschine MK3">
+    <div class="screens">
+      <div class="screen-col">
+        <div class="screen-btns">
+          <button class="btn" id="sb1" title="Sin asignar">1</button><button class="btn" id="sb2" title="Sin asignar">2</button><button class="btn" id="sb3" title="Sin asignar">3</button><button class="btn" id="sb4" title="Sin asignar">4</button>
+        </div>
+        <canvas class="lcd" id="lcdL" width="480" height="272" aria-label="Pantalla izquierda: secuenciador"></canvas>
+      </div>
+      <div class="screen-col">
+        <div class="screen-btns">
+          <button class="btn" id="sb5" title="Página 1 del instrumento">5 PG1</button><button class="btn" id="sb6" title="Página 2 del instrumento">6 PG2</button><button class="btn" id="sb7" title="Sin asignar">7</button><button class="btn" id="sb8" title="Sin asignar">8</button>
+        </div>
+        <canvas class="lcd" id="lcdR" width="480" height="272" aria-label="Pantalla derecha: instrumento"></canvas>
+      </div>
+    </div>
+    <div class="knobs" id="knobs"></div>
+
+    <div class="lower">
+      <div class="controls">
+        <div class="grp">
+          <span class="lbl">Transporte</span>
+          <div class="row">
+            <button class="btn" id="bRestart">RESTART</button>
+            <button class="btn play" id="bPlay">PLAY</button>
+            <button class="btn" id="bStop">STOP</button>
+            <button class="btn" id="bShift">SHIFT</button>
+          </div>
+        </div>
+        <div class="grp">
+          <span class="lbl">Modo</span>
+          <div class="row">
+            <button class="btn" id="bStep">STEP</button>
+            <button class="btn" id="bChords">CHORDS</button>
+            <button class="btn" id="bPerform">PERFORM</button>
+            <button class="btn" id="bErase">ERASE</button>
+            <button class="btn" id="bMute">MUTE</button>
+          </div>
+        </div>
+        <div class="grp">
+          <span class="lbl">Grupos (pistas)</span>
+          <div class="groups" id="groups"></div>
+        </div>
+        <div class="grp">
+          <span class="lbl">Encoder 4D</span>
+          <div class="row">
+            <button class="btn" id="jogL">◀ JOG</button>
+            <button class="btn" id="jogR">JOG ▶</button>
+          </div>
+        </div>
+        <div class="grp">
+          <span class="lbl">Smart Strip · filtro master</span>
+          <div class="strip" id="strip"><div class="mid"></div><div class="leds" id="stripLeds"></div></div>
+        </div>
+        <div class="toast" id="toast" aria-live="polite"></div>
+      </div>
+      <div class="pads-col">
+        <div class="pads" id="pads"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="notes">
+    <div>
+      <h2>Pads</h2>
+      <p>En STEP, un toque activa o apaga el paso (el paso 1 es el pad de arriba a la izquierda). Mantenelo apretado para abrir el inspector de Step Components: la perilla 4 elige el componente y JOG cambia de slot. En CHORDS, mantener un pad toca un acorde en vivo para las pistas enlazadas. En PERFORM, cada pad es un efecto momentáneo; tocar más abajo dentro del pad lo hace más fuerte y arrastrar hacia arriba sube la intensidad.</p>
+    </div>
+    <div>
+      <h2>Perillas y botones</h2>
+      <p>Arrastrá una perilla hacia arriba o abajo, o usá la rueda del mouse. Las perillas 1 a 4 controlan el secuenciador y las 5 a 8 el instrumento de la pista. Shift + grupo enlaza la pista al Brain; Mute + grupo la mutea; Erase + pad borra el paso.</p>
+    </div>
+    <div>
+      <h2>Teclado</h2>
+      <ul>
+        <li><kbd>Espacio</kbd> play / stop · <kbd>1</kbd>–<kbd>8</kbd> pistas A–H</li>
+        <li><kbd>S</kbd> step · <kbd>C</kbd> chords · <kbd>P</kbd> perform</li>
+      </ul>
+    </div>
+    <div>
+      <h2>Qué es fiel y qué no</h2>
+      <p>El secuenciador, el Brain, los layouts y el mapeo de controles copian la versión en Rust. Los sonidos son aproximaciones en WebAudio de KickSyn y FmBass. La pista C (MidiOutBridge) suena con un tono de referencia en lugar de mandar MIDI. DOWNSMP y TAPESTOP también son aproximaciones.</p>
+    </div>
+  </section>
+</div>
+
+<script>
+"use strict";
+// ======================= model (mirrors op3-seq) =======================
+const PPQN = 96;
+const DIVS = [["1/32", 12], ["1/16T", 16], ["1/16", 24], ["1/8", 48], ["1/4", 96]];
+const NOTE_NAMES = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
+const SCALES = [
+  ["MAJOR",[0,2,4,5,7,9,11]], ["MINOR",[0,2,3,5,7,8,10]], ["DORIAN",[0,2,3,5,7,9,10]],
+  ["PHRYG",[0,1,3,5,7,8,10]], ["LYDIAN",[0,2,4,6,7,9,11]], ["MIXO",[0,2,4,5,7,9,10]], ["HARM MIN",[0,2,3,5,7,8,11]],
+];
+const BRAIN_MODES = ["TRANSP", "CHORD", "SCALE"];
+const TRACK_COLORS = ["#ff3b30","#ff9500","#ffd60a","#34c759","#30d5c8","#0a84ff","#bf5af2","#ff2d92"];
+const TRACK_NAMES = "ABCDEFGH".split("");
+const C = (t, v) => ({ t, v });
+const COMPONENT_PRESETS = [
+  null, C("ratchet",2), C("ratchet",3), C("ratchet",4), C("chance",75), C("chance",50), C("chance",25),
+  C("every",[1,2]), C("every",[2,2]), C("every",[1,4]), C("every",[4,4]), C("vel",-40), C("vel",20),
+  C("trans",7), C("trans",-5), C("oct",1), C("oct",-1), C("hold",1), C("delay",8), C("rand",12),
+];
+function compLabel(c) {
+  if (!c) return "-";
+  const s = n => (n > 0 ? "+" : "") + n;
+  switch (c.t) {
+    case "ratchet": return "RATCHET x" + c.v;
+    case "chance": return "CHANCE " + c.v + "%";
+    case "every": return "EVERY " + c.v[0] + ":" + c.v[1];
+    case "vel": return "VEL " + s(c.v);
+    case "trans": return "TRANS " + s(c.v);
+    case "oct": return "OCT " + s(c.v);
+    case "hold": return "HOLD +" + c.v;
+    case "delay": return "DELAY " + c.v + "t";
+    case "rand": return "RAND " + c.v + "st";
+  }
+}
+const sameComp = (a, b) => (!a && !b) || (a && b && a.t === b.t && JSON.stringify(a.v) === JSON.stringify(b.v));
+const newStep = (active = false, note = 60) => ({ active, note, vel: 100, gate: 50, comps: [] });
+const noteName = n => NOTE_NAMES[n % 12] + (Math.floor(n / 12) - 1);
+
+function makeRng(seed) { let x = (seed * 2654435761) >>> 0 || 1; return () => { x ^= x << 13; x >>>= 0; x ^= x >>> 17; x ^= x << 5; x >>>= 0; return x / 4294967296; }; }
+
+function resolve(step, iter, rng) {
+  const r = { fire: step.active, note: step.note, ratchet: 1, gate: step.gate / 100, delay: 0 };
+  let vel = step.vel, semis = 0, chance = 1, rand = 0;
+  for (const c of step.comps) {
+    switch (c.t) {
+      case "ratchet": r.ratchet = Math.min(16, r.ratchet * c.v); break;
+      case "chance": chance *= c.v / 100; break;
+      case "every": if (iter % c.v[1] !== (c.v[0] - 1) % c.v[1]) r.fire = false; break;
+      case "vel": vel += c.v; break;
+      case "trans": semis += c.v; break;
+      case "oct": semis += 12 * c.v; break;
+      case "hold": r.gate += c.v; break;
+      case "delay": r.delay += c.v; break;
+      case "rand": rand += c.v; break;
+    }
+  }
+  if (r.fire && chance < 1) r.fire = rng() < chance;
+  if (rand > 0) semis += Math.floor(rng() * (rand + 1));
+  r.vel = Math.max(1, Math.min(127, vel)) / 127;
+  r.note = Math.max(0, Math.min(127, step.note + semis));
+  return r;
+}
+
+// ---- Brain ----
+function diatonic(key, scaleIdx, degree, kind) {
+  const iv = SCALES[scaleIdx][1], pc = k => (key + iv[(degree + k) % 7]) % 12;
+  const tones = { triad: [0,2,4], seventh: [0,2,4,6], sus2: [0,1,4], sus4: [0,3,4] }[kind];
+  return { root: pc(0), mask: tones.reduce((m, k) => m | (1 << pc(k)), 0) };
+}
+function chordName(c) {
+  const rel = ((c.mask >> c.root) | (c.mask << (12 - c.root))) & 0xfff, has = i => (rel >> i) & 1;
+  let q = "?";
+  if (!has(3) && has(4) && has(7)) q = "";
+  else if (has(3) && !has(4) && has(7)) q = "m";
+  else if (has(3) && !has(4) && has(6) && !has(7)) q = "dim";
+  else if (!has(3) && !has(4) && has(7) && has(2) && !has(5)) q = "sus2";
+  else if (!has(3) && !has(4) && has(7) && has(5) && !has(2)) q = "sus4";
+  let ext = has(11) ? (q === "" ? "maj7" : "M7") : has(10) ? (q === "dim" ? "7b5" : "7") : "";
+  if (q === "dim" && has(10)) q = "m";
+  return NOTE_NAMES[c.root] + q + ext;
+}
+function brainSlot(b, step16) {
+  const slots = b.prog.slice(0, b.len); let pos = step16 % slots.reduce((s, x) => s + x.length, 0);
+  for (let i = 0; i < slots.length; i++) { if (pos < slots[i].length) return i; pos -= slots[i].length; }
+  return 0;
+}
+function brainChord(b, step16) {
+  if (b.live) return b.live;
+  const s = b.prog[brainSlot(b, step16)];
+  return diatonic(b.key, b.scale, s.degree, s.kind);
+}
+function brainApply(b, note, chord) {
+  let shift = ((chord.root + 6) % 12) - 6; if (shift === -6) shift = 6;
+  const n = Math.max(0, Math.min(127, note + shift));
+  if (b.mode === 0) return n;
+  const mask = b.mode === 1 ? chord.mask : SCALES[b.scale][1].reduce((m, i) => m | 1 << ((b.key + i) % 12), 0);
+  for (let d = 0; d < 12; d++) for (const c of [n - d, n + d]) if (c >= 0 && c <= 127 && (mask >> (c % 12)) & 1) return c;
+  return n;
+}
+
+// ---- project (same demo set as op3 sim) ----
+function demoProject() {
+  const tracks = Array.from({ length: 8 }, () => ({ steps: Array.from({ length: 16 }, () => newStep()), length: 16, div: 2, link: false, muted: false }));
+  const p = { tracks, bpm: 122, swing: 0.54, seed: 0x35EED,
+    brain: { key: 0, scale: 0, mode: 1, len: 4, live: null,
+      prog: [0,5,3,4,0,0,0,0].map(d => ({ degree: d, kind: "triad", length: 16 })) } };
+  for (const s of [0,4,8,12]) tracks[0].steps[s] = newStep(true, 36);
+  tracks[0].steps[14] = { ...newStep(true, 36), comps: [C("chance",50), C("vel",-40)] };
+  const b = tracks[1]; b.length = 7; b.link = true;
+  b.steps[0] = newStep(true, 36);
+  b.steps[2] = { ...newStep(true, 48), comps: [C("ratchet",2)] };
+  b.steps[3] = newStep(true, 43);
+  b.steps[5] = { ...newStep(true, 40), comps: [C("every",[2,2]), C("oct",1)] };
+  const a = tracks[2]; a.length = 5; a.link = true;
+  a.steps[0] = newStep(true, 60); a.steps[1] = newStep(true, 64);
+  a.steps[2] = { ...newStep(true, 67), comps: [C("rand",5)] };
+  a.steps[4] = { ...newStep(true, 72), comps: [C("chance",60)] };
+  return p;
+}
+const P = demoProject();
+
+// ======================= cartridges (WebAudio approximations) =======================
+const expMap = (v, a, b) => a * Math.pow(b / a, v);
+const CARTS = {
+  kick: { name: "KICKSYN", cat: "DRUM",
+    params: [["TUNE",.4,v=>expMap(v,30,120).toFixed(0)+"Hz"],["DECAY",.45,v=>expMap(v,60,2000).toFixed(0)+"ms"],["PUNCH",.6,v=>Math.round(v*100)+"%"],["DRIVE",.25,v=>Math.round(v*100)+"%"],
+             ["CLICK",.3,v=>Math.round(v*100)+"%"],["P.DECAY",.35,v=>expMap(v,5,200).toFixed(0)+"ms"],["VEL",0,v=>v<.5?"VEL ON":"FIXED"],["LEVEL",.8,v=>Math.round(v*100)+"%"]] },
+  fm: { name: "FMBASS", cat: "SYNTH",
+    params: [["RATIO",.3,v=>["0.5","1","2","3","4"][Math.min(4,Math.floor(v*5))]],["INDEX",.45,v=>Math.round(v*100)+"%"],["DECAY",.4,v=>expMap(v,20,2000).toFixed(0)+"ms"],["RELEASE",.3,v=>expMap(v,5,1500).toFixed(0)+"ms"],
+             ["GLIDE",0,v=>expMap(v,1,500).toFixed(0)+"ms"],["SUB",.4,v=>Math.round(v*100)+"%"],["SUSTAIN",.6,v=>Math.round(v*100)+"%"],["LEVEL",.7,v=>Math.round(v*100)+"%"]] },
+  midi: { name: "MIDIOUTBRIDGE", cat: "MIDI",
+    params: [["CHANNEL",0,v=>"CH "+(Math.min(15,Math.floor(v*16))+1)],["TRANSP",.5,v=>{const s=Math.round(-24+48*v);return (s>0?"+":"")+s+"st";}],["VEL",1,v=>Math.round(v*100)+"%"],["CC74",.5,v=>Math.round(v*100)+"%"]] },
+};
+const SLOTS = ["kick", "fm", "midi", null, null, null, null, null];
+const PARAMS = SLOTS.map(s => s ? CARTS[s].params.map(p => p[1]) : null);
+const recentMidi = [];
+
+let actx = null, master = null, trackOut = [], analysers = [], fx = {};
+function initAudio() {
+  if (actx) return;
+  actx = new (window.AudioContext || window.webkitAudioContext)({ latencyHint: "interactive", sampleRate: 48000 });
+  const dest = actx.destination;
+  master = actx.createGain(); master.gain.value = 0.8;
+  fx.strip = actx.createBiquadFilter(); fx.strip.type = "lowpass"; fx.strip.frequency.value = 22000;
+  fx.punch = actx.createBiquadFilter(); fx.punch.type = "lowpass"; fx.punch.frequency.value = 22000;
+  fx.crush = actx.createWaveShaper();
+  fx.gate = actx.createGain();
+  fx.kill = actx.createGain();
+  fx.limiter = actx.createDynamicsCompressor(); fx.limiter.threshold.value = -6; fx.limiter.ratio.value = 12;
+  fx.echoSend = actx.createGain(); fx.echoSend.gain.value = 0;
+  fx.delay = actx.createDelay(2); fx.fb = actx.createGain(); fx.fb.gain.value = 0.55;
+  master.connect(fx.strip).connect(fx.punch).connect(fx.crush).connect(fx.gate).connect(fx.kill).connect(fx.limiter).connect(dest);
+  fx.kill.connect(fx.echoSend).connect(fx.delay); fx.delay.connect(fx.fb).connect(fx.delay); fx.delay.connect(fx.limiter);
+  for (let t = 0; t < 8; t++) {
+    const g = actx.createGain(); g.gain.value = 0.8;
+    const an = actx.createAnalyser(); an.fftSize = 2048;
+    g.connect(an); an.connect(master);
+    trackOut.push(g); analysers.push(an);
+  }
+  const nb = actx.createBuffer(1, 4800, 48000), d = nb.getChannelData(0);
+  for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+  fx.noise = nb;
+}
+function driveCurve(amount) {
+  const n = 1024, c = new Float32Array(n), g = 1 + amount * 6;
+  for (let i = 0; i < n; i++) { const x = i / (n - 1) * 2 - 1; c[i] = Math.tanh(x * g) / Math.tanh(g); }
+  return c;
+}
+function crushCurve(levels) {
+  const n = 4096, c = new Float32Array(n);
+  for (let i = 0; i < n; i++) { const x = i / (n - 1) * 2 - 1; c[i] = levels ? Math.round(x * levels) / levels : x; }
+  return c;
+}
+const tau = ms => ms / 1000 / 6.9; // -60 dB at `ms`
+
+function playKick(t, time, note, vel) {
+  const p = PARAMS[t], out = trackOut[t];
+  const base = expMap(p[0], 30, 120) * Math.pow(2, (note - 36) / 12);
+  const v = (p[6] >= .5 ? 1 : vel) * p[7];
+  const o = actx.createOscillator(), g = actx.createGain(), sh = actx.createWaveShaper();
+  sh.curve = driveCurve(p[3]);
+  o.frequency.setValueAtTime(base * (1 + p[2] * 7), time);
+  o.frequency.setTargetAtTime(base, time, tau(expMap(p[5], 5, 200)));
+  g.gain.setValueAtTime(v, time);
+  g.gain.setTargetAtTime(0, time, tau(expMap(p[1], 60, 2000)));
+  o.connect(g).connect(sh).connect(out);
+  o.start(time); o.stop(time + expMap(p[1], 60, 2000) / 1000 + 0.05);
+  if (p[4] > 0.01) {
+    const n = actx.createBufferSource(), ng = actx.createGain(); n.buffer = fx.noise;
+    ng.gain.setValueAtTime(p[4] * 0.5 * v, time); ng.gain.setTargetAtTime(0, time, 0.004);
+    n.connect(ng).connect(out); n.start(time); n.stop(time + 0.05);
+  }
+}
+function playFm(t, time, note, vel, dur) {
+  const p = PARAMS[t], out = trackOut[t];
+  const f = 440 * Math.pow(2, (note - 69) / 12), ratio = [0.5,1,2,3,4][Math.min(4, Math.floor(p[0] * 5))];
+  const idx = p[1] * 6 * f, dec = expMap(p[2], 20, 2000), rel = expMap(p[3], 5, 1500), sus = p[6], lvl = vel * p[7];
+  const car = actx.createOscillator(), mod = actx.createOscillator(), mg = actx.createGain(), sub = actx.createOscillator(), sg = actx.createGain(), amp = actx.createGain();
+  car.frequency.value = f; mod.frequency.value = f * ratio; sub.frequency.value = f / 2;
+  mg.gain.setValueAtTime(idx, time); mg.gain.setTargetAtTime(idx * 0.25, time, tau(dec));
+  sg.gain.value = p[5] * 0.6;
+  amp.gain.setValueAtTime(0, time); amp.gain.linearRampToValueAtTime(lvl, time + 0.002);
+  amp.gain.setTargetAtTime(lvl * sus, time + 0.002, tau(dec));
+  amp.gain.setTargetAtTime(0, time + dur, tau(rel));
+  mod.connect(mg).connect(car.frequency); car.connect(amp); sub.connect(sg).connect(amp); amp.connect(out);
+  const end = time + dur + rel / 1000 + 0.05;
+  for (const o of [car, mod, sub]) { o.start(time); o.stop(end); }
+}
+function playMidiPreview(t, time, note, vel, dur) {
+  const p = PARAMS[t];
+  const n = Math.max(0, Math.min(127, note + Math.round(-24 + 48 * p[1])));
+  const o = actx.createOscillator(), g = actx.createGain(), lp = actx.createBiquadFilter();
+  o.type = "triangle"; o.frequency.value = 440 * Math.pow(2, (n - 69) / 12);
+  lp.frequency.value = expMap(p[3], 300, 9000);
+  g.gain.setValueAtTime(0.18 * vel * p[2], time); g.gain.setTargetAtTime(0, time + Math.min(dur, .15), 0.06);
+  o.connect(lp).connect(g).connect(trackOut[t]); o.start(time); o.stop(time + dur + 0.6);
+  const delayMs = Math.max(0, (time - actx.currentTime) * 1000);
+  setTimeout(() => { recentMidi.push(n); if (recentMidi.length > 8) recentMidi.shift(); }, delayMs);
+}
+
+// ======================= sequencer clock (mirrors op3-seq Sequencer) =======================
+const S = { playing: false, tick: 0, nextTime: 0, repeat: null, repeatReq: null, rng: [], playhead: Array(8).fill(0), chordSlot: 0, chord: brainChord(P.brain, 0), vis: [], noteCount: Array(8).fill(0), gateOn: false, gateLen: 1 };
+function play() {
+  initAudio(); if (actx.state === "suspended") actx.resume();
+  S.playing = true; S.tick = 0; S.repeat = null; S.nextTime = actx.currentTime + 0.06;
+  S.rng = Array.from({ length: 8 }, (_, i) => makeRng(P.seed ^ (i + 1) * 7919)); S.vis = [];
+}
+function stop() { S.playing = false; setPunch(null, 0); S.repeat = null; }
+const spt = () => 60 / (P.bpm * PPQN);
+
+function onTick(time) {
+  const tick = S.tick;
+  if (S.repeatReq != null) { const len = S.repeatReq; S.repeat = { start: tick - tick % len, len }; S.repeatReq = null; }
+  let eff = tick, windowStart = false;
+  if (S.repeat) { const o = (tick - S.repeat.start) % S.repeat.len; eff = S.repeat.start + o; windowStart = o === 0; }
+  const step16 = Math.floor(eff / 24);
+  S.vis.push({ time, eff, slot: brainSlot(P.brain, step16), chord: brainChord(P.brain, step16) });
+  if (S.gateOn && tick % (S.gateLen * 24) === 0) {
+    const half = S.gateLen * 24 * spt() / 2;
+    fx.gate.gain.setValueAtTime(1, time); fx.gate.gain.setValueAtTime(Math.max(0, 1 - punchState.amount), time + half);
+  }
+  P.tracks.forEach((tr, t) => {
+    const tps = DIVS[tr.div][1];
+    if (eff % tps !== 0 && !windowStart) return;
+    const g = Math.floor(eff / tps), len = tr.length, step = tr.steps[g % len];
+    const r = resolve(step, Math.floor(g / len), S.rng[t]);
+    if (tr.muted || !r.fire || !SLOTS[t]) return;
+    const note = tr.link ? brainApply(P.brain, r.note, brainChord(P.brain, step16)) : r.note;
+    const stepDur = tps * spt();
+    const swing = g % 2 === 1 ? (P.swing - 0.5) * 2 * stepDur : 0;
+    const start = time + swing + r.delay * spt();
+    const sub = stepDur / r.ratchet, gate = r.ratchet > 1 ? sub * Math.min(1, r.gate) : stepDur * r.gate;
+    for (let k = 0; k < r.ratchet; k++) {
+      const at = start + k * sub;
+      if (SLOTS[t] === "kick") playKick(t, at, note, r.vel);
+      else if (SLOTS[t] === "fm") playFm(t, at, note, r.vel, Math.max(0.02, gate));
+      else playMidiPreview(t, at, note, r.vel, Math.max(0.02, gate));
+    }
+    const delayMs = Math.max(0, (start - actx.currentTime) * 1000);
+    setTimeout(() => { S.noteCount[t]++; }, delayMs);
+  });
+}
+function scheduler() {
+  if (!S.playing || !actx) return;
+  while (S.nextTime < actx.currentTime + 0.12) { onTick(S.nextTime); S.tick++; S.nextTime += spt(); }
+}
+setInterval(scheduler, 20);
+function updateVisual() {
+  if (!actx || !S.playing) return;
+  const now = actx.currentTime;
+  while (S.vis.length && S.vis[0].time <= now) {
+    const v = S.vis.shift();
+    P.tracks.forEach((tr, t) => { S.playhead[t] = Math.floor(v.eff / DIVS[tr.div][1]) % tr.length; });
+    S.chordSlot = v.slot; S.chord = v.chord;
+  }
+}
+
+// ======================= Punch-in FX =======================
+const PUNCH = [["LPF","lpf"],["HPF","hpf"],["CRUSH","crush"],["DOWNSMP","down"],["GATE16","gate16"],["GATE8","gate8"],["TAPESTOP","tape"],["KILL","kill"],
+  ["RPT 1/4",96],["RPT 1/8",48],["RPT 1/16",24],["RPT 1/32",12],["RPT 1/16T",16],["STUT 1/16",6],["STUT 1/32",3],["ECHO","echo"]];
+const punchState = { slot: null, amount: 0, base: 0 };
+function setPunch(slot, amount) {
+  punchState.slot = slot; punchState.amount = amount;
+  if (!actx) return;
+  const now = actx.currentTime, kind = slot == null ? null : PUNCH[slot][1];
+  if (typeof kind === "number") { S.repeatReq = kind; } else { S.repeat = null; S.repeatReq = null; }
+  fx.punch.type = kind === "hpf" ? "highpass" : "lowpass";
+  const it = amount;
+  let f = 22000, q = 0.7;
+  if (kind === "lpf") { f = expMap(it, 18000, 80); q = 0.7 + it * 8; }
+  if (kind === "hpf") { f = expMap(it, 30, 6000); q = 0.7 + it * 6; }
+  if (kind === "down") f = expMap(it, 9000, 900);
+  if (kind === "tape") { fx.punch.frequency.cancelScheduledValues(now); fx.punch.frequency.setValueAtTime(fx.punch.frequency.value, now); fx.punch.frequency.exponentialRampToValueAtTime(120, now + 1.2 - it * 0.8); fx.punch.Q.value = 0.7; }
+  else { fx.punch.frequency.cancelScheduledValues(now); fx.punch.frequency.setTargetAtTime(f, now, 0.01); fx.punch.Q.setTargetAtTime(q, now, 0.01); }
+  fx.crush.curve = kind === "crush" ? crushCurve(Math.pow(2, 12 - it * 10)) : kind === "down" ? crushCurve(Math.pow(2, 8 - it * 5)) : null;
+  S.gateOn = kind === "gate16" || kind === "gate8"; S.gateLen = kind === "gate8" ? 2 : 1;
+  if (!S.gateOn) { fx.gate.gain.cancelScheduledValues(now); fx.gate.gain.setValueAtTime(1, now); }
+  fx.kill.gain.setTargetAtTime(kind === "kill" ? 0 : kind === "tape" ? 0.0001 : 1, now, kind === "tape" ? 0.4 : 0.005);
+  fx.echoSend.gain.setTargetAtTime(kind === "echo" ? 0.4 + 0.6 * it : 0, now, 0.01);
+  fx.delay.delayTime.value = Math.min(1.9, 3 * 24 * spt());
+}
+function setStrip(x) {
+  UI.strip = x;
+  if (!actx) return;
+  const now = actx.currentTime;
+  if (x == null || Math.abs(x * 2 - 1) < 0.02) { fx.strip.type = "lowpass"; fx.strip.frequency.setTargetAtTime(22000, now, 0.01); return; }
+  const v = x * 2 - 1;
+  if (v < 0) { fx.strip.type = "lowpass"; fx.strip.frequency.setTargetAtTime(expMap(-v, 20000, 60), now, 0.01); }
+  else { fx.strip.type = "highpass"; fx.strip.frequency.setTargetAtTime(expMap(v, 20, 8000), now, 0.01); }
+  fx.strip.Q.value = 1.2;
+}
+
+// ======================= controller (mirrors op3 Controller) =======================
+const UI = { mode: "step", track: 0, inspect: null, compCursor: 0, touch: Array(8).fill(false), page: 0, live: null, strip: null, activity: Array(8).fill(0), lastCount: Array(8).fill(0), shift: false, mute: false, erase: false };
+const padDownAt = Array(16).fill(null); let inspectorPad = null; const knobAccum = Array(8).fill(0);
+const padToStep = pad => (3 - Math.floor(pad / 4)) * 4 + pad % 4; // bottom-left numbering -> reading order
+const DETENT = 40, SWEEP = 800;
+function detents(k, d) { knobAccum[k] += d; const n = Math.trunc(knobAccum[k] / DETENT); knobAccum[k] -= n * DETENT; return n; }
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+
+function setMode(m) {
+  if (UI.mode === "punch" && punchState.slot != null) setPunch(null, 0);
+  if (UI.mode === "brain" && UI.live != null) { UI.live = null; P.brain.live = null; }
+  UI.mode = m; UI.inspect = null; inspectorPad = null;
+}
+function groupPress(g) {
+  const tr = P.tracks[g];
+  if (UI.shift) { tr.link = !tr.link; toast(`Pista ${TRACK_NAMES[g]}: Brain ${tr.link ? "enlazado" : "desenlazado"}`); }
+  else if (UI.mute) { tr.muted = !tr.muted; toast(`Pista ${TRACK_NAMES[g]} ${tr.muted ? "muteada" : "activa"}`); }
+  else { UI.track = g; UI.inspect = null; inspectorPad = null; }
+  UI.shift = false; UI.mute = false;
+}
+function padDown(pad, vel) {
+  if (UI.mode === "step") {
+    if (padDownAt[pad] == null) {
+      padDownAt[pad] = performance.now();
+      if (UI.erase) P.tracks[UI.track].steps[padToStep(pad)] = newStep();
+    }
+  } else if (UI.mode === "brain") {
+    const b = P.brain;
+    const chord = pad <= 6 ? diatonic(b.key, b.scale, pad, "triad") : pad === 7 ? diatonic(b.key, b.scale, 0, "sus4")
+      : pad <= 14 ? diatonic(b.key, b.scale, pad - 8, "seventh") : diatonic(b.key, b.scale, 4, "sus2");
+    UI.live = pad; b.live = chord; if (!S.playing) S.chord = chord;
+  } else {
+    initAudio();
+    punchState.base = vel; setPunch(pad, vel);
+  }
+}
+function padPressure(pad, p) {
+  if (UI.mode === "punch" && punchState.slot === pad) {
+    const v = Math.max(punchState.base * 0.5, p); punchState.amount = v; setPunch(pad, v);
+  }
+}
+function padUp(pad) {
+  if (UI.mode === "step") {
+    const wasDown = padDownAt[pad] != null; padDownAt[pad] = null;
+    if (inspectorPad === pad) { inspectorPad = null; UI.inspect = null; }
+    else if (wasDown && !UI.erase && inspectorPad == null) { const s = P.tracks[UI.track].steps[padToStep(pad)]; s.active = !s.active; }
+  } else if (UI.mode === "brain") {
+    if (UI.live === pad) { UI.live = null; P.brain.live = null; if (!S.playing) S.chord = brainChord(P.brain, 0); }
+  } else if (punchState.slot === pad) setPunch(null, 0);
+}
+function knob(k, delta) {
+  if (k >= 4) {
+    const t = UI.track; if (!PARAMS[t]) return;
+    const i = UI.page * 4 + (k - 4); if (i >= PARAMS[t].length) return;
+    PARAMS[t][i] = clamp(PARAMS[t][i] + delta / SWEEP, 0, 1); return;
+  }
+  const tr = P.tracks[UI.track];
+  if (UI.mode === "step" && UI.inspect != null) {
+    const s = tr.steps[UI.inspect], n = detents(k, delta); if (!n) return;
+    if (k === 0) s.note = clamp(s.note + n, 0, 127);
+    else if (k === 1) s.vel = clamp(s.vel + n * 4, 1, 127);
+    else if (k === 2) s.gate = clamp(s.gate + n * 5, 1, 100);
+    else {
+      const cur = s.comps[UI.compCursor] || null;
+      let i = COMPONENT_PRESETS.findIndex(c => sameComp(c, cur)); if (i < 0) i = 0;
+      const next = COMPONENT_PRESETS[((i + n) % COMPONENT_PRESETS.length + COMPONENT_PRESETS.length) % COMPONENT_PRESETS.length];
+      if (UI.compCursor < s.comps.length) { if (next) s.comps[UI.compCursor] = next; else s.comps.splice(UI.compCursor, 1); }
+      else if (next && s.comps.length < 6) s.comps.push(next);
+    }
+    return;
+  }
+  const b = P.brain;
+  if (UI.mode === "brain") {
+    const n = detents(k, delta); if (!n && k !== 3) return;
+    if (k === 0) b.key = ((b.key + n) % 12 + 12) % 12;
+    else if (k === 1) b.scale = ((b.scale + n) % 7 + 7) % 7;
+    else if (k === 2) b.mode = ((b.mode + n) % 3 + 3) % 3;
+    else if (k === 3 && n) b.len = clamp(b.len + n, 1, 8);
+    if (!S.playing) S.chord = brainChord(b, 0);
+    return;
+  }
+  if (UI.mode === "step" && k === 0) { const n = detents(k, delta); if (n) tr.length = clamp(tr.length + n, 1, 16); }
+  else if (UI.mode === "step" && k === 1) { const n = detents(k, delta); if (n) tr.div = clamp(tr.div + n, 0, DIVS.length - 1); }
+  else if (UI.mode === "step" && k === 2) P.swing = clamp(P.swing + delta / (SWEEP * 4), 0.5, 0.75);
+  else if (k === 3) { const n = detents(k, delta); if (n) P.bpm = clamp(P.bpm + n * (UI.shift ? 0.1 : 1), 20, 300); }
+}
+function jog(d) {
+  if (UI.inspect != null) {
+    const s = P.tracks[UI.track].steps[UI.inspect];
+    UI.compCursor = clamp(UI.compCursor + d, 0, Math.min(s.comps.length, 5));
+  } else P.bpm = clamp(P.bpm + d * (UI.shift ? 0.1 : 1), 20, 300);
+}
+function controllerTick() {
+  if (UI.mode === "step" && inspectorPad == null) {
+    const now = performance.now();
+    for (let p = 0; p < 16; p++) if (padDownAt[p] != null && now - padDownAt[p] >= 300) {
+      inspectorPad = p; UI.inspect = padToStep(p); UI.compCursor = 0; break;
+    }
+  }
+  for (let t = 0; t < 8; t++) {
+    if (S.noteCount[t] !== UI.lastCount[t]) { UI.lastCount[t] = S.noteCount[t]; UI.activity[t] = 6; }
+    else UI.activity[t] = Math.max(0, UI.activity[t] - 1);
+  }
+}
+
+// ======================= screens (mirrors op3-ui) =======================
+const BG = "#000", FG = "#fff", DIM = "#6a6a6a", FAINT = "#262626";
+const FONT = { s: '10px "IBM Plex Mono", monospace', m: '600 14px "IBM Plex Mono", monospace', l: '600 19px "IBM Plex Mono", monospace' };
+function txt(g, s, x, y, size, color, align = "left") { g.font = FONT[size]; g.fillStyle = color; g.textAlign = align; g.textBaseline = "top"; g.fillText(s, x, y); }
+function box(g, x, y, w, h, c, lw = 1) { g.strokeStyle = c; g.lineWidth = lw; g.strokeRect(x + lw / 2, y + lw / 2, w - lw, h - lw); }
+function fill(g, x, y, w, h, c) { g.fillStyle = c; g.fillRect(x, y, w, h); }
+function mix(hex, k) { const n = parseInt(hex.slice(1), 16); const f = c => Math.round(((n >> c) & 255) * k); return `rgb(${f(16)},${f(8)},${f(0)})`; }
+function vbar(g, x, y, w, h, v, c) { box(g, x, y, w, h, "#808080"); fill(g, x + 2, y + 2, Math.round((w - 4) * clamp(v, 0, 1)), h - 4, c); }
+function footer(g, cells, touched, accent) {
+  fill(g, 0, 222, 480, 1, FAINT);
+  cells.forEach((c, i) => {
+    const x = i * 120;
+    if (touched[i]) fill(g, x + 2, 224, 116, 12, accent);
+    txt(g, c[0], x + 60, 225, "s", touched[i] ? BG : DIM, "center");
+    txt(g, c[1], x + 60, 238, "m", FG, "center");
+    if (c[2] != null) vbar(g, x + 10, 258, 100, 8, c[2], accent);
+    if (i) fill(g, x, 226, 1, 44, FAINT);
+  });
+}
+const GX = Math.floor((480 - 29 * 16 + 2) / 2);
+function drawLeft(g) {
+  const tr = P.tracks[UI.track], accent = TRACK_COLORS[UI.track];
+  fill(g, 0, 0, 480, 272, BG);
+  // top bar
+  if (S.playing) { g.fillStyle = FG; g.beginPath(); g.moveTo(8, 7); g.lineTo(20, 14); g.lineTo(8, 21); g.fill(); } else fill(g, 8, 8, 12, 12, DIM);
+  txt(g, P.bpm.toFixed(1), 28, 4, "l", FG); txt(g, "BPM", 92, 12, "s", DIM);
+  box(g, 130, 4, 76, 22, P.brain.live ? accent : DIM);
+  txt(g, chordName(S.chord), 168, 7, "m", FG, "center");
+  const modeLabel = UI.mode === "punch" && punchState.slot != null ? `${PUNCH[punchState.slot][0]} ${Math.round(punchState.amount * 100)}%` : { step: "STEP", brain: "BRAIN", punch: "PUNCH FX" }[UI.mode];
+  txt(g, modeLabel, 300, 7, "m", accent, "center");
+  txt(g, `${String(S.playhead[UI.track] + 1).padStart(2, "0")}/${String(tr.length).padStart(2, "0")}`, 472, 7, "m", FG, "right");
+  fill(g, 0, 28, 480, 1, FAINT);
+  // track strip
+  for (let i = 0; i < 8; i++) {
+    const x = i * 60, c = TRACK_COLORS[i], sel = i === UI.track;
+    fill(g, x + 4, 32, 52, 3, P.tracks[i].muted ? FAINT : c);
+    if (sel) box(g, x + 2, 30, 56, 32, FG);
+    txt(g, TRACK_NAMES[i], x + 12, 40, "m", sel ? FG : DIM);
+    if (P.tracks[i].link) txt(g, "B", x + 30, 43, "s", c);
+    fill(g, x + 44, 44, 6, 6, UI.activity[i] > 0 ? c : FAINT);
+  }
+  fill(g, 0, 64, 480, 1, FAINT);
+  if (UI.mode === "step" && UI.inspect != null) inspector(g, accent);
+  else if (UI.mode === "brain") brainView(g, accent);
+  else if (UI.mode === "punch") punchView(g, accent);
+  else { tape(g, accent); lanes(g); }
+  footer(g, leftFooter(), UI.touch.slice(0, 4), accent);
+}
+function tape(g, accent) {
+  const tr = P.tracks[UI.track], ph = S.playhead[UI.track];
+  for (let s = 0; s < 16; s++) {
+    const x = GX + s * 29, st = tr.steps[s], inLen = s < tr.length;
+    if (st.active && inLen) { const h = Math.round(84 * (0.35 + 0.65 * st.vel / 127)); fill(g, x, 70 + 84 - h, 27, h, accent); }
+    else if (st.active) fill(g, x, 70 + 84 - 6, 27, 6, FAINT);
+    box(g, x, 70, 27, 84, inLen ? (s % 4 === 0 ? FG : DIM) : FAINT);
+    st.comps.slice(0, 6).forEach((_, k) => fill(g, x + 3 + k * 4, 73, 2, 2, FG));
+    if (S.playing && s === ph) fill(g, x, 157, 27, 3, FG);
+  }
+  const xe = GX + tr.length * 29 - 2;
+  fill(g, xe - 1, 66, 2, 94, accent);
+  txt(g, "L" + tr.length, Math.min(xe, 460) + 3, 66, "s", accent);
+}
+function lanes(g) {
+  P.tracks.forEach((tr, i) => {
+    const y = 170 + i * 6, c = TRACK_COLORS[i], empty = !tr.steps.slice(0, tr.length).some(s => s.active);
+    for (let s = 0; s < tr.length; s++) {
+      const col = S.playing && s === S.playhead[i] ? (empty ? DIM : FG) : tr.steps[s].active ? (i === UI.track ? c : mix(c, .6)) : FAINT;
+      fill(g, GX + s * 29, y, 27, 4, col);
+    }
+  });
+}
+function inspector(g, accent) {
+  const s = P.tracks[UI.track].steps[UI.inspect];
+  txt(g, `STEP ${String(UI.inspect + 1).padStart(2, "0")}`, 12, 72, "l", accent);
+  txt(g, s.active ? "ON" : "OFF", 130, 76, "m", s.active ? FG : DIM);
+  txt(g, `${noteName(s.note)}  VEL ${s.vel}  GATE ${s.gate}%`, 180, 76, "m", FG);
+  txt(g, "STEP COMPONENTS", 12, 100, "s", DIM);
+  s.comps.forEach((c, i) => {
+    const x = 12 + (i % 3) * 156, y = 114 + Math.floor(i / 3) * 26, sel = i === UI.compCursor;
+    if (sel) fill(g, x - 2, y - 2, 150, 20, accent); else box(g, x - 2, y - 2, 150, 20, DIM);
+    txt(g, compLabel(c), x + 4, y + 1, "m", sel ? BG : FG);
+  });
+  const n = s.comps.length;
+  if (n < 6) {
+    const x = 12 + (n % 3) * 156, y = 114 + Math.floor(n / 3) * 26, sel = UI.compCursor >= n;
+    box(g, x - 2, y - 2, 150, 20, sel ? accent : FAINT); txt(g, "+ ADD", x + 4, y + 1, "m", sel ? accent : DIM);
+  }
+  txt(g, "JOG: select   KNOB 4: set", 12, 196, "s", DIM);
+}
+function brainView(g, accent) {
+  const b = P.brain;
+  txt(g, `KEY ${NOTE_NAMES[b.key]} ${SCALES[b.scale][0]}`, 12, 70, "m", FG);
+  const active = S.playing ? S.chordSlot : 0, w = Math.floor(464 / b.len);
+  for (let i = 0; i < b.len; i++) {
+    const sl = b.prog[i], c = diatonic(b.key, b.scale, sl.degree, sl.kind), x = 8 + i * w, on = i === active && !b.live;
+    if (on) fill(g, x, 92, w - 4, 50, accent); else box(g, x, 92, w - 4, 50, DIM);
+    txt(g, chordName(c), x + (w - 4) / 2, 100, "m", on ? BG : FG, "center");
+    txt(g, sl.length + " st", x + (w - 4) / 2, 122, "s", on ? BG : DIM, "center");
+  }
+  txt(g, "PADS 1-7 TRIADS  9-15 SEVENTHS  HOLD = LIVE", 12, 152, "s", DIM);
+  if (b.live) txt(g, "LIVE " + chordName(b.live), 12, 170, "l", accent);
+  const linked = P.tracks.map((t, i) => t.link ? TRACK_NAMES[i] : null).filter(Boolean);
+  txt(g, "LINKED: " + (linked.length ? linked.join(" ") : "-"), 12, 200, "s", FG);
+}
+function punchView(g, accent) {
+  PUNCH.forEach(([name], i) => {
+    const col = i % 4, row = 3 - Math.floor(i / 4), x = 8 + col * 118, y = 70 + row * 38, on = punchState.slot === i;
+    if (on) fill(g, x, y, 112, 34, mix(accent, 0.4 + 0.6 * punchState.amount)); else box(g, x, y, 112, 34, DIM);
+    txt(g, name, x + 56, y + 10, "m", on ? BG : FG, "center");
+  });
+}
+function leftFooter() {
+  const tr = P.tracks[UI.track];
+  if (UI.mode === "step" && UI.inspect != null) {
+    const s = tr.steps[UI.inspect], cur = s.comps[UI.compCursor] || null;
+    const pi = Math.max(0, COMPONENT_PRESETS.findIndex(c => sameComp(c, cur)));
+    return [["NOTE", noteName(s.note), s.note / 127], ["VELOCITY", String(s.vel), s.vel / 127], ["GATE", s.gate + "%", s.gate / 100],
+      ["COMPONENT", UI.compCursor >= s.comps.length ? "+ ADD" : compLabel(cur), pi / (COMPONENT_PRESETS.length - 1)]];
+  }
+  if (UI.mode === "brain") return [["KEY", NOTE_NAMES[P.brain.key], P.brain.key / 11], ["SCALE", SCALES[P.brain.scale][0], null], ["MODE", BRAIN_MODES[P.brain.mode], null], ["CHORDS", String(P.brain.len), P.brain.len / 8]];
+  if (UI.mode === "punch") return [["FX", punchState.slot == null ? "-" : PUNCH[punchState.slot][0], null], ["AMOUNT", punchState.slot == null ? "-" : Math.round(punchState.amount * 100) + "%", punchState.slot == null ? null : punchState.amount],
+    ["STRIP", UI.strip == null ? "-" : Math.round(UI.strip * 100) + "%", UI.strip], ["BPM", P.bpm.toFixed(1), null]];
+  return [["LENGTH", String(tr.length), tr.length / 16], ["DIVISION", DIVS[tr.div][0], null], ["SWING", Math.round(P.swing * 100) + "%", (P.swing - 0.5) * 4], ["BPM", P.bpm.toFixed(1), (P.bpm - 20) / 280]];
+}
+const scopeBuf = new Float32Array(2048);
+function drawScope(g, t, x, y, w, h, color) {
+  const mid = y + h / 2; fill(g, x, mid, w, 1, "#333");
+  if (!actx || !analysers[t]) return;
+  analysers[t].getFloatTimeDomainData(scopeBuf);
+  let start = 0; for (let i = 0; i < 1024; i++) if (scopeBuf[i] <= 0 && scopeBuf[i + 1] > 0) { start = i + 1; break; }
+  g.strokeStyle = color; g.lineWidth = 1.2; g.beginPath();
+  for (let i = 0; i < 720; i++) {
+    const s = clamp(scopeBuf[start + i] * 1.2, -1, 1), px = x + (i / 719) * w, py = mid - s * (h / 2 - 2);
+    i ? g.lineTo(px, py) : g.moveTo(px, py);
+  }
+  g.stroke();
+}
+function curve(g, f, x, y, w, h, lw, c) { g.strokeStyle = c; g.lineWidth = lw; g.beginPath(); for (let i = 0; i <= w; i += 2) { const py = y + h - clamp(f(i / w), 0, 1) * h; i ? g.lineTo(x + i, py) : g.moveTo(x + i, py); } g.stroke(); }
+function adsr(g, a, d, s, r, x, y, w, h, accent) {
+  box(g, x, y, w, h, "#404040");
+  const L = ms => Math.log(1 + ms), tot = L(a) + L(d) + L(300) + L(r), k = (w - 8) / tot;
+  const x0 = x + 4, base = y + h - 4, top = y + 4, sy = base - (base - top) * s;
+  const xa = x0 + L(a) * k, xd = xa + L(d) * k, xs = xd + L(300) * k, xr = xs + L(r) * k;
+  g.strokeStyle = FG; g.lineWidth = 2; g.beginPath(); g.moveTo(x0, base); g.lineTo(xa, top); g.lineTo(xd, sy); g.lineTo(xs, sy); g.lineTo(xr, base); g.stroke();
+  fill(g, xa - 2, top - 2, 5, 5, accent); fill(g, xd - 2, sy - 2, 5, 5, accent); fill(g, xs - 2, sy - 2, 5, 5, accent);
+}
+function drawRight(g) {
+  const t = UI.track, accent = TRACK_COLORS[t], slot = SLOTS[t];
+  fill(g, 0, 0, 480, 272, BG);
+  txt(g, TRACK_NAMES[t], 12, 6, "l", accent);
+  if (!slot) { txt(g, "EMPTY SLOT", 240, 120, "l", DIM, "center"); return; }
+  const cart = CARTS[slot], p = PARAMS[t];
+  txt(g, cart.name, 36, 6, "l", FG); txt(g, cart.cat, 472, 10, "s", DIM, "right");
+  const pages = cart.params.length > 4 ? 2 : 1;
+  if (pages > 1) txt(g, `PG ${UI.page + 1}/${pages}`, 400, 10, "s", DIM, "right");
+  fill(g, 0, 30, 480, 1, FAINT);
+  const y = 34;
+  if (slot === "kick") {
+    const dec = expMap(p[1], 60, 2000), pd = expMap(p[5], 5, 200);
+    txt(g, "ENV", 16, y + 4, "s", DIM);
+    curve(g, u => Math.exp(-u * 2000 / dec * 6.9), 16, y + 20, 200, 150, 2, FG);
+    curve(g, u => p[2] * Math.exp(-u * 2000 / pd * 6.9), 16, y + 20, 200, 150, 1, accent);
+    txt(g, "OUT", 248, y + 4, "s", DIM); drawScope(g, t, 248, y + 20, 216, 150, accent);
+  } else if (slot === "fm") {
+    txt(g, "ALGO", 16, y + 4, "s", DIM);
+    box(g, 16, y + 22, 64, 30, accent, 2); txt(g, "x" + cart.params[0][2](p[0]), 48, y + 30, "s", FG, "center");
+    fill(g, 80, y + 37, 24, 1, FG); box(g, 104, y + 22, 64, 30, FG, 2); txt(g, "CAR", 136, y + 30, "s", FG, "center"); fill(g, 168, y + 37, 32, 1, FG);
+    vbar(g, 16, y + 58, 152, 10, p[1], accent);
+    txt(g, "ENV", 16, y + 80, "s", DIM);
+    adsr(g, 2, expMap(p[2], 20, 2000), p[6], expMap(p[3], 5, 1500), 16, y + 94, 200, 90, accent);
+    txt(g, "OUT", 248, y + 4, "s", DIM); drawScope(g, t, 248, y + 20, 216, 164, accent);
+  } else {
+    txt(g, "DIN OUT", 16, y + 4, "s", DIM);
+    txt(g, cart.params[0][2](p[0]), 16, y + 24, "l", accent);
+    txt(g, "SENT " + S.noteCount[t] * 2, 16, y + 60, "s", FG);
+    txt(g, "RECENT", 248, y + 4, "s", DIM); box(g, 248, y + 20, 216, 160, "#404040");
+    recentMidi.forEach((n, i) => { const x = 256 + i * 26, h = Math.round(n * 150 / 127); fill(g, x, y + 176 - h, 18, 2, accent); txt(g, NOTE_NAMES[n % 12], x + 9, y + 168 - h, "s", FG, "center"); });
+  }
+  fill(g, 0, 220, 480, 52, BG);
+  const base = UI.page === 1 && pages > 1 ? 4 : 0;
+  footer(g, [0,1,2,3].map(i => { const d = cart.params[base + i]; return [d[0], d[2](p[base + i]), p[base + i]]; }), UI.touch.slice(4), accent);
+}
+
+// ======================= surface (DOM) =======================
+const $ = id => document.getElementById(id);
+const lcdL = $("lcdL").getContext("2d"), lcdR = $("lcdR").getContext("2d");
+let toastTimer;
+function toast(s) { $("toast").textContent = s; clearTimeout(toastTimer); toastTimer = setTimeout(() => $("toast").textContent = "", 2200); }
+
+// knobs
+const knobEls = [];
+for (let k = 0; k < 8; k++) {
+  const el = document.createElement("div"); el.className = "knob"; el.tabIndex = 0;
+  el.setAttribute("role", "slider"); el.setAttribute("aria-label", "Perilla " + (k + 1));
+  el.innerHTML = `<div class="dial"></div><span>${k + 1}</span>`;
+  let lastY = null, rot = 0;
+  const turn = d => { rot += d * 0.36; el.style.setProperty("--rot", rot + "deg"); knob(k, d); };
+  el.addEventListener("pointerdown", e => { el.setPointerCapture(e.pointerId); lastY = e.clientY; UI.touch[k] = true; });
+  el.addEventListener("pointermove", e => { if (lastY == null) return; const d = Math.round((lastY - e.clientY) * 4); if (d) { lastY = e.clientY; turn(d); } });
+  const end = () => { lastY = null; UI.touch[k] = el.matches(":hover"); };
+  el.addEventListener("pointerup", end); el.addEventListener("pointercancel", end);
+  el.addEventListener("pointerenter", e => { if (e.pointerType === "mouse") UI.touch[k] = true; });
+  el.addEventListener("pointerleave", e => { if (e.pointerType === "mouse" && lastY == null) UI.touch[k] = false; });
+  el.addEventListener("wheel", e => { e.preventDefault(); turn(Math.round(-e.deltaY / 2)); }, { passive: false });
+  el.addEventListener("keydown", e => { if (e.key === "ArrowUp" || e.key === "ArrowRight") { e.preventDefault(); turn(DETENT); } if (e.key === "ArrowDown" || e.key === "ArrowLeft") { e.preventDefault(); turn(-DETENT); } });
+  $("knobs").appendChild(el); knobEls.push(el);
+}
+
+// groups
+const groupEls = TRACK_NAMES.map((n, g) => {
+  const b = document.createElement("button"); b.className = "btn"; b.textContent = n; b.style.setProperty("--c", TRACK_COLORS[g]);
+  b.setAttribute("aria-label", "Grupo " + n);
+  b.addEventListener("click", () => groupPress(g)); $("groups").appendChild(b); return b;
+});
+
+// pads: pad numbering from bottom-left (silkscreen − 1), drawn top row first
+const padEls = Array(16);
+for (let row = 3; row >= 0; row--) for (let col = 0; col < 4; col++) {
+  const pad = row * 4 + col, el = document.createElement("button");
+  el.className = "pad"; el.innerHTML = `<b>${pad + 1}</b>`; el.setAttribute("aria-label", "Pad " + (pad + 1));
+  let startY = 0, startVel = 0;
+  el.addEventListener("pointerdown", e => {
+    e.preventDefault(); el.setPointerCapture(e.pointerId);
+    const r = el.getBoundingClientRect(); startY = e.clientY;
+    startVel = clamp(0.25 + 0.75 * (e.clientY - r.top) / r.height, 0.05, 1);
+    el.classList.add("held"); padDown(pad, startVel);
+  });
+  el.addEventListener("pointermove", e => {
+    if (!el.classList.contains("held")) return;
+    const pr = e.pressure && e.pressure !== 0.5 ? e.pressure : clamp(startVel + (startY - e.clientY) / 120, 0, 1);
+    padPressure(pad, pr);
+  });
+  const up = () => { if (!el.classList.contains("held")) return; el.classList.remove("held"); padUp(pad); };
+  el.addEventListener("pointerup", up); el.addEventListener("pointercancel", up); el.addEventListener("lostpointercapture", up);
+  el.addEventListener("keydown", e => { if ((e.key === " " || e.key === "Enter") && !e.repeat) { e.preventDefault(); e.stopPropagation(); el.classList.add("held"); padDown(pad, 0.8); } });
+  el.addEventListener("keyup", e => { if (e.key === " " || e.key === "Enter") { e.stopPropagation(); up(); } });
+  $("pads").appendChild(el); padEls[pad] = el;
+}
+
+// strip
+const stripLeds = Array.from({ length: 25 }, () => { const i = document.createElement("i"); $("stripLeds").appendChild(i); return i; });
+(() => {
+  const el = $("strip"); let on = false;
+  const pos = e => { const r = el.getBoundingClientRect(); return clamp((e.clientX - r.left) / r.width, 0, 1); };
+  el.addEventListener("pointerdown", e => { initAudio(); on = true; el.setPointerCapture(e.pointerId); setStrip(pos(e)); });
+  el.addEventListener("pointermove", e => { if (on) setStrip(pos(e)); });
+  const end = () => { on = false; setStrip(null); };
+  el.addEventListener("pointerup", end); el.addEventListener("pointercancel", end);
+})();
+
+// buttons
+$("bPlay").addEventListener("click", () => S.playing ? stop() : play());
+$("bStop").addEventListener("click", stop);
+$("bRestart").addEventListener("click", play);
+$("bStep").addEventListener("click", () => setMode("step"));
+$("bChords").addEventListener("click", () => setMode("brain"));
+$("bPerform").addEventListener("click", () => setMode("punch"));
+$("sb5").addEventListener("click", () => UI.page = 0);
+$("sb6").addEventListener("click", () => UI.page = 1);
+$("jogL").addEventListener("click", () => jog(-1));
+$("jogR").addEventListener("click", () => jog(1));
+// Modifiers latch on click (a mouse can't hold two buttons). Shift and Mute
+// release after the next group press; Erase stays on until clicked again.
+for (const [id, key] of [["bShift", "shift"], ["bMute", "mute"], ["bErase", "erase"]]) {
+  $(id).addEventListener("click", () => { UI[key] = !UI[key]; if (key !== "erase") { if (key === "shift") UI.mute = false; else UI.shift = false; } });
+}
+document.addEventListener("keydown", e => {
+  if (e.target.closest && e.target.closest("input,textarea")) return;
+  if (e.repeat) return;
+  if (e.key === " ") { e.preventDefault(); S.playing ? stop() : play(); }
+  else if (/^[1-8]$/.test(e.key)) groupPress(+e.key - 1);
+  else if (e.key === "s" || e.key === "S") setMode("step");
+  else if (e.key === "c" || e.key === "C") setMode("brain");
+  else if (e.key === "p" || e.key === "P") setMode("punch");
+});
+
+
+// LED state (mirrors Controller::leds)
+function updateLeds() {
+  const tr = P.tracks[UI.track], color = TRACK_COLORS[UI.track];
+  document.documentElement.style.setProperty("--accent", color);
+  for (let pad = 0; pad < 16; pad++) {
+    let c = "transparent", lvl = 0;
+    if (UI.mode === "step") {
+      const s = padToStep(pad);
+      if (UI.inspect === s) { c = "#ffffff"; lvl = 1; }
+      else if (S.playing && s === S.playhead[UI.track]) { c = "#ffffff"; lvl = .7; }
+      else if (s >= tr.length) { lvl = 0; }
+      else if (tr.steps[s].active) { c = color; lvl = 1; }
+      else { c = color; lvl = .22; }
+    } else if (UI.mode === "brain") {
+      const hues = ["#ff3b30","#ff9f0a","#ffd60a","#34c759","#30d5c8","#0a84ff","#bf5af2","#ff2d92"];
+      c = hues[pad % 8]; lvl = UI.live === pad ? 1 : .25;
+    } else {
+      const lit = punchState.slot === pad; c = lit ? "#ffffff" : color; lvl = lit ? 1 : .22;
+    }
+    padEls[pad].style.setProperty("--glow", c); padEls[pad].style.setProperty("--lvl", lvl);
+  }
+  groupEls.forEach((b, g) => { b.classList.toggle("sel", g === UI.track); b.classList.toggle("flash", UI.activity[g] > 0); b.style.opacity = P.tracks[g].muted ? .45 : 1; });
+  $("bPlay").classList.toggle("on", S.playing);
+  $("bStop").classList.toggle("lit", !S.playing);
+  $("bStep").classList.toggle("on", UI.mode === "step");
+  $("bChords").classList.toggle("on", UI.mode === "brain");
+  $("bPerform").classList.toggle("on", UI.mode === "punch");
+  $("bShift").classList.toggle("on", UI.shift);
+  $("bMute").classList.toggle("on", UI.mute);
+  $("bErase").classList.toggle("on", UI.erase);
+  $("sb5").classList.toggle("lit", UI.page === 0); $("sb6").classList.toggle("lit", UI.page === 1);
+  knobEls.forEach((k, i) => k.classList.toggle("touched", UI.touch[i]));
+  const si = UI.strip == null ? -1 : Math.round(UI.strip * 24);
+  stripLeds.forEach((l, i) => l.classList.toggle("on", i === si));
+}
+
+function frame() {
+  updateVisual(); controllerTick();
+  drawLeft(lcdL); drawRight(lcdR); updateLeds();
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+</script>

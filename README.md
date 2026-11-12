@@ -15,6 +15,8 @@ cargo run --release                     # tocar con la MK3 (audio, pantallas, LE
 
 En macOS, cerrá antes los servicios de NI (`NIHardwareAgent`): si tienen tomada la interfaz USB 5, OP-3 sigue funcionando pero sin pantallas, y avisa por consola. En Linux instalá `deploy/99-maschine-mk3.rules` para no necesitar root.
 
+El gemelo interactivo en HTML (`docs/op3-twin.html`) reproduce las dos pantallas, los pads y las perillas con sonido en WebAudio y se abre en Safari o Chrome, incluso en el iPad.
+
 Capturas del simulador (paso, inspector, Brain, Punch FX, final), generadas con `op3 sim`:
 
 ![pantallas del simulador](docs/sim-screens.png)
