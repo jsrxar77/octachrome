@@ -23,6 +23,8 @@ These six documents are the only ones in `docs/`. Each fact lives in exactly one
 
 The interactive twin lives outside `docs/`: `twin/op3-twin.html` (HTML/WebAudio). Every UI change is tried there first.
 
+The user guide is `guide/index.html`: one self-contained page (its own Jost fonts, no network), for people who play OP-3. `.github/workflows/pages.yml` publishes it as a GitHub Pages site once Pages is enabled with source "GitHub Actions" (a free plan needs a public repository). Until then: `open guide/index.html`.
+
 ## 1. Central idea
 
 There are three worlds that do not know each other:

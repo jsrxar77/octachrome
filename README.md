@@ -23,6 +23,8 @@ cargo run --release -- -t op-xy              # another theme: op-1 (default), op
 
 On macOS, close NI's services first (`NIHardwareAgent`, `NIHostIntegrationAgent`, `NTKDaemon`): if they hold USB interface 5, OP-3 keeps working but without screens, and says so on the console. On Linux install `deploy/99-maschine-mk3.rules` to avoid needing root.
 
+**User guide:** `open guide/index.html` (interactive, no server; it becomes a site with GitHub Pages, see [architecture.md](docs/architecture.md)).
+
 The interactive twin in HTML (`twin/op3-twin.html`) reproduces the two screens, the pads and the knobs with sound in WebAudio and opens in Safari or Chrome, even on the iPad: just open the file, no server needed.
 
 **To continue the work** (person or AI): start with [docs/architecture.md](docs/architecture.md) and [docs/roadmap.md](docs/roadmap.md).
