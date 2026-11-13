@@ -30,3 +30,22 @@ pub fn write_wav(
     }
     f.flush()
 }
+
+/// One line per `window` samples: RMS and peak in dBFS of the L/R mix, so a
+/// run can be checked for "does it sound, and when" without listening.
+pub fn loudness_report(l: &[f32], r: &[f32], window: usize) -> String {
+    let db = |x: f32| if x < 1e-6 { f32::NEG_INFINITY } else { 20.0 * x.log10() };
+    let mut out = String::from("   time    rms    peak  (dBFS)\n");
+    for (i, (cl, cr)) in l.chunks(window).zip(r.chunks(window)).enumerate() {
+        let (mut sum, mut peak) = (0.0f64, 0.0f32);
+        for (a, b) in cl.iter().zip(cr) {
+            let m = (a + b) * 0.5;
+            sum += (m * m) as f64;
+            peak = peak.max(a.abs()).max(b.abs());
+        }
+        let rms = (sum / cl.len().max(1) as f64).sqrt() as f32;
+        let bar = if rms.is_finite() { "#".repeat(((db(rms) + 60.0).max(0.0) / 2.0) as usize) } else { String::new() };
+        out += &format!("{:6.1}s {:6.1} {:7.1}  {bar}\n", i as f32 * window as f32 / 48000.0, db(rms), db(peak));
+    }
+    out
+}

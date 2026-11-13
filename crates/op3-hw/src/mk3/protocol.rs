@@ -3,7 +3,7 @@
 use crate::{
     controls::{Button, ControlEvent, PadEvent},
     leds::{hid_to_pad, LedFrame, LED_SLOTS},
-    FrameBuffer480x272, Rect, Screen,
+    FrameBuffer480x272, Screen,
 };
 
 pub const CONTROLS_REPORT: u8 = 0x01;
@@ -223,42 +223,73 @@ pub fn encode_leds(leds: &LedFrame) -> ([u8; LED_BANK_0 + 1], [u8; LED_BANK_1 + 
     (a, b)
 }
 
-/// Build one bulk transfer that draws `rect` of `fb` on `screen`:
+/// Pixel pairs in a row of a screen (the device reads pixels two at a time).
+const PAIRS_PER_ROW: usize = FrameBuffer480x272::WIDTH / 2;
+/// Shortest run of equal pixel pairs worth a repeat command (4 + 4 bytes
+/// against 4 bytes a pair, plus the header of the literal block it splits).
+const MIN_RUN: usize = 4;
+
+/// Build one bulk transfer that draws rows `y0..y1` of `px` on `screen`.
+///
+/// `px` is one screen's pixels, `WIDTH * HEIGHT` RGB565 values row by row. The
+/// transfer always covers whole rows (x = 0, width 480): the only shape the
+/// device is known to take without artifacts. Layout:
 ///
 /// ```text
-/// 84 00 SS 60 00 00 00 00 | x y w h (BE u16) | 02 00 00 00 | len (BE u32, pixel pairs)
-/// <pixels RGB565 BE> | 02 00 00 00 | 03 00 00 00 (blit) | 40 00 00 00 (end)
+/// 84 00 SS 60 00 00 00 00 | x y w h (BE u16)
+/// commands, each 4 bytes (cmd, then a 24-bit BE count n), followed by data:
+///   00 n  n pixel pairs, as they are (4 bytes a pair, RGB565 BE)
+///   01 n  one pixel pair (4 bytes) repeated n times
+///   02 n  n pixel pairs left as they are on the screen (not used here)
+/// 03 00 00 00 (show the rectangle) | 40 00 00 00 (end)
 /// ```
 ///
-/// `rect.w * rect.h` must be even (the length counts pixel pairs); odd rects
-/// are widened by one column.
-pub fn encode_screen(screen: Screen, fb: &FrameBuffer480x272, rect: Rect, out: &mut Vec<u8>) {
-    let mut r = rect;
-    if r.area() % 2 == 1 {
-        if r.right() < FrameBuffer480x272::WIDTH as u16 {
-            r.w += 1;
-        } else {
-            r.x -= 1;
-            r.w += 1;
-        }
-    }
+/// The UI is mostly flat colour, so runs of equal pairs become `01` commands
+/// and a typical frame is a small fraction of the 261,120 bytes of raw pixels.
+pub fn encode_band(screen: Screen, px: &[u16], y0: usize, y1: usize, out: &mut Vec<u8>) {
+    const W: usize = FrameBuffer480x272::WIDTH;
+    assert!(y0 < y1 && y1 <= FrameBuffer480x272::HEIGHT, "bad rows {y0}..{y1}");
+    assert_eq!(px.len(), W * FrameBuffer480x272::HEIGHT);
+
     out.clear();
-    out.reserve(32 + r.area() as usize * 2);
     out.extend_from_slice(&[0x84, 0x00, screen as u8, 0x60, 0, 0, 0, 0]);
-    for v in [r.x, r.y, r.w, r.h] {
-        out.extend_from_slice(&v.to_be_bytes());
+    for v in [0, y0, W, y1 - y0] {
+        out.extend_from_slice(&(v as u16).to_be_bytes());
     }
-    out.extend_from_slice(&[0x02, 0, 0, 0]);
-    out.extend_from_slice(&(r.area() / 2).to_be_bytes());
-    let px = fb.pixels();
-    for y in r.y as usize..r.bottom() as usize {
-        let row = &px[y * FrameBuffer480x272::WIDTH + r.x as usize
-            ..y * FrameBuffer480x272::WIDTH + r.right() as usize];
-        for p in row {
-            out.extend_from_slice(&p.to_be_bytes());
+
+    let pairs = (y1 - y0) * PAIRS_PER_ROW;
+    let base = y0 * W;
+    let pair = |i: usize| (px[base + 2 * i], px[base + 2 * i + 1]);
+    let command = |out: &mut Vec<u8>, cmd: u8, n: usize| {
+        out.extend_from_slice(&[cmd, (n >> 16) as u8, (n >> 8) as u8, n as u8]);
+    };
+    let push = |out: &mut Vec<u8>, (a, b): (u16, u16)| {
+        out.extend_from_slice(&a.to_be_bytes());
+        out.extend_from_slice(&b.to_be_bytes());
+    };
+    let starts_run = |i: usize| i + MIN_RUN <= pairs && (1..MIN_RUN).all(|k| pair(i + k) == pair(i));
+
+    let mut i = 0;
+    while i < pairs {
+        let first = pair(i);
+        let run = (i..pairs).take_while(|&j| pair(j) == first).count();
+        if run >= MIN_RUN {
+            command(out, 0x01, run);
+            push(out, first);
+            i += run;
+        } else {
+            // Literal pairs, up to the next run worth repeating.
+            let start = i;
+            while i < pairs && !starts_run(i) {
+                i += 1;
+            }
+            command(out, 0x00, i - start);
+            for j in start..i {
+                push(out, pair(j));
+            }
         }
     }
-    out.extend_from_slice(&[0x02, 0, 0, 0, 0x03, 0, 0, 0, 0x40, 0, 0, 0]);
+    out.extend_from_slice(&[0x03, 0, 0, 0, 0x40, 0, 0, 0]);
 }
 
 /// Display feature report (`0xf8` left, `0xf9` right) setting backlight.
@@ -288,7 +319,6 @@ pub fn display_feature(screen: Screen, brightness: u8, contrast: u8) -> [u8; 11]
 mod tests {
     use super::*;
     use crate::leds::NiColor;
-    use op3_gfx::Rgb565;
 
     fn controls(f: impl FnOnce(&mut [u8; 42])) -> ControlsState {
         let mut r = [0u8; 42];
@@ -426,22 +456,88 @@ mod tests {
     }
 
     #[test]
-    fn screen_transfer_layout() {
-        let mut fb = FrameBuffer480x272::new();
-        fb.put(10, 20, Rgb565(0xABCD));
+    fn band_transfer_layout() {
+        let mut px = vec![0u16; 480 * 272];
+        px[20 * 480 + 10] = 0xABCD;
         let mut out = Vec::new();
-        encode_screen(Screen::Right, &fb, Rect::new(10, 20, 2, 1), &mut out);
+        encode_band(Screen::Right, &px, 20, 21, &mut out);
         assert_eq!(&out[..8], &[0x84, 0, 1, 0x60, 0, 0, 0, 0]);
-        assert_eq!(&out[8..16], &[0, 10, 0, 20, 0, 2, 0, 1]);
-        assert_eq!(&out[16..24], &[2, 0, 0, 0, 0, 0, 0, 1]);
-        assert_eq!(&out[24..28], &[0xAB, 0xCD, 0, 0]);
-        assert_eq!(&out[28..], &[2, 0, 0, 0, 3, 0, 0, 0, 0x40, 0, 0, 0]);
-        // a full frame is 261,120 bytes of pixels
-        encode_screen(Screen::Left, &fb, Rect::FULL, &mut out);
-        assert_eq!(out.len(), 24 + 261_120 + 12);
-        // odd rects are widened
-        encode_screen(Screen::Left, &fb, Rect::new(479, 0, 1, 1), &mut out);
-        assert_eq!(&out[8..16], &[1, 222, 0, 0, 0, 2, 0, 1]);
+        assert_eq!(&out[8..16], &[0, 0, 0, 20, 1, 0xe0, 0, 1], "x 0, y 20, 480 wide, 1 high");
+        assert_eq!(&out[out.len() - 8..], &[3, 0, 0, 0, 0x40, 0, 0, 0]);
+    }
+
+    /// A reference reader for the transfer format, to check `encode_band`.
+    fn decode_band(bytes: &[u8], plane: &mut [u16]) {
+        fn write(plane: &mut [u16], rect: (usize, usize, usize), n: &mut usize, v: u16) {
+            let (x, y, w) = rect;
+            plane[(y + *n / w) * 480 + x + *n % w] = v;
+            *n += 1;
+        }
+        let be = |i: usize| u16::from_be_bytes([bytes[i], bytes[i + 1]]);
+        let (x, y, w, h) = (be(8) as usize, be(10) as usize, be(12) as usize, be(14) as usize);
+        let (mut i, mut n) = (16, 0usize);
+        loop {
+            let cmd = bytes[i];
+            let count = (bytes[i + 1] as usize) << 16 | (bytes[i + 2] as usize) << 8 | bytes[i + 3] as usize;
+            i += 4;
+            match cmd {
+                0x00 => {
+                    for _ in 0..count * 2 {
+                        write(plane, (x, y, w), &mut n, be(i));
+                        i += 2;
+                    }
+                }
+                0x01 => {
+                    let (a, b) = (be(i), be(i + 2));
+                    i += 4;
+                    for _ in 0..count {
+                        write(plane, (x, y, w), &mut n, a);
+                        write(plane, (x, y, w), &mut n, b);
+                    }
+                }
+                0x03 => {}
+                0x40 => break,
+                other => panic!("unexpected command {other:#x}"),
+            }
+        }
+        assert_eq!(n, w * h, "pixels written");
+        assert_eq!(i, bytes.len(), "bytes after the end command");
+    }
+
+    // F-D05 (docs/features.md)
+    #[test]
+    fn bands_round_trip() {
+        // Flat rows, a gradient, alternating values, and runs of 3 and of 4
+        // pixel pairs: every branch of the encoder.
+        let px: Vec<u16> = (0..480 * 272)
+            .map(|i| match (i / 480) % 5 {
+                0 => 0,
+                1 => (i % 480) as u16,
+                2 => (i as u16).wrapping_mul(7919),
+                3 => ((i % 480) / 6) as u16,
+                _ => ((i % 480) / 8) as u16,
+            })
+            .collect();
+        for (y0, y1) in [(0, 272), (0, 1), (7, 8), (100, 163), (271, 272)] {
+            let mut out = Vec::new();
+            encode_band(Screen::Left, &px, y0, y1, &mut out);
+            let mut plane = vec![0xDEAD_u16; 480 * 272];
+            decode_band(&out, &mut plane);
+            assert_eq!(plane[y0 * 480..y1 * 480], px[y0 * 480..y1 * 480], "rows {y0}..{y1}");
+            assert!(plane[..y0 * 480].iter().all(|&v| v == 0xDEAD), "wrote above the band");
+            assert!(plane[y1 * 480..].iter().all(|&v| v == 0xDEAD), "wrote below the band");
+        }
+    }
+
+    // F-D06 (docs/features.md)
+    #[test]
+    fn flat_screens_are_tiny_and_noise_is_not_inflated() {
+        let mut out = Vec::new();
+        encode_band(Screen::Left, &vec![0; 480 * 272], 0, 272, &mut out);
+        assert_eq!(out.len(), 16 + 8 + 8, "header, one repeat command, end");
+        let noise: Vec<u16> = (0..480 * 272).map(|i| (i as u16).wrapping_mul(7919)).collect();
+        encode_band(Screen::Left, &noise, 0, 272, &mut out);
+        assert_eq!(out.len(), 16 + 4 + 261_120 + 8, "one literal block, same size as raw");
     }
 
     #[test]

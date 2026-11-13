@@ -8,7 +8,7 @@
 //!   macOS, through IOKit via `hidapi`, because the OS keeps its own driver
 //!   on HID interfaces.
 
-use super::{protocol::*, DISPLAY_ENDPOINT, DISPLAY_INTERFACE, PRODUCT_ID, VENDOR_ID};
+use super::{display::DisplayLink, protocol::*, DISPLAY_INTERFACE, PRODUCT_ID, VENDOR_ID};
 use crate::{
     ControlEvent, ControlSurface, FrameBuffer480x272, HwError, HwResult, LedFrame, Rect, Screen,
 };
@@ -19,12 +19,12 @@ fn err(context: &str, e: impl std::fmt::Display) -> HwError {
 
 pub struct Mk3Surface {
     hid: hid::HidPort,
-    display: Option<nusb::Interface>,
+    /// The screens, on a thread of their own (see `display.rs`).
+    display: Option<DisplayLink>,
     prev: ControlsState,
     have_prev: bool,
     pads: PadTracker,
     last_leds: Option<LedFrame>,
-    scratch: Vec<u8>,
     read_buf: [u8; 128],
 }
 
@@ -34,7 +34,7 @@ impl Mk3Surface {
     pub fn open() -> HwResult<(Self, Option<HwError>)> {
         let hid = hid::HidPort::open()?;
         let (display, display_err) = match open_display() {
-            Ok(d) => (Some(d), None),
+            Ok(iface) => (Some(DisplayLink::start(iface)), None),
             Err(e) => (None, Some(e)),
         };
         let s = Self {
@@ -44,7 +44,6 @@ impl Mk3Surface {
             have_prev: false,
             pads: PadTracker::default(),
             last_leds: None,
-            scratch: Vec::with_capacity(300_000),
             read_buf: [0; 128],
         };
         Ok((s, display_err))
@@ -54,6 +53,12 @@ impl Mk3Surface {
         self.display.is_some()
     }
 
+    /// Stop the display thread and release interface 5, so a new surface can
+    /// claim it (used before reconnecting).
+    pub fn close_display(&mut self) {
+        self.display = None;
+    }
+
     /// Set both backlights (0..=100).
     pub fn set_brightness(&mut self, brightness: u8) -> HwResult<()> {
         for s in [Screen::Left, Screen::Right] {
@@ -61,6 +66,18 @@ impl Mk3Surface {
         }
         Ok(())
     }
+}
+
+/// Reset the MK3 on the USB bus, which is what unplugging and replugging it
+/// does. After a failed transfer the device can answer every HID write with an
+/// error until it is reset; it re-enumerates a few seconds later.
+pub fn reset_usb() -> HwResult<()> {
+    let info = nusb::list_devices()
+        .map_err(|e| err("listing USB devices", e))?
+        .find(|d| d.vendor_id() == VENDOR_ID && d.product_id() == PRODUCT_ID)
+        .ok_or_else(|| HwError("no Maschine MK3 on USB".into()))?;
+    let dev = info.open().map_err(|e| err("opening MK3 USB device", e))?;
+    dev.reset().map_err(|e| err("resetting the MK3", e))
 }
 
 fn open_display() -> HwResult<nusb::Interface> {
@@ -121,25 +138,19 @@ impl ControlSurface for Mk3Surface {
         Ok(())
     }
 
+    /// Hands the whole frame to the display thread, which works out which rows
+    /// changed on its own; `_rects` (what the caller thinks changed) is not
+    /// needed. Returns at once, whatever the USB is doing.
     fn write_screen(
         &mut self,
         screen: Screen,
         fb: &FrameBuffer480x272,
-        rects: &[Rect],
+        _rects: &[Rect],
     ) -> HwResult<()> {
-        let Some(iface) = &self.display else {
-            return Ok(());
-        };
-        for &r in rects {
-            let mut buf = std::mem::take(&mut self.scratch);
-            encode_screen(screen, fb, r, &mut buf);
-            let done = futures_lite::future::block_on(iface.bulk_out(DISPLAY_ENDPOINT, buf));
-            let status = done.status;
-            // Keep the allocation so steady-state frames don't allocate.
-            self.scratch = done.data.reuse();
-            status.map_err(|e| err("display bulk transfer", e))?;
+        match &self.display {
+            Some(display) => display.submit(screen, fb),
+            None => Ok(()),
         }
-        Ok(())
     }
 }
 

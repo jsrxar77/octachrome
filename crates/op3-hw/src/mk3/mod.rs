@@ -7,9 +7,11 @@
 pub mod protocol;
 
 #[cfg(feature = "mk3")]
+mod display;
+#[cfg(feature = "mk3")]
 mod usb;
 #[cfg(feature = "mk3")]
-pub use usb::Mk3Surface;
+pub use usb::{reset_usb, Mk3Surface};
 
 pub const VENDOR_ID: u16 = 0x17cc;
 pub const PRODUCT_ID: u16 = 0x1600;

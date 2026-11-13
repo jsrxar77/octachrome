@@ -11,7 +11,7 @@
 //! ```
 
 use anyhow::Result;
-use op3::{demo, App};
+use op3::{demo, script::{Action, Script}, App};
 use op3_gfx::{text, Align, FontSize, FrameBuffer480x272, Rgb565};
 use op3_hw::{mock::MockSurface, ControlEvent, ControlSurface, PadEvent, Screen};
 use std::{
@@ -29,7 +29,7 @@ fn main() -> Result<()> {
             .cloned()
     };
     let seconds: Option<f32> = opt("-s", "--seconds").and_then(|s| s.parse().ok());
-    // Screen theme (docs/DESIGN.md §2): op-1 (default), op-1-field, op-xy.
+    // Screen theme (docs/design.md §2): op-1 (default), op-1-field, op-xy.
     let theme = opt("-t", "--theme").or_else(|| std::env::var("OP3_THEME").ok());
     if let Some(name) = theme {
         let id = match name.as_str() {
@@ -40,15 +40,28 @@ fn main() -> Result<()> {
         };
         op3_gfx::set_theme(id);
     }
+    let script = match opt("--script", "--script") {
+        Some(path) => {
+            let text = std::fs::read_to_string(&path)
+                .map_err(|e| anyhow::anyhow!("reading script {path}: {e}"))?;
+            Some(Script::parse(&text).map_err(|e| anyhow::anyhow!("script {path}: {e:#}"))?)
+        }
+        None => None,
+    };
     match cmd {
-        "run" => run(),
+        "run" => run(script),
         "sim" => sim(
-            seconds.unwrap_or(8.0),
+            seconds,
             PathBuf::from(opt("-o", "--out").unwrap_or_else(|| "out".into())),
+            script.unwrap_or_else(|| {
+                Script::parse(include_str!("../scripts/demo.op3")).expect("built-in script")
+            }),
         ),
         "hw-test" => hw_test(seconds.unwrap_or(30.0)),
+        "calib" => calib(seconds.unwrap_or(20.0)),
+        "usb-reset" => usb_reset(),
         "-h" | "--help" | "help" => {
-            println!("usage: op3 [run | sim [-s SECS] [-o DIR] | hw-test [-s SECS]] [-t op-1|op-1-field|op-xy]");
+            println!("usage: op3 [run | sim [-s SECS] [-o DIR] | hw-test [-s SECS]] [--script FILE] [-t op-1|op-1-field|op-xy]");
             Ok(())
         }
         other => anyhow::bail!("unknown command {other:?} (try --help)"),
@@ -88,12 +101,16 @@ fn open_mk3() -> Result<op3_hw::mk3::Mk3Surface> {
     if let Some(e) = screen_err {
         eprintln!("screens unavailable, continuing without them: {e}");
     }
-    let _ = s.set_brightness(80);
+    let brightness = std::env::var("OP3_BRIGHTNESS")
+        .ok()
+        .and_then(|v| v.parse::<u8>().ok())
+        .unwrap_or(80);
+    let _ = s.set_brightness(brightness);
     Ok(s)
 }
 
 #[cfg(feature = "mk3")]
-fn run() -> Result<()> {
+fn run(mut script: Option<Script>) -> Result<()> {
     use std::sync::{atomic::AtomicBool, Arc};
     let (engine, handle, midi_rx) = demo::rig();
     let stop = Arc::new(AtomicBool::new(false));
@@ -122,13 +139,38 @@ fn run() -> Result<()> {
     let surface = open_mk3()?;
     println!("control surface: {}", surface.name());
     let mut app = App::new(surface, handle);
+    if let Some(dir) = std::env::var_os("OP3_DUMP_DIR") {
+        println!("dumping screens to {}/left.png and right.png", PathBuf::from(&dir).display());
+        app.dump_dir = Some(PathBuf::from(dir));
+    }
     let mut pacer = Pacer::new(60);
     loop {
+        if let Some(sc) = script.as_mut() {
+            for action in sc.due(pacer.now_ms()) {
+                if let Action::Event(e) = action {
+                    app.inject(e);
+                }
+            }
+            if sc.is_done() {
+                println!("script done; the instrument is yours");
+                script = None;
+            }
+        }
         if let Err(e) = app.frame(pacer.now_ms()) {
             eprintln!("MK3: {e}; reconnecting…");
+            // Let go of the screens first: while the old surface holds
+            // interface 5, a new one can't claim it and would come up blind.
+            app.surface.close_display();
+            // A MK3 that fails again and again is stuck on the bus. The app
+            // can't reset it itself (its own audio stream keeps the device
+            // open), so say what to do instead of retrying in silence.
+            eprintln!("MK3: if this repeats, close op3 and run `op3 usb-reset`, or unplug and replug the cable");
             loop {
-                std::thread::sleep(Duration::from_secs(1));
+                std::thread::sleep(Duration::from_secs(3));
                 if let Ok(s) = open_mk3() {
+                    if !s.has_screens() {
+                        continue; // the device is still coming back; try again
+                    }
                     app.surface = s;
                     app.invalidate();
                     break;
@@ -140,12 +182,14 @@ fn run() -> Result<()> {
 }
 
 #[cfg(not(feature = "mk3"))]
-fn run() -> Result<()> {
+fn run(_: Option<Script>) -> Result<()> {
     anyhow::bail!("built without the `mk3` feature; use `op3 sim` or rebuild with default features")
 }
 
 /// Headless end-to-end run with a scripted mock MK3.
-fn sim(seconds: f32, out: PathBuf) -> Result<()> {
+fn sim(seconds: Option<f32>, out: PathBuf, mut script: Script) -> Result<()> {
+    // Default length: the script plus a second of tail.
+    let seconds = seconds.unwrap_or_else(|| (script.end_ms() as f32 / 1000.0 + 1.2).max(8.0));
     std::fs::create_dir_all(&out)?;
     let (mut engine, handle, mut midi_rx) = demo::rig();
     let mut app = App::new(MockSurface::new(), handle);
@@ -167,91 +211,12 @@ fn sim(seconds: f32, out: PathBuf) -> Result<()> {
         )?;
         Ok(())
     };
-    let pad = |app: &mut App<MockSurface>, pad: u8, event: PadEvent| {
-        app.surface.push(ControlEvent::Pad { pad, event })
-    };
-    let button = |app: &mut App<MockSurface>, b: op3_hw::Button| {
-        app.surface.push(ControlEvent::Button {
-            button: b,
-            pressed: true,
-        });
-        app.surface.push(ControlEvent::Button {
-            button: b,
-            pressed: false,
-        });
-    };
-
     for f in 0..frames {
-        let at = |s: f32| f == (s * FPS as f32) as u64;
-        // ---- the script --------------------------------------------------
-        if at(0.1) {
-            button(&mut app, op3_hw::Button::Play);
-        }
-        if at(1.0) {
-            button(&mut app, op3_hw::Button::Group(1)); // bass track
-            app.surface.push(ControlEvent::KnobTouch {
-                index: 5,
-                touched: true,
-            });
-            app.surface.push(ControlEvent::Knob {
-                index: 5,
-                delta: 150,
-            }); // more FM index
-        }
-        if at(1.9) {
-            app.surface.push(ControlEvent::KnobTouch {
-                index: 5,
-                touched: false,
-            });
-            shot(&app, "1-step")?;
-            pad(&mut app, 14, PadEvent::Strike(0.7)); // step 3 (top row, has a ratchet)
-        }
-        if at(2.4) {
-            shot(&app, "2-inspector")?;
-            pad(&mut app, 14, PadEvent::Release);
-        }
-        if at(3.0) {
-            button(&mut app, op3_hw::Button::Chords);
-        }
-        if at(3.2) {
-            pad(&mut app, 3, PadEvent::Strike(0.9)); // live IV chord
-        }
-        if at(3.8) {
-            shot(&app, "3-brain")?;
-            pad(&mut app, 3, PadEvent::Release);
-            button(&mut app, op3_hw::Button::Perform);
-            button(&mut app, op3_hw::Button::Group(0));
-        }
-        if at(4.0) {
-            pad(&mut app, 0, PadEvent::Strike(0.4)); // LPF
-        }
-        for (k, p) in [(4.2, 0.5), (4.4, 0.8), (4.6, 0.95)] {
-            if at(k) {
-                pad(&mut app, 0, PadEvent::Pressure(p));
+        for action in script.due(f * 1000 / FPS) {
+            match action {
+                Action::Event(e) => app.inject(e),
+                Action::Shot(name) => shot(&app, &name)?,
             }
-        }
-        if at(4.8) {
-            shot(&app, "4-punch")?;
-            pad(&mut app, 0, PadEvent::Release);
-            pad(&mut app, 10, PadEvent::Strike(1.0)); // repeat 1/16
-        }
-        if at(5.4) {
-            pad(&mut app, 10, PadEvent::Release);
-            button(&mut app, op3_hw::Button::Step);
-            app.surface.push(ControlEvent::Strip {
-                position: Some(0.25),
-            });
-        }
-        if at(6.0) {
-            app.surface.push(ControlEvent::Strip { position: None });
-            button(&mut app, op3_hw::Button::Group(3)); // macro track
-            app.surface.push(ControlEvent::Knob {
-                index: 6,
-                delta: 60,
-            }); // brighter timbre
-        }
-        if at(6.8) {
-            shot(&app, "6-macro")?;
         }
         // ---- one frame of audio, then one UI frame -------------------------
         for _ in 0..spf / 100 {
@@ -281,10 +246,50 @@ fn sim(seconds: f32, out: PathBuf) -> Result<()> {
         started.elapsed().as_millis(),
     );
     println!("wrote {}/out.wav and screenshots", out.display());
+    print!("{}", op3::wav::loudness_report(&wav_l, &wav_r, op3_cartridge::SAMPLE_RATE as usize / 2));
     Ok(())
 }
 
 /// Phase 1 bring-up on real hardware.
+/// TEMPORARY calibration: a red bar 40 px wide on the left edge, a white bar at
+/// the centre and a green bar 40 px wide on the right edge, on both screens.
+/// Shows how many pixels the device shifts the image by, and in which direction.
+#[cfg(feature = "mk3")]
+fn calib(seconds: f32) -> Result<()> {
+    use op3_hw::{Rect, Screen};
+    let mut s = open_mk3()?;
+    let mut fb = FrameBuffer480x272::new();
+    fb.fill_rect(0, 0, 40, 272, Rgb565::from_hex(0xff0000));
+    fb.fill_rect(220, 0, 40, 272, Rgb565::from_hex(0xffffff));
+    fb.fill_rect(440, 0, 40, 272, Rgb565::from_hex(0x00ff00));
+    for screen in [Screen::Left, Screen::Right] {
+        s.write_screen(screen, &fb, &[Rect::FULL])?;
+    }
+    println!("calibration: red 0..40, white 220..260, green 440..480; {seconds} s");
+    std::thread::sleep(Duration::from_secs_f32(seconds));
+    Ok(())
+}
+
+/// Reset the MK3 on the USB bus, as replugging it would. Run it with op3
+/// closed: macOS refuses while any of the device's interfaces is in use.
+#[cfg(feature = "mk3")]
+fn usb_reset() -> Result<()> {
+    op3_hw::mk3::reset_usb()?;
+    println!("reset sent; the MK3 comes back in a few seconds");
+    std::thread::sleep(Duration::from_secs(5));
+    Ok(())
+}
+
+#[cfg(not(feature = "mk3"))]
+fn usb_reset() -> Result<()> {
+    anyhow::bail!("built without the `mk3` feature")
+}
+
+#[cfg(not(feature = "mk3"))]
+fn calib(_: f32) -> Result<()> {
+    anyhow::bail!("built without the `mk3` feature")
+}
+
 #[cfg(feature = "mk3")]
 fn hw_test(seconds: f32) -> Result<()> {
     use op3_hw::{LedFrame, NiColor, Rect};

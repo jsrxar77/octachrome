@@ -1,9 +1,13 @@
 //! The control/UI loop: one call to [`App::frame`] per display frame.
 
-use crate::controller::Controller;
+use crate::{bench::encode_png, controller::Controller};
 use op3_engine::EngineHandle;
 use op3_gfx::{DirtyTracker, FrameBuffer480x272};
 use op3_hw::{ControlEvent, ControlSurface, HwResult, LedFrame, Screen};
+use std::path::PathBuf;
+
+/// How often the dump files are rewritten, in milliseconds.
+const DUMP_EVERY_MS: u64 = 250;
 
 #[derive(Clone, Copy, Debug, Default)]
 pub struct FrameStats {
@@ -19,7 +23,13 @@ pub struct App<S: ControlSurface> {
     pub screens: [FrameBuffer480x272; 2],
     dirty: [DirtyTracker; 2],
     events: Vec<ControlEvent>,
+    /// Events from a script, handled with the next frame's input.
+    injected: Vec<ControlEvent>,
     leds: LedFrame,
+    /// When set, the screens are written there as `left.png` and `right.png`
+    /// (see `OP3_DUMP_DIR`), rewritten at most every [`DUMP_EVERY_MS`].
+    pub dump_dir: Option<PathBuf>,
+    last_dump_ms: Option<u64>,
 }
 
 impl<S: ControlSurface> App<S> {
@@ -31,8 +41,16 @@ impl<S: ControlSurface> App<S> {
             screens: [FrameBuffer480x272::new(), FrameBuffer480x272::new()],
             dirty: [DirtyTracker::new(), DirtyTracker::new()],
             events: Vec::with_capacity(256),
+            injected: Vec::new(),
             leds: LedFrame::default(),
+            dump_dir: None,
+            last_dump_ms: None,
         }
+    }
+
+    /// Queue an event as if the surface had reported it.
+    pub fn inject(&mut self, e: ControlEvent) {
+        self.injected.push(e);
     }
 
     /// Input → commands → draw → send only what changed.
@@ -40,6 +58,7 @@ impl<S: ControlSurface> App<S> {
         let mut stats = FrameStats::default();
         self.events.clear();
         self.surface.poll(&mut self.events)?;
+        self.events.append(&mut self.injected);
         stats.events = self.events.len();
         for i in 0..self.events.len() {
             let ev = self.events[i];
@@ -74,6 +93,17 @@ impl<S: ControlSurface> App<S> {
                 stats.left_pixels = px;
             } else {
                 stats.right_pixels = px;
+            }
+        }
+
+        if let Some(dir) = &self.dump_dir {
+            if self.last_dump_ms.is_none_or(|t| now_ms.saturating_sub(t) >= DUMP_EVERY_MS) {
+                self.last_dump_ms = Some(now_ms);
+                let _ = std::fs::create_dir_all(dir);
+                for (i, name) in ["left", "right"].into_iter().enumerate() {
+                    let png = encode_png(&self.screens[i]);
+                    let _ = std::fs::write(dir.join(format!("{name}.png")), png);
+                }
             }
         }
 
