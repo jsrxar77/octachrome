@@ -1,4 +1,4 @@
-//! Jost, the single typeface of OP-3 (DESIGN.md §3), rasterised with
+//! Jost, the single typeface of OP-3 (design.md §3), rasterised with
 //! `fontdue` and alpha-blended onto the RGB565 framebuffer.
 //!
 //! Glyphs are cached per (char, size, weight) on first use, so steady-state
@@ -21,7 +21,7 @@ fn fonts() -> &'static [Font; 2] {
     })
 }
 
-/// The fixed type scale (DESIGN.md §3).
+/// The fixed type scale (design.md §3).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum FontSize {
     /// 11 px, parameter names under the dials.

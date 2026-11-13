@@ -1,129 +1,128 @@
-# OP-3 — Tratado de UX/UI
+# OP-3 — UX/UI Treatise
 
-Este documento manda sobre todo lo que OP-3 muestra y sobre cómo se maneja. Si el código o el Twin no coinciden con este tratado, está mal el código. Si hace falta algo que el tratado no cubre, primero se escribe acá, se aprueba y después se programa.
+This document rules over everything OP-3 shows and how it is operated. If the code or the Twin disagree with this treatise, the code is wrong. If something is needed that the treatise does not cover, it is written here first, approved, and only then programmed.
 
-La dirección es el lenguaje de Teenage Engineering (OP-1, OP-1 field, OP-XY): color ligado al control físico, dibujos en vez de texto, negro absoluto. Tomamos las ideas, no sus gráficos, íconos ni tipografía. Parte del sistema "Impeccable" de Flip Tracker+ (`jsrxar77/flip-tracker`, `DESIGN.md`), adaptado a la Maschine MK3.
+The direction is the language of Teenage Engineering (OP-1, OP-1 field, OP-XY): colour tied to the physical control, drawings instead of text, absolute black. We take the ideas, never their graphics, icons or typeface. It starts from the "Impeccable" system of Flip Tracker+ (`jsrxar77/flip-tracker`, its `DESIGN.md`), adapted to the Maschine MK3.
 
-La referencia viva es **OP-3 Twin** (`docs/op3-twin.html`). Todo diseño nuevo se prueba ahí antes de portarse a `crates/op3-ui`.
-
----
-
-## Las 13 reglas
-
-1. **Ocho encoders, ocho colores.** Cada encoder tiene un color propio y fijo. Ese color pinta en pantalla, y solo eso, lo que el encoder mueve.
-2. **1–4 tiempo, 5–8 sonido.** Los encoders 1 a 4 manejan el secuenciador y se ven en la pantalla izquierda. Los encoders 5 a 8 manejan el instrumento de la pista elegida y se ven en la pantalla derecha. Nunca se cruzan.
-3. **Gris es contexto.** Lo que no se puede mover ahora va en gris.
-4. **Negro absoluto.** El fondo es siempre `#000`.
-5. **Dibujo antes que texto.** Cada vista tiene un dibujo que se mueve con el sonido o el valor. El texto es solo el nombre corto del parámetro y su valor.
-6. **Calmo hasta que se activa.** Lo inactivo es línea fina; lo activo (paso en edición, pista elegida, encoder tocado) se ilumina.
-7. **Tocar es preguntar.** Al tocar un encoder (sensor capacitivo) aparece en grande qué es y cuánto vale, en su color. Al soltarlo, desaparece. No hay instrucciones en pantalla.
-8. **Minúsculas y sin código.** `decay`, `fmbass`, `126ms`. Nada de corchetes, guiones bajos, IDs ni `0x`.
-9. **Una letra.** Jost, con antialiasing, en la escala fija de la sección 3. Nunca fuentes pixeladas de terminal.
-10. **La pista es un punto.** El color de pista (A–H) identifica la pista en los pads y LEDs físicos, y en pantalla solo como punto, aro o relleno de pad. Nunca compite con los colores de encoder.
-
-11. **Arriba botones, abajo perillas.** La franja superior de cada pantalla muestra qué hace cada botón que tiene encima; el pie, qué hace cada perilla que tiene debajo. Siempre en la misma columna de 120 px que el control físico. Los rótulos de botones van en blanco o gris, nunca en color de perilla. Un botón sin función no muestra nada.
-12. **Cada botón significa una sola idea.** Lo que hace un botón de la MK3 en OP-3 se parece a lo que hace su equivalente en el OP-XY y a lo que dice su serigrafía. Shift da la función secundaria, nunca otra idea distinta.
-13. **Pocos parámetros.** Un instrumento muestra como máximo 8 parámetros: 4 de sonido (botón 5) y 4 de forma (botón 6). El efecto y la modulación de la pista son iguales para todos los instrumentos (4 + 4). Si un motor tiene más, el cartridge elige los 8 que importan.
+The living reference is **OP-3 Twin** (`twin/op3-twin.html`). Every new design is tried there before it is ported to `crates/op3-ui`.
 
 ---
 
-## 1. Mapa de controles
+## The 13 rules
 
-Qué hace cada botón de la MK3 está en su propio documento: **[BOTONES.md](BOTONES.md)**. Los instrumentos, que son el centro de OP-3, en **[INSTRUMENTOS.md](INSTRUMENTOS.md)**.
+1. **Eight encoders, eight colours.** Each encoder has its own fixed colour. That colour paints on screen, and only, what the encoder moves.
+2. **1–4 time, 5–8 sound.** Encoders 1 to 4 drive the sequencer and are shown on the left screen. Encoders 5 to 8 drive the instrument of the selected track and are shown on the right screen. They never cross.
+3. **Grey is context.** Whatever cannot be moved right now is grey.
+4. **Absolute black.** The background is always `#000`.
+5. **Drawing before text.** Every view has a drawing that moves with the sound or the value. Text is only the short name of the parameter and its value.
+6. **Calm until activated.** What is inactive is a thin line; what is active (a step being edited, the selected track, a touched encoder) lights up.
+7. **Touching is asking.** Touching an encoder (capacitive sensor) shows, large and in its colour, what it is and how much it is worth. Releasing it makes it disappear. There are no instructions on screen.
+8. **Lowercase and no code.** `decay`, `fmbass`, `126ms`. No brackets, underscores, IDs or `0x`.
+9. **One typeface.** Jost, anti-aliased, on the fixed scale of section 3. Never pixelated terminal fonts.
+10. **The track is a dot.** The track colour (A–H) identifies the track on the physical pads and LEDs, and on screen only as a dot, ring or pad fill. It never competes with the encoder colours.
+11. **Buttons above, knobs below.** The top strip of each screen shows what each button above it does; the footer shows what each knob below it does. Always in the same 120 px column as the physical control. Button labels are white or grey, never in a knob colour. A button with no function shows nothing.
+12. **Each button means one idea.** What a MK3 button does in OP-3 resembles what its OP-XY equivalent does and what its silkscreen says. Shift gives the secondary function, never a different idea.
+13. **Few parameters.** An instrument shows at most 8 parameters: 4 of sound (button 5) and 4 of shape (button 6). The track's effect and modulation are the same for every instrument (4 + 4). If an engine has more, the cartridge picks the 8 that matter.
 
-## 2. Color
+---
 
-Tres temas. La lógica es la misma en los tres; cambia solo la paleta. Los valores hex son nuestros, no medidos de los equipos.
+## 1. Control map
 
-### 2.1 Colores de encoder
+What each MK3 button does is in its own document: **[buttons.md](buttons.md)**. The instruments, which are the centre of OP-3, are in **[instruments.md](instruments.md)**.
 
-| Encoder | op-1 (por defecto) | op-1 field | op-xy |
+## 2. Colour
+
+Three themes. The logic is the same in all three; only the palette changes. The hex values are ours, not measured from the devices.
+
+### 2.1 Encoder colours
+
+| Encoder | op-1 (default) | op-1 field | op-xy |
 | :-- | :-- | :-- | :-- |
-| 1 | `#0099FF` azul | `#3B8EBA` azul acero | `#94A8C6` plata hielo |
-| 2 | `#00E56A` verde | `#D9822B` ocre | `#00F076` verde señal |
-| 3 | `#F2F4F8` blanco | `#A9AFB8` gris | `#EEF0F5` platino |
-| 4 | `#FF4F00` naranja | `#F2652A` naranja | `#FF3844` rojo |
-| 5 | `#8B6CFF` violeta | `#7FB58A` salvia | `#FFD60A` amarillo |
-| 6 | `#FFD21F` amarillo | `#E3C77A` arena | `#34D3E8` cian |
-| 7 | `#2ED3E6` cian | `#A88BC7` lila | `#9D7BFF` violeta |
-| 8 | `#FF4FA0` rosa | `#D9677A` rosa viejo | `#FF8A1F` naranja |
+| 1 | `#0099FF` blue | `#3B8EBA` steel blue | `#94A8C6` ice silver |
+| 2 | `#00E56A` green | `#D9822B` ochre | `#00F076` signal green |
+| 3 | `#F2F4F8` white | `#A9AFB8` grey | `#EEF0F5` platinum |
+| 4 | `#FF4F00` orange | `#F2652A` orange | `#FF3844` red |
+| 5 | `#8B6CFF` violet | `#7FB58A` sage | `#FFD60A` yellow |
+| 6 | `#FFD21F` yellow | `#E3C77A` sand | `#34D3E8` cyan |
+| 7 | `#2ED3E6` cyan | `#A88BC7` lilac | `#9D7BFF` violet |
+| 8 | `#FF4FA0` pink | `#D9677A` dusty rose | `#FF8A1F` orange |
 
-Los cuatro primeros siguen el orden de los encoders de cada equipo de referencia (OP-1 original: azul, verde, blanco, naranja; OP-1 field: azul, ocre, gris, naranja). Los cuatro de instrumento se eligen para que no se confundan con los primeros a simple vista.
+The first four follow the encoder order of each reference device (original OP-1: blue, green, white, orange; OP-1 field: blue, ochre, grey, orange). The four instrument colours are chosen so they are not confused with the first four at a glance.
 
-### 2.2 Colores base
+### 2.2 Base colours
 
-| Token | op-1 | op-1 field | op-xy | Uso |
+| Token | op-1 | op-1 field | op-xy | Use |
 | :-- | :-- | :-- | :-- | :-- |
-| `bg` | `#000000` | `#000000` | `#000000` | Fondo |
-| `fg` | `#F2F4F8` | `#F4EFE6` | `#EEF0F5` | Texto y trazos principales |
-| `dim` | `#7E8794` | `#8E918F` | `#80858F` | Contexto, no editable ahora |
-| `faint` | `#232831` | `#262A30` | `#24262C` | Guías, bordes pasivos, pasos vacíos |
-| `panel` | `#0D1118` | `#12161D` | `#0F1014` | Superficie de teclas y cápsulas |
-| `rec` | `#FF3B30` | `#E63946` | `#FF2244` | Solo REC, borrar y picos |
+| `bg` | `#000000` | `#000000` | `#000000` | Background |
+| `fg` | `#F2F4F8` | `#F4EFE6` | `#EEF0F5` | Text and main strokes |
+| `dim` | `#7E8794` | `#8E918F` | `#80858F` | Context, not editable now |
+| `faint` | `#232831` | `#262A30` | `#24262C` | Guides, passive borders, empty steps |
+| `panel` | `#0D1118` | `#12161D` | `#0F1014` | Surface of keys and capsules |
+| `rec` | `#FF3B30` | `#E63946` | `#FF2244` | Only REC, erase and peaks |
 
-## 3. Tipografía
+## 3. Typography
 
-Las pantallas son de 480×272 reales, así que la letra tiene que leerse a 11–15 px. Se renderiza con antialiasing (TrueType).
+The screens are a real 480×272, so the type has to be readable at 11–15 px. It is rendered with anti-aliasing (TrueType).
 
-**Letra: Jost** (OFL), elegida por Javi el 2026-11-12, ajustada para parecerse a la pantalla del OP-XY: pesos livianos, etiquetas chicas con algo de aire entre letras y números grandes en el peso más fino. Una sola familia para todo. Teenage Engineering no publica qué letra usa el OP-XY, así que el ajuste es a ojo sobre lo que se ve en el equipo, no una copia.
+**Typeface: Jost** (OFL), chosen by Javi on 2026-11-12 and tuned to resemble the OP-XY screen: light weights, small labels with some air between letters, and large numbers in the thinnest weight. One family for everything. Teenage Engineering does not publish which typeface the OP-XY uses, so the tuning is by eye against what is seen on the device, not a copy.
 
-| Nivel | px | Peso | Espaciado | Uso |
+| Level | px | Weight | Spacing | Use |
 | :-- | :-- | :-- | :-- | :-- |
-| `s` | 11 | 400 | +0.6 px | Nombre de parámetro bajo el dial |
-| `m` | 15 | 400 | +0.3 px | Valor bajo el dial |
-| `l` | 20 | 400 | +0.2 px | Valores del inspector |
-| `mid` | 21 | 400 | +0.2 px | Instrumento, acorde, letra de pista |
-| `big` | 34 | 300 | 0 | Número de paso en el inspector |
-| `huge` | 62 | 300 | −1 px | Valor al tocar un encoder |
+| `s` | 11 | 400 | +0.6 px | Parameter name under the dial |
+| `m` | 15 | 400 | +0.3 px | Value under the dial |
+| `l` | 20 | 400 | +0.2 px | Inspector values |
+| `mid` | 21 | 400 | +0.2 px | Instrument, chord, track letter |
+| `big` | 34 | 300 | 0 | Step number in the inspector |
+| `huge` | 62 | 300 | −1 px | Value when an encoder is touched |
 
-**FlipMono no se usa:** el archivo `FlipMono.ttf` de Flip Tracker+ es SF Mono de Apple, cuya licencia solo permite usarla en equipos Apple. No se puede distribuir en una Raspberry Pi.
+**FlipMono is not used:** the `FlipMono.ttf` file of Flip Tracker+ is Apple's SF Mono, whose licence only allows it on Apple devices. It cannot be distributed on a Raspberry Pi.
 
-En Rust, Jost (300 y 400, `assets/fonts/`) se incrusta con `include_bytes!` y se rasteriza con `fontdue` (MIT/Apache); cada glifo se guarda en caché y se mezcla con alfa sobre el framebuffer RGB565 (`crates/op3-gfx/src/font.rs`).
+In Rust, Jost (300 and 400, `assets/fonts/`) is embedded with `include_bytes!` and rasterised with `fontdue` (MIT/Apache); each glyph is cached and alpha-blended onto the RGB565 framebuffer (`crates/op3-gfx/src/font.rs`).
 
-## 3b. Dónde vive cada cosa en el código
+## 3b. Where each thing lives in the code
 
-| Qué | Archivo |
+| What | File |
 | :-- | :-- |
-| Temas y colores de encoder | `crates/op3-gfx/src/theme.rs` (`theme()`, `knob(i)`) |
-| Letra y escala tipográfica | `crates/op3-gfx/src/font.rs` |
-| Líneas, arcos, círculos y cajas con antialiasing | `crates/op3-gfx/src/paint.rs` |
-| Pie de diales y overlay de toque | `crates/op3-ui/src/theme.rs` |
-| Pantalla izquierda | `crates/op3-ui/src/left.rs` |
-| Pantalla derecha (marco) | `crates/op3-ui/src/right.rs` |
-| Dibujo de cada instrumento | `draw_ui` de cada cartridge en `crates/op3-cartridges/src/` |
+| Themes and encoder colours | `crates/op3-gfx/src/theme.rs` (`theme()`, `knob(i)`) |
+| Typeface and type scale | `crates/op3-gfx/src/font.rs` |
+| Anti-aliased lines, arcs, circles and boxes | `crates/op3-gfx/src/paint.rs` |
+| Dial footer and touch overlay | `crates/op3-ui/src/theme.rs` |
+| Left screen | `crates/op3-ui/src/left.rs` |
+| Right screen (frame) | `crates/op3-ui/src/right.rs` |
+| Drawing of each instrument | `draw_ui` of each cartridge in `crates/op3-cartridges/src/` |
 
-El tema se elige con `op3 run -t op-1|op-1-field|op-xy` o `OP3_THEME`.
+The theme is chosen with `op3 run -t op-1|op-1-field|op-xy` or `OP3_THEME`.
 
-## 4. Estructura de pantalla
+## 4. Screen structure
 
 ```
 ┌────────────────────────────────────────────────┐
-│ ● nombre                         ● ● (páginas) │  barra superior, 32 px
+│ ● name                           ● ● (pages)   │  top bar, 32 px
 │ +                                            + │
-│               dibujo animado                   │  zona de dibujo
+│               animated drawing                 │  drawing area
 │ +                                            + │
-│ ◔ valor    ◔ valor    ◔ valor    ◔ valor       │  pie, 4 × 120 px, cada columna
-│   nombre     nombre     nombre     nombre      │  sobre su encoder físico
+│ ◔ value    ◔ value    ◔ value    ◔ value       │  footer, 4 × 120 px, each column
+│   name       name       name       name        │  above its physical encoder
 └────────────────────────────────────────────────┘
 ```
 
-- **Izquierda (fija): tiempo.** Tempo, acorde del Brain, aros de polimetría (uno por pista, la elegida adelante), espejo de los 16 pads. Pie con encoders 1–4.
-- **Derecha: el instrumento de la pista elegida.** Cada cartridge dibuja su ilustración animada usando los colores 5–8 para lo que esos encoders mueven. Pie con encoders 5–8.
+- **Left (fixed): time.** Tempo, the Brain chord, polymeter rings (one per track, the selected one in front), a mirror of the 16 pads. Footer with encoders 1–4.
+- **Right: the instrument of the selected track.** Each cartridge draws its animated illustration using colours 5–8 for what those encoders move. Footer with encoders 5–8.
 
-## 5. Componentes
+## 5. Components
 
-- **Dial:** arco de 270° y 3 px; fondo `faint`, valor en color del encoder, punto en la punta. Valor en `fg` y nombre en color del encoder al lado.
-- **Pad en pantalla:** esquinas de 6 px; vacío = punto `faint`; con nota = relleno del color de pista; en edición = borde `fg` de 2 px.
-- **Cápsula:** radio = alto / 2, punto LED a la izquierda, texto sin corchetes, margen mínimo de 8 px.
-- **Cruces de calibración:** `+` de 3 px en las esquinas de cada vista técnica.
-- **Overlay de toque:** oscurece la zona de dibujo; nombre en color del encoder, valor en `huge`, barra fina de 3 px.
+- **Dial:** 270° arc, 3 px; background `faint`, value in the encoder colour, a dot at the tip. Value in `fg` and name in the encoder colour beside it.
+- **Pad on screen:** 6 px corners; empty = `faint` dot; with a note = fill in the track colour; being edited = 2 px `fg` border.
+- **Capsule:** radius = height / 2, LED dot on the left, text without brackets, minimum margin of 8 px.
+- **Calibration crosses:** 3 px `+` in the corners of each technical view.
+- **Touch overlay:** darkens the drawing area; name in the encoder colour, value in `huge`, a thin 3 px bar.
 
-## 6. Movimiento
+## 6. Motion
 
-60 FPS en el Twin; 30–60 FPS en el equipo con actualización por regiones. Los valores se interpolan en vez de saltar. Cada nota dispara un destello que decae, y los dibujos responden al nivel de audio de su pista.
+60 FPS in the Twin; on the device, up to 60 FPS with only the changed rows sent (see [architecture.md §7](architecture.md)). Values are interpolated instead of jumping. Every note triggers a flash that decays, and the drawings respond to the audio level of their track. Both screens animate; neither is ever assumed to be still.
 
-## 7. Cómo se cambia este tratado
+## 7. How this treatise is changed
 
-1. Se propone el cambio en el Twin.
-2. Javi lo aprueba.
-3. Se actualiza este documento en el mismo PR que el código.
+1. The change is proposed in the Twin.
+2. Javi approves it.
+3. This document is updated in the same PR as the code.

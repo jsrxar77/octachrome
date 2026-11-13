@@ -1,5 +1,5 @@
 //! Smoothed animation state. The screens never jump: playheads glide, notes
-//! flash and decay, the touch overlay fades (DESIGN.md §6). Call
+//! flash and decay, the touch overlay fades (design.md §6). Call
 //! [`animate`] once per frame before drawing.
 
 use crate::UiState;

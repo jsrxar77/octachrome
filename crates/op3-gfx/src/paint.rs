@@ -1,7 +1,7 @@
 //! Anti-aliased vector primitives on the RGB565 framebuffer.
 //!
 //! Every shape is drawn from a signed distance per pixel, so edges get
-//! fractional coverage instead of stair steps (DESIGN.md §5: no jagged
+//! fractional coverage instead of stair steps (design.md §5: no jagged
 //! 1-bit lines). Angles follow the screen: 0 = +x, growing clockwise.
 
 use crate::{FrameBuffer480x272, Rgb565, HEIGHT, WIDTH};

@@ -1,4 +1,4 @@
-//! Design tokens from `docs/DESIGN.md` (Tratado de UX/UI).
+//! Design tokens from `docs/design.md` (UX/UI treatise).
 //!
 //! Eight encoders, eight fixed colours: knobs 1–4 drive the sequencer (left
 //! screen), 5–8 the instrument (right screen). Whatever an encoder moves is

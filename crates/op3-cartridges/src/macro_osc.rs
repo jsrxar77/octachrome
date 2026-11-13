@@ -1,4 +1,4 @@
-//! macro: 24 synthesis engines behind four knobs (docs/INSTRUMENTOS.md).
+//! macro: 24 synthesis engines behind four knobs (docs/instruments.md).
 //!
 //! Built on the vendored macro-oscillator DSP in `op3-plaits` (MIT). Page 1
 //! picks the engine and shapes it (harmonics, timbre, morph); page 2 sets

@@ -37,7 +37,7 @@ pub const ENGINES: usize = 24;
 /// Largest block `render` accepts in one call.
 pub const MAX_BLOCK: usize = 24;
 
-/// Short lowercase names (our own wording, DESIGN.md rule 8).
+/// Short lowercase names (our own wording, design.md rule 8).
 pub const ENGINE_NAMES: [&str; ENGINES] = [
     "va filter",
     "phase dist",

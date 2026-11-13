@@ -1,5 +1,5 @@
 //! Screen furniture shared by both screens: track colours, the four-dial
-//! footer and the cap-touch overlay (DESIGN.md §4–§5). Colours come from the
+//! footer and the cap-touch overlay (design.md §4–§5). Colours come from the
 //! active [`op3_gfx::Theme`]; knob `i` always draws in `knob(i)`.
 
 use crate::Anim;
@@ -11,7 +11,7 @@ use op3_gfx::{
 use op3_seq::StepComponent;
 
 /// Accent per group A–H (matched to the pad LED palette in the app). Used
-/// only to identify the track: dots, rings, pad fills (DESIGN.md rule 10).
+/// only to identify the track: dots, rings, pad fills (design.md rule 10).
 pub const TRACK_COLORS: [Rgb565; 8] = [
     Rgb565::from_hex(0xff3b30), // A red
     Rgb565::from_hex(0xff9500), // B orange

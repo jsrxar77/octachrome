@@ -187,7 +187,7 @@ impl InstrumentCartridge for KickSyn {
         self.amp = 0.0;
     }
 
-    /// A drum head seen from above (DESIGN.md: drawings, not text). Tune sets
+    /// A drum head seen from above (design.md: drawings, not text). Tune sets
     /// its size, decay the arc around it, punch the pitch rings that ripple
     /// out on a hit, drive the spikes on the shell. Colours: encoders 5–8.
     fn draw_ui(&self, frame: &mut FrameBuffer480x272, _accent_color: Rgb565) {

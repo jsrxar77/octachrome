@@ -1,4 +1,4 @@
-//! Left screen (fixed): time. Encoders 1–4 (DESIGN.md §4).
+//! Left screen (fixed): time. Encoders 1–4 (design.md §4).
 //!
 //! Step view: concentric polymeter rings (track A outermost) and a mirror of
 //! the 16 pads. Holding a pad opens the inspector; Brain and Punch modes

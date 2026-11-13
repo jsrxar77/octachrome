@@ -1,5 +1,5 @@
 //! Screen layouts. Pure drawing: give it state, get pixels. Every rule here
-//! comes from `docs/DESIGN.md` (Tratado de UX/UI).
+//! comes from `docs/design.md` (UX/UI treatise).
 //!
 //! Left screen (fixed: time, encoders 1–4)
 //! ```text
