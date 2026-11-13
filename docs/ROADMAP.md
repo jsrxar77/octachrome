@@ -2,12 +2,15 @@
 
 Sale del [mapa de botones](BOTONES.md) y de [INSTRUMENTOS.md](INSTRUMENTOS.md): cada botón de la MK3 tiene asignada una idea, y este roadmap es el orden en que se construyen. Cada paso se prueba primero en el Twin (`docs/op3-twin.html`) y después en Rust.
 
-## Hecho
+## Hecho (al 2026-11-13)
 
 - Motor, secuenciador con polimetría, Step Components, Brain y Punch-in FX.
 - Cartridges KickSyn, FmBass, MidiOutBridge y **macro** (24 motores, a partir del código de Plaits, MIT).
 - Driver MK3 (pads, perillas, botones, LEDs, pantallas), Pi 5 y systemd. **Falta probarlo en una MK3 real.**
 - Lenguaje visual: 8 colores de perilla, tres temas, Jost, dibujos por instrumento.
+- Documentos: [DESIGN.md](DESIGN.md), [BOTONES.md](BOTONES.md), [INSTRUMENTOS.md](INSTRUMENTOS.md) y [HANDOVER.md](HANDOVER.md) para continuar el trabajo.
+- Twin (`docs/op3-twin.html`) con las mismas pantallas, incluido macro en la pista D.
+- CI en verde: tests, clippy, simulador, chequeo para la Pi (aarch64) y build en macOS.
 - Botones: STEP, CHORDS (Brain), PERFORM (Punch-in), grupos A–H, MUTE, ERASE + pad, PLAY, STOP, RESTART, SHIFT, pantalla 5–6.
 
 ## 1. Prueba en hardware (lo próximo)
@@ -30,7 +33,7 @@ Sale del [mapa de botones](BOTONES.md) y de [INSTRUMENTOS.md](INSTRUMENTOS.md): 
 
 ## 4. Instrumentos (lo central)
 
-- Lista de registro de cartridges y PLUG-IN para elegir el de cada pista.
+- PLUG-IN para elegir el instrumento de cada pista (la lista de registro, `builtin_names()`, ya existe).
 - Kit de dibujos reusables en `op3-gfx` (osciloscopio, envolvente, onda polar).
 - Cargar instrumentos como paquete aparte desde `cartridges/` (etapa 2 de [INSTRUMENTOS.md](INSTRUMENTOS.md)).
 - Más instrumentos: resonator, drums, sampler.
