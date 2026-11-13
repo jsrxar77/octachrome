@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>OP-8 · Brand play</title>
+<style>
+@font-face{font-family:Jost;font-weight:300;src:url(fonts/Jost-Light.ttf)}
+@font-face{font-family:Jost;font-weight:400;src:url(fonts/Jost-Regular.ttf)}
+:root{color-scheme:dark;--bg:#000;--fg:#F2F4F8;--dim:#7E8794;--faint:#232831;--panel:#0D1118;
+--k1:#0099FF;--k2:#00E56A;--k3:#F2F4F8;--k4:#FF4F00;--k5:#8B6CFF;--k6:#FFD21F;--k7:#2ED3E6;--k8:#FF4FA0}
+*{box-sizing:border-box;margin:0}
+body{background:var(--bg);color:var(--fg);font:300 18px/1.4 Jost,system-ui,sans-serif;padding:30px 20px 80px;text-align:center;-webkit-font-smoothing:antialiased}
+a{color:var(--dim)}
+section{max-width:980px;margin:0 auto;padding:7vh 0;border-bottom:1px solid var(--faint)}
+h2{font-weight:400;font-size:15px;letter-spacing:.3em;text-transform:uppercase;color:var(--dim);margin-bottom:28px}
+.word{font-weight:300;font-size:clamp(80px,22vw,230px);line-height:1;letter-spacing:.03em;display:inline-flex;align-items:center;justify-content:center}
+.word .g{display:inline-block;transition:transform .9s cubic-bezier(.6,0,.2,1);cursor:pointer}
+.word .g.inf{transform:rotate(90deg)}
+.word .g.sp{animation:spin 6s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+svg{width:min(640px,92vw);height:auto;display:block;margin:auto}
+.row{display:flex;flex-wrap:wrap;gap:14px;justify-content:center;margin-top:24px}
+button{font:inherit;color:inherit;background:var(--panel);border:1px solid var(--faint);border-radius:999px;padding:8px 18px;cursor:pointer}
+button:hover{border-color:var(--dim)}
+.opts{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px}
+.opt{background:var(--panel);border:1px solid var(--faint);border-radius:18px;padding:26px 14px}
+.opt .w{font-size:56px;font-weight:300;line-height:1.1}
+.opt p{color:var(--dim);font-size:15px;margin-top:8px}
+.eights{display:flex;flex-wrap:wrap;gap:12px;justify-content:center}
+.eights div{background:var(--panel);border:1px solid var(--faint);border-radius:16px;padding:14px 20px;min-width:140px}
+.eights b{display:block;font-size:44px;font-weight:300}
+.eights span{color:var(--dim);font-size:15px}
+</style></head><body>
+<p><a href="index.html">← Guide</a></p>
+
+<section>
+  <h2>OP-8 → OP-∞</h2>
+  <div class="word" aria-label="OP-8"><span>OP-</span><span class="g" id="g" role="button" tabindex="0" aria-label="Turn the 8 on its side">8</span></div>
+  <div class="row"><button id="flip">8 ⇄ ∞</button><button id="spin">spin</button></div>
+  <p style="color:var(--dim);margin-top:16px">An 8 on its side is the infinity sign. Tap the 8.</p>
+</section>
+
+<section>
+  <h2>The loop</h2>
+  <svg viewBox="-260 -110 520 220" role="img" aria-label="Infinity loop in eight colours">
+    <g id="loop" fill="none" stroke-width="14" stroke-linecap="round"></g>
+    <circle id="dot" r="9" fill="#fff"/>
+  </svg>
+  <p style="color:var(--dim);margin-top:16px">Eight colours, one line, no end. A step sequence is a loop too.</p>
+</section>
+
+<section>
+  <h2>Everything is eight</h2>
+  <div class="eights">
+    <div><b style="color:var(--k1)">8</b><span>tracks A–H</span></div>
+    <div><b style="color:var(--k2)">8</b><span>knobs</span></div>
+    <div><b style="color:var(--k4)">8</b><span>parameters at most</span></div>
+    <div><b style="color:var(--k5)">8</b><span>screen buttons</span></div>
+    <div><b style="color:var(--k6)">8</b><span>colours</span></div>
+    <div><b style="color:var(--k8)">∞</b><span>instruments</span></div>
+  </div>
+</section>
+
+<section>
+  <h2>Names to try</h2>
+  <div class="opts">
+    <div class="opt"><div class="w">OP-8</div><p>Plain. Eight everywhere.</p></div>
+    <div class="opt"><div class="w">OP-∞</div><p>The loop. Hard to type.</p></div>
+    <div class="opt"><div class="w">OP<span style="color:var(--k4)">·</span>8</div><p>A dot, one orange.</p></div>
+    <div class="opt"><div class="w">op8</div><p>The command line: <code>op8</code>.</p></div>
+    <div class="opt"><div class="w">8<span style="display:inline-block;transform:rotate(90deg)">8</span></div><p>An 8 and its side.</p></div>
+    <div class="opt"><div class="w">OP-<span style="display:inline-block;transform:rotate(90deg)">8</span></div><p>The mark: written 8, read ∞.</p></div>
+  </div>
+  <p style="color:var(--dim);margin-top:22px;font-size:15px">Only a sketch. Nothing is renamed: the project, the crates and the <code>op3</code> command stay as they are until you decide.</p>
+</section>
+
+<script>
+const g=document.getElementById("g");
+document.getElementById("flip").onclick=()=>{g.classList.remove("sp");g.classList.toggle("inf")};
+g.onclick=()=>g.classList.toggle("inf");
+g.onkeydown=e=>{if(e.key==="Enter"||e.key===" ")g.classList.toggle("inf")};
+document.getElementById("spin").onclick=()=>{g.classList.remove("inf");g.classList.toggle("sp")};
+// lemniscate of Gerono-style: x=a*sin t, y=b*sin t*cos t
+const P=t=>[220*Math.sin(t),90*Math.sin(t)*Math.cos(t)*2*.5*1.9/1.9];
+const loop=document.getElementById("loop");
+for(let i=0;i<8;i++){
+  let d="";const a=i/8*2*Math.PI,b=(i+1)/8*2*Math.PI;
+  for(let s=0;s<=12;s++){const[x,y]=P(a+(b-a)*s/12);d+=(s?"L":"M")+x.toFixed(1)+" "+y.toFixed(1)}
+  const p=document.createElementNS("http://www.w3.org/2000/svg","path");
+  p.setAttribute("d",d);p.setAttribute("stroke",`var(--k${i+1})`);loop.append(p);
+}
+const dot=document.getElementById("dot");
+(function f(ms){const[x,y]=P(ms/2500);dot.setAttribute("cx",x);dot.setAttribute("cy",y);requestAnimationFrame(f)})(0);
+</script></body></html>
