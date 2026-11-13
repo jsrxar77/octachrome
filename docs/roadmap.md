@@ -1,6 +1,6 @@
-# OP-3 — Roadmap
+# OP-8 — Roadmap
 
-It comes from the [button map](buttons.md) and from [instruments.md](instruments.md): each MK3 button has an idea assigned, and this roadmap is the order in which they are built. Each step is tried first in the Twin (`twin/op3-twin.html`) and then in Rust. Status as of **2026-11-13**.
+It comes from the [button map](buttons.md) and from [instruments.md](instruments.md): each MK3 button has an idea assigned, and this roadmap is the order in which they are built. Each step is tried first in the Twin (`twin/op8-twin.html`) and then in Rust. Status as of **2026-11-13**.
 
 ## Done
 
@@ -45,12 +45,12 @@ Not yet checked:
 | Brightness 70 | one, after 31 s |
 | Brightness 50 with whole rows, no limits, 3.4 MB/s, 90 transfers/s | none |
 
-So the screens are needed for the reset, and only their brightness decides it. That fits the 480 mA the hub allows. The default brightness is now 50 (`OP3_BRIGHTNESS`). Feature F-H03 (five minutes of real use) is still to be checked on the unit, and connecting the MK3 straight to the Mac should leave more margin; that has not been tried.
+So the screens are needed for the reset, and only their brightness decides it. That fits the 480 mA the hub allows. The default brightness is now 50 (`OP8_BRIGHTNESS`). Feature F-H03 (five minutes of real use) is still to be checked on the unit, and connecting the MK3 straight to the Mac should leave more margin; that has not been tried.
 
 Known limits of the setup:
 
-- Behind a USB 2.0 hub, macOS gives the MK3 only 480 mA (`UsbPowerSinkAllocation`). A bright backlight resets the device. The app reads what the host grants (`power:` line at start-up) and uses screens at 50 and capped LEDs below 500 mA, screens at 80 from 500 mA up; `OP3_BRIGHTNESS` and `OP3_POWER` override it. Connect the MK3 directly to the Mac for more margin. `op3 usb-reset` recovers a stuck device; run it with op3 closed.
-- NI's services (`NIHardwareAgent`, `NIHostIntegrationAgent`, `NTKDaemon`) and any other `op3` take interface 5: close them first.
+- Behind a USB 2.0 hub, macOS gives the MK3 only 480 mA (`UsbPowerSinkAllocation`). A bright backlight resets the device. The app reads what the host grants (`power:` line at start-up) and uses screens at 50 and capped LEDs below 500 mA, screens at 80 from 500 mA up; `OP8_BRIGHTNESS` and `OP8_POWER` override it. Connect the MK3 directly to the Mac for more margin. `op8 usb-reset` recovers a stuck device; run it with op8 closed.
+- NI's services (`NIHardwareAgent`, `NIHostIntegrationAgent`, `NTKDaemon`) and any other `op8` take interface 5: close them first.
 
 ## 1. Navigation skeleton (next)
 
@@ -70,7 +70,7 @@ Known limits of the setup:
 ## 3. Instruments (the centre)
 
 - Cartridge registry list and PLUG-IN to choose the cartridge of each track (from `builtin_names()`).
-- Kit of reusable drawings in `op3-gfx` (oscilloscope, envelope, polar waveform).
+- Kit of reusable drawings in `op8-gfx` (oscilloscope, envelope, polar waveform).
 - Load instruments as a separate package from `cartridges/` (stage 2 of [instruments.md](instruments.md)).
 - More instruments: resonator (from Rings), drums (8 sounds on the pads), sampler. Each one meets [instruments.md](instruments.md): at most 8 knobs, a drawing without text, and any combination sounds good.
 

@@ -1,0 +1,34 @@
+[package]
+name = "op8"
+description = "OP-8: standalone groovebox on a Maschine MK3"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+default-run = "op8"
+
+[features]
+default = ["audio", "mk3", "midi"]
+# Real audio output through cpal (CoreAudio / ALSA).
+audio = ["dep:cpal"]
+# Real Maschine MK3 over USB.
+mk3 = ["op8-hw/mk3"]
+# CoreMIDI output on macOS (Linux writes ALSA raw MIDI directly).
+midi = ["dep:midir"]
+
+[dependencies]
+op8-gfx.workspace = true
+op8-cartridge.workspace = true
+op8-seq.workspace = true
+op8-engine.workspace = true
+op8-cartridges.workspace = true
+op8-hw.workspace = true
+op8-ui.workspace = true
+rtrb.workspace = true
+anyhow.workspace = true
+cpal = { version = "0.15", optional = true }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+midir = { version = "0.10", optional = true }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+libc = "0.2"

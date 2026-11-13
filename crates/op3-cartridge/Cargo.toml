@@ -1,9 +1,0 @@
-[package]
-name = "op3-cartridge"
-description = "The InstrumentCartridge contract: everything an instrument needs, nothing about the sequencer or the hardware"
-version.workspace = true
-edition.workspace = true
-license.workspace = true
-
-[dependencies]
-op3-gfx.workspace = true

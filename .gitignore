@@ -1,5 +1,5 @@
 /target
-# cargo runs each crate's tests from its own folder, so a relative OP3_BENCH_DIR lands here
+# cargo runs each crate's tests from its own folder, so a relative OP8_BENCH_DIR lands here
 /crates/*/target
 /out
 *.ppm

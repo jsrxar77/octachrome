@@ -1,10 +1,10 @@
-# OP-3 — UX/UI Treatise
+# OP-8 — UX/UI Treatise
 
-This document rules over everything OP-3 shows and how it is operated. If the code or the Twin disagree with this treatise, the code is wrong. If something is needed that the treatise does not cover, it is written here first, approved, and only then programmed.
+This document rules over everything OP-8 shows and how it is operated. If the code or the Twin disagree with this treatise, the code is wrong. If something is needed that the treatise does not cover, it is written here first, approved, and only then programmed.
 
 The direction is the language of Teenage Engineering (OP-1, OP-1 field, OP-XY): colour tied to the physical control, drawings instead of text, absolute black. We take the ideas, never their graphics, icons or typeface. It starts from the "Impeccable" system of Flip Tracker+ (`jsrxar77/flip-tracker`, its `DESIGN.md`), adapted to the Maschine MK3.
 
-The living reference is **OP-3 Twin** (`twin/op3-twin.html`). Every new design is tried there before it is ported to `crates/op3-ui`.
+The living reference is **OP-8 Twin** (`twin/op8-twin.html`). Every new design is tried there before it is ported to `crates/op8-ui`.
 
 ---
 
@@ -21,14 +21,14 @@ The living reference is **OP-3 Twin** (`twin/op3-twin.html`). Every new design i
 9. **One typeface.** Jost, anti-aliased, on the fixed scale of section 3. Never pixelated terminal fonts.
 10. **The track is a dot.** The track colour (A–H) identifies the track on the physical pads and LEDs, and on screen only as a dot, ring or pad fill. It never competes with the encoder colours.
 11. **Buttons above, knobs below.** The top strip of each screen shows what each button above it does; the footer shows what each knob below it does. Always in the same 120 px column as the physical control. Button labels are white or grey, never in a knob colour. A button with no function shows nothing.
-12. **Each button means one idea.** What a MK3 button does in OP-3 resembles what its OP-XY equivalent does and what its silkscreen says. Shift gives the secondary function, never a different idea.
+12. **Each button means one idea.** What a MK3 button does in OP-8 resembles what its OP-XY equivalent does and what its silkscreen says. Shift gives the secondary function, never a different idea.
 13. **Few parameters.** An instrument shows at most 8 parameters: 4 of sound (button 5) and 4 of shape (button 6). The track's effect and modulation are the same for every instrument (4 + 4). If an engine has more, the cartridge picks the 8 that matter.
 
 ---
 
 ## 1. Control map
 
-What each MK3 button does is in its own document: **[buttons.md](buttons.md)**. The instruments, which are the centre of OP-3, are in **[instruments.md](instruments.md)**.
+What each MK3 button does is in its own document: **[buttons.md](buttons.md)**. The instruments, which are the centre of OP-8, are in **[instruments.md](instruments.md)**.
 
 ## 2. Colour
 
@@ -60,7 +60,7 @@ The first four follow the encoder order of each reference device (original OP-1:
 | `panel` | `#0D1118` | `#12161D` | `#0F1014` | Surface of keys and capsules |
 | `rec` | `#FF3B30` | `#E63946` | `#FF2244` | Only REC, erase and peaks |
 
-The track colours (A–H) are one fixed palette shared by the three themes (`crates/op3-ui/src/theme.rs`, `TRACK_COLORS`); they match the pad LED palette. Whether they should follow the theme is an open question in [roadmap.md](roadmap.md).
+The track colours (A–H) are one fixed palette shared by the three themes (`crates/op8-ui/src/theme.rs`, `TRACK_COLORS`); they match the pad LED palette. Whether they should follow the theme is an open question in [roadmap.md](roadmap.md).
 
 ## 3. Typography
 
@@ -79,21 +79,21 @@ The screens are a real 480×272, so the type has to be readable at 11–15 px. I
 
 **FlipMono is not used:** the `FlipMono.ttf` file of Flip Tracker+ is Apple's SF Mono, whose licence only allows it on Apple devices. It cannot be distributed on a Raspberry Pi.
 
-In Rust, Jost (300 and 400, `assets/fonts/`) is embedded with `include_bytes!` and rasterised with `fontdue` (MIT/Apache); each glyph is cached and alpha-blended onto the RGB565 framebuffer (`crates/op3-gfx/src/font.rs`).
+In Rust, Jost (300 and 400, `assets/fonts/`) is embedded with `include_bytes!` and rasterised with `fontdue` (MIT/Apache); each glyph is cached and alpha-blended onto the RGB565 framebuffer (`crates/op8-gfx/src/font.rs`).
 
 ## 3b. Where each thing lives in the code
 
 | What | File |
 | :-- | :-- |
-| Themes and encoder colours | `crates/op3-gfx/src/theme.rs` (`theme()`, `knob(i)`) |
-| Typeface and type scale | `crates/op3-gfx/src/font.rs` |
-| Anti-aliased lines, arcs, circles and boxes | `crates/op3-gfx/src/paint.rs` |
-| Dial footer and touch overlay | `crates/op3-ui/src/theme.rs` |
-| Left screen | `crates/op3-ui/src/left.rs` |
-| Right screen (frame) | `crates/op3-ui/src/right.rs` |
-| Drawing of each instrument | `draw_ui` of each cartridge in `crates/op3-cartridges/src/` |
+| Themes and encoder colours | `crates/op8-gfx/src/theme.rs` (`theme()`, `knob(i)`) |
+| Typeface and type scale | `crates/op8-gfx/src/font.rs` |
+| Anti-aliased lines, arcs, circles and boxes | `crates/op8-gfx/src/paint.rs` |
+| Dial footer and touch overlay | `crates/op8-ui/src/theme.rs` |
+| Left screen | `crates/op8-ui/src/left.rs` |
+| Right screen (frame) | `crates/op8-ui/src/right.rs` |
+| Drawing of each instrument | `draw_ui` of each cartridge in `crates/op8-cartridges/src/` |
 
-The theme is chosen with `op3 run -t op-1|op-1-field|op-xy` or `OP3_THEME`.
+The theme is chosen with `op8 run -t op-1|op-1-field|op-xy` or `OP8_THEME`.
 
 ## 4. Screen structure
 

@@ -1,16 +1,16 @@
-# OP-3 — What Each Button Does
+# OP-8 — What Each Button Does
 
 Part of the [UX/UI Treatise](design.md). The rules that rule here: each button means one idea, similar to its OP-XY equivalent and to what its silkscreen says; Shift gives the secondary function, never a different idea (rule 12). Above each screen you see what the buttons above it do, and below it what the knobs do (rule 11).
 
 The buttons and the sequencer always do the same and do not grow much further. What grows is the instruments ([instruments.md](instruments.md)).
 
-For each MK3 button: its function in the Maschine software (per the [NI manual](https://docs.native-instruments.com/online-guides/maschine-mk3-manual/en/quick-reference)), its equivalent idea on the OP-XY (per the [TE guide](https://teenage.engineering/guides/op-xy/layout)), and what it does in OP-3. **Status:** ✓ done, ◐ partial, ○ to do (see [roadmap.md](roadmap.md)).
+For each MK3 button: its function in the Maschine software (per the [NI manual](https://docs.native-instruments.com/online-guides/maschine-mk3-manual/en/quick-reference)), its equivalent idea on the OP-XY (per the [TE guide](https://teenage.engineering/guides/op-xy/layout)), and what it does in OP-8. **Status:** ✓ done, ◐ partial, ○ to do (see [roadmap.md](roadmap.md)).
 
 ## 1. Main modes (the equivalents of the OP-XY's instrument, auxiliary, arrange and mix)
 
 The left screen always shows time and the right screen always shows sound. A main mode changes which modules the screen buttons 1–8 offer, like M1–M4 on the OP-XY.
 
-| MK3 button | In Maschine | On the OP-XY | In OP-3 | Status |
+| MK3 button | In Maschine | On the OP-XY | In OP-8 | Status |
 | :-- | :-- | :-- | :-- | :-- |
 | CHANNEL | Channel properties | instrument | **Instrument**: the default mode, for composing. Sequencer on the left, the track's cartridge on the right. CHANNEL goes back here from settings | ✓ |
 | PLUG-IN | Channel plug-ins | instrument (engine) | Choose the track's cartridge (cartridge list on the right) | ○ |
@@ -41,7 +41,7 @@ They are the modules of the current mode, like M1–M4 on the OP-XY. Their name 
 
 ## 3. Pads and their modes
 
-| MK3 button | In Maschine | On the OP-XY | In OP-3 | Status |
+| MK3 button | In Maschine | On the OP-XY | In OP-8 | Status |
 | :-- | :-- | :-- | :-- | :-- |
 | STEP | Step sequencer | seq (steps) | Pads = the 16 steps of the track. Holding a pad opens its components | ✓ |
 | KEYBOARD | Chromatic pads | keyboard | Pads = the track's chromatic keyboard. 4D encoder ◀ ▶ = octave (the − and + of the OP-XY) | ○ |
@@ -53,7 +53,7 @@ They are the modules of the current mode, like M1–M4 on the OP-XY. Their name 
 
 ## 4. Editing
 
-| MK3 button | In Maschine | On the OP-XY | In OP-3 | Status |
+| MK3 button | In Maschine | On the OP-XY | In OP-8 | Status |
 | :-- | :-- | :-- | :-- | :-- |
 | Groups A–H | Groups | tracks 1–8 | Choose a track. Shift + group connects or disconnects it from the Brain | ✓ |
 | SELECT | Select without triggering | — | Hold SELECT + pad or group to choose without sounding | ○ |
@@ -69,7 +69,7 @@ They are the modules of the current mode, like M1–M4 on the OP-XY. Their name 
 
 ## 5. Transport and tempo
 
-| MK3 button | In Maschine | On the OP-XY | In OP-3 | Status |
+| MK3 button | In Maschine | On the OP-XY | In OP-8 | Status |
 | :-- | :-- | :-- | :-- | :-- |
 | PLAY | Play | play | Play / pause | ✓ |
 | STOP | Stop | stop (twice: silence) | Stop; twice silences all notes | ◐ (the second press is missing) |
@@ -84,7 +84,7 @@ They are the modules of the current mode, like M1–M4 on the OP-XY. Their name 
 
 ## 6. Other controls
 
-| Control | In OP-3 | Status |
+| Control | In OP-8 | Status |
 | :-- | :-- | :-- |
 | Knobs 1–4 | What the left footer shows (sequencer or the open module) | ✓ |
 | Knobs 5–8 | What the right footer shows (cartridge) | ✓ |

@@ -1,4 +1,4 @@
-# OP-3
+# OP-8
 
 A standalone groovebox in Rust for the **Raspberry Pi 4/5** (developed and tested on **macOS Apple Silicon**) that uses a **Native Instruments Maschine MK3** as its only control surface: pads, knobs, Smart Strip, LEDs and the two 480×272 screens.
 
@@ -13,31 +13,31 @@ git clone https://github.com/jsrxar77/op-3.git
 cd op-3
 cargo test --workspace                       # everything, no hardware needed
 cargo run --release -- sim -s 8              # simulated MK3: writes out/out.wav and .ppm captures of both screens
-cargo run --release -- sim --script my.op3   # the same with your own script (see below); prints the loudness every 0.5 s
-cargo run --release -- run --script my.op3   # the script drives the real app: you hear and see it on the MK3
+cargo run --release -- sim --script my.op8   # the same with your own script (see below); prints the loudness every 0.5 s
+cargo run --release -- run --script my.op8   # the script drives the real app: you hear and see it on the MK3
 cargo run --release -- hw-test               # with the real MK3: rainbow on the 16 pads + a test frame on both screens + event log
 cargo run --release                          # play with the MK3 (audio, screens, LEDs, MIDI)
 scripts/run.sh                               # the same in one command: builds, frees the MK3 from NI's services, starts (-h for options)
 cargo run --release -- -t op-xy              # another theme: op-1 (default), op-1-field, op-xy
 ```
 
-On macOS, close NI's services first (`NIHardwareAgent`, `NIHostIntegrationAgent`, `NTKDaemon`): if they hold USB interface 5, OP-3 keeps working but without screens, and says so on the console. On Linux install `deploy/99-maschine-mk3.rules` to avoid needing root.
+On macOS, close NI's services first (`NIHardwareAgent`, `NIHostIntegrationAgent`, `NTKDaemon`): if they hold USB interface 5, OP-8 keeps working but without screens, and says so on the console. On Linux install `deploy/99-maschine-mk3.rules` to avoid needing root.
 
 **User guide:** `open guide/index.html` (interactive, no server; it becomes a site with GitHub Pages, see [architecture.md](docs/architecture.md)).
 
-The interactive twin in HTML (`twin/op3-twin.html`) reproduces the two screens, the pads and the knobs with sound in WebAudio and opens in Safari or Chrome, even on the iPad: just open the file, no server needed.
+The interactive twin in HTML (`twin/op8-twin.html`) reproduces the two screens, the pads and the knobs with sound in WebAudio and opens in Safari or Chrome, even on the iPad: just open the file, no server needed.
 
 **To continue the work** (person or AI): start with [docs/architecture.md](docs/architecture.md) and [docs/roadmap.md](docs/roadmap.md).
 
-**Documents.** `docs/` has six: [architecture](docs/architecture.md) (how it is built, decisions, how to build and test), [design](docs/design.md) (the UX/UI treatise: eight encoders with eight colours, absolute black, drawings instead of text, one typeface), [buttons](docs/buttons.md) (what each button does), [instruments](docs/instruments.md) (the centre of OP-3), [features](docs/features.md) (the verifiable behaviours and their tests) and [roadmap](docs/roadmap.md) (status and order of work).
+**Documents.** `docs/` has six: [architecture](docs/architecture.md) (how it is built, decisions, how to build and test), [design](docs/design.md) (the UX/UI treatise: eight encoders with eight colours, absolute black, drawings instead of text, one typeface), [buttons](docs/buttons.md) (what each button does), [instruments](docs/instruments.md) (the centre of OP-8), [features](docs/features.md) (the verifiable behaviours and their tests) and [roadmap](docs/roadmap.md) (status and order of work).
 
-Screenshots of the simulator (step, inspector, Brain, Punch FX, end), generated with `op3 sim`:
+Screenshots of the simulator (step, inspector, Brain, Punch FX, end), generated with `op8 sim`:
 
 ![simulator screens](assets/sim-screens.png)
 
 ## Scripts: testing without hands
 
-A script is a text file with one action per line (`<seconds> <command>`), which plays the part of a hand on the MK3. The example is `crates/op3/scripts/demo.op3`.
+A script is a text file with one action per line (`<seconds> <command>`), which plays the part of a hand on the MK3. The example is `crates/op8/scripts/demo.op8`.
 
 ```text
 0.1  btn play
@@ -53,16 +53,16 @@ A script is a text file with one action per line (`<seconds> <command>`), which 
 6.0  shot macro             # sim only: saves macro-left.ppm and macro-right.ppm
 ```
 
-With `sim` no hardware is needed: it writes `out.wav`, the captures and a table of RMS and peak per stretch to check what sounds and when. With `run` the same events enter the real app and you hear them on the MK3. The same mechanism drives the test bench (`crates/op3/src/bench.rs`) behind the feature cases in [docs/features.md](docs/features.md).
+With `sim` no hardware is needed: it writes `out.wav`, the captures and a table of RMS and peak per stretch to check what sounds and when. With `run` the same events enter the real app and you hear them on the MK3. The same mechanism drives the test bench (`crates/op8/src/bench.rs`) behind the feature cases in [docs/features.md](docs/features.md).
 
 ## Architecture
 
 ```text
                         ┌─────────────── control/UI thread (60 fps) ────────────────┐
- Maschine MK3 ──HID────▶│ op3-hw ─ControlEvent─▶ Controller ─EngineCommand─┐         │
+ Maschine MK3 ──HID────▶│ op8-hw ─ControlEvent─▶ Controller ─EngineCommand─┐         │
    (or MockSurface)     │                          │  UiState               │         │
                 ◀─LEDs──│                          ▼                        │         │
-                        │ DirtyTracker ◀─ op3-ui (left / right screen)      │         │
+                        │ DirtyTracker ◀─ op8-ui (left / right screen)      │         │
                         └───────────────────────────────────────────────────┼─────────┘
               screens: a thread of their own (row bands, compressed)  rtrb (lock-free)
                         ┌──────────────── audio thread (cpal, 48 kHz) ──────▼─────────┐
@@ -74,17 +74,17 @@ With `sim` no hardware is needed: it writes `out.wav`, the captures and a table 
 
 | crate | what it does | depends on |
 |---|---|---|
-| `op3-gfx` | `Rgb565`, `FrameBuffer480x272` (implements embedded-graphics' `DrawTarget`), primitives, `DirtyTracker` | – |
-| `op3-cartridge` | the `InstrumentCartridge` contract, plus `NoteEvent`, `ParamDescriptor`, etc. | gfx |
-| `op3-seq` | deterministic sequencer: steps, components, Brain, clock, command model | cartridge (only `NoteEvent`) |
-| `op3-engine` | audio engine: sequencer + 8 slots + mix + Punch-in FX + command queue | seq, cartridge |
-| `op3-plaits` | the macro oscillator from Plaits (C++, MIT, unchanged) behind a Rust interface; 24 engines | – |
-| `op3-cartridges` | **KickSyn**, **FmBass**, **MidiOutBridge**, **macro** | cartridge, plaits |
-| `op3-hw` | `ControlSurface` trait, `MockSurface`, MK3 protocol (pure functions) and USB transport (feature `mk3`) | gfx |
-| `op3-ui` | layouts of the left and right screens | gfx, seq, engine |
-| `op3` | binary: controller, frame loop, cpal audio, MIDI output, simulator, `hw-test`, test bench | everything |
+| `op8-gfx` | `Rgb565`, `FrameBuffer480x272` (implements embedded-graphics' `DrawTarget`), primitives, `DirtyTracker` | – |
+| `op8-cartridge` | the `InstrumentCartridge` contract, plus `NoteEvent`, `ParamDescriptor`, etc. | gfx |
+| `op8-seq` | deterministic sequencer: steps, components, Brain, clock, command model | cartridge (only `NoteEvent`) |
+| `op8-engine` | audio engine: sequencer + 8 slots + mix + Punch-in FX + command queue | seq, cartridge |
+| `op8-plaits` | the macro oscillator from Plaits (C++, MIT, unchanged) behind a Rust interface; 24 engines | – |
+| `op8-cartridges` | **KickSyn**, **FmBass**, **MidiOutBridge**, **macro** | cartridge, plaits |
+| `op8-hw` | `ControlSurface` trait, `MockSurface`, MK3 protocol (pure functions) and USB transport (feature `mk3`) | gfx |
+| `op8-ui` | layouts of the left and right screens | gfx, seq, engine |
+| `op8` | binary: controller, frame loop, cpal audio, MIDI output, simulator, `hw-test`, test bench | everything |
 
-The sequencer and the cartridges **do not depend on any driver**. Hardware enters only through `op3-hw` and the binary. The full description is in [docs/architecture.md](docs/architecture.md).
+The sequencer and the cartridges **do not depend on any driver**. Hardware enters only through `op8-hw` and the binary. The full description is in [docs/architecture.md](docs/architecture.md).
 
 ### Sequencer
 
@@ -109,15 +109,15 @@ To add an instrument: a new crate or module that implements `InstrumentCartridge
 ### MK3 hardware
 
 * **HID** (interface 4): buttons, 8 endless knobs, 4D encoder, Smart Strip, pads with velocity and pressure. LEDs in two reports (`0x80`, `0x81`). On Linux `/dev/hidrawN` is read directly; on macOS `hidapi` (IOKit) is used.
-* **Screens** (interface 5, bulk `0x04`) with `nusb` (pure Rust), from a thread of their own: only the rows that changed are sent, always full width, with repeated pixel pairs compressed, plus a full refresh every 500 ms. `OP3_DISPLAY_STATS=1` prints the figures.
-* The protocol is our own implementation. **No code from Encdr, autotel or Deckard was used**: they are GPL and depending on them would force OP-3 to be GPL too. Protocol facts have no copyright; code does.
+* **Screens** (interface 5, bulk `0x04`) with `nusb` (pure Rust), from a thread of their own: only the rows that changed are sent, always full width, with repeated pixel pairs compressed, plus a full refresh every 500 ms. `OP8_DISPLAY_STATS=1` prints the figures.
+* The protocol is our own implementation. **No code from Encdr, autotel or Deckard was used**: they are GPL and depending on them would force OP-8 to be GPL too. Protocol facts have no copyright; code does.
 * All parsing and encoding are pure functions with tests (pads and their ordering quirks, knobs that wrap around, the free-running counter of analog field 0, the screen transfer format with a reference reader).
 
 ### Raspberry Pi
 
 * `scripts/build-pi.sh [pi@host]`: cross-compilation with `cross` for `aarch64-unknown-linux-gnu` and, if given a host, installs and restarts.
-* `deploy/pi-setup.sh`: creates the `op3` user, installs the udev rules, the real-time limits and the `performance` governor, boots to the console without a desktop and enables `deploy/op3.service`.
-* `deploy/op3.service`: direct start, automatic restart, a 64-frame buffer (`OP3_BUFFER`), `LimitRTPRIO`, affinity to cores 1–3.
+* `deploy/pi-setup.sh`: creates the `op8` user, installs the udev rules, the real-time limits and the `performance` governor, boots to the console without a desktop and enables `deploy/op8.service`.
+* `deploy/op8.service`: direct start, automatic restart, a 64-frame buffer (`OP8_BUFFER`), `LimitRTPRIO`, affinity to cores 1–3.
 * On the Pi it can be compiled natively with `cargo build --release` (`libasound2-dev` is needed).
 
 ## Controls
@@ -144,4 +144,4 @@ Status, hardware status and the next steps are kept in [docs/roadmap.md](docs/ro
 
 ## Licence
 
-MIT or Apache-2.0, at your choice. The code in `crates/op3-plaits/vendor` is by Mutable Instruments (MIT, see its `README.md` and licences); OP-3 does not use their module names.
+MIT or Apache-2.0, at your choice. The code in `crates/op8-plaits/vendor` is by Mutable Instruments (MIT, see its `README.md` and licences); OP-8 does not use their module names.

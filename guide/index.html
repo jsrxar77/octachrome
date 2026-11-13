@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>OP-3 · Guide</title>
-<meta name="description" content="How to play OP-3: a groovebox for the Maschine MK3. Interactive guide.">
+<title>OP-8 · Guide</title>
+<meta name="description" content="How to play OP-8: a groovebox for the Maschine MK3. Interactive guide.">
 <meta name="color-scheme" content="dark">
 <style>
 @font-face{font-family:Jost;font-weight:300;src:url(fonts/Jost-Light.ttf)}
@@ -91,7 +91,7 @@ footer a{color:var(--fg)}
 
 <section class="hero" id="s0">
   <div class="pads" id="heroPads" aria-hidden="true"></div>
-  <h1>OP-3</h1>
+  <h1>OP-8</h1>
   <p class="lead">A groovebox you play with a Maschine MK3.</p>
   <div class="scroll">scroll</div>
 </section>
@@ -142,7 +142,7 @@ footer a{color:var(--fg)}
 
 <section id="s6">
   <h2>Start it</h2>
-  <pre id="cmd"><span>$</span> op3</pre>
+  <pre id="cmd"><span>$</span> op8</pre>
   <div class="row"><button id="copy">Copy</button></div>
   <p class="lead">Builds, frees the MK3 from NI's services, and plays.</p>
   <div class="pw">
@@ -158,7 +158,7 @@ footer a{color:var(--fg)}
   <a href="../docs/buttons.md">Buttons</a> ·
   <a href="../docs/instruments.md">Instruments</a> ·
   <a href="../docs/design.md">Design</a> ·
-  <a href="../twin/op3-twin.html">Twin</a>
+  <a href="../twin/op8-twin.html">Twin</a>
 </footer>
 
 <script>
@@ -176,7 +176,7 @@ function applyTheme(name) {
   r.setProperty("--fg", t.fg); r.setProperty("--dim", t.dim); r.setProperty("--faint", t.faint); r.setProperty("--panel", t.panel); r.setProperty("--rec", t.rec);
   K.forEach((c, i) => r.setProperty("--k" + (i + 1), c));
   document.querySelectorAll("#themeTabs button").forEach(b => b.classList.toggle("on", b.dataset.t === name));
-  try { localStorage.setItem("op3-guide-theme", name); } catch (e) {}
+  try { localStorage.setItem("op8-guide-theme", name); } catch (e) {}
 }
 
 /* nav dots */
@@ -360,9 +360,9 @@ function drawCards(ms) {
 requestAnimationFrame(drawCards);
 
 /* copy */
-$("#copy").onclick = async e => { try { await navigator.clipboard.writeText("op3"); e.target.textContent = "Copied"; } catch (x) { e.target.textContent = "Select it"; } setTimeout(() => e.target.textContent = "Copy", 1400); };
+$("#copy").onclick = async e => { try { await navigator.clipboard.writeText("op8"); e.target.textContent = "Copied"; } catch (x) { e.target.textContent = "Select it"; } setTimeout(() => e.target.textContent = "Copy", 1400); };
 
-try { const s = localStorage.getItem("op3-guide-theme"); if (THEMES[s]) theme = s; } catch (e) {}
+try { const s = localStorage.getItem("op8-guide-theme"); if (THEMES[s]) theme = s; } catch (e) {}
 applyTheme(theme);
 </script>
 </body>
