@@ -42,9 +42,10 @@ nav a.on{background:var(--acc);transform:scale(1.4)}
 @keyframes nudge{50%{transform:translateY(6px)}}
 
 /* surface */
-svg.mk3{width:min(920px,94vw);height:auto}
+svg.mk3{width:min(1000px,96vw);height:auto}
 .hs{cursor:pointer}
 .hs:hover .hl,.hs.on .hl{stroke:var(--acc);stroke-width:2}
+.hs text{user-select:none}
 .hl{fill:none;stroke:transparent}
 
 /* step grid */
@@ -97,8 +98,9 @@ footer a{color:var(--fg)}
 
 <section id="s1">
   <h2>The surface</h2>
-  <p class="lead">Tap a part.</p>
-  <svg class="mk3" viewBox="0 0 920 470" role="img" aria-label="Maschine MK3 map" id="mk3"></svg>
+  <p class="lead">Every button, where it is on the unit. Tap one.</p>
+  <p class="dim" style="font-size:15px"><span style="color:var(--k2)">●</span> works today &nbsp; <span style="color:var(--k6)">●</span> partly &nbsp; <span style="opacity:.5">●</span> planned</p>
+  <svg class="mk3" viewBox="0 0 1000 700" role="img" aria-label="Maschine MK3 map" id="mk3"></svg>
   <div class="cap" id="mk3cap" aria-live="polite">&nbsp;</div>
 </section>
 
@@ -151,6 +153,7 @@ footer a{color:var(--fg)}
 </section>
 
 <footer>
+  <a href="manual.html">Manual</a> ·
   <a href="../docs/architecture.md">Architecture</a> ·
   <a href="../docs/buttons.md">Buttons</a> ·
   <a href="../docs/instruments.md">Instruments</a> ·
@@ -185,30 +188,68 @@ secs.forEach(s => io.observe(s));
 /* hero */
 for (let i = 0; i < 16; i++) $("#heroPads").append(el("div", { class: "pad", style: `--i:${i};--c:var(--k${(i % 8) + 1})` }));
 
-/* surface map */
-const PARTS = [
-  ["screenL", "Left screen", "Time: the step grid and polymeter.", 40, 40, 300, 170],
-  ["screenR", "Right screen", "Sound: the track's instrument and its drawing.", 580, 40, 300, 170],
-  ["knobs", "8 knobs", "Each knob has the colour of its parameter on screen.", 40, 230, 840, 56],
-  ["pads", "16 pads", "Steps, chord degrees or effects, depending on the mode.", 330, 300, 260, 160],
-  ["groups", "Groups A–H", "Choose a track. Shift + group joins it to the Brain.", 40, 300, 270, 76],
-  ["transport", "Transport", "PLAY, STOP, RESTART. They work in every mode.", 40, 390, 270, 70],
-  ["modes", "Mode buttons", "STEP · CHORDS · PERFORM. CHANNEL goes back to composing; SETTINGS takes both screens.", 610, 300, 270, 76],
-  ["enc", "4D encoder", "Turn to change the theme in settings. Push to confirm.", 640, 390, 120, 70],
-];
+/* surface map: the MK3 faceplate, top to bottom as on the unit */
+const SB = (l, y, p, d) => [l, y, p, d];
+const BTN = []; // [label, x, y, w, h, status(y|p|n), what it does]
+const add = (l, x, y, w, h, s, d) => BTN.push([l, x, y, w, h, s, d]);
+// 8 screen buttons above the two screens
+[["step","p","Step grid and polymeter"],["components","p","Step components (hold a pad today)"],["players","n","Arpeggio and chords"],["bar","p","Length and division (knobs 1–2 today)"],["sound","y","Instrument page 1"],["shape","y","Instrument page 2"],["fx","n","The track's effect"],["mod","n","The track's LFO"]]
+  .forEach((b, i) => add(String(i + 1), (i < 4 ? 100 + i * 94 : 490 + (i - 4) * 94), 30, 82, 18, b[1], b[0] + ": " + b[2]));
+// left column
+[["CHANNEL","y","Back to composing"],["PLUG-IN","n","Choose the track's instrument"],["ARRANGER","n","Scenes and the song"],["MIXER","n","Level and pan of the 8 tracks"],["BROWSER","n","Presets of the instrument"],["SAMPLING","n","Record a sample"],["FILE","n","Open and save projects"]]
+  .forEach((b, i) => add(b[0], 24, 60 + i * 27, 62, 22, b[1], b[2]));
+// right column
+[["VOLUME","n","Master volume"],["SWING","n","Global swing"],["TEMPO","n","Tempo"],["AUTO","n","Hold and turn a knob to record automation"],["SETTINGS","p","Both screens become settings: pick the theme with the 4D encoder"]]
+  .forEach((b, i) => add(b[0], 884, 172 + i * 27, 66, 22, b[1], b[2]));
+// groups A–H
+"ABCDEFGH".split("").forEach((g, i) => add(g, 24 + (i % 4) * 66, 312 + Math.floor(i / 4) * 46, 58, 38, "y", "Group " + g + ": choose track " + g + ". Shift joins it to the Brain."));
+// editing + transport block
+const grid = (rows, y0) => rows.forEach((row, r) => row.forEach((b, c) => add(b[0], 24 + c * 66, y0 + r * 32, 58, 26, b[1], b[2])));
+grid([
+  [["PATTERN","n","16 patterns on the pads"],["SCENE","n","16 scenes on the pads"],["EVENTS","n","Components of the selected step"],["VARIATION","n","Random variation"]],
+  [["DUPLICATE","n","Copy a step, pattern or track"],["SELECT","n","Choose without sounding"],["SOLO","n","Isolate a track"],["MUTE","y","Hold + a group to mute the track"]],
+  [["RESTART","y","Back to step 1 and keep playing"],["ERASE","p","Hold + a pad to erase the step"],["TAP","n","Tap tempo"],["FOLLOW","n","Recording quantisation"]],
+  [["PLAY","y","Play / pause"],["REC","n","Record notes and automation"],["STOP","p","Stop (twice to silence: planned)"],["SHIFT","y","Secondary functions"]],
+], 416);
+// pad modes
+[["PAD MODE","n","Pads trigger the 8 tracks"],["KEYBOARD","n","Chromatic keyboard"],["CHORDS","y","Brain: pads are chord degrees"],["STEP","y","Pads are the 16 steps"],
+ ["FIXED VEL","n","Fixed velocity"],["NOTE REPEAT","n","Repeat the held note"],["PERFORM","y","Punch-in FX: pressure is the amount"],["LOCK","n","Snapshot of all the knobs"]]
+  .forEach((b, i) => add(b[0], 300 + (i % 4) * 66, 312 + Math.floor(i / 4) * 32, 58, 26, b[1], b[2]));
+[["PITCH","n","Smart Strip bends pitch"],["MOD","n","Smart Strip sends modulation"],["NOTES","n","Smart Strip plays notes"]]
+  .forEach((b, i) => add(b[0], 300 + i * 66, 384, 58, 26, b[1], b[2]));
+
+const SW = { y: "works today", p: "partly", n: "planned" };
 (function () {
-  const svg = $("#mk3"); let h = `<rect x="10" y="10" width="900" height="450" rx="28" fill="var(--panel)" stroke="var(--faint)"/>`;
-  h += `<rect x="40" y="40" width="300" height="170" rx="8" fill="#000" stroke="var(--faint)"/><rect x="580" y="40" width="300" height="170" rx="8" fill="#000" stroke="var(--faint)"/>`;
-  for (let i = 0; i < 8; i++) h += `<circle cx="${70 + i * 106}" cy="258" r="22" fill="none" stroke="${"var(--k" + (i + 1) + ")"}" stroke-width="3"/><circle cx="${70 + i * 106}" cy="258" r="3" fill="var(--k${i + 1})"/>`;
-  for (let r = 0; r < 4; r++) for (let c = 0; c < 4; c++) h += `<rect x="${340 + c * 64}" y="${308 + r * 38}" width="56" height="30" rx="6" fill="var(--faint)"/>`;
-  for (let i = 0; i < 8; i++) h += `<rect x="${44 + (i % 4) * 66}" y="${308 + Math.floor(i / 4) * 34}" width="58" height="26" rx="6" fill="var(--faint)"/>`;
-  h += `<rect x="50" y="398" width="60" height="26" rx="13" fill="var(--k2)" opacity=".8"/><rect x="120" y="398" width="60" height="26" rx="13" fill="var(--faint)"/><rect x="190" y="398" width="60" height="26" rx="13" fill="var(--faint)"/>`;
-  for (let i = 0; i < 3; i++) h += `<rect x="${620 + i * 88}" y="308" width="76" height="60" rx="8" fill="var(--faint)"/>`;
-  h += `<circle cx="700" cy="425" r="28" fill="none" stroke="var(--dim)" stroke-width="3"/>`;
-  PARTS.forEach(p => h += `<g class="hs" tabindex="0" role="button" aria-label="${p[1]}" data-id="${p[0]}"><rect class="hl" x="${p[3]}" y="${p[4]}" width="${p[5]}" height="${p[6]}" rx="12" pointer-events="all"/></g>`);
+  const svg = $("#mk3");
+  let h = `<rect x="6" y="6" width="988" height="688" rx="30" fill="var(--panel)" stroke="var(--faint)"/>`;
+  // screens with a hint of content
+  [100, 490].forEach((x, s) => {
+    h += `<rect x="${x}" y="54" width="370" height="196" rx="8" fill="#000" stroke="var(--faint)"/>`;
+    if (!s) for (let r = 0; r < 4; r++) for (let c = 0; c < 16; c++) h += `<rect x="${112 + c * 22.5}" y="${70 + r * 22}" width="18" height="16" rx="2" fill="${(r * 5 + c * 3) % 7 < 2 ? "var(--k" + (r * 2 + 1) + ")" : "var(--faint)"}"/>`;
+    else h += `<path d="M502 140 q30 -50 60 0 t60 0 t60 0 t60 0 t60 0 t60 0" fill="none" stroke="var(--k1)" stroke-width="3"/>`;
+  });
+  // knobs under the screens
+  for (let i = 0; i < 8; i++) { const cx = (i < 4 ? 146 + i * 92 : 536 + (i - 4) * 92); h += `<circle cx="${cx}" cy="282" r="19" fill="var(--bg)" stroke="var(--k${i + 1})" stroke-width="3"/><circle cx="${cx}" cy="282" r="3" fill="var(--k${i + 1})"/>`; }
+  // 4D encoder
+  h += `<circle cx="917" cy="112" r="36" fill="var(--bg)" stroke="var(--dim)" stroke-width="2"/><path d="M917 84v10M917 130v10M889 112h10M935 112h10" stroke="var(--dim)" stroke-width="3" stroke-linecap="round"/><circle cx="917" cy="112" r="13" fill="var(--faint)"/>`;
+  // smart strip + pads
+  h += `<rect x="566" y="312" width="26" height="362" rx="13" fill="var(--bg)" stroke="var(--faint)"/>`;
+  for (let r = 0; r < 4; r++) for (let c = 0; c < 4; c++) h += `<rect x="${610 + c * 90}" y="${312 + r * 90}" width="82" height="82" rx="10" fill="var(--faint)"/>`;
   svg.innerHTML = h;
-  const show = g => { svg.querySelectorAll(".hs").forEach(x => x.classList.toggle("on", x === g)); const p = PARTS.find(p => p[0] === g.dataset.id); $("#mk3cap").innerHTML = `${p[1]}<small>${p[2]}</small>`; };
-  svg.querySelectorAll(".hs").forEach(g => { g.addEventListener("click", () => show(g)); g.addEventListener("mouseenter", () => show(g)); g.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") show(g); }); });
+  const g = (id, x, y, w, h, label, small) => `<g class="hs" tabindex="0" role="button" aria-label="${label}" data-id="${id}"><rect class="hl" x="${x}" y="${y}" width="${w}" height="${h}" rx="8" pointer-events="all"/></g>`;
+  let hs = "";
+  BTN.forEach((b, i) => {
+    const [l, x, y, w, hh, s] = b;
+    svg.insertAdjacentHTML("beforeend", `<g class="hs" tabindex="0" role="button" aria-label="${l}" data-b="${i}"><rect x="${x}" y="${y}" width="${w}" height="${hh}" rx="6" fill="var(--faint)"/><text x="${x + w / 2}" y="${y + hh / 2 + 3.5}" text-anchor="middle" font-size="${l.length > 7 ? 8.5 : 10}" fill="var(--fg)" style="pointer-events:none">${l}</text><circle cx="${x + w - 5}" cy="${y + 5}" r="2.6" fill="${s === "y" ? "var(--k2)" : s === "p" ? "var(--k6)" : "var(--dim)"}" opacity="${s === "n" ? .5 : 1}"/><rect class="hl" x="${x}" y="${y}" width="${w}" height="${hh}" rx="6" pointer-events="all"/></g>`);
+  });
+  const parts = [["knobs", "8 knobs", "Each knob has the colour of its parameter on screen.", 100, 258, 760, 48], ["screens", "Two screens", "Left: time (steps). Right: sound (the instrument).", 100, 54, 760, 196], ["pads", "16 pads", "Steps, chord degrees or effects, depending on the mode.", 610, 312, 360, 360], ["strip", "Smart Strip", "Master filter today. Pitch, mod and notes later.", 566, 312, 26, 362], ["enc", "4D encoder", "Turn, tilt and push. In settings: ◀ ▶ picks the theme.", 881, 76, 72, 72]];
+  parts.forEach(p => svg.insertAdjacentHTML("beforeend", g(p[0], p[3], p[4], p[5], p[6], p[1])));
+  const show = el => {
+    svg.querySelectorAll(".hs").forEach(x => x.classList.toggle("on", x === el));
+    if (el.dataset.b !== undefined) { const b = BTN[el.dataset.b]; $("#mk3cap").innerHTML = `${b[0]} <span class="dim">· ${SW[b[5]]}</span><small>${b[6]}</small>`; }
+    else { const p = parts.find(p => p[0] === el.dataset.id); $("#mk3cap").innerHTML = `${p[1]}<small>${p[2]}</small>`; }
+  };
+  svg.querySelectorAll(".hs").forEach(el => { el.addEventListener("click", () => show(el)); el.addEventListener("mouseenter", () => show(el)); el.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") show(el); }); });
   show(svg.querySelector('[data-id="pads"]'));
 })();
 
