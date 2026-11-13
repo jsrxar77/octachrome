@@ -112,6 +112,52 @@ fn send(iface: &nusb::Interface, buf: &mut Vec<u8>) -> Result<(), String> {
     status.map_err(|e| format!("display bulk transfer: {e}"))
 }
 
+/// Keeps sustained sending under a byte rate. The MK3 resets itself when it is
+/// fed in bursts (seen at about twice the usual 1.1 MB/s), so a burst of
+/// changing pixels is spread out instead: frames arrive a little later, the
+/// device stays up. Tokens refill at `rate` and hold at most a quarter second.
+struct Pacer {
+    rate: f64,
+    burst: f64,
+    tokens: f64,
+    last: Instant,
+}
+
+impl Pacer {
+    /// `bytes_per_sec == 0` means no limit.
+    fn new(bytes_per_sec: f64, now: Instant) -> Self {
+        let burst = bytes_per_sec * 0.25;
+        Self {
+            rate: bytes_per_sec,
+            burst,
+            tokens: burst,
+            last: now,
+        }
+    }
+
+    /// Spend `bytes`; returns how long to wait before sending them.
+    fn wait_for(&mut self, bytes: usize, now: Instant) -> Duration {
+        if self.rate <= 0.0 {
+            return Duration::ZERO;
+        }
+        let dt = now.saturating_duration_since(self.last).as_secs_f64();
+        self.last = now;
+        self.tokens = (self.tokens + dt * self.rate).min(self.burst) - bytes as f64;
+        if self.tokens >= 0.0 {
+            Duration::ZERO
+        } else {
+            Duration::from_secs_f64(-self.tokens / self.rate)
+        }
+    }
+}
+
+/// Default ceiling, in KB/s: none. The resets that looked like a bandwidth limit
+/// were the backlight (measured 2026-11-13: at brightness 50 the MK3 ran 50 s of
+/// PLAY with whole rows at 3.4 MB/s and 90 transfers/s). `OP3_DISPLAY_KBPS=<n>` sets one.
+const DEFAULT_KBPS: f64 = 0.0;
+/// Default rounds per second: no limit. `OP3_DISPLAY_FPS=<n>` sets one.
+const DEFAULT_FPS: f64 = 0.0;
+
 fn worker(iface: nusb::Interface, shared: Arc<(Mutex<Shared>, Condvar)>) {
     let (lock, wake) = &*shared;
     let stats = std::env::var_os("OP3_DISPLAY_STATS").is_some();
@@ -124,12 +170,33 @@ fn worker(iface: nusb::Interface, shared: Arc<(Mutex<Shared>, Condvar)>) {
     // (transfers, bytes, time in transfers) since the last stats line.
     let mut tally = (0u32, 0usize, Duration::ZERO);
     let mut tally_since = Instant::now();
+    let kbps = std::env::var("OP3_DISPLAY_KBPS")
+        .ok()
+        .and_then(|v| v.parse::<f64>().ok())
+        .unwrap_or(DEFAULT_KBPS);
+    let mut pacer = Pacer::new(kbps * 1024.0, Instant::now());
+    // `OP3_DISPLAY_DELTA=1` skips the pixel pairs that did not change instead of
+    // sending whole rows. Off by default: it cut the traffic by four, but it has not
+    // been looked at on the real screens, and the traffic was never the problem.
+    let delta = std::env::var("OP3_DISPLAY_DELTA").is_ok_and(|v| v == "1");
+    // Rounds per second (each sends up to one transfer per screen). 0 = no limit.
+    let fps = std::env::var("OP3_DISPLAY_FPS")
+        .ok()
+        .and_then(|v| v.parse::<f64>().ok())
+        .unwrap_or(DEFAULT_FPS);
+    let round_period = if fps > 0.0 {
+        Duration::from_secs_f64(1.0 / fps)
+    } else {
+        Duration::ZERO
+    };
+    // (when, bytes) of recent transfers, to say how loaded the link was if one fails.
+    let mut recent: std::collections::VecDeque<(Instant, usize)> = Default::default();
 
     // The first transfer after claiming the interface can come out cut. Send a
     // blank frame to each screen first, and treat them as unknown afterwards,
     // so the first real frame goes out in full.
     for screen in SCREENS {
-        encode_band(screen, &shown[0], 0, H, &mut buf);
+        encode_band(screen, &shown[0], None, 0, H, &mut buf);
         if let Err(e) = send(&iface, &mut buf) {
             lock.lock().unwrap().error = Some(e);
             return;
@@ -153,6 +220,7 @@ fn worker(iface: nusb::Interface, shared: Arc<(Mutex<Shared>, Condvar)>) {
             };
             g = wake.wait_timeout(g, wait.max(Duration::from_millis(1))).unwrap().0;
         }
+        let round_start = Instant::now();
         let full = last_full.elapsed() >= FULL_REFRESH;
         let mut todo = [false; 2];
         for s in 0..2 {
@@ -177,12 +245,26 @@ fn worker(iface: nusb::Interface, shared: Arc<(Mutex<Shared>, Condvar)>) {
                 changed_rows(&local[s], &shown[s])
             };
             let Some((y0, y1)) = rows else { continue };
-            encode_band(SCREENS[s], &local[s], y0, y1, &mut buf);
+            // Unchanged pixel pairs are skipped, but only when the screen is known to
+            // show `shown[s]`: a full refresh (or a first frame) sends everything.
+            let prev = if delta && !full && known[s] {
+                Some(&shown[s][..])
+            } else {
+                None
+            };
+            encode_band(SCREENS[s], &local[s], prev, y0, y1, &mut buf);
+            let wait = pacer.wait_for(buf.len(), Instant::now());
+            if !wait.is_zero() {
+                std::thread::sleep(wait.min(Duration::from_millis(250)));
+            }
             let (bytes, started) = (buf.len(), Instant::now());
             if let Err(e) = send(&iface, &mut buf) {
-                lock.lock().unwrap().error = Some(e);
+                recent.retain(|(t, _)| t.elapsed() < Duration::from_secs(1));
+                let kb: usize = recent.iter().map(|(_, b)| b).sum::<usize>() / 1024;
+                lock.lock().unwrap().error = Some(format!("{e} ({kb} KB sent in the last second)"));
                 return;
             }
+            recent.push_back((Instant::now(), bytes));
             shown[s].copy_from_slice(&local[s]);
             known[s] = true;
             tally = (tally.0 + 1, tally.1 + bytes, tally.2 + started.elapsed());
@@ -199,12 +281,56 @@ fn worker(iface: nusb::Interface, shared: Arc<(Mutex<Shared>, Condvar)>) {
             tally = (0, 0, Duration::ZERO);
             tally_since = Instant::now();
         }
+
+        // At most `fps` rounds a second. Frames that arrive meanwhile are not
+        // queued: the next round sends the latest one.
+        if let Some(rest) = round_period.checked_sub(round_start.elapsed()) {
+            std::thread::sleep(rest);
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // F-H01 (docs/features.md)
+    #[test]
+    fn pacer_lets_a_burst_through_then_spreads_the_rest() {
+        let t0 = Instant::now();
+        let mut p = Pacer::new(1000.0, t0); // 1000 B/s, burst 250 B
+        assert_eq!(p.wait_for(100, t0), Duration::ZERO);
+        assert_eq!(p.wait_for(100, t0), Duration::ZERO);
+        // 50 B over the burst: 50 ms at 1000 B/s.
+        let w = p.wait_for(100, t0);
+        assert!((w.as_secs_f64() - 0.05).abs() < 1e-6, "{w:?}");
+        // Half a second later the bucket has refilled (up to the burst).
+        assert_eq!(p.wait_for(100, t0 + Duration::from_millis(500)), Duration::ZERO);
+    }
+
+    // F-H01
+    #[test]
+    fn pacer_holds_the_average_under_the_rate() {
+        let t0 = Instant::now();
+        let mut p = Pacer::new(100_000.0, t0);
+        let (mut now, mut sent) = (t0, 0usize);
+        // Ten seconds of 50 KB bands offered as fast as the pacer allows.
+        while now.duration_since(t0) < Duration::from_secs(10) {
+            now += p.wait_for(50_000, now);
+            sent += 50_000;
+        }
+        let rate = sent as f64 / 10.0;
+        assert!(rate < 110_000.0, "{rate:.0} B/s against a limit of 100000");
+        assert!(rate > 90_000.0, "{rate:.0} B/s: the pacer is too strict");
+    }
+
+    // F-H01
+    #[test]
+    fn a_zero_rate_means_no_limit() {
+        let t0 = Instant::now();
+        let mut p = Pacer::new(0.0, t0);
+        assert_eq!(p.wait_for(10_000_000, t0), Duration::ZERO);
+    }
 
     #[test]
     fn changed_rows_finds_the_first_and_last() {

@@ -18,6 +18,7 @@
 mod anim;
 mod left;
 mod right;
+mod settings;
 mod theme;
 
 pub use anim::{animate, Anim};
@@ -26,6 +27,17 @@ pub use right::draw_right;
 pub use theme::*;
 
 use op3_seq::StepComponent;
+
+/// The main modes: what the two screens are for as a whole (buttons.md §1).
+/// [`Mode`] is the pad mode inside `Instrument`.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum Main {
+    /// Composing (CHANNEL): the sequencer on the left, the instrument on the right.
+    #[default]
+    Instrument,
+    /// The machine's settings (SETTINGS): both screens.
+    Settings,
+}
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum Mode {
@@ -48,6 +60,7 @@ impl Mode {
 /// Everything the screens need that is not in the project or engine status.
 #[derive(Clone, Debug, Default)]
 pub struct UiState {
+    pub main: Main,
     pub mode: Mode,
     pub track: usize,
     /// Pad held long enough to open the Step Components inspector.

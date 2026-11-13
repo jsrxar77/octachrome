@@ -8,7 +8,7 @@
 //!   macOS, through IOKit via `hidapi`, because the OS keeps its own driver
 //!   on HID interfaces.
 
-use super::{display::DisplayLink, protocol::*, DISPLAY_INTERFACE, PRODUCT_ID, VENDOR_ID};
+use super::{display::DisplayLink, power, protocol::*, DISPLAY_INTERFACE, PRODUCT_ID, VENDOR_ID};
 use crate::{
     ControlEvent, ControlSurface, FrameBuffer480x272, HwError, HwResult, LedFrame, Rect, Screen,
 };
@@ -26,6 +26,9 @@ pub struct Mk3Surface {
     pads: PadTracker,
     last_leds: Option<LedFrame>,
     read_buf: [u8; 128],
+    /// What the host's supply allows: backlight and LED limits (see `power.rs`).
+    power: power::Plan,
+    power_note: String,
 }
 
 impl Mk3Surface {
@@ -37,6 +40,8 @@ impl Mk3Surface {
             Ok(iface) => (Some(DisplayLink::start(iface)), None),
             Err(e) => (None, Some(e)),
         };
+        // Read at every open, so plugging the MK3 into another port is noticed.
+        let (power, power_note) = power::choose();
         let s = Self {
             hid,
             display,
@@ -45,8 +50,20 @@ impl Mk3Surface {
             pads: PadTracker::default(),
             last_leds: None,
             read_buf: [0; 128],
+            power,
+            power_note,
         };
         Ok((s, display_err))
+    }
+
+    /// The limits for the supply the host gives this MK3.
+    pub fn power_plan(&self) -> power::Plan {
+        self.power
+    }
+
+    /// One line saying what was detected and what it means.
+    pub fn power_note(&self) -> &str {
+        &self.power_note
     }
 
     pub fn has_screens(&self) -> bool {
@@ -81,6 +98,10 @@ pub fn reset_usb() -> HwResult<()> {
 }
 
 fn open_display() -> HwResult<nusb::Interface> {
+    // Diagnostic: OP3_NO_SCREENS=1 leaves the screens alone (the app then runs without them).
+    if std::env::var_os("OP3_NO_SCREENS").is_some() {
+        return Err(HwError("turned off by OP3_NO_SCREENS".into()));
+    }
     let info = nusb::list_devices()
         .map_err(|e| err("listing USB devices", e))?
         .find(|d| d.vendor_id() == VENDOR_ID && d.product_id() == PRODUCT_ID)
@@ -126,6 +147,8 @@ impl ControlSurface for Mk3Surface {
     }
 
     fn write_leds(&mut self, leds: &LedFrame) -> HwResult<()> {
+        // On a limited supply the LEDs are capped before they are encoded.
+        let leds = &self.power.limit(leds);
         let (a, b) = encode_leds(leds);
         let prev = self.last_leds.map(|p| encode_leds(&p));
         if prev.is_none_or(|(pa, _)| pa != a) {

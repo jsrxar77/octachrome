@@ -17,6 +17,9 @@ pub fn draw_right(
     cartridge: Option<&SharedCartridge>,
     params: &[f32; 8],
 ) {
+    if ui.main == crate::Main::Settings {
+        return crate::settings::draw_right(fb);
+    }
     let t = theme();
     let accent = TRACK_COLORS[ui.track];
     let Some(c) = cartridge else {

@@ -166,6 +166,8 @@ canvas.lcd {
             <button class="btn" id="bPerform">PERFORM</button>
             <button class="btn" id="bErase">ERASE</button>
             <button class="btn" id="bMute">MUTE</button>
+            <button class="btn" id="bChannel" title="Compose: the sequencer on the left, the instrument on the right">CHANNEL</button>
+            <button class="btn" id="bSettings" title="Settings: both screens">SETTINGS</button>
           </div>
         </div>
         <div class="grp">
@@ -572,7 +574,7 @@ function setStrip(x) {
 }
 
 // ======================= controller (mirrors op3 Controller) =======================
-const UI = { mode: "step", track: 0, inspect: null, compCursor: 0, touch: Array(8).fill(false), page: 0, live: null, strip: null, activity: Array(8).fill(0), lastCount: Array(8).fill(0), shift: false, mute: false, erase: false };
+const UI = { main: "instrument", mode: "step", track: 0, inspect: null, compCursor: 0, touch: Array(8).fill(false), page: 0, live: null, strip: null, activity: Array(8).fill(0), lastCount: Array(8).fill(0), shift: false, mute: false, erase: false };
 const padDownAt = Array(16).fill(null); let inspectorPad = null; const knobAccum = Array(8).fill(0);
 const padToStep = pad => (3 - Math.floor(pad / 4)) * 4 + pad % 4; // bottom-left numbering -> reading order
 const DETENT = 40, SWEEP = 800;
@@ -583,8 +585,15 @@ function setMode(m) {
   if (UI.mode === "punch" && punchState.slot != null) setPunch(null, 0);
   if (UI.mode === "brain" && UI.live != null) { UI.live = null; P.brain.live = null; }
   UI.mode = m; UI.inspect = null; inspectorPad = null;
+  UI.main = "instrument"; // a pad mode button always goes back to composing
 }
+// Main modes: CHANNEL composes (sequencer left, instrument right); SETTINGS
+// takes both screens for the machine's settings (theme for now).
+const THEME_IDS = ["op1", "field", "opxy"];
+function setMain(m) { UI.main = m; UI.inspect = null; inspectorPad = null; }
+function themeStep(d) { LOOK.theme = THEME_IDS[((THEME_IDS.indexOf(LOOK.theme) + d) % 3 + 3) % 3]; applyLook(); }
 function groupPress(g) {
+  if (UI.main === "settings") return;
   const tr = P.tracks[g];
   if (UI.shift) { tr.link = !tr.link; toast(`Pista ${TRACK_NAMES[g]}: Brain ${tr.link ? "enlazado" : "desenlazado"}`); }
   else if (UI.mute) { tr.muted = !tr.muted; toast(`Pista ${TRACK_NAMES[g]} ${tr.muted ? "muteada" : "activa"}`); }
@@ -592,6 +601,7 @@ function groupPress(g) {
   UI.shift = false; UI.mute = false;
 }
 function padDown(pad, vel) {
+  if (UI.main === "settings") return;
   if (UI.mode === "step") {
     if (padDownAt[pad] == null) {
       padDownAt[pad] = performance.now();
@@ -613,6 +623,7 @@ function padPressure(pad, p) {
   }
 }
 function padUp(pad) {
+  if (UI.main === "settings") return;
   if (UI.mode === "step") {
     const wasDown = padDownAt[pad] != null; padDownAt[pad] = null;
     if (inspectorPad === pad) { inspectorPad = null; UI.inspect = null; }
@@ -622,6 +633,7 @@ function padUp(pad) {
   } else if (punchState.slot === pad) setPunch(null, 0);
 }
 function knob(k, delta) {
+  if (UI.main === "settings") return;
   if (k >= 4) {
     const t = UI.track; if (!PARAMS[t]) return;
     const i = UI.page * 4 + (k - 4); if (i >= PARAMS[t].length) return;
@@ -658,6 +670,7 @@ function knob(k, delta) {
   else if (k === 3) { const n = detents(k, delta); if (n) P.bpm = clamp(P.bpm + n * (UI.shift ? 0.1 : 1), 20, 300); }
 }
 function jog(d) {
+  if (UI.main === "settings") { themeStep(d); return; }
   if (UI.inspect != null) {
     const s = P.tracks[UI.track].steps[UI.inspect];
     UI.compCursor = clamp(UI.compCursor + d, 0, Math.min(s.comps.length, 5));
@@ -772,10 +785,39 @@ function touchOverlay(g, cells, base) {
   g.globalAlpha = 1;
 }
 
+// ---- settings: both screens (design.md §4) ----
+// Left: one card per theme, drawn in that theme's own colours, the active one
+// outlined. Right: the 8 encoder colours as dials and the track colours, in the
+// active theme. The theme applies live, so the screens themselves are the
+// preview. Nothing is shown for a control that does nothing here (rule 11).
+function settingsBar(g, title) { dot(g, 16, 15, 6, FG); txt(g, title, 30, 6, "mid", FG); }
+function settingsLeft(g) {
+  fill(g, 0, 0, 480, 272, BG);
+  settingsBar(g, "settings");
+  if (S.playing) { g.fillStyle = FG; g.beginPath(); g.moveTo(460, 8); g.lineTo(470, 14); g.lineTo(460, 20); g.fill(); } else fill(g, 460, 9, 10, 10, DIM);
+  const W = 136, H = 160, GAP = 18, X0 = (480 - (3 * W + 2 * GAP)) / 2, Y = 62;
+  THEME_IDS.forEach((id, n) => {
+    const t = THEMES[id], x = X0 + n * (W + GAP), on = id === LOOK.theme;
+    rrect(g, x, Y, W, H, 8, t.panel);
+    rrect(g, x + 1, Y + 1, W - 2, H - 2, 8, on ? FG : FAINT, on ? 2 : 1);
+    t.knobs.forEach((c, i) => dot(g, x + 28 + (i % 4) * 27, Y + 36 + Math.floor(i / 4) * 32, 9, c));
+    [t.fg, t.dim, t.faint, t.rec].forEach((c, i) => fill(g, x + 22 + i * 24, Y + 98, 20, 6, c));
+    txt(g, t.name, x + W / 2, Y + 124, "m", on ? FG : DIM, "center");
+  });
+}
+function settingsRight(g) {
+  fill(g, 0, 0, 480, 272, BG);
+  settingsBar(g, "theme");
+  const v = [0.35, 0.7, 0.5, 0.85, 0.45, 0.75, 0.3, 0.6];
+  for (let i = 0; i < 8; i++) dial(g, 60 + (i % 4) * 120, 96 + Math.floor(i / 4) * 66, 20, v[i], KC[i]);
+  TRACK_COLORS.forEach((c, i) => dot(g, 240 + (i - 3.5) * 40, 224, 8, c));
+}
+
 // ---- left screen ----
 const RING = { cx: 118, cy: 126, r0: 26, step: 11 };
 function drawLeft(g) {
   animate();
+  if (UI.main === "settings") { settingsLeft(g); return; }
   const accent = TRACK_COLORS[UI.track];
   fill(g, 0, 0, 480, 272, BG);
   topBar(g, accent);
@@ -958,6 +1000,7 @@ function leftFooter() {
 const scopeBuf = new Float32Array(2048);
 function readScope(t) { if (!actx || !analysers[t]) { scopeBuf.fill(0); return 0; } analysers[t].getFloatTimeDomainData(scopeBuf); let st = 0; for (let i = 0; i < 1024; i++) if (scopeBuf[i] <= 0 && scopeBuf[i + 1] > 0) { st = i + 1; break; } return st; }
 function drawRight(g) {
+  if (UI.main === "settings") { settingsRight(g); return; }
   const t = UI.track, accent = TRACK_COLORS[t], slot = SLOTS[t];
   fill(g, 0, 0, 480, 272, BG);
   dot(g, 16, 15, 6, accent);
@@ -1134,6 +1177,8 @@ $("bRestart").addEventListener("click", play);
 $("bStep").addEventListener("click", () => setMode("step"));
 $("bChords").addEventListener("click", () => setMode("brain"));
 $("bPerform").addEventListener("click", () => setMode("punch"));
+$("bChannel").addEventListener("click", () => setMain("instrument"));
+$("bSettings").addEventListener("click", () => setMain(UI.main === "settings" ? "instrument" : "settings"));
 $("sb5").addEventListener("click", () => UI.page = 0);
 $("sb6").addEventListener("click", () => UI.page = 1);
 $("jogL").addEventListener("click", () => jog(-1));
@@ -1160,6 +1205,7 @@ function updateLeds() {
   document.documentElement.style.setProperty("--accent", color);
   for (let pad = 0; pad < 16; pad++) {
     let c = "transparent", lvl = 0;
+    if (UI.main === "settings") { padEls[pad].style.setProperty("--glow", c); padEls[pad].style.setProperty("--lvl", 0); continue; }
     if (UI.mode === "step") {
       const s = padToStep(pad);
       if (UI.inspect === s) { c = "#ffffff"; lvl = 1; }
@@ -1178,9 +1224,12 @@ function updateLeds() {
   groupEls.forEach((b, g) => { b.classList.toggle("sel", g === UI.track); b.classList.toggle("flash", UI.activity[g] > 0); b.style.opacity = P.tracks[g].muted ? .45 : 1; });
   $("bPlay").classList.toggle("on", S.playing);
   $("bStop").classList.toggle("lit", !S.playing);
-  $("bStep").classList.toggle("on", UI.mode === "step");
-  $("bChords").classList.toggle("on", UI.mode === "brain");
-  $("bPerform").classList.toggle("on", UI.mode === "punch");
+  const composing = UI.main === "instrument"; // the pad modes only light while composing
+  $("bStep").classList.toggle("on", composing && UI.mode === "step");
+  $("bChords").classList.toggle("on", composing && UI.mode === "brain");
+  $("bPerform").classList.toggle("on", composing && UI.mode === "punch");
+  $("bChannel").classList.toggle("on", UI.main === "instrument");
+  $("bSettings").classList.toggle("on", UI.main === "settings");
   $("bShift").classList.toggle("on", UI.shift);
   $("bMute").classList.toggle("on", UI.mute);
   $("bErase").classList.toggle("on", UI.erase);

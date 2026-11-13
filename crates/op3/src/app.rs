@@ -30,6 +30,15 @@ pub struct App<S: ControlSurface> {
     /// (see `OP3_DUMP_DIR`), rewritten at most every [`DUMP_EVERY_MS`].
     pub dump_dir: Option<PathBuf>,
     last_dump_ms: Option<u64>,
+    /// Print every control event and every transport change (`OP3_LOG_EVENTS`).
+    pub log_events: bool,
+    logged_playing: bool,
+    logged_main: (op3_ui::Main, op3_gfx::ThemeId),
+    /// Where the settings are saved when the user changes one; `None` (the
+    /// simulator and the test bench) means never touch the disk.
+    pub settings_path: Option<PathBuf>,
+    /// Diagnostic (`OP3_NO_LEDS`): never write the LEDs.
+    pub no_leds: bool,
 }
 
 impl<S: ControlSurface> App<S> {
@@ -45,6 +54,11 @@ impl<S: ControlSurface> App<S> {
             leds: LedFrame::default(),
             dump_dir: None,
             last_dump_ms: None,
+            log_events: false,
+            logged_playing: false,
+            logged_main: (op3_ui::Main::Instrument, op3_gfx::ThemeId::Op1),
+            settings_path: None,
+            no_leds: false,
         }
     }
 
@@ -62,9 +76,45 @@ impl<S: ControlSurface> App<S> {
         stats.events = self.events.len();
         for i in 0..self.events.len() {
             let ev = self.events[i];
+            if self.log_events {
+                eprintln!("[{:.1}s] event: {ev:?}", now_ms as f32 / 1000.0);
+            }
             self.ctl.handle(ev, &mut self.handle, now_ms);
         }
         self.ctl.tick(&self.handle, now_ms);
+        if std::mem::take(&mut self.ctl.theme_changed) {
+            if let Some(path) = &self.settings_path {
+                let settings = crate::settings::Settings {
+                    theme: op3_gfx::theme_id(),
+                };
+                if let Err(e) = settings.save(path) {
+                    eprintln!("settings: could not save {}: {e}", path.display());
+                }
+            }
+        }
+        if self.log_events {
+            // What the engine reports, to tell "the button never arrived" from
+            // "it arrived but the sequencer did not start".
+            let playing = self.handle.status.playing.load(std::sync::atomic::Ordering::Relaxed);
+            let now = (self.ctl.ui.main, op3_gfx::theme_id());
+            if now != self.logged_main {
+                eprintln!(
+                    "[{:.1}s] settings: main mode {:?}, theme {}",
+                    now_ms as f32 / 1000.0,
+                    now.0,
+                    now.1.name()
+                );
+                self.logged_main = now;
+            }
+            if playing != self.logged_playing {
+                eprintln!(
+                    "[{:.1}s] transport: {}",
+                    now_ms as f32 / 1000.0,
+                    if playing { "playing" } else { "stopped" }
+                );
+                self.logged_playing = playing;
+            }
+        }
 
         op3_ui::animate(&mut self.ctl.ui, &self.handle.project, &self.handle.status);
         op3_ui::draw_left(
@@ -108,7 +158,9 @@ impl<S: ControlSurface> App<S> {
         }
 
         self.ctl.leds(&self.handle, &mut self.leds);
-        self.surface.write_leds(&self.leds)?;
+        if !self.no_leds {
+            self.surface.write_leds(&self.leds)?;
+        }
         self.handle.collect_garbage();
         Ok(stats)
     }

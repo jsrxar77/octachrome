@@ -4,6 +4,7 @@
 //! `docs/hardware-map.md` (read off real hardware). This is an independent
 //! implementation; no code from that project or from Encdr is included.
 
+pub mod power;
 pub mod protocol;
 
 #[cfg(feature = "mk3")]

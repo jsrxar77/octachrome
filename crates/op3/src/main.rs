@@ -31,13 +31,10 @@ fn main() -> Result<()> {
     let seconds: Option<f32> = opt("-s", "--seconds").and_then(|s| s.parse().ok());
     // Screen theme (docs/design.md §2): op-1 (default), op-1-field, op-xy.
     let theme = opt("-t", "--theme").or_else(|| std::env::var("OP3_THEME").ok());
+    let theme_given = theme.is_some();
     if let Some(name) = theme {
-        let id = match name.as_str() {
-            "op-1" | "op1" => op3_gfx::ThemeId::Op1,
-            "op-1-field" | "field" => op3_gfx::ThemeId::Op1Field,
-            "op-xy" | "opxy" => op3_gfx::ThemeId::OpXy,
-            other => anyhow::bail!("unknown theme {other:?} (op-1, op-1-field, op-xy)"),
-        };
+        let id = op3::settings::theme_from_name(&name)
+            .ok_or_else(|| anyhow::anyhow!("unknown theme {name:?} (op-1, op-1-field, op-xy)"))?;
         op3_gfx::set_theme(id);
     }
     let script = match opt("--script", "--script") {
@@ -49,7 +46,7 @@ fn main() -> Result<()> {
         None => None,
     };
     match cmd {
-        "run" => run(script),
+        "run" => run(script, theme_given),
         "sim" => sim(
             seconds,
             PathBuf::from(opt("-o", "--out").unwrap_or_else(|| "out".into())),
@@ -93,6 +90,14 @@ impl Pacer {
             std::thread::sleep(d);
         }
     }
+    /// After a long stop (a reconnect), continue from now instead of racing
+    /// through all the frames that were missed.
+    fn skip_to_now(&mut self) {
+        self.frame = (self.start.elapsed().as_nanos() / self.period.as_nanos()) as u64;
+    }
+    fn seconds(&self) -> f32 {
+        self.start.elapsed().as_secs_f32()
+    }
 }
 
 #[cfg(feature = "mk3")]
@@ -101,35 +106,41 @@ fn open_mk3() -> Result<op3_hw::mk3::Mk3Surface> {
     if let Some(e) = screen_err {
         eprintln!("screens unavailable, continuing without them: {e}");
     }
+    // `OP3_BRIGHTNESS` wins; otherwise what the supply allows: 50 on a limited
+    // one (behind a hub, 480 mA, 80 resets the MK3 as soon as the music plays;
+    // 60 held, 70 failed after 30 s), 80 on a full one.
     let brightness = std::env::var("OP3_BRIGHTNESS")
         .ok()
         .and_then(|v| v.parse::<u8>().ok())
-        .unwrap_or(80);
+        .unwrap_or(s.power_plan().brightness);
     let _ = s.set_brightness(brightness);
     Ok(s)
 }
 
 #[cfg(feature = "mk3")]
-fn run(mut script: Option<Script>) -> Result<()> {
+fn run(mut script: Option<Script>, theme_given: bool) -> Result<()> {
     use std::sync::{atomic::AtomicBool, Arc};
     let (engine, handle, midi_rx) = demo::rig();
     let stop = Arc::new(AtomicBool::new(false));
-    let port = op3::midi::open_default().unwrap_or_else(|e| {
+    // Diagnostic: OP3_MIDI=off sends no MIDI to the MK3's port.
+    let midi_off = std::env::var("OP3_MIDI").is_ok_and(|v| v == "off");
+    let port = if midi_off {
+        Err(anyhow::anyhow!("turned off by OP3_MIDI=off"))
+    } else {
+        op3::midi::open_default()
+    }
+    .unwrap_or_else(|e| {
         eprintln!("midi: {e}; MidiOutBridge output is discarded");
         Box::new(op3::midi::NullPort)
     });
     println!("midi out: {}", port.name());
     let _midi = op3::midi::spawn(midi_rx, port, stop.clone());
 
+    // The engine lives in `Audio`, which reopens the stream if the device goes
+    // away: the sequencer's clock runs in the audio callback, so without audio
+    // PLAY would light up and nothing would move.
     #[cfg(feature = "audio")]
-    let _audio = {
-        let a = op3::audio::start(engine)?;
-        println!(
-            "audio: {} · {} ch · 48 kHz · buffer {}",
-            a.device, a.channels, a.buffer
-        );
-        a
-    };
+    let mut audio = op3::audio::Audio::new(engine);
     #[cfg(not(feature = "audio"))]
     let _engine = {
         eprintln!("built without the `audio` feature: no sound");
@@ -138,13 +149,29 @@ fn run(mut script: Option<Script>) -> Result<()> {
 
     let surface = open_mk3()?;
     println!("control surface: {}", surface.name());
+    println!("{}", surface.power_note());
     let mut app = App::new(surface, handle);
+    // The theme: `-t` / `OP3_THEME` win; otherwise the one saved from the
+    // settings view; otherwise op-1. Later changes are saved to the same file.
+    if let Some(path) = op3::settings::default_path() {
+        if !theme_given {
+            op3_gfx::set_theme(op3::settings::Settings::load(&path).theme);
+        }
+        app.settings_path = Some(path);
+    }
+    app.log_events = std::env::var_os("OP3_LOG_EVENTS").is_some();
+    app.no_leds = std::env::var_os("OP3_NO_LEDS").is_some();
     if let Some(dir) = std::env::var_os("OP3_DUMP_DIR") {
         println!("dumping screens to {}/left.png and right.png", PathBuf::from(&dir).display());
         app.dump_dir = Some(PathBuf::from(dir));
     }
     let mut pacer = Pacer::new(60);
+    let mut backoff = op3::backoff::Backoff::new();
     loop {
+        #[cfg(feature = "audio")]
+        if let Some(line) = audio.keep_alive() {
+            println!("[{:.1}s] {line}", pacer.seconds());
+        }
         if let Some(sc) = script.as_mut() {
             for action in sc.due(pacer.now_ms()) {
                 if let Action::Event(e) = action {
@@ -157,32 +184,39 @@ fn run(mut script: Option<Script>) -> Result<()> {
             }
         }
         if let Err(e) = app.frame(pacer.now_ms()) {
-            eprintln!("MK3: {e}; reconnecting…");
             // Let go of the screens first: while the old surface holds
             // interface 5, a new one can't claim it and would come up blind.
             app.surface.close_display();
-            // A MK3 that fails again and again is stuck on the bus. The app
-            // can't reset it itself (its own audio stream keeps the device
-            // open), so say what to do instead of retrying in silence.
-            eprintln!("MK3: if this repeats, close op3 and run `op3 usb-reset`, or unplug and replug the cable");
+            // A MK3 that has just reset needs a few seconds. Opening it at
+            // once makes it fail again, which showed up as the screens and the
+            // sound switching on and off in a loop, so wait, and wait longer
+            // while the failures keep coming.
+            let wait = backoff.failed(Instant::now());
+            eprintln!(
+                "[{:.1}s] MK3: {e}; reconnecting in {} s (if it keeps failing: close op3, run `op3 usb-reset`, or replug the cable)",
+                pacer.seconds(),
+                wait.as_secs()
+            );
+            std::thread::sleep(wait);
             loop {
-                std::thread::sleep(Duration::from_secs(3));
                 if let Ok(s) = open_mk3() {
-                    if !s.has_screens() {
-                        continue; // the device is still coming back; try again
+                    if s.has_screens() {
+                        app.surface = s;
+                        app.invalidate();
+                        println!("[{:.1}s] MK3: back", pacer.seconds());
+                        break;
                     }
-                    app.surface = s;
-                    app.invalidate();
-                    break;
                 }
+                std::thread::sleep(Duration::from_secs(2)); // still coming back
             }
+            pacer.skip_to_now();
         }
         pacer.wait();
     }
 }
 
 #[cfg(not(feature = "mk3"))]
-fn run(_: Option<Script>) -> Result<()> {
+fn run(_: Option<Script>, _: bool) -> Result<()> {
     anyhow::bail!("built without the `mk3` feature; use `op3 sim` or rebuild with default features")
 }
 

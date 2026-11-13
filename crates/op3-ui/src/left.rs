@@ -30,6 +30,9 @@ const CELL: i32 = 40;
 const GAP: i32 = 6;
 
 pub fn draw_left(fb: &mut FrameBuffer480x272, ui: &UiState, p: &Project, st: &EngineStatus) {
+    if ui.main == crate::Main::Settings {
+        return crate::settings::draw_left(fb, st);
+    }
     let t = theme();
     fb.clear(t.bg);
     let accent = TRACK_COLORS[ui.track];

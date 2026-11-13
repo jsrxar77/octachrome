@@ -16,9 +16,15 @@
 //! | 4-D encoder        | BPM (inspector: component cursor)                                        |||
 //! | Smart Strip        | master filter: left half low-pass, right half high-pass                  |||
 //!
+//! Main modes (docs/buttons.md §1): CHANNEL composes (all of the above);
+//! SETTINGS takes both screens. In settings the pads, knobs and groups do
+//! nothing, the 4D encoder and ◀ ▶ change the theme, and PLAY, STOP and RESTART
+//! still work. SETTINGS again, CHANNEL, STEP, CHORDS or PERFORM go back.
+//!
 //! Step pads follow Maschine's step order: step 1 is the top-left pad.
 
 use op3_engine::{EngineCommand, EngineHandle, PUNCH_SLOTS};
+use op3_gfx::{set_theme, theme_id, ThemeId};
 use op3_hw::{
     leds::{pad_to_hid, LedFrame},
     Button, ControlEvent, NiColor, PadEvent,
@@ -27,7 +33,7 @@ use op3_seq::{
     BrainMode, Chord, ChordKind, Command, Division, Scale, Step, StepComponent, MAX_COMPONENTS,
     TRACKS,
 };
-use op3_ui::{Mode, UiState, COMPONENT_PRESETS};
+use op3_ui::{Main, Mode, UiState, COMPONENT_PRESETS};
 use std::sync::atomic::Ordering::Relaxed;
 
 pub const HOLD_MS: u64 = 300;
@@ -57,6 +63,8 @@ pub struct Controller {
     last_note_count: [u32; TRACKS],
     held: Held,
     punch_base: f32,
+    /// Set when the encoder changes the theme; the app saves it and clears this.
+    pub theme_changed: bool,
 }
 
 #[derive(Default, Clone, Copy)]
@@ -80,6 +88,11 @@ impl Controller {
     pub fn handle(&mut self, ev: ControlEvent, h: &mut EngineHandle, now_ms: u64) {
         match ev {
             ControlEvent::Button { button, pressed } => self.button(button, pressed, h),
+            // In settings the pads and knobs do nothing; the 4D encoder picks the theme.
+            ControlEvent::Pad { .. } | ControlEvent::Knob { .. } if self.ui.main == Main::Settings => {}
+            ControlEvent::Encoder { delta } if self.ui.main == Main::Settings => {
+                self.step_theme(delta)
+            }
             ControlEvent::Pad { pad, event } => match self.ui.mode {
                 Mode::Step => self.step_pad(pad, event, h, now_ms),
                 Mode::Brain => self.brain_pad(pad, event, h),
@@ -126,6 +139,7 @@ impl Controller {
             Button::Mute => self.held.mute = pressed,
             Button::Erase => self.held.erase = pressed,
             _ if !pressed => {}
+            Button::Group(_) if self.ui.main == Main::Settings => {}
             Button::Group(g) => {
                 let t = g as usize;
                 if self.held.shift {
@@ -154,13 +168,27 @@ impl Controller {
             Button::Step => self.set_mode(Mode::Step, h),
             Button::Chords => self.set_mode(Mode::Brain, h),
             Button::Perform | Button::NoteRepeat => self.set_mode(Mode::Punch, h),
+            // Main modes: SETTINGS toggles the settings view (both screens);
+            // CHANNEL goes back to composing.
+            Button::Settings => {
+                let to = if self.ui.main == Main::Settings {
+                    Main::Instrument
+                } else {
+                    Main::Settings
+                };
+                self.set_main(to, h);
+            }
+            Button::ChannelMidi => self.set_main(Main::Instrument, h),
+            Button::JogLeft if self.ui.main == Main::Settings => self.step_theme(-1),
+            Button::JogRight if self.ui.main == Main::Settings => self.step_theme(1),
             Button::Screen(5) => self.ui.right_page = 0,
             Button::Screen(6) => self.ui.right_page = 1,
             _ => {}
         }
     }
 
-    fn set_mode(&mut self, m: Mode, h: &mut EngineHandle) {
+    /// Let go of whatever a pad is holding: an engaged effect, a live chord.
+    fn release_pads(&mut self, h: &mut EngineHandle) {
         if self.ui.mode == Mode::Punch && self.ui.punch.is_some() {
             h.send(EngineCommand::Punch(None, 0.0));
             self.ui.punch = None;
@@ -168,9 +196,39 @@ impl Controller {
         if self.ui.mode == Mode::Brain && self.ui.live_chord_pad.take().is_some() {
             h.seq(Command::SetLiveChord(None));
         }
+        self.pad_down_at = [None; 16];
+    }
+
+    /// A pad mode button: choose the pad mode, and go back to composing.
+    fn set_mode(&mut self, m: Mode, h: &mut EngineHandle) {
+        self.release_pads(h);
+        self.ui.main = Main::Instrument;
         self.ui.mode = m;
         self.ui.inspect_step = None;
         self.inspector_pad = None;
+    }
+
+    /// Change the main mode (docs/buttons.md §1). Entering settings lets go of
+    /// the pads, which do nothing there.
+    fn set_main(&mut self, m: Main, h: &mut EngineHandle) {
+        if m == Main::Settings {
+            self.release_pads(h);
+        }
+        self.ui.main = m;
+        self.ui.inspect_step = None;
+        self.inspector_pad = None;
+    }
+
+    /// Move to the next (`d > 0`) or previous theme, wrapping. The theme
+    /// applies at once; `theme_changed` tells the app to save it.
+    fn step_theme(&mut self, d: i32) {
+        let all = ThemeId::ALL;
+        let now = all.iter().position(|t| *t == theme_id()).unwrap_or(0) as i32;
+        let next = all[(now + d).rem_euclid(all.len() as i32) as usize];
+        if next != theme_id() {
+            set_theme(next);
+            self.theme_changed = true;
+        }
     }
 
     fn step_pad(&mut self, pad: u8, ev: PadEvent, h: &mut EngineHandle, now: u64) {
@@ -446,7 +504,9 @@ impl Controller {
         let color = TRACK_LED_COLORS[tr];
         let playing = h.status.playing.load(Relaxed);
         let track = &h.project.tracks[tr];
-        for pad in 0..16u8 {
+        let composing = self.ui.main == Main::Instrument;
+        // In settings the pads do nothing, so they stay dark.
+        for pad in (0..16u8).filter(|_| composing) {
             match self.ui.mode {
                 Mode::Step => {
                     let s = Self::pad_to_step(pad) as usize;
@@ -479,7 +539,9 @@ impl Controller {
             }
         }
         for t in 0..TRACKS {
-            let level = if self.ui.activity[t] > 0 || t == tr {
+            let level = if !composing {
+                1
+            } else if self.ui.activity[t] > 0 || t == tr {
                 3
             } else if h.project.tracks[t].muted {
                 0
@@ -490,26 +552,13 @@ impl Controller {
         }
         out.set_button_color(Button::Play, NiColor::Green, if playing { 3 } else { 1 });
         out.set_button(Button::Stop, if playing { 0.2 } else { 1.0 });
-        out.set_button(
-            Button::Step,
-            if self.ui.mode == Mode::Step { 1.0 } else { 0.2 },
-        );
-        out.set_button(
-            Button::Chords,
-            if self.ui.mode == Mode::Brain {
-                1.0
-            } else {
-                0.2
-            },
-        );
-        out.set_button(
-            Button::Perform,
-            if self.ui.mode == Mode::Punch {
-                1.0
-            } else {
-                0.2
-            },
-        );
+        // The pad mode buttons only light while composing.
+        let lit = |on: bool| if composing && on { 1.0 } else { 0.2 };
+        out.set_button(Button::Step, lit(self.ui.mode == Mode::Step));
+        out.set_button(Button::Chords, lit(self.ui.mode == Mode::Brain));
+        out.set_button(Button::Perform, lit(self.ui.mode == Mode::Punch));
+        out.set_button(Button::ChannelMidi, if composing { 1.0 } else { 0.2 });
+        out.set_button(Button::Settings, if composing { 0.2 } else { 1.0 });
         out.set_button(Button::Shift, if self.held.shift { 1.0 } else { 0.2 });
         out.set_button(
             Button::Screen(5),

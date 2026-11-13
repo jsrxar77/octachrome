@@ -228,6 +228,9 @@ const PAIRS_PER_ROW: usize = FrameBuffer480x272::WIDTH / 2;
 /// Shortest run of equal pixel pairs worth a repeat command (4 + 4 bytes
 /// against 4 bytes a pair, plus the header of the literal block it splits).
 const MIN_RUN: usize = 4;
+/// Shortest run of unchanged pairs worth a skip command: it costs 4 bytes, and
+/// leaving the pairs in a literal block costs 4 each (plus a new block header).
+const MIN_SKIP: usize = 3;
 
 /// Build one bulk transfer that draws rows `y0..y1` of `px` on `screen`.
 ///
@@ -240,16 +243,30 @@ const MIN_RUN: usize = 4;
 /// commands, each 4 bytes (cmd, then a 24-bit BE count n), followed by data:
 ///   00 n  n pixel pairs, as they are (4 bytes a pair, RGB565 BE)
 ///   01 n  one pixel pair (4 bytes) repeated n times
-///   02 n  n pixel pairs left as they are on the screen (not used here)
+///   02 n  n pixel pairs left as they are on the screen (unchanged ones)
 /// 03 00 00 00 (show the rectangle) | 40 00 00 00 (end)
 /// ```
 ///
 /// The UI is mostly flat colour, so runs of equal pairs become `01` commands
 /// and a typical frame is a small fraction of the 261,120 bytes of raw pixels.
-pub fn encode_band(screen: Screen, px: &[u16], y0: usize, y1: usize, out: &mut Vec<u8>) {
+///
+/// With `prev` (what the screen shows now, same layout as `px`), every run of
+/// pixel pairs that did not change becomes one `02` command, so a small moving
+/// thing costs a few hundred bytes instead of the whole width of its rows. That
+/// only holds if the screen really shows `prev`; the caller sends a full
+/// refresh every so often, and `None`, to repair any difference.
+pub fn encode_band(
+    screen: Screen,
+    px: &[u16],
+    prev: Option<&[u16]>,
+    y0: usize,
+    y1: usize,
+    out: &mut Vec<u8>,
+) {
     const W: usize = FrameBuffer480x272::WIDTH;
     assert!(y0 < y1 && y1 <= FrameBuffer480x272::HEIGHT, "bad rows {y0}..{y1}");
     assert_eq!(px.len(), W * FrameBuffer480x272::HEIGHT);
+    assert!(prev.is_none_or(|p| p.len() == px.len()));
 
     out.clear();
     out.extend_from_slice(&[0x84, 0x00, screen as u8, 0x60, 0, 0, 0, 0]);
@@ -268,9 +285,17 @@ pub fn encode_band(screen: Screen, px: &[u16], y0: usize, y1: usize, out: &mut V
         out.extend_from_slice(&b.to_be_bytes());
     };
     let starts_run = |i: usize| i + MIN_RUN <= pairs && (1..MIN_RUN).all(|k| pair(i + k) == pair(i));
+    let same = |i: usize| prev.is_some_and(|p| (p[base + 2 * i], p[base + 2 * i + 1]) == pair(i));
+    let starts_skip = |i: usize| i + MIN_SKIP <= pairs && (0..MIN_SKIP).all(|k| same(i + k));
 
     let mut i = 0;
     while i < pairs {
+        if starts_skip(i) {
+            let run = (i..pairs).take_while(|&j| same(j)).count();
+            command(out, 0x02, run);
+            i += run;
+            continue;
+        }
         let first = pair(i);
         let run = (i..pairs).take_while(|&j| pair(j) == first).count();
         if run >= MIN_RUN {
@@ -278,9 +303,9 @@ pub fn encode_band(screen: Screen, px: &[u16], y0: usize, y1: usize, out: &mut V
             push(out, first);
             i += run;
         } else {
-            // Literal pairs, up to the next run worth repeating.
+            // Literal pairs, up to the next run worth skipping or repeating.
             let start = i;
-            while i < pairs && !starts_run(i) {
+            while i < pairs && !starts_skip(i) && !starts_run(i) {
                 i += 1;
             }
             command(out, 0x00, i - start);
@@ -460,7 +485,7 @@ mod tests {
         let mut px = vec![0u16; 480 * 272];
         px[20 * 480 + 10] = 0xABCD;
         let mut out = Vec::new();
-        encode_band(Screen::Right, &px, 20, 21, &mut out);
+        encode_band(Screen::Right, &px, None, 20, 21, &mut out);
         assert_eq!(&out[..8], &[0x84, 0, 1, 0x60, 0, 0, 0, 0]);
         assert_eq!(&out[8..16], &[0, 0, 0, 20, 1, 0xe0, 0, 1], "x 0, y 20, 480 wide, 1 high");
         assert_eq!(&out[out.len() - 8..], &[3, 0, 0, 0, 0x40, 0, 0, 0]);
@@ -495,6 +520,8 @@ mod tests {
                         write(plane, (x, y, w), &mut n, b);
                     }
                 }
+                // Leave `count` pairs as they are on the screen.
+                0x02 => n += count * 2,
                 0x03 => {}
                 0x40 => break,
                 other => panic!("unexpected command {other:#x}"),
@@ -520,7 +547,7 @@ mod tests {
             .collect();
         for (y0, y1) in [(0, 272), (0, 1), (7, 8), (100, 163), (271, 272)] {
             let mut out = Vec::new();
-            encode_band(Screen::Left, &px, y0, y1, &mut out);
+            encode_band(Screen::Left, &px, None, y0, y1, &mut out);
             let mut plane = vec![0xDEAD_u16; 480 * 272];
             decode_band(&out, &mut plane);
             assert_eq!(plane[y0 * 480..y1 * 480], px[y0 * 480..y1 * 480], "rows {y0}..{y1}");
@@ -529,14 +556,60 @@ mod tests {
         }
     }
 
+    // F-D08 (docs/features.md)
+    #[test]
+    fn a_small_change_costs_a_small_transfer_and_still_round_trips() {
+        // What the screen shows now: gradients and noise, so nothing is a run.
+        let before: Vec<u16> = (0..480 * 272).map(|i| (i as u16).wrapping_mul(7919)).collect();
+        let mut after = before.clone();
+        // A dot that moved (a few pixels), one single pixel of a pair, and a
+        // block far away; nothing else changes.
+        for (x, y) in [(100, 50), (101, 50), (102, 51), (300, 120), (479, 271)] {
+            after[y * 480 + x] ^= 0x00ff;
+        }
+        for y in 200..203 {
+            for x in 40..60 {
+                after[y * 480 + x] = 0x07e0;
+            }
+        }
+        let mut out = Vec::new();
+        encode_band(Screen::Left, &after, Some(&before), 0, 272, &mut out);
+        let mut screen = before.clone();
+        decode_band(&out, &mut screen);
+        assert_eq!(screen, after, "the screen must end up showing the new frame");
+        assert!(out.len() < 600, "{} bytes for a handful of changed pixels", out.len());
+        let mut full = Vec::new();
+        encode_band(Screen::Left, &after, None, 0, 272, &mut full);
+        assert!(full.len() > 100_000, "without the previous frame it is the whole thing");
+
+        // Nothing changed: the whole band is one skip.
+        encode_band(Screen::Left, &before, Some(&before), 0, 272, &mut out);
+        assert_eq!(out.len(), 16 + 4 + 8, "header, one skip, end");
+        assert_eq!(&out[16..20], &[0x02, 0x00, 0xff, 0x00], "65280 pairs skipped");
+    }
+
+    // F-D08
+    #[test]
+    fn changed_pairs_are_sent_even_when_only_one_pixel_differs() {
+        let before = vec![0u16; 480 * 272];
+        let mut after = before.clone();
+        after[10 * 480 + 7] = 1; // the second pixel of a pair
+        let mut out = Vec::new();
+        encode_band(Screen::Right, &after, Some(&before), 10, 11, &mut out);
+        let mut screen = before.clone();
+        decode_band(&out, &mut screen);
+        assert_eq!(screen[10 * 480 + 7], 1);
+        assert!(screen[..10 * 480].iter().all(|&v| v == 0), "wrote above the band");
+    }
+
     // F-D06 (docs/features.md)
     #[test]
     fn flat_screens_are_tiny_and_noise_is_not_inflated() {
         let mut out = Vec::new();
-        encode_band(Screen::Left, &vec![0; 480 * 272], 0, 272, &mut out);
+        encode_band(Screen::Left, &vec![0; 480 * 272], None, 0, 272, &mut out);
         assert_eq!(out.len(), 16 + 8 + 8, "header, one repeat command, end");
         let noise: Vec<u16> = (0..480 * 272).map(|i| (i as u16).wrapping_mul(7919)).collect();
-        encode_band(Screen::Left, &noise, 0, 272, &mut out);
+        encode_band(Screen::Left, &noise, None, 0, 272, &mut out);
         assert_eq!(out.len(), 16 + 4 + 261_120 + 8, "one literal block, same size as raw");
     }
 
