@@ -1,0 +1,7 @@
+# Cross-compiling for the Raspberry Pi 4/5 (64-bit Raspberry Pi OS).
+# Either use `cross` (see Cross.toml / scripts/build-pi.sh), or install
+# `gcc-aarch64-linux-gnu` plus an arm64 ALSA dev package and build directly.
+[target.aarch64-unknown-linux-gnu]
+linker = "aarch64-linux-gnu-gcc"
+# Cortex-A76 (Pi 5). For a Pi 4 use target-cpu=cortex-a72.
+rustflags = ["-C", "target-cpu=cortex-a76"]

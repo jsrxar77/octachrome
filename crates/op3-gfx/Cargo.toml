@@ -1,0 +1,10 @@
+[package]
+name = "op3-gfx"
+description = "480x272 RGB565 framebuffer, drawing helpers and dirty-rectangle diffing"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+embedded-graphics.workspace = true
+fontdue.workspace = true

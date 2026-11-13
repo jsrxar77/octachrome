@@ -1,0 +1,4 @@
+# Lets the `plugdev` group use the Maschine MK3 without root:
+# the HID interface (buttons, pads, LEDs) and the raw USB device (screens).
+SUBSYSTEM=="usb", ATTR{idVendor}=="17cc", ATTR{idProduct}=="1600", MODE="0660", GROUP="plugdev"
+KERNEL=="hidraw*", ATTRS{idVendor}=="17cc", ATTRS{idProduct}=="1600", MODE="0660", GROUP="plugdev"
