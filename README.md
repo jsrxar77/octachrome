@@ -4,18 +4,23 @@ Groovebox standalone en Rust para **Raspberry Pi 4/5** (desarrollo y pruebas en 
 
 El secuenciador está inspirado en el OP-XY: polimetría por pista, *Step Components* acumulables, una pista de armonía (*Brain*) y *Punch-in FX*. Los instrumentos son **cartuchos** que implementan un único trait y no saben nada del secuenciador ni del hardware.
 
-## Probarlo
+## Bajarlo y probarlo
+
+Hace falta Rust estable (`rustup`) y un compilador de C++, porque el instrumento macro compila el código de Plaits: en macOS alcanza con `xcode-select --install`; en Linux o en la Pi, `sudo apt install build-essential libasound2-dev`.
 
 ```sh
-cargo test --workspace                  # 72 tests, no hace falta hardware
-cargo run --release -- sim -s 8         # MK3 simulada: escribe out/out.wav y capturas .ppm de ambas pantallas
+git clone https://github.com/jsrxar77/op-3.git
+cd op-3
+cargo test --workspace                  # 81 tests, no hace falta hardware
+cargo run --release -- sim -s 8         # MK3 simulada: escribe out/out.wav y capturas .ppm de ambas pantallas (la 6 es macro)
 cargo run --release -- hw-test          # Fase 1 con la MK3 real: arcoíris en los 16 pads + frame de prueba en ambas pantallas + log de eventos
 cargo run --release                     # tocar con la MK3 (audio, pantallas, LEDs, MIDI)
+cargo run --release -- -t op-xy         # otro tema: op-1 (por defecto), op-1-field, op-xy
 ```
 
 En macOS, cerrá antes los servicios de NI (`NIHardwareAgent`): si tienen tomada la interfaz USB 5, OP-3 sigue funcionando pero sin pantallas, y avisa por consola. En Linux instalá `deploy/99-maschine-mk3.rules` para no necesitar root.
 
-El gemelo interactivo en HTML (`docs/op3-twin.html`) reproduce las dos pantallas, los pads y las perillas con sonido en WebAudio y se abre en Safari o Chrome, incluso en el iPad.
+El gemelo interactivo en HTML (`docs/op3-twin.html`) reproduce las dos pantallas, los pads y las perillas con sonido en WebAudio y se abre en Safari o Chrome, incluso en el iPad: basta con abrir el archivo, no necesita servidor.
 
 **Diseño:** todas las pantallas y controles siguen el [Tratado de UX/UI](docs/DESIGN.md); qué hace cada botón está en [docs/BOTONES.md](docs/BOTONES.md), los instrumentos (el centro de OP-3) en [docs/INSTRUMENTOS.md](docs/INSTRUMENTOS.md) y el orden de trabajo en [docs/ROADMAP.md](docs/ROADMAP.md). Es la regla de la app: ocho encoders con ocho colores (1–4 secuenciador, 5–8 instrumento), negro absoluto, dibujos en vez de texto, una sola letra.
 
@@ -46,7 +51,8 @@ Capturas del simulador (paso, inspector, Brain, Punch FX, final), generadas con 
 | `op3-cartridge` | el contrato `InstrumentCartridge` exactamente como en el handover, más `NoteEvent`, `ParamDescriptor`, etc. | gfx |
 | `op3-seq` | secuenciador determinista: pasos, componentes, Brain, reloj, modelo de comandos | cartridge (sólo `NoteEvent`) |
 | `op3-engine` | motor de audio: secuenciador + 8 slots + mezcla + Punch-in FX + cola de comandos | seq, cartridge |
-| `op3-cartridges` | **KickSyn**, **FmBass**, **MidiOutBridge** | cartridge |
+| `op3-plaits` | el oscilador macro de Plaits (C++, MIT, sin cambios) detrás de una interfaz Rust; 24 motores | – |
+| `op3-cartridges` | **KickSyn**, **FmBass**, **MidiOutBridge**, **macro** | cartridge, plaits |
 | `op3-hw` | trait `ControlSurface`, `MockSurface`, protocolo MK3 (funciones puras) y transporte USB (feature `mk3`) | gfx |
 | `op3-ui` | layouts de pantalla izquierda y derecha | gfx, seq, engine |
 | `op3` | binario: controlador, bucle de frames, audio cpal, salida MIDI, simulador, `hw-test` | todo |
@@ -68,6 +74,7 @@ El trait es el del handover. Los seis métodos obligatorios no cambiaron. Se agr
 
 * **KickSyn**: seno con barrido de pitch, click de ruido y drive. Pantalla con envolventes de amplitud y pitch y osciloscopio.
 * **FmBass**: FM de 2 operadores, monofónico con prioridad a la última nota, glide y sub-oscilador. Pantalla con la topología MOD→CAR, ADSR y osciloscopio.
+* **macro**: 24 motores de síntesis (analógico, FM, wavetable, acordes, voz, cuerdas, modal, percusión) a partir del código de Plaits de Mutable Instruments (MIT). Cuatro perillas de sonido (engine, harmonics, timbre, morph) y cuatro de forma (decay, color, variant, level).
 * **MidiOutBridge**: no genera audio. Convierte notas en MIDI (canal, transposición, CC74) hacia el DIN MIDI de la MK3 (ALSA rawmidi en Linux, CoreMIDI en macOS).
 
 Para sumar un instrumento: un crate o módulo nuevo que implemente `InstrumentCartridge`, y cargarlo en un slot con `EngineHandle::load_cartridge`. No hace falta tocar el secuenciador ni los drivers. Las reglas de tiempo real están documentadas en el trait.
@@ -123,8 +130,8 @@ Esto compila y pasa los tests, pero **nada se probó todavía con una MK3 real**
 * MIDI con timestamps (hoy sale apenas se drena la cola, ≤ 1 ms + un bloque).
 * Guardar/cargar proyectos y presets (`save_state` ya existe en los cartuchos).
 * Escribir acordes en la progresión del Brain desde los pads (hoy los pads sólo tocan acordes *live*).
-* Más cartuchos (sampler, `fundsp`, Faust).
+* Más cartuchos: resonator, drums, sampler (ver [docs/ROADMAP.md](docs/ROADMAP.md)).
 
 ## Licencia
 
-MIT o Apache-2.0, a elección.
+MIT o Apache-2.0, a elección. El código de `crates/op3-plaits/vendor` es de Mutable Instruments (MIT, ver su `README.md` y licencias); OP-3 no usa los nombres de sus módulos.
