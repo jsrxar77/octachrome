@@ -57,7 +57,7 @@ Communication between the control thread and the audio thread is **lock-free** (
 | `op3-cartridges` | KickSyn, FmBass, MidiOutBridge and **macro** (`macro_osc.rs`). The list is in `builtin_names()` / `create()` of `lib.rs`, which also holds the contract tests every instrument must pass | cartridge, plaits |
 | `op3-hw` | `ControlSurface`, `ControlEvent`, `Button`, `LedFrame`, `MockSurface`, the MK3 protocol as pure functions, USB transport (feature `mk3`: hidapi or hidraw, plus nusb) | gfx |
 | `op3-ui` | Left and right screen layouts, `UiState`, `Mode`, footer and touch overlay, animation | gfx, seq, engine |
-| `op3` | Binary and library: `App`, `Controller`, `demo`, `script`, `bench`, cpal audio, MIDI, `sim`, `hw-test`, `usb-reset` | everything |
+| `op3` | Binary and library: `App`, `Controller`, `demo`, `script`, `bench`, `settings`, cpal audio (with its keeper), MIDI, `sim`, `hw-test`, `usb-reset` | everything |
 
 Rule: the sequencer and the cartridges do not depend on any driver. Hardware enters only through `op3-hw` and the binary.
 
@@ -83,12 +83,15 @@ Audio runs separately, in blocks of 100 to 128 samples at 48 kHz. For each UI fr
 - MIDI cartridges (`MidiOutBridge`) push to an `rtrb<MidiMessage>` queue consumed by a separate thread (`midi.rs`) or by the test bench.
 - **Forbidden on the audio thread:** allocating memory. Queues are fixed-size.
 - The sequencer is deterministic: randomness uses a per-track seeded PRNG that is re-seeded on every Play. Same project, same output, to the sample.
+- **The sequencer's clock runs in the audio callback.** If the audio device goes away (the MK3 resets, the cable is pulled) the clock stops with it: PLAY lights up and nothing moves. So the engine does not live inside the stream. `Audio` (`crates/op3/src/audio.rs`) owns it behind a mutex that only the callback locks, and its `Keeper` reopens the stream whenever the error callback reports a failure, retrying about once a second while the device is missing. `op3 run` calls `keep_alive()` every frame, which also covers starting while the device is not there yet.
 
 ## 5. Control
 
 `Controller` (`crates/op3/src/controller.rs`) holds `UiState` (mode, selected track, open inspector, right-screen page, active punch, live chord) and knob counters. It is the only one that decides what an event means. Its mode table is in its header.
 
-Modes: `Step`, `Brain`, `Punch`. They change with STEP, CHORDS and PERFORM, and the pads mean different things in each.
+Pad modes: `Step`, `Brain`, `Punch`. They change with STEP, CHORDS and PERFORM, and the pads mean different things in each.
+
+Above them sit the **main modes** (`Main` in `op3-ui`, the "main modes" table of [buttons.md](buttons.md)): `Instrument` for composing (CHANNEL), and `Settings` (SETTINGS), which takes both screens. In `Settings` the controller ignores pads, knobs and groups, turns the 4D encoder and ◀ ▶ into theme changes, and lets PLAY, STOP and RESTART through. Entering it lets go of anything a pad is holding (an engaged effect, a live chord). A pad mode button always returns to `Instrument`. A theme change sets the global theme at once and raises `Controller::theme_changed`; `App` saves it to the settings file if it has a path (`App::settings_path`), so the simulator and the test bench never write to disk.
 
 ## 6. Instruments and their contract
 
@@ -109,7 +112,9 @@ A transfer to a screen takes milliseconds, and both screens animate. If the cont
 - **One band of rows per screen.** The thread compares the frame with what it last sent and sends only from the first to the last row that changed, **always full width** (x = 0, width 480). That is the only transfer shape the projects that already work with this screen use; rectangles with arbitrary x or width left cut stripes.
 - **Compression.** Besides literal pixels (`00`), the protocol accepts the `01` command (one pixel pair repeated N times). The UI is mostly black, so a full screen drops from 261 KB to about 52 KB and a ~30 ms transfer becomes ~3 ms. The format is in `protocol::encode_band`.
 - **Full refresh every 500 ms.** Pixels that do not change (titles, labels) are never sent again; if the device dropped or drew a transfer wrongly they would stay wrong forever. The refresh repairs them by itself.
-- **Errors.** If a transfer fails the thread keeps the error and ends; the next `write_screen` returns it and `op3 run` reconnects, releasing the screens first.
+- **Optional limits, off by default.** A token bucket (`Pacer`, `OP3_DISPLAY_KBPS=<n>`) caps the bytes per second, `OP3_DISPLAY_FPS=<n>` caps the rounds per second, and `OP3_DISPLAY_DELTA=1` skips unchanged pixel pairs with the `02` command (a handful of changed pixels then cost under 600 bytes, and the traffic drops about fourfold). They were built when the resets looked like a bandwidth limit. They are not: the cause was the backlight (§10), and at a safe brightness the MK3 took whole rows at 3.4 MB/s and 90 transfers/s for 50 s. Delta has not been looked at on the real screens, which is why it is off.
+- **Errors.** If a transfer fails the thread keeps the error, with how many KB it had sent in the last second, and ends; the next `write_screen` returns it and `op3 run` reconnects, releasing the screens first.
+- **Reconnecting waits.** A MK3 that has just reset needs a few seconds; opening it at once made it fail again, and the screens and the sound switched on and off in a loop. `Backoff` (`crates/op3/src/backoff.rs`) waits 4 s after a failure, then 8, 16 and 30 s while failures keep coming, and starts over after a steady minute. The audio keeper also lets the device settle for 3 s after its stream dies. The frame clock then continues from now instead of racing through the frames it missed.
 - `OP3_DISPLAY_STATS=1` prints once a second how many transfers, how many KB and how many ms.
 
 Measured on the MK3 behind a USB 2.0 hub, with the demo: ~64 transfers per second, ~1.1 MB/s, ~3.4 ms each; at rest, 4 per second (only the refresh).
@@ -154,12 +159,15 @@ Cargo runs each crate's tests from the crate's folder, so give `OP3_BENCH_DIR` a
 - **8 knobs, 8 colours.** Knobs 1–4 drive the sequencer and appear on the left screen; 5–8 drive the instrument and appear on the right. Three themes: op-1 (default), op-1 field, op-xy.
 - **Typeface: Jost** (OFL), weights 300 and 400, tuned by eye to resemble the OP-XY's. FlipMono cannot be used: it is actually SF Mono, licensed only for Apple devices.
 - **Instruments:** at most 8 parameters, 4 of sound (button 5) and 4 of shape (button 6). Effects and modulation are per track and the same for all instruments.
+- **Settings are chosen on the machine and kept in a small text file** of `key=value` lines (`crates/op3/src/settings.rs`; today only `theme=op-xy`). Location: `OP3_CONFIG`, else `$XDG_CONFIG_HOME/op3/settings`, else `$HOME/.config/op3/settings`. A missing file, an unknown key or a bad value is ignored (the default is used): a damaged file must never stop the machine from starting. It is written beside itself and renamed, so a power cut leaves the old file or the new one. **At start-up, `-t` / `OP3_THEME` win over the saved theme, which wins over op-1.** Only `op3 run` reads it: `sim` always starts from op-1 so it stays reproducible.
 
 **Known limits**
 
 - The real MK3 has 4 audio channels; the engine produces stereo and it is copied to 1/2 and 3/4.
 - On macOS, `NIHardwareAgent` and NI's other services take screen interface 5. If they are running, OP-3 warns `screens unavailable` and carries on without screens.
-- The MK3 behind a USB 2.0 hub receives 480 mA. Under heavy load or with the device in a bad state it resets. See `OP3_BRIGHTNESS`, and `op3 usb-reset` ([roadmap.md](roadmap.md), hardware status).
+- **The backlight is what resets the MK3.** Behind a USB 2.0 hub it receives 480 mA, and at the old default brightness of 80 it reset within seconds of the music starting. Measured 2026-11-13, 45 s of PLAY each: brightness 10, 40, 50 and 60 held; 70 failed once at 31 s; 80 failed at once. Audio, MIDI, LEDs, screen bandwidth and transfer rate were each ruled out (details in [roadmap.md](roadmap.md)). `op3 usb-reset` recovers a stuck device.
+
+  **The app now reads what the host grants the MK3** (`UsbPowerSinkAllocation` in the I/O registry, macOS only; `crates/op3-hw/src/mk3/power.rs`) each time it opens it, and prints it at start-up (`power: the host gives the MK3 480 mA -> limited: ...`). Below 500 mA the supply is *limited*: the screens go to 50, colour LEDs are capped at level 2 and the other LEDs scaled to 60 %. From 500 mA up it is *full*: screens at 80 and the LEDs untouched. An unknown supply (Linux, or nothing read) counts as limited, because guessing high resets the device and guessing low only dims it. **The 500 mA threshold is provisional**: it separates the 480 seen behind the hub from what a device asks for, and has to be confirmed with the MK3 plugged straight into the Mac. `OP3_POWER=full|limited` forces the plan, and `OP3_BRIGHTNESS` still sets the screens on its own.
 - The LED palette is only confirmed for red and orange. The rest is unverified on a unit.
 
 ## 11. Build, run and test
@@ -175,10 +183,13 @@ cargo run --release -- run --script f.op3    # the script plays the real MK3
 cargo run --release -- hw-test               # test frame and rainbow, with the real MK3
 cargo run --release -- usb-reset             # reset a stuck MK3 (with op3 closed)
 cargo run --release [-- -t op-xy]            # play
+scripts/run.sh [-l] [-s] [-r] [args]         # the easy way to play: builds, frees the MK3, waits for it, starts
 open twin/op3-twin.html                      # the Twin
 ```
 
-Environment: `OP3_THEME`, `OP3_BRIGHTNESS` (0–100), `OP3_DISPLAY_STATS=1`, `OP3_DUMP_DIR=<dir>` (writes `left.png` and `right.png`, up to four times a second), `OP3_BENCH_DIR=<dir>`.
+`scripts/run.sh` closes a running op3 and NI's background services (`NIHardwareAgent`, `NIHostIntegrationAgent`, `NTKDaemon`, which hold the screens), builds, waits up to 15 s for the MK3 on USB, and starts `op3 run`. Its own options come first: `-l` prints every control event (`OP3_LOG_EVENTS`), `-s` the screen traffic (`OP3_DISPLAY_STATS`), `-r` resets the MK3 on the bus first; anything after them (`-t op-xy`, `--script f.op3`) goes to `op3 run`.
+
+Environment: `OP3_THEME`, `OP3_CONFIG=<file>` (the settings file), `OP3_BRIGHTNESS` (0–100; by default 50 on a limited supply and 80 on a full one), `OP3_POWER=full|limited` (forces the power plan), `OP3_DISPLAY_STATS=1`, `OP3_DISPLAY_KBPS=<n>`, `OP3_DISPLAY_FPS=<n>` and `OP3_DISPLAY_DELTA=1` (optional screen limits, see §7), the diagnostics `OP3_MIDI=off`, `OP3_NO_LEDS=1` and `OP3_NO_SCREENS=1` (each leaves one part of the MK3 alone, to find what makes it misbehave), `OP3_LOG_EVENTS=1` (prints every control event and every transport change, to tell "the button never arrived" from "it arrived and nothing started"), `OP3_AUDIO_DEVICE=<name>`, `OP3_BUFFER=<frames>`, `OP3_DUMP_DIR=<dir>` (writes `left.png` and `right.png`, up to four times a second), `OP3_BENCH_DIR=<dir>`.
 
 CI (`.github/workflows/ci.yml`) runs on Linux (tests, clippy, the simulator and `cargo check` for aarch64, with `g++-aarch64-linux-gnu` because op3-plaits compiles C++) and on macOS. For the Pi there are `scripts/build-pi.sh` and `deploy/` (systemd, udev, setup).
 
@@ -191,3 +202,31 @@ CI (`.github/workflows/ci.yml`) runs on Linux (tests, clippy, the simulator and 
 - Tests that touch the global theme use `THEME_LOCK` (`op3-ui`) so they do not fail when run in parallel.
 - To vendor third-party code: copy it unchanged, with its licence and a README of origin, as in `crates/op3-plaits/vendor/`.
 - Both screens animate. Never assume either one is still.
+
+## 13. Related projects
+
+Other projects that drive a Maschine MK3 or a similar controller. The first list comes from our own earlier survey (Monolith's `docs/github-ecosystem-references.md` and `docs/deckard-reference-architecture.md`); the details were checked on GitHub on 2026-11-13 (licence, language, last push, open issues). **GPL projects are read for facts only; their code is never copied** (see §10).
+
+| Project | What it is | Licence · language · state | What it gives OP-3 |
+|---|---|---|---|
+| [Panic-Signals/Deckard](https://github.com/Panic-Signals/Deckard) | NI Maschine-like software with its own MK3 integration | GPL-2.0 · Rust · active (pushed 2026-11-13) | **The closest in spirit**: a standalone groovebox that drives the MK3's pads, LEDs and screens from Rust. Its screen method is the one in §7 (dirty rows, repeated-pair compression, a thread of its own). Monolith's `crates/mk3` is a copy of its driver |
+| [autotel/maschine-mk3-linux](https://github.com/autotel/maschine-mk3-linux) | MK3 driver for Linux: MIDI, screens, a config file | GPL-3.0 · Rust · active | The protocol documentation OP-3's driver was written from (facts only). Issue #1 is the nearest precedent for us: a MK3 on a **Raspberry Pi 5** as a live instrument, both screens working |
+| [RufusIbiza/encdr-maschine-bitwig](https://github.com/RufusIbiza/encdr-maschine-bitwig) (Embit) and Encdr | Bitwig controller over HID, in Rust | GPL-3.0 · Rust | A second HID implementation to compare reports against |
+| [santiagojorda/maschine-mk3-driver](https://github.com/santiagojorda/maschine-mk3-driver) | Python library for the two screens | no licence declared · Python · active | A simple, working reference of the screen transfer (20–30 fps, only the changed regions) and of reopening after a bus drop |
+| santiagojorda/maschine-mk3-as-ableton-push | The MK3 as an Ableton Push, over UDP | not reachable on 2026-11-13 (404: private or renamed) | Only what Monolith's survey says about it |
+| [shaduzlabs/cabl](https://github.com/shaduzlabs/cabl), [Drachenkaetzchen/cabl](https://github.com/Drachenkaetzchen/cabl) | Controller abstraction layer in C++ | MIT · C++ · stopped in 2018 | The HID report layout, as history; MK3 support was never finished (issue #9) |
+| [chiakibeats/CustomMaschineMK3](https://github.com/chiakibeats/CustomMaschineMK3) | Ableton MIDI Remote Script for the MK3 | GPL-3.0 · Python · active | How Ableton sees the MK3 through NI's own Controller Editor; not a driver |
+| [git-moss/DrivenByMoss](https://github.com/git-moss/DrivenByMoss) | Bitwig and Reaper extensions for many controllers, MK3 included | LGPL-3.0 · Java · active | Encoder acceleration and the DAW-side design of a control surface |
+| [r00tman/maschine-mikro-mk3-driver](https://github.com/r00tman/maschine-mikro-mk3-driver) | MIDI driver for the Mikro MK3 | MIT · Rust | A different device (no MK3 screens), a small Rust HID example |
+| [asutherland/ni-controllers-lib](https://github.com/asutherland/ni-controllers-lib) | Node library for several NI controllers | no licence declared · TypeScript | The original source of the screen packet notes that other projects cite |
+| [morluto/rea](https://github.com/morluto/rea) | A reverse-engineering toolkit for AI agents | — | How NI's own agent could be inspected to confirm descriptors |
+| [owainlewis/machinist](https://github.com/owainlewis/machinist) | **Not a MK3 project.** Infrastructure for AI coding workflows | MIT · Go | Nothing about the MK3 or audio. Monolith cites it only for its heartbeat and lease design (`docs/synchronization.md`) |
+
+### What they say about the problems we hit
+
+- **The backlight reset.** No project's public issues mention a MK3 that resets when its screens are bright (the issue lists of Deckard, autotel, Embit, santiagojorda, r00tman, CustomMaschineMK3, cabl and DrivenByMoss were read). What does exist: NI lists the MK3's power supply as **optional** and says connecting it makes the LEDs and screens brighter ([NI support](https://support.native-instruments.com/support/solutions/articles/69000879997-which-ni-hardware-devices-require-a-power-supply-)), and a forum user with a long USB run reported the MK3 crashing and a powered hub not matching the supply ([NI community](https://community.native-instruments.com/discussion/comment/36165)). Both are consistent with our measurement (§10) that a bright backlight on 480 mA resets the device, but neither is a specification. The supply is the untried fix: it is an NI accessory, not always in the box.
+- **A device stuck on the bus.** autotel issue #1 reports a MK3 that stopped sending HID input after the host re-enumerated it: the interrupt endpoint only NAKed, a USB reset did not help, and unplugging both the MK3's own power and its USB did. Our stuck state (HID writes failing after a reset) was cleared by a USB reset, but the lesson is the same: a MK3 can hold state of its own, and a full power cycle is the last resort.
+- **Screens on a Raspberry Pi 5.** The same issue reports Pi 5, Debian 12, kernel 6.12 PREEMPT_RT, JACK2 and a systemd service, with pads, knobs, buttons, LEDs and both screens working, and a local patch to leave interface 5 free for their own screen renderer. The deployment §11 describes is not untried ground.
+- **How to send the screens.** Deckard, autotel and santiagojorda's driver all converge on what §7 does: send only the changed rows, at no more than 60 fps, from a thread apart from the controls. autotel measures a single knob move at about 30 KB instead of 261 KB; ours is the same order.
+- **LED shades.** Deckard issues #154–#156 report that on the MK3 the "bright" shade the app asks for comes out as the white-mixed flash level, so a selected and a flashing pad look alike. OP-3 uses level 3 for "bright" and 1 for "dim" (`leds.rs`), so expect the same on the unit; it is part of the unverified LED palette ([roadmap.md](roadmap.md)).
+- **macOS transfer timeouts.** cabl issue #2 (2017, OS X 10.11) is a libusb `transfer error: timed out` that the author called harmless. We saw none.

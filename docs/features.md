@@ -67,6 +67,7 @@ The buttons and their implementation status are in [buttons.md](buttons.md). Thi
 | F-D04 | STEP and PERFORM look different | different hash between STEP and PERFORM; the mode changes | ✓ (returning to STEP cannot be compared by hash: the screen animates and never repeats the same frame) |
 | F-D05 | The sending to the MK3 is exact: what is encoded is what the reference reader reconstructs, for any band of rows | `bands_round_trip` in `crates/op3-hw` (bands of 1 row, full screen and the middle; it does not write outside the band) | ✓ |
 | F-D06 | A flat screen takes a few bytes and noise is not inflated | `flat_screens_are_tiny_and_noise_is_not_inflated`: 32 bytes for a black screen; the same as raw for noise | ✓ |
+| F-D08 | The optional delta sending (`OP3_DISPLAY_DELTA=1`): a few changed pixels cost a small transfer, the screen ends up showing the new frame, and a pair is sent even if only one of its pixels changed | `a_small_change_costs_a_small_transfer_and_still_round_trips` and `changed_pairs_are_sent_even_when_only_one_pixel_differs` in `crates/op3-hw` | ✓ (not looked at on the real screens) |
 | F-D07 | On the real MK3, the two animated screens look complete and in step | **manual review** with photo and video; `OP3_DISPLAY_STATS=1` gives the figures | R |
 
 ## L · LEDs (`tests/leds.rs`)
@@ -92,6 +93,8 @@ The buttons and their implementation status are in [buttons.md](buttons.md). Thi
 | F-A03 | No digital clipping | absolute peak below 0.99 across the whole demo | ✓ |
 | F-A04 | An empty project makes no noise | RMS of 1 s of playback with no notes below −90 dBFS | ✓ |
 | F-A05 | The same script gives exactly the same audio | two runs of the demo produce identical samples | ✓ |
+| F-A06 | The audio stream comes back by itself when its device fails. The sequencer's clock runs in the audio callback, so without this PLAY lights up and nothing moves | `Keeper` in `crates/op3/src/audio.rs`: restarts after a failure, retries about once a second while the device is missing, reports one failure once, and resumes when the device returns | ✓ |
+| F-A07 | On the real MK3, pulling the USB cable and plugging it back: screens, audio and PLAY recover without restarting the app | **manual review**, with `OP3_LOG_EVENTS=1` | R |
 
 ## G · Scripts (`tests/script.rs`)
 
@@ -100,6 +103,30 @@ The buttons and their implementation status are in [buttons.md](buttons.md). Thi
 | F-G01 | The demo script parses and ends at 6.8 s | `end_ms() == 6800` | ✓ |
 | F-G02 | A script error gives the line number | message with `line N` for each malformed case | ✓ |
 | F-G03 | The `shot` captures are generated with their name | PNG files created in `OP3_BENCH_DIR` | ✓ |
+
+## C · Settings (`tests/settings.rs`)
+
+| ID | What must happen | How it is verified | Status |
+|---|---|---|---|
+| F-C01 | SETTINGS takes both screens, lights its LED, dims CHANNEL's, and the pads go dark | both screen hashes change; LED levels; every pad LED off | ✓ |
+| F-C02 | CHANNEL goes back to composing and keeps the pad mode; pressing SETTINGS again does too | `ui.main`, `ui.mode`, LED levels | ✓ |
+| F-C03 | In settings the 4D encoder and ◀ ▶ change the theme, wrapping, and the screens change; outside settings the encoder is still the tempo | `theme_id()`, the right-screen hash, `bpm` | ✓ |
+| F-C04 | STEP, CHORDS and PERFORM leave settings and choose their pad mode | `ui.main` and `ui.mode` | ✓ |
+| F-C05 | In settings the pads, knobs and groups do nothing, and PLAY still works | the step, the parameter and the track are unchanged; `playing` | ✓ |
+| F-C06 | The settings file: every theme survives a round trip, a damaged file falls back to the default, names match the command line, saving creates the folder | unit tests in `crates/op3/src/settings.rs` | ✓ |
+| F-C07 | A theme change is saved to the settings file, and only when a path is set (never in the simulator or the bench) | the file's content after each change | ✓ |
+| F-C08 | On the real MK3: the SETTINGS button reaches the app and its LED lights, the 4D encoder changes the theme on both screens, the choice survives a restart, and `-t` overrides it | **manual review**, with `OP3_LOG_EVENTS=1` | R |
+
+## H · Hardware link (`crates/op3-hw`, `crates/op3`)
+
+| ID | What must happen | How it is verified | Status |
+|---|---|---|---|
+| F-H01 | The optional screen byte-rate limit (`OP3_DISPLAY_KBPS`, off by default) keeps sustained sending under the rate it is given and spreads a burst out. It is not needed: the resets were the backlight, not the traffic ([roadmap.md](roadmap.md)) | `Pacer` unit tests in `crates/op3-hw/src/mk3/display.rs`: a burst passes, the rest is spread, the long-run average stays under the limit, and 0 means no limit | ✓ |
+| F-H02 | After a failure the app waits before reconnecting, and waits longer while failures keep coming (4, 8, 16, then 30 s), starting over after a steady minute. Reconnecting at once made the MK3 fail again: the screens and the sound switched on and off in a loop | `Backoff` unit tests in `crates/op3/src/backoff.rs` | ✓ |
+| F-H04 | The app reads the current the host grants the MK3 and picks a plan: below 500 mA limited (screens 50), from 500 mA full (screens 80), unknown counts as limited. It reads the MK3's own entry and never another device's | `parse_ioreg` and `plan_for` tests in `crates/op3-hw/src/mk3/power.rs`, against the shape of the real `ioreg` output | ✓ (the 500 mA threshold is provisional, see F-H06) |
+| F-H05 | On a limited supply the LEDs are capped before they are written: colour LEDs (pads, groups, PLAY…) at level 2 keeping their colour, the others at 60 % but never rounded down to off; unlit LEDs stay unlit; a full supply changes nothing | `Plan::limit` tests in `crates/op3-hw/src/mk3/power.rs` | ✓ |
+| F-H06 | With the MK3 plugged straight into the Mac: `power:` shows what the host grants, and the plan it picks holds five minutes of PLAY without a reset. If it picks full, brightness 80 must hold | **manual review**, `scripts/run.sh -l`; adjust `FULL_POWER_MA` from the value seen | R |
+| F-H03 | On the real MK3, five minutes of playing, turning knobs and changing modes and themes with no reset and no reconnect | **manual review**: `OP3_LOG_EVENTS=1` and `OP3_DISPLAY_STATS=1`; the log has no `reconnecting` line | R |
 
 ## Manual review (cannot be automated)
 

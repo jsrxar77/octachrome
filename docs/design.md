@@ -60,6 +60,8 @@ The first four follow the encoder order of each reference device (original OP-1:
 | `panel` | `#0D1118` | `#12161D` | `#0F1014` | Surface of keys and capsules |
 | `rec` | `#FF3B30` | `#E63946` | `#FF2244` | Only REC, erase and peaks |
 
+The track colours (A–H) are one fixed palette shared by the three themes (`crates/op3-ui/src/theme.rs`, `TRACK_COLORS`); they match the pad LED palette. Whether they should follow the theme is an open question in [roadmap.md](roadmap.md).
+
 ## 3. Typography
 
 The screens are a real 480×272, so the type has to be readable at 11–15 px. It is rendered with anti-aliasing (TrueType).
@@ -109,6 +111,17 @@ The theme is chosen with `op3 run -t op-1|op-1-field|op-xy` or `OP3_THEME`.
 - **Left (fixed): time.** Tempo, the Brain chord, polymeter rings (one per track, the selected one in front), a mirror of the 16 pads. Footer with encoders 1–4.
 - **Right: the instrument of the selected track.** Each cartridge draws its animated illustration using colours 5–8 for what those encoders move. Footer with encoders 5–8.
 
+### Settings view
+
+Settings is a **main mode** (SETTINGS button; see [buttons.md](buttons.md)): it takes **both** screens, and the rule that the left is time and the right is sound is suspended while it is open. Composing (CHANNEL) is the other main mode. Each setting is a page that uses both screens: the left shows the choices, the right shows what they mean. Today there is one page, the theme.
+
+- **Top bar** of both screens: a `fg` dot and the lowercase title (`settings` on the left, the page name on the right). The left screen keeps a small transport mark at its right edge (a play triangle, or a dim square when stopped), because PLAY still works.
+- **Left, the theme:** one theme card for each theme, side by side; the active one has a 2 px `fg` outline.
+- **Right, the theme:** the eight encoder colours as dials, in the active theme, and under them the eight track colours.
+- **The theme applies at once**, to everything on screen, so the two screens are their own preview. There is no confirm step; the choice is saved as it is made.
+- **Nothing is drawn for a control that does nothing here** (rule 11): no footer, no page dots while there is a single page. The pads go dark.
+- The 4D encoder (turn, or ◀ ▶) changes the value, wrapping from the last to the first.
+
 ## 5. Components
 
 - **Dial:** 270° arc, 3 px; background `faint`, value in the encoder colour, a dot at the tip. Value in `fg` and name in the encoder colour beside it.
@@ -116,6 +129,7 @@ The theme is chosen with `op3 run -t op-1|op-1-field|op-xy` or `OP3_THEME`.
 - **Capsule:** radius = height / 2, LED dot on the left, text without brackets, minimum margin of 8 px.
 - **Calibration crosses:** 3 px `+` in the corners of each technical view.
 - **Touch overlay:** darkens the drawing area; name in the encoder colour, value in `huge`, a thin 3 px bar.
+- **Theme card:** 136 × 160 px, 8 px corners, filled with *its own* theme's `panel` colour. Inside: that theme's eight encoder colours as 9 px dots in two rows of four; four chips (`fg`, `dim`, `faint`, `rec`); and its name in `m`, lowercase, below. A card is always drawn in its own colours, never the active theme's, so all three can be compared at once. The active card has a 2 px `fg` outline and an `fg` name; the others a 1 px `faint` outline and a `dim` name.
 
 ## 6. Motion
 

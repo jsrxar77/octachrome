@@ -12,7 +12,7 @@ The left screen always shows time and the right screen always shows sound. A mai
 
 | MK3 button | In Maschine | On the OP-XY | In OP-3 | Status |
 | :-- | :-- | :-- | :-- | :-- |
-| CHANNEL | Channel properties | instrument | **Instrument**: the default mode. Sequencer on the left, the track's cartridge on the right | ◐ |
+| CHANNEL | Channel properties | instrument | **Instrument**: the default mode, for composing. Sequencer on the left, the track's cartridge on the right. CHANNEL goes back here from settings | ✓ |
 | PLUG-IN | Channel plug-ins | instrument (engine) | Choose the track's cartridge (cartridge list on the right) | ○ |
 | MACRO | Macros | auxiliary | **Auxiliary**: Brain, effect sends and inputs/outputs | ○ |
 | ARRANGER | Ideas and song | arrange | **Arrange**: scenes and the song chain | ○ |
@@ -20,7 +20,7 @@ The left screen always shows time and the right screen always shows sound. A mai
 | BROWSER | Browser | (presets) | Presets of the track's cartridge | ○ |
 | SAMPLING | Sample editor | sample | Record and trim a sample for a sampler cartridge | ○ |
 | FILE · Shift: save | Files | projects | Projects: open, new, copy. Shift + FILE saves | ○ |
-| SETTINGS | Preferences | com | Settings: theme, audio, MIDI, brightness | ○ |
+| SETTINGS | Preferences | com | **Settings**: a main mode that takes both screens (see [design.md §4](design.md)). Today it has one setting, the theme; audio, MIDI and brightness come next. Pressing SETTINGS again, CHANNEL, STEP, CHORDS or PERFORM goes back to composing. Inside, the pads, knobs and groups do nothing; PLAY, STOP and RESTART still work | ◐ |
 | AUTO · Shift: lock | Record modulation | record + encoder | Hold AUTO and turn a knob to record automation on the track; with Shift it stays fixed | ○ |
 | PAGE ◀ ▶ | Parameter page | M1–M4 | Previous and next page of the current mode (the same as the screen buttons) | ○ |
 
@@ -89,7 +89,8 @@ They are the modules of the current mode, like M1–M4 on the OP-XY. Their name 
 | Knobs 1–4 | What the left footer shows (sequencer or the open module) | ✓ |
 | Knobs 5–8 | What the right footer shows (cartridge) | ✓ |
 | Touching a knob | Large overlay with its parameter | ✓ |
-| 4D encoder: turn | Value of the selected element; if none, tempo | ◐ |
-| 4D encoder: ▲ ▼ ◀ ▶ and push | Move through lists and in the inspector; push confirms | ○ |
+| 4D encoder: turn | Value of the selected element; if none, tempo. In settings: the theme | ◐ |
+| 4D encoder: ◀ ▶ | In settings: previous and next theme | ✓ |
+| 4D encoder: ▲ ▼ and push | Move through lists and in the inspector; push confirms | ○ |
 | Smart Strip | Per PITCH, MOD or PERFORM: pitch bend, modulation or punch-in intensity. Today: master filter | ◐ |
 | PITCH / MOD / NOTES | Smart Strip mode | ○ |

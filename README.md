@@ -17,6 +17,7 @@ cargo run --release -- sim --script my.op3   # the same with your own script (se
 cargo run --release -- run --script my.op3   # the script drives the real app: you hear and see it on the MK3
 cargo run --release -- hw-test               # with the real MK3: rainbow on the 16 pads + a test frame on both screens + event log
 cargo run --release                          # play with the MK3 (audio, screens, LEDs, MIDI)
+scripts/run.sh                               # the same in one command: builds, frees the MK3 from NI's services, starts (-h for options)
 cargo run --release -- -t op-xy              # another theme: op-1 (default), op-1-field, op-xy
 ```
 
