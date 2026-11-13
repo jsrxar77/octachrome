@@ -22,6 +22,8 @@ En macOS, cerrá antes los servicios de NI (`NIHardwareAgent`): si tienen tomada
 
 El gemelo interactivo en HTML (`docs/op3-twin.html`) reproduce las dos pantallas, los pads y las perillas con sonido en WebAudio y se abre en Safari o Chrome, incluso en el iPad: basta con abrir el archivo, no necesita servidor.
 
+**Para continuar el trabajo** (persona o IA): [docs/HANDOVER.md](docs/HANDOVER.md).
+
 **Diseño:** todas las pantallas y controles siguen el [Tratado de UX/UI](docs/DESIGN.md); qué hace cada botón está en [docs/BOTONES.md](docs/BOTONES.md), los instrumentos (el centro de OP-3) en [docs/INSTRUMENTOS.md](docs/INSTRUMENTOS.md) y el orden de trabajo en [docs/ROADMAP.md](docs/ROADMAP.md). Es la regla de la app: ocho encoders con ocho colores (1–4 secuenciador, 5–8 instrumento), negro absoluto, dibujos en vez de texto, una sola letra.
 
 Capturas del simulador (paso, inspector, Brain, Punch FX, final), generadas con `op3 sim`:
