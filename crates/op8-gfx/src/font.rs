@@ -26,7 +26,7 @@ fn fonts() -> &'static [Font; 2] {
 pub enum FontSize {
     /// 11 px, parameter names under the dials.
     Small,
-    /// 13 px, the names of the screen buttons in the strip.
+    /// 14 px, the names of the screen buttons in the strip.
     Label,
     /// 15 px, values under the dials.
     Medium,
@@ -45,7 +45,7 @@ impl FontSize {
     const fn spec(self) -> (f32, bool, f32) {
         match self {
             FontSize::Small => (11.0, false, 0.6),
-            FontSize::Label => (13.0, false, 0.5),
+            FontSize::Label => (14.0, false, 0.5),
             FontSize::Medium => (15.0, false, 0.3),
             FontSize::Value => (20.0, false, 0.2),
             FontSize::Large => (21.0, false, 0.2),
@@ -119,6 +119,49 @@ pub fn text_width(s: &str, size: FontSize) -> f32 {
         n += 1;
     }
     w + sp * (n.max(1) - 1) as f32
+}
+
+/// Horizontal extent of the ink of `s` drawn with its pen at 0: (first inked
+/// column, one past the last). Differs from `text_width` by the side bearings
+/// and the trailing letter spacing, which is why centring by width looks off.
+fn ink_extent(s: &str, size: FontSize) -> (f32, f32) {
+    let sp = size.spec().2;
+    let (mut pen, mut lo, mut hi) = (0.0f32, f32::MAX, f32::MIN);
+    for ch in s.chars() {
+        let adv = with_glyph(ch, size, |(m, _)| {
+            if m.width > 0 {
+                lo = lo.min(pen.round() + m.xmin as f32);
+                hi = hi.max(pen.round() + (m.xmin + m.width as i32) as f32);
+            }
+            m.advance_width
+        });
+        pen += adv + sp;
+    }
+    if lo > hi {
+        (0.0, 0.0)
+    } else {
+        (lo, hi)
+    }
+}
+
+/// Draw `s` centred on (`cx`, `cy`) the way the eye centres it: the ink between
+/// the first and the last glyph is centred horizontally, and the x-height (the
+/// body of lowercase letters, the same for every word) is centred vertically,
+/// so the baselines of different labels line up. Use this, not `text_v`
+/// with `Align::Center`, whenever text sits in a container (design.md §3).
+pub fn text_centered(
+    fb: &mut FrameBuffer480x272,
+    s: &str,
+    cx: f32,
+    cy: f32,
+    size: FontSize,
+    color: Rgb565,
+) {
+    let (lo, hi) = ink_extent(s, size);
+    let xh = with_glyph('x', size, |(m, _)| m.height as f32);
+    let baseline = (cy + xh / 2.0).round();
+    let x = (cx - (lo + hi) / 2.0).round() as i32;
+    text_v(fb, s, x, (baseline - size.ascent()).round() as i32, size, color, Align::Left, VAlign::Top);
 }
 
 /// Draw `s` at (x, y). Returns the x after the last glyph.

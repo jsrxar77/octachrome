@@ -78,7 +78,7 @@ pub fn draw_right(
 
     // Keep the cartridge inside its area.
     fb.fill_rect(0, AREA_Y + AREA_H, 480, 272 - (AREA_Y + AREA_H), t.bg);
-    crosshairs(fb, 14, 34, 452, 184, t.dim);
+    crosshairs(fb, 14, 46, 452, 172, t.dim);
 
     let (descs, base) = match (ui.right_page, c.secondary_parameters()) {
         (1, Some(s)) => (s, 4),

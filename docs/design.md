@@ -118,12 +118,14 @@ The screens are a real 480×272, so the type has to be readable at 11–15 px. I
 | Level | px | Weight | Spacing | Use |
 | :-- | :-- | :-- | :-- | :-- |
 | `s` | 11 | 400 | +0.6 px | Parameter name under the dial |
-| `lab` | 13 | 400 | +0.5 px | Name of a screen button, in the strip |
+| `lab` | 14 | 400 | +0.5 px | Name of a screen button, in the strip |
 | `m` | 15 | 400 | +0.3 px | Value under the dial |
 | `l` | 20 | 400 | +0.2 px | Inspector values |
 | `mid` | 21 | 400 | +0.2 px | Instrument, chord, track letter |
 | `big` | 34 | 300 | 0 | Step number in the inspector |
 | `huge` | 62 | 300 | −1 px | Value when an encoder is touched |
+
+**Centring, always.** Text inside a container (a capsule, a pill, a key, a card) is centred as the eye does, never by its font metrics: the *ink* between the first and the last glyph is centred horizontally (side bearings and trailing letter spacing do not count), and the *x-height* is centred vertically, so the baselines of different labels line up. In Rust that is `text_centered` in `crates/op8-gfx/src/font.rs`; use it, not `text_v` with `Align::Center`, whenever text sits in a container. A test measures it (F-D13).
 
 **FlipMono is not used:** the `FlipMono.ttf` file of Flip Tracker+ is Apple's SF Mono, whose licence only allows it on Apple devices. It cannot be distributed on a Raspberry Pi.
 
@@ -150,8 +152,8 @@ The theme is chosen with `op8 run -t glossy|matte|chrome` or `OP8_THEME`.
 
 ```
 ┌────────────────────────────────────────────────┐
-│ (step)    (components)                         │  button strip, 20 px: capsules
-│ ● name                           ● ● (pages)   │  top bar: items centred at y = 31
+│ (step)    (components)                         │  button strip, 22 px: capsules
+│ ● name                           ● ● (pages)   │  top bar: items centred at y = 35
 │ +                                            + │
 │               animated drawing                 │  drawing area
 │ +                                            + │
@@ -160,8 +162,8 @@ The theme is chosen with `op8 run -t glossy|matte|chrome` or `OP8_THEME`.
 └────────────────────────────────────────────────┘
 ```
 
-- **Button strip (20 px, y 0..20):** the name of what each of the four buttons above the screen does, `lab` (13 px), inside a capsule (18 px high, 10 px of padding each side, the text centred by the height of its lowercase letters, `panel` fill) **centred on the physical button**. The buttons sit about 140 px apart, centred at x = 24, 164, 304 and 444 on each screen (`BUTTON_CX` in `crates/op8-ui/src/theme.rs`, measured on the unit; a capsule never leaves the screen). The open page has an `fg` outline and `fg` text, the others a `faint` outline and `dim` text. A button with no function shows nothing, and in settings the strip is empty. The strip sits above the header items, which are centred at y = 31, leaving a few pixels of air between them. Left today: `step` (button 1: back to the step view) and `components` (2: the inspector). Right today: `sound` (5) and `shape` (6, only for an instrument with a second page). The names of buttons 3, 4, 7 and 8 appear as those buttons are built ([buttons.md](buttons.md)).
-- **Left (fixed): time.** Tempo, the Brain chord, polymeter rings (one per track, the selected one in front), a mirror of the 16 pads. Footer with encoders 1–4. On the mirror an active step is the track colour at 75–100 % (by velocity) and an empty step is a nearly black cell of the track colour (10 %) with a `faint` outline, so on and off are far apart; on the pads an active step is the track colour at the highest level the theme and supply allow and an empty step is a dim white (level 1), so they stay apart even when the levels are capped.
+- **Button strip (22 px, y 0..22):** the name of what each of the four buttons above the screen does, `lab` (14 px), inside a capsule (20 px high, 12 px of padding each side, on whole pixels so the 1 px outline is crisp, the text centred by the height of its lowercase letters, `panel` fill) **centred on the physical button**. The buttons sit about 140 px apart, centred at x = 24, 164, 304 and 444 on each screen (`BUTTON_CX` in `crates/op8-ui/src/theme.rs`, measured on the unit; a capsule never leaves the screen). The open page has an `fg` outline and `fg` text, the others a `faint` outline and `dim` text. A button with no function shows nothing, and in settings the strip is empty. The strip sits above the header items, which are centred at y = 35, leaving a few pixels of air between them. Left today: `step` (button 1: back to the step view) and `components` (2: the inspector). Right today: `sound` (5) and `shape` (6, only for an instrument with a second page). The names of buttons 3, 4, 7 and 8 appear as those buttons are built ([buttons.md](buttons.md)).
+- **Left (fixed): time.** Tempo, the Brain chord, polymeter rings (one per track, the selected one in front, all of them between the header and the footer: centre (118, 134), outer radius 85.5), a mirror of the 16 pads. Footer with encoders 1–4. On the mirror an active step is the track colour at 75–100 % (by velocity) and an empty step is a nearly black cell of the track colour (10 %) with a `faint` outline, so on and off are far apart; on the pads an active step is the track colour at the highest level the theme and supply allow and an empty step is a dim white (level 1), so they stay apart even when the levels are capped.
 - **Right: the instrument of the selected track.** Each cartridge draws its animated illustration using colours 5–8 for what those encoders move. Footer with encoders 5–8.
 
 ### Settings view

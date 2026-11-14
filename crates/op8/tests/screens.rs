@@ -58,11 +58,11 @@ fn f_d04_mode_changes_screen() {
 /// Centres of the four screen buttons (see `op8_ui::theme::BUTTON_CX`).
 const CX: [usize; 4] = [24, 164, 304, 444];
 
-/// Lit pixels in the strip (the top 20 rows) around one screen button.
+/// Lit pixels in the strip (the top 22 rows) around one screen button.
 fn strip_lit(b: &Bench, screen: Screen, col: usize) -> usize {
     let fb = b.screen(screen);
     let mut n = 0;
-    for y in 0..20usize {
+    for y in 0..22usize {
         for x in CX[col].saturating_sub(60)..(CX[col] + 60).min(480) {
             if fb.pixels()[y * 480 + x] != 0 {
                 n += 1;
@@ -101,7 +101,7 @@ fn f_d10_screens_name_their_buttons() {
     b.run_ms(100);
     for screen in [Screen::Left, Screen::Right] {
         let fb = b.screen(screen);
-        let lit = (0..20usize).flat_map(|y| (120..360usize).map(move |x| (x, y))).filter(|&(x, y)| fb.pixels()[y * 480 + x] != 0).count();
+        let lit = (0..22usize).flat_map(|y| (120..360usize).map(move |x| (x, y))).filter(|&(x, y)| fb.pixels()[y * 480 + x] != 0).count();
         assert_eq!(lit, 0, "{screen:?}: no strip in settings");
     }
 }
@@ -113,7 +113,7 @@ fn f_d11_active_and_empty_steps_are_far_apart() {
     b.press(Button::Group(0));
     b.run_ms(100);
     let lum = |b: &Bench, step: usize| {
-        let (x, y) = (262 + (step % 4) * 46 + 20, 42 + (step / 4) * 46 + 20);
+        let (x, y) = (262 + (step % 4) * 43 + 19, 48 + (step / 4) * 43 + 19);
         let p = b.screen(Screen::Left).pixels()[y * 480 + x];
         let (r, g, bl) = ((p >> 11) & 31, (p >> 5) & 63, p & 31);
         (r as u32 * 8 + g as u32 * 4 + bl as u32 * 8) as f32
@@ -122,4 +122,31 @@ fn f_d11_active_and_empty_steps_are_far_apart() {
     let on = steps.iter().find(|s| s.1).expect("an active step").0;
     let off = steps.iter().find(|s| !s.1).expect("an empty step").0;
     assert!(lum(&b, on) > 5.0 * lum(&b, off).max(1.0), "active {} vs empty {}", lum(&b, on), lum(&b, off));
+}
+
+// F-D13: the text in a capsule is centred in it, by its ink, within a pixel (design.md §3).
+#[test]
+fn f_d13_capsule_text_is_centred() {
+    let mut b = Bench::demo();
+    b.press(Button::Group(3));
+    b.run_ms(200);
+    for (screen, cols) in [(Screen::Left, [0usize, 1]), (Screen::Right, [0, 1])] {
+        let fb = b.screen(screen);
+        for col in cols {
+            // The capsule: where its top edge (row 1) is lit around the button.
+            let xs: Vec<usize> = (CX[col].saturating_sub(70)..(CX[col] + 70).min(480)).filter(|&x| fb.pixels()[480 + x] != 0).collect();
+            let (c0, c1) = (*xs.first().unwrap(), *xs.last().unwrap());
+            // The ink: bright pixels inside, away from the 1 px outline and the rounded ends.
+            let bright = |x: usize, y: usize| {
+                let p = fb.pixels()[y * 480 + x];
+                (p >> 11) + ((p >> 5) & 63) / 2 + (p & 31) > 12
+            };
+            let ink: Vec<(usize, usize)> = (3..19).flat_map(|y| (c0 + 8..c1 - 8).map(move |x| (x, y))).filter(|&(x, y)| bright(x, y)).collect();
+            let (x0, x1) = (ink.iter().map(|p| p.0).min().unwrap(), ink.iter().map(|p| p.0).max().unwrap());
+            let (y0, y1) = (ink.iter().map(|p| p.1).min().unwrap(), ink.iter().map(|p| p.1).max().unwrap());
+            let (cx, cy) = ((c0 + c1) as f32 / 2.0, 11.0);
+            assert!(((x0 + x1) as f32 / 2.0 - cx).abs() <= 1.0, "{screen:?} {col}: ink x {x0}..{x1} in capsule {c0}..{c1}");
+            assert!(((y0 + y1) as f32 / 2.0 - cy).abs() <= 2.5, "{screen:?} {col}: ink y {y0}..{y1}");
+        }
+    }
 }

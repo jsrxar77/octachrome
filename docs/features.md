@@ -73,6 +73,7 @@ The buttons and their implementation status are in [buttons.md](buttons.md). Thi
 | F-D10 | Each screen names what its buttons do, in a capsule centred on the button: `step`, `components` (left) and `sound`, `shape` (right); a button with no function shows nothing; the open page is underlined; in settings the strip is empty ([design.md §4](design.md)) | pixels of the top 18 rows around each button; the open page has the `fg` outline | ✓ |
 | F-D11 | On the step grid an active step and an empty one are far apart in brightness (the active at least 5 times brighter) | pixel luminance of both cells | ✓ |
 | F-D12 | Screen button 1 goes back to the step view and 2 opens the components; both, and 5 and 6, do nothing in settings | `ui.mode` and `ui.inspect_step` | ✓ |
+| F-D13 | The text in a capsule is centred in it by its ink, within a pixel horizontally and 2.5 px vertically ([design.md §3](design.md)) | pixels of the strip | ✓ |
 | F-D07 | On the real MK3, the two animated screens look complete and in step | **manual review** with photo and video; `OP8_DISPLAY_STATS=1` gives the figures | R |
 
 ## L · LEDs (`tests/leds.rs`)

@@ -21,13 +21,13 @@ use std::f32::consts::{FRAC_PI_2, PI, TAU};
 use std::sync::atomic::Ordering::Relaxed;
 
 const RING_CX: f32 = 118.0;
-const RING_CY: f32 = 126.0;
+const RING_CY: f32 = 134.0;
 const RING_R0: f32 = 26.0;
-const RING_STEP: f32 = 11.0;
+const RING_STEP: f32 = 8.5;
 const GRID_X: i32 = 262;
-const GRID_Y: i32 = 42;
-const CELL: i32 = 40;
-const GAP: i32 = 6;
+const GRID_Y: i32 = 48;
+const CELL: i32 = 38;
+const GAP: i32 = 5;
 
 pub fn draw_left(fb: &mut FrameBuffer480x272, ui: &UiState, p: &Project, st: &EngineStatus) {
     if ui.main == crate::Main::Settings {

@@ -7,7 +7,7 @@ use embedded_graphics::{
     primitives::{Line, PrimitiveStyle, Rectangle},
 };
 
-pub use crate::font::{text, text_v, text_width, Align, FontSize, VAlign};
+pub use crate::font::{text, text_centered, text_v, text_width, Align, FontSize, VAlign};
 
 pub fn line(
     fb: &mut FrameBuffer480x272,
