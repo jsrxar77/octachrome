@@ -18,7 +18,7 @@ The left screen always shows time and the right screen always shows sound. A mai
 | ARRANGER | Ideas and song | arrange | **Arrange**: scenes and the song chain | ○ |
 | MIXER | Mix | mix | **Mix**: level and pan of the 8 tracks, master EQ and compressor | ○ |
 | BROWSER | Browser | (presets) | Presets of the track's cartridge | ○ |
-| SAMPLING | Sample editor | sample | Record and trim a sample for a sampler cartridge | ○ |
+| SAMPLING | Sample editor | sample | Record and trim a sample for the sampler (the sampler already plays the eight that come with it and the player's WAV files) | ○ |
 | FILE · Shift: save | Files | projects | **Projects**: a main mode that takes both screens. The 16 pads are the 16 projects (the top two rows are the factory eight, the bottom two are yours); a tap opens one and goes back to composing, SHIFT + a tap on one of yours saves into it. FILE again leaves. Inside, only the pads, the transport and the pad-mode buttons work | ✓ |
 | SETTINGS | Preferences | com | **Settings**: a main mode that takes both screens (see [design.md §4](design.md)). Today it has one setting, the theme; audio, MIDI and brightness come next. Pressing SETTINGS again, CHANNEL, STEP, CHORDS or PERFORM goes back to composing. Inside, the pads, knobs and groups do nothing; PLAY, STOP and RESTART still work | ◐ |
 | AUTO · Shift: lock | Record modulation | record + encoder | Hold AUTO and turn a knob to record automation on the track; with Shift it stays fixed | ○ |

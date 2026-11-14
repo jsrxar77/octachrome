@@ -381,3 +381,31 @@ fn recipe_14_the_look() {
     b.press(Button::ChannelMidi);
     assert_eq!(b.ui().main, op8_ui::Main::Instrument);
 }
+
+// F-G04
+#[test]
+fn recipe_15_play_a_recorded_sound() {
+    let _one_at_a_time = serial();
+    let mut b = Bench::empty();
+    b.press(Button::Group(6)); // G is empty
+    b.press(Button::PlugIn);
+    b.tap(pad(5)); // the fifth: the sampler
+    assert_eq!(b.instrument(6).as_deref(), Some("sampler"));
+    b.knob(4, 50); // knob 5, sample: one click is the next sound, the bell
+    b.run_ms(100);
+    b.capture("r15-bell");
+    b.knob(5, 300); // knob 6, start: skip the first part of the sound
+    b.knob(6, -300); // knob 7, length: and stop before the end
+    b.press(Button::Screen(5)); // shape
+    b.knob(6, 800); // knob 7, loop: on
+    b.run_ms(100);
+    b.capture("r15-shape");
+    b.press(Button::Screen(6));
+    b.press(Button::Keyboard);
+    let t0 = b.now_ms();
+    b.strike(0); // C3: an octave below the sound's own pitch
+    b.run_ms(300);
+    assert!(b.rms_db(t0, t0 + 300) > -50.0, "the sound is heard: {} dB", b.rms_db(t0, t0 + 300));
+    b.release(0);
+    b.press(Button::Keyboard);
+}

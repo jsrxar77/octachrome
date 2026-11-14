@@ -42,7 +42,7 @@ fn f_i02_unbuilt_and_empty_places_change_nothing() {
     let mut b = Bench::demo();
     b.press(Button::Group(3));
     b.press(Button::PlugIn);
-    b.tap(pad_of(4)); // the sampler: not yet
+    b.tap(pad_of(5)); // the granular: not yet
     assert_eq!(b.ui().main, Main::Plugin);
     assert!(b.ui().plug_note.contains("not built"));
     b.tap(pad_of(10)); // an empty place
@@ -73,4 +73,27 @@ fn f_i04_leaving_the_drums_keeps_the_pattern() {
     let t = b.project().tracks[0];
     assert!(!t.kit);
     assert!(t.steps[4].active && t.steps[4].lanes == 0 && t.steps[4].note == 61, "the snare step is now a note: {:?}", t.steps[4]);
+}
+
+// F-I05: the sampler can be chosen like any instrument, plays one of its eight sounds from a step, and its two pages are
+// `sample, start, length, tune` and `attack, release, loop, level`; the right screen draws its wave.
+#[test]
+fn f_i05_the_sampler_plays_from_a_step() {
+    let mut b = Bench::empty();
+    b.press(Button::Group(6));
+    b.press(Button::PlugIn);
+    b.tap(pad_of(4)); // the sampler
+    assert_eq!(name_of(&b, 6).as_deref(), Some("sampler"));
+    assert_eq!(b.ui().main, Main::Instrument);
+    b.run_ms(100);
+    b.capture("f-i05-sampler");
+    // turn knob 5 to another sound: it is auditioned, and the step plays it
+    b.knob(4, 100);
+    b.tap(0);
+    let before = b.status().note_count[6].load(std::sync::atomic::Ordering::Relaxed);
+    b.press(Button::Play);
+    b.run_ms(1500);
+    assert!(b.status().note_count[6].load(std::sync::atomic::Ordering::Relaxed) > before);
+    assert!(b.rms_db(0, 1500) > -50.0, "the sound is heard: {} dB", b.rms_db(0, 1500));
+    assert!(b.ui().has_second, "it has a second page");
 }
