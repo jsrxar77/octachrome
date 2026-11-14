@@ -98,11 +98,12 @@ pub fn screen_buttons(ui: &UiState) -> [Option<(&'static str, bool)>; 8] {
     }
     b[0] = Some(("step", ui.mode == Mode::Step && ui.inspect_step.is_none()));
     b[1] = Some(("components", ui.inspect_step.is_some()));
+    // Button 5 is `shape` (the second page, if the instrument has one) and 6 is `sound` (the first).
     let shape = ui.right_page == 1 && ui.has_second;
-    b[4] = Some(("sound", !shape));
     if ui.has_second {
-        b[5] = Some(("shape", shape));
+        b[4] = Some(("shape", shape));
     }
+    b[5] = Some(("sound", !shape));
     b
 }
 

@@ -81,7 +81,7 @@ impl<S: ControlSurface> App<S> {
             }
             self.ctl.handle(ev, &mut self.handle, now_ms);
         }
-        self.ctl.tick(&self.handle, now_ms);
+        self.ctl.tick(&mut self.handle, now_ms);
         if std::mem::take(&mut self.ctl.theme_changed) {
             if let Some(path) = &self.settings_path {
                 let settings = crate::settings::Settings {

@@ -37,6 +37,8 @@ use op8_ui::{Main, Mode, UiState, COMPONENT_PRESETS};
 use std::sync::atomic::Ordering::Relaxed;
 
 pub const HOLD_MS: u64 = 300;
+/// How long a knob of the instrument has to be still before its result is auditioned.
+const AUDITION_PAUSE_MS: u64 = 250;
 /// Knob units (1000 per turn) per discrete step: 25 detents per turn.
 const DETENT: i32 = 40;
 /// Knob units for a full 0→1 sweep of a continuous parameter.
@@ -85,8 +87,12 @@ pub fn track_led_colors(id: op8_gfx::ThemeId) -> [NiColor; TRACKS] {
 #[derive(Default)]
 pub struct Controller {
     pub ui: UiState,
-    /// When the last note was auditioned, so a knob turn does not machine-gun it.
-    last_audition_ms: u64,
+    /// A note to audition once the knob that asked for it has been still for a moment.
+    audition_due: Option<u64>,
+    /// When a knob of the instrument last moved.
+    last_knob_ms: u64,
+    /// The note the instrument's `sound` knob had at the last frame, to notice when it changes.
+    last_paint: Option<u8>,
     pad_down_at: [Option<u64>; 16],
     /// The pad whose hold opened the inspector (its release must not toggle).
     inspector_pad: Option<u8>,
@@ -214,15 +220,15 @@ impl Controller {
             Button::ChannelMidi => self.set_main(Main::Instrument, h),
             Button::JogLeft if self.ui.main == Main::Settings => self.step_theme(-1),
             Button::JogRight if self.ui.main == Main::Settings => self.step_theme(1),
-            // Screen buttons: 1 = step view, 2 = components of the first step, 5 = sound, 6 = shape.
+            // Screen buttons: 1 = step view, 2 = components of the first step, 5 = shape, 6 = sound.
             Button::Screen(1) if self.ui.main == Main::Instrument => self.set_mode(Mode::Step, h),
             Button::Screen(2) if self.ui.main == Main::Instrument => {
                 self.set_mode(Mode::Step, h);
                 self.ui.inspect_step = Some(0);
                 self.ui.comp_cursor = 0;
             }
-            Button::Screen(5) if self.ui.main == Main::Instrument => self.ui.right_page = 0,
-            Button::Screen(6) if self.ui.main == Main::Instrument => self.ui.right_page = 1,
+            Button::Screen(5) if self.ui.main == Main::Instrument => self.ui.right_page = 1,
+            Button::Screen(6) if self.ui.main == Main::Instrument => self.ui.right_page = 0,
             _ => {}
         }
     }
@@ -249,12 +255,8 @@ impl Controller {
         })
     }
 
-    /// Play a note on the selected track now. `throttle` keeps a turning knob from retriggering it more than a few times a second.
-    fn audition(&mut self, h: &mut EngineHandle, note: u8, velocity: f32, now_ms: u64, throttle: bool) {
-        if throttle && now_ms.saturating_sub(self.last_audition_ms) < 160 {
-            return;
-        }
-        self.last_audition_ms = now_ms;
+    /// Play a note on the selected track now.
+    fn audition(&mut self, h: &mut EngineHandle, note: u8, velocity: f32) {
         h.send(EngineCommand::Audition { track: self.ui.track as u8, note, velocity });
     }
 
@@ -342,7 +344,7 @@ impl Controller {
                             h.seq(Command::ToggleLane { track, step, lane });
                             let s = h.project.tracks[self.ui.track].steps[step as usize];
                             if s.lanes & (1 << lane) != 0 {
-                                self.audition(h, n, s.velocity as f32 / 127.0, now, false);
+                                self.audition(h, n, s.velocity as f32 / 127.0);
                             }
                         }
                         None => {
@@ -422,9 +424,9 @@ impl Controller {
         if k >= 4 {
             let index = self.ui.right_page * 4 + (k - 4);
             h.nudge_param(self.ui.track, index, delta as f32 / SWEEP);
-            // Hear what the knob did.
-            let note = self.audition_note(h);
-            self.audition(h, note, 0.9, now_ms, true);
+            // Hear what the knob did, once, when it has been still for a moment (see `tick`).
+            self.last_knob_ms = now_ms;
+            self.audition_due = Some(now_ms + AUDITION_PAUSE_MS);
             return;
         }
         let track = self.ui.track as u8;
@@ -443,7 +445,7 @@ impl Controller {
                         let note = (s.note as i32 + n).clamp(0, 127) as u8;
                         h.seq(Command::SetStepNote { track, step, note });
                         // Hear the note (on a drum track, the sound) as it changes.
-                        self.audition(h, note, s.velocity as f32 / 127.0, now_ms, false);
+                        self.audition(h, note, s.velocity as f32 / 127.0);
                         true
                     }
                     1 => h.seq(Command::SetStepVelocity {
@@ -574,7 +576,7 @@ impl Controller {
 
     /// Once per UI frame: promote long holds to the inspector, age the
     /// activity LEDs.
-    pub fn tick(&mut self, h: &EngineHandle, now_ms: u64) {
+    pub fn tick(&mut self, h: &mut EngineHandle, now_ms: u64) {
         // Does this track's instrument have a second page? (If the audio thread holds the lock this frame, keep the last answer.)
         if let Some(c) = h.slots[self.ui.track].as_ref() {
             if let Ok(c) = c.try_lock() {
@@ -584,6 +586,22 @@ impl Controller {
             self.ui.has_second = false;
         }
         self.ui.lane = self.paint_note(h).map(|n| (n - op8_seq::step::KIT_BASE_NOTE) as usize % 8);
+        // The `sound` knob chose another sound: hear it once, at once. Anything else a knob
+        // did is heard once, when it has been still for a moment.
+        let paint = self.paint_note(h);
+        let recent = now_ms.saturating_sub(self.last_knob_ms) < 500;
+        if paint != self.last_paint {
+            if let (Some(n), true) = (paint, recent) {
+                h.send(EngineCommand::Audition { track: self.ui.track as u8, note: n, velocity: 0.9 });
+                self.audition_due = None;
+            }
+            self.last_paint = paint;
+        }
+        if self.audition_due.is_some_and(|d| now_ms >= d) {
+            self.audition_due = None;
+            let note = self.audition_note(h);
+            h.send(EngineCommand::Audition { track: self.ui.track as u8, note, velocity: 0.9 });
+        }
         if self.ui.mode == Mode::Step && self.inspector_pad.is_none() {
             if let Some((pad, _)) = self
                 .pad_down_at

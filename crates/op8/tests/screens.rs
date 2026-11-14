@@ -90,12 +90,12 @@ fn f_d10_screens_name_their_buttons() {
     assert_eq!(edge(&b, 1, 55), 0, "and does not run past its text");
     // The page that is open has the bright outline (fg), the other the faint one.
     let t = op8_gfx::theme();
-    assert_eq!(edge(&b, 0, 0), t.fg.0, "sound is open");
-    assert_eq!(edge(&b, 1, 0), t.faint.0);
-    b.press(Button::Screen(6));
-    b.run_ms(100);
-    assert_eq!(edge(&b, 1, 0), t.fg.0, "shape is open");
+    assert_eq!(edge(&b, 1, 0), t.fg.0, "sound (button 6) is open");
     assert_eq!(edge(&b, 0, 0), t.faint.0);
+    b.press(Button::Screen(5));
+    b.run_ms(100);
+    assert_eq!(edge(&b, 0, 0), t.fg.0, "shape (button 5) is open");
+    assert_eq!(edge(&b, 1, 0), t.faint.0);
     // In settings the buttons do nothing, so nothing is named.
     b.press(Button::Settings);
     b.run_ms(100);
@@ -161,19 +161,19 @@ fn f_d14_screen_button_leds_match_the_labels() {
     b.tick();
     let labels = |b: &Bench| op8_ui::screen_buttons(b.ui());
     let all = labels(&b);
-    assert!(all[0].is_some() && all[1].is_some() && all[4].is_some() && all[5].is_some(), "step, components, sound, shape");
+    assert!(all[0].is_some() && all[1].is_some() && all[4].is_some() && all[5].is_some(), "step, components, shape, sound");
     for n in 1..=8u8 {
         assert_eq!(led(&b, n) > 0, all[n as usize - 1].is_some(), "button {n}: lit exactly when it has a label");
     }
-    assert!(led(&b, 5) > led(&b, 6) && led(&b, 1) > led(&b, 2), "the open page is brighter than the other");
-    b.press(Button::Screen(6));
+    assert!(led(&b, 6) > led(&b, 5) && led(&b, 1) > led(&b, 2), "the open page is brighter than the other");
+    b.press(Button::Screen(5));
     b.tick();
-    assert!(led(&b, 6) > led(&b, 5), "shape is open now");
+    assert!(led(&b, 5) > led(&b, 6), "shape (button 5) is open now");
     // A track whose instrument has one page (track C, the MIDI bridge) has no `shape`: no label, and the button is dark.
     b.press(Button::Group(2));
     b.tick();
-    assert_eq!(led(&b, 6), 0, "no second page, no light");
-    assert!(led(&b, 5) > 0);
+    assert_eq!(led(&b, 5), 0, "no second page, no light");
+    assert!(led(&b, 6) > 0);
     // In settings nothing is named and nothing is lit.
     b.press(Button::Settings);
     b.tick();

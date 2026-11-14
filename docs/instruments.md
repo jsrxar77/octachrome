@@ -11,7 +11,7 @@ An instrument is a piece of code that fulfils the `InstrumentCartridge` contract
 | Part | What it is | Limit |
 | :-- | :-- | :-- |
 | **Sound** | Receives notes, returns stereo audio at 48 kHz | Must fit the CPU budget of the Pi (section 5) |
-| **Parameters** | 4 of sound (button 5, knobs 5–8) and, if needed, 4 of shape (button 6) | **At most 8.** If the engine has more, the instrument picks the 8 that matter |
+| **Parameters** | 4 of sound (button 6, knobs 5–8) and, if needed, 4 of shape (button 5) | **At most 8.** If the engine has more, the instrument picks the 8 that matter |
 | **Drawing** | An animated graphic that shows what the sound does, in the central area of the right screen | Uses the colours of knobs 5–8 for what those knobs move |
 | **State** | Save and load its values (presets and parameter locks) | A list of numbers, versioned |
 
@@ -108,7 +108,7 @@ Rules: the factory eight meet §2 like any other instrument; each factory projec
 
 A drum track is a **kit** with eight lanes, one per sound, and a step can have several lanes on at once (a kick and a hat together). It is not a melody: a step has no note, its sounds are lanes.
 
-- **Right screen (the sound):** screen button 6 (`shape`) opens the second page, whose last knob, `sound`, chooses the sound; you hear it as you turn. The other knobs edit that sound (tune, decay, tone, snap, body, level, pan) and also play it.
+- **Right screen (the sound):** screen button 5 (`shape`) opens the second page, whose last knob, `sound`, chooses the sound; you hear it as you turn. The other knobs edit that sound (tune, decay, tone, snap, body, level, pan) and also play it.
 - **Left screen (the sequencer):** the eight lanes by sixteen steps, the chosen lane lit and the playhead marked. The sixteen pads are the steps of the chosen lane: **tap a pad** and that sound is on that step (it plays); tap again and it is off. The other lanes of the step stay as they are.
 - **Components** (ratchet, chance, every…), velocity and gate are per step and apply to all its lanes; they are in the step inspector on the left (hold a pad, or screen button 2). A kit step has no `note` knob.
 - Lane n plays note 60 + n; its pitch class is what picks the sound (C kick, C# snare, D closed hat, D# open hat, E tom, F clap, F# rim, G crash). A track becomes a kit the first time you tap a pad on a track whose instrument is drums.

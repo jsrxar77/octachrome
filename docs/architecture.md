@@ -162,7 +162,7 @@ Cargo runs each crate's tests from the crate's folder, so give `OP8_BENCH_DIR` a
 - **Aesthetic:** the language of the OP-1 and OP-XY (colour tied to each physical control, drawings instead of text, absolute black). We take the ideas, never their graphics or fonts. It must not look like a programming project. Details in [design.md](design.md).
 - **8 knobs, 8 colours.** Knobs 1–4 drive the sequencer and appear on the left screen; 5–8 drive the instrument and appear on the right. Three themes: glossy (default), matte, chrome.
 - **Typeface: Jost** (OFL), weights 300 and 400, tuned by eye to resemble the OP-XY's. FlipMono cannot be used: it is actually SF Mono, licensed only for Apple devices.
-- **Instruments:** at most 8 parameters, 4 of sound (button 5) and 4 of shape (button 6). Effects and modulation are per track and the same for all instruments.
+- **Instruments:** at most 8 parameters, 4 of shape (button 5) and 4 of sound (button 6). Effects and modulation are per track and the same for all instruments.
 - **Settings are chosen on the machine and kept in a small text file** of `key=value` lines (`crates/op8/src/settings.rs`; today only `theme=chrome`). Location: `OP8_CONFIG`, else `$XDG_CONFIG_HOME/op8/settings`, else `$HOME/.config/op8/settings`. A missing file, an unknown key or a bad value is ignored (the default is used): a damaged file must never stop the machine from starting. It is written beside itself and renamed, so a power cut leaves the old file or the new one. **At start-up, `-t` / `OP8_THEME` win over the saved theme, which wins over glossy.** Only `op8 run` reads it: `sim` always starts from glossy so it stays reproducible.
 
 **Known limits**

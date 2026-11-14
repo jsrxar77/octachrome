@@ -140,7 +140,7 @@ canvas.lcd {
       </div>
       <div class="screen-col">
         <div class="screen-btns">
-          <button class="btn" id="sb5" title="Página 1 del instrumento">5 PG1</button><button class="btn" id="sb6" title="Página 2 del instrumento">6 PG2</button><button class="btn" id="sb7" title="Sin asignar">7</button><button class="btn" id="sb8" title="Sin asignar">8</button>
+          <button class="btn" id="sb5" title="Forma (página 2 del instrumento)">5 SHAPE</button><button class="btn" id="sb6" title="Sonido (página 1 del instrumento)">6 SOUND</button><button class="btn" id="sb7" title="Sin asignar">7</button><button class="btn" id="sb8" title="Sin asignar">8</button>
         </div>
         <canvas class="lcd" id="lcdR" width="480" height="272" aria-label="Pantalla derecha: instrumento"></canvas>
       </div>
@@ -457,7 +457,7 @@ function playDrums(t, time, note, vel) {
   else osc(900 * f, 700 * f, "square");
 }
 // Hear a choice at once: play the note on the track's instrument outside the sequence.
-let lastAudition = 0;
+let lastAudition = 0, auditionTimer = 0;
 function audition(t, note, vel, throttle) {
   if (!actx || !SLOTS[t]) return;
   const now = performance.now(); if (throttle && now - lastAudition < 160) return; lastAudition = now;
@@ -697,7 +697,10 @@ function knob(k, delta) {
     const t = UI.track; if (!PARAMS[t]) return;
     const i = UI.page * 4 + (k - 4); if (i >= PARAMS[t].length) return;
     PARAMS[t][i] = clamp(PARAMS[t][i] + delta / SWEEP, 0, 1); if (SLOTS[t] === "drums") drumsSync(t, i);
-    audition(t, SLOTS[t] === "drums" ? 60 + DRUMS.sel : (P.tracks[t].steps.find(x => x.active) || { note: 48 }).note, 0.9, true); return;
+    // hear it: a new drum sound at once; anything else once, after the knob has been still for a moment
+    if (SLOTS[t] === "drums" && i === 7) { clearTimeout(auditionTimer); audition(t, 60 + DRUMS.sel, 0.9, false); }
+    else { clearTimeout(auditionTimer); auditionTimer = setTimeout(() => audition(t, SLOTS[t] === "drums" ? 60 + DRUMS.sel : (P.tracks[t].steps.find(x => x.active) || { note: 48 }).note, 0.9, false), 250); }
+    return;
   }
   const tr = P.tracks[UI.track];
   if (UI.mode === "step" && UI.inspect != null) {
@@ -828,8 +831,10 @@ function footer(g, cells, touchBase) {
   cells.forEach((c, i) => {
     const x = i * 120, col = KC[(touchBase || 0) + i], cx = x + 26, cy = 247;
     if (c[3]) c[3](g, cx, cy, col); else dial(g, cx, cy, 14, c[2] ?? 0, col);
-    txt(g, c[1], x + 48, 239, "m", FG);
-    txt(g, c[0].toLowerCase(), x + 48, 255, "s", mix(col, 0.8));
+    // larger type, shrinking one step only if a long text would run into the next column
+    const avail = 72, fit = (text, sizes) => sizes.find(z => { g.font = FONT[z]; return g.measureText(text).width <= avail; }) || sizes[sizes.length - 1];
+    txt(g, c[1], x + 44, 228, fit(c[1], ["l", "m", "s"]), FG);
+    txt(g, c[0].toLowerCase(), x + 44, 252, fit(c[0].toLowerCase(), ["lab", "s"]), mix(col, 0.8));
   });
 }
 // Big "what am I touching" overlay, faded in by cap-touch.
@@ -1104,7 +1109,7 @@ function drawRight(g) {
   const cart = CARTS[slot], p = PARAMS[t];
   txt(g, cart.name.toLowerCase(), 30, 6 + HDR, "mid", FG);
   const pages = cart.params.length > 4 ? 2 : 1;
-  buttonStrip(g, [["sound", UI.page === 0], [pages > 1 ? "shape" : "", UI.page === 1], ["", false], ["", false]]);
+  buttonStrip(g, [[pages > 1 ? "shape" : "", UI.page === 1], ["sound", UI.page === 0], ["", false], ["", false]]);
   if (pages > 1) for (let i = 0; i < pages; i++) dot(g, 456 + i * 12, 15 + HDR, 3, i === UI.page ? FG : FAINT);
   if (slot === "kick") kickArt(g, t, p);
   else if (slot === "fm") fmArt(g, t, p);
@@ -1308,8 +1313,8 @@ $("bChannel").addEventListener("click", () => setMain("instrument"));
 $("bSettings").addEventListener("click", () => setMain(UI.main === "settings" ? "instrument" : "settings"));
 $("sb1").addEventListener("click", () => { if (UI.main === "instrument") setMode("step"); });
 $("sb2").addEventListener("click", () => { if (UI.main === "instrument") { setMode("step"); UI.inspect = 0; UI.compCursor = 0; } });
-$("sb5").addEventListener("click", () => { if (UI.main === "instrument") UI.page = 0; });
-$("sb6").addEventListener("click", () => { if (UI.main === "instrument") UI.page = 1; });
+$("sb5").addEventListener("click", () => { if (UI.main === "instrument") UI.page = 1; });
+$("sb6").addEventListener("click", () => { if (UI.main === "instrument") UI.page = 0; });
 $("jogL").addEventListener("click", () => jog(-1));
 $("jogR").addEventListener("click", () => jog(1));
 // Modifiers latch on click (a mouse can't hold two buttons). Shift and Mute
@@ -1362,7 +1367,7 @@ function updateLeds() {
   $("bShift").classList.toggle("on", UI.shift);
   $("bMute").classList.toggle("on", UI.mute);
   $("bErase").classList.toggle("on", UI.erase);
-  $("sb5").classList.toggle("lit", UI.page === 0); $("sb6").classList.toggle("lit", UI.page === 1);
+  $("sb5").classList.toggle("lit", UI.page === 1); $("sb6").classList.toggle("lit", UI.page === 0);
   knobEls.forEach((k, i) => k.classList.toggle("touched", UI.touch[i]));
   const si = UI.strip == null ? -1 : Math.round(UI.strip * 24);
   stripLeds.forEach((l, i) => l.classList.toggle("on", i === si));
