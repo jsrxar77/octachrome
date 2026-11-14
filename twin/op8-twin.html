@@ -695,6 +695,8 @@ function padDown(pad, vel) {
     const chord = pad <= 6 ? diatonic(b.key, b.scale, pad, "triad") : pad === 7 ? diatonic(b.key, b.scale, 0, "sus4")
       : pad <= 14 ? diatonic(b.key, b.scale, pad - 8, "seventh") : diatonic(b.key, b.scale, 4, "sus2");
     UI.live = pad; b.live = chord; if (!S.playing) S.chord = chord;
+    // the chord itself sounds on the selected track's instrument (a drum kit has no chords)
+    if (SLOTS[UI.track] !== "drums") { initAudio(); for (let i = 0; i < 12; i++) if (chord.mask >> ((chord.root + i) % 12) & 1) audition(UI.track, 48 + chord.root + i, Math.max(0.1, vel), false); }
   } else if (UI.mode === "pads" || UI.mode === "keys") {
     initAudio(); const n = padNote(pad);
     if (n != null) { UI.down[pad] = true; audition(UI.track, n, Math.max(0.1, vel), false); }

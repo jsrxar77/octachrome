@@ -41,6 +41,7 @@ The buttons and their implementation status are in [buttons.md](buttons.md). Thi
 | F-B02 | Holding a pad in Brain plays a live chord and releases it on lift | `brain.live` is `Some` during the press and `None` after | ✓ |
 | F-B03 | SHIFT + group connects or disconnects the track from the Brain | `brain_link` toggles | ✓ |
 | F-B04 | Knob 1 in Brain changes the key, wrapping from 0 to 11 | `brain.key` goes up a semitone per detent | ✓ |
+| F-B07 | A CHORDS pad sounds the chord (all its notes) on the selected track's instrument while it is held, and still sets the live chord for the Brain-linked tracks; a drum kit stays silent ([buttons.md](buttons.md)) | note count of the track | ✓ |
 
 ## P · Punch-in FX (`tests/punch.rs`)
 
