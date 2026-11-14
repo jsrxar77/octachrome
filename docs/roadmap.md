@@ -69,7 +69,7 @@ Known limits of the setup:
 
 ## 3. Instruments (the centre)
 
-- **Eight and eight.** 8 factory instruments + 8 installed ones ([instruments.md §7](instruments.md)). Factory today: KickSyn, FmBass, macro, MidiOutBridge. To build: resonator, drums, sampler, granular.
+- **Eight and eight.** 8 factory instruments + 8 installed ones ([instruments.md §7](instruments.md)). Factory today: KickSyn, FmBass, macro, MidiOutBridge (the eighth, later also sound in). To build, in this order: drums, resonator, sampler, granular.
 - PLUG-IN shows the 16 places on the 4×4 pads (1–8 factory, 9–16 installed); an empty installed place says so.
 
 - Cartridge registry list and PLUG-IN to choose the cartridge of each track (from `builtin_names()`).

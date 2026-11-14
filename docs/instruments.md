@@ -88,14 +88,14 @@ Everything in OP-8 is built on eight, and the MK3 has sixteen pads. So the libra
 | **Instruments** (PLUG-IN) | 8 that always ship and cannot be removed | 8 places for instruments installed as separate packages (stage 2 and 3 of §3) |
 | **Projects** (FILE) | 8 music projects that always ship: a way into the instruments and the sequencer | 8 places for the player's own projects |
 
-The factory eight, as proposed (to be confirmed by Javi; the first four exist):
+The factory eight, confirmed by Javi on 2026-11-14 (the first four exist). The eighth is **MIDI out**, because the MK3 will eventually also take input: MIDI out and sound in. The order of work is drums, resonator, sampler, granular.
 
 | # | Instrument | Idea | Status |
 | :-- | :-- | :-- | :-- |
 | 1 | **KickSyn** | Synthetic kick | ✓ |
 | 2 | **FmBass** | Two-operator FM bass | ✓ |
 | 3 | **macro** | 24 engines in one (from Plaits) | ✓ |
-| 4 | **MidiOutBridge** | The track out to an external synth | ✓ |
+| 4 | **MidiOutBridge** | The track out to an external synth (later also sound in) | ✓ |
 | 5 | **resonator** | Strings, bells and tubes (from Rings) | ○ |
 | 6 | **drums** | 8 drum sounds on pads 9–16 of a track | ○ |
 | 7 | **sampler** | Record with SAMPLING and play it | ○ |
