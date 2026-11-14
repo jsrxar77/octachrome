@@ -330,11 +330,11 @@ function demoProject() {
   b.steps[2] = { ...newStep(true, 48), comps: [C("ratchet",2)] };
   b.steps[3] = newStep(true, 43);
   b.steps[5] = { ...newStep(true, 40), comps: [C("every",[2,2]), C("oct",1)] };
-  const a = tracks[3]; a.length = 5; a.link = true;
+  const a = tracks[4]; a.length = 5; a.link = true;
   a.steps[0] = newStep(true, 60); a.steps[1] = newStep(true, 64);
   a.steps[2] = { ...newStep(true, 67), comps: [C("rand",5)] };
   a.steps[4] = { ...newStep(true, 72), comps: [C("chance",60)] };
-  const m = tracks[4]; m.link = true;
+  const m = tracks[5]; m.link = true;
   m.steps[0] = newStep(true, 60); m.steps[6] = newStep(true, 67);
   m.steps[10] = { ...newStep(true, 64), comps: [C("oct",1)] };
   // drums: a backbeat on a kit track; each lane is a sound (0 kick, 1 snare, 2 closed hat, 3 open hat, 4 tom, 5 clap, 6 rim, 7 crash)
@@ -342,6 +342,10 @@ function demoProject() {
     for (const s of [4, 12]) d.steps[s] = kitStep(2);
   for (const s of [2, 6, 10]) d.steps[s] = kitStep(4);
   d.steps[14] = kitStep(8); d.steps[7] = { ...kitStep(64), comps: [C("chance",60)] };
+  // resonator: a slow plucked line that follows the Brain
+  const rz = tracks[3]; rz.length = 12; rz.link = true;
+  rz.steps[0] = newStep(true, 60); rz.steps[3] = newStep(true, 64);
+  rz.steps[6] = { ...newStep(true, 67), comps: [C("chance",80)] }; rz.steps[9] = { ...newStep(true, 72), comps: [C("vel",-30)] };
   return p;
 }
 const P = demoProject();
@@ -365,6 +369,9 @@ const CARTS = {
   macro: { name: "MACRO", cat: "SYNTH",
     params: [["ENGINE",8.5/24,v=>MACRO_ENGINES[macroEngine(v)]],["HARMONICS",.5,v=>Math.round(v*100)+"%"],["TIMBRE",.5,v=>Math.round(v*100)+"%"],["MORPH",.5,v=>Math.round(v*100)+"%"],
              ["DECAY",.5,v=>Math.round(v*100)+"%"],["COLOR",.5,v=>Math.round(v*100)+"%"],["VARIANT",0,v=>Math.round(v*100)+"%"],["LEVEL",.8,v=>Math.round(v*100)+"%"]] },
+  resonator: { name: "RESONATOR", cat: "SYNTH",
+    params: [["TYPE",.25,v=>v<.5?"string":"bells"],["STRUCTURE",.4,v=>Math.round(v*100)+"%"],["BRIGHT",.55,v=>Math.round(v*100)+"%"],["DAMPING",.5,v=>Math.round(v*100)+"%"],
+             ["DECAY",.6,v=>Math.round(v*100)+"%"],["COLOR",.5,v=>Math.round(v*100)+"%"],["SPREAD",.4,v=>Math.round(v*100)+"%"],["LEVEL",.7,v=>Math.round(v*100)+"%"]] },
   drums: { name: "DRUMS", cat: "DRUM",
     params: [["TUNE",.5,v=>{const s=Math.round(-12+24*v);return (s>0?"+":"")+s+"st";}],["DECAY",.45,v=>Math.round(v*100)+"%"],["TONE",.5,v=>Math.round(v*100)+"%"],["SNAP",.5,v=>Math.round(v*100)+"%"],
              ["BODY",.5,v=>Math.round(v*100)+"%"],["LEVEL",.6,v=>Math.round(v*100)+"%"],["PAN",.5,v=>Math.round(v*100)+"%"],["SOUND",.5/8,v=>DRUM_NAMES[Math.min(7,Math.floor(v*8))]]] },
@@ -372,7 +379,7 @@ const CARTS = {
     params: [["CHANNEL",0,v=>"CH "+(Math.min(15,Math.floor(v*16))+1)],["TRANSP",.5,v=>{const s=Math.round(-24+48*v);return (s>0?"+":"")+s+"st";}],["VEL",1,v=>Math.round(v*100)+"%"],["CC74",.5,v=>Math.round(v*100)+"%"]] },
 };
 // the instruments run from the most guttural to the most refined: drums, kick, bass, MIDI out, then the leads (macro)
-const SLOTS = ["drums", "kick", "fm", "midi", "macro", null, null, null];
+const SLOTS = ["drums", "kick", "fm", "resonator", "midi", "macro", null, null];
 const PARAMS = SLOTS.map(s => s ? CARTS[s].params.map(p => p[1]) : null);
 // the knobs edit the chosen drum sound: keep its values in step with PARAMS
 function drumsSync(t, i) {
@@ -464,8 +471,19 @@ function audition(t, note, vel, throttle) {
   const at = actx.currentTime + 0.01;
   if (SLOTS[t] === "drums") playDrums(t, at, note, vel);
   else if (SLOTS[t] === "kick") playKick(t, at, note, vel);
+  else if (SLOTS[t] === "resonator") playResonator(t, at, note, vel);
   else if (SLOTS[t] === "fm") playFm(t, at, note, vel, 0.25);
   else if (SLOTS[t] === "macro") playMacro(t, at, note, vel, 0.25);
+}
+function playResonator(t, time, note, vel) {
+  const p = PARAMS[t], out = trackOut[t], bells = p[0] >= .5, f = 440 * Math.pow(2, (note - 69) / 12);
+  const dec = 0.25 + p[4] * 3.2 * (1.2 - p[3] * .8), lvl = vel * p[7] * 0.5;
+  const g = actx.createGain(); g.gain.setValueAtTime(lvl, time); g.gain.setTargetAtTime(0, time, dec / 5);
+  const lp = actx.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 600 + p[2] * 9000; lp.connect(g);
+  const pan = actx.createStereoPanner ? actx.createStereoPanner() : null; if (pan) { pan.pan.value = (Math.random() - .5) * p[6] * 2; g.connect(pan).connect(out); } else g.connect(out);
+  const partials = bells ? [1, 2.76 + p[1] * 1.2, 5.4 + p[1] * 2, 8.9 + p[1] * 3] : [1, 2, 3, 4, 5].map((k, i) => k * (1 + p[1] * .004 * i * i));
+  partials.forEach((r, i) => { const o = actx.createOscillator(), og = actx.createGain(); o.type = "sine"; o.frequency.value = f * r; og.gain.value = 1 / (i + 1) ** (bells ? 0.6 : 1.1);
+    og.gain.setTargetAtTime(0, time, dec / (3 + i * 2)); o.connect(og).connect(lp); o.start(time); o.stop(time + dec + 0.2); });
 }
 function playFm(t, time, note, vel, dur) {
   const p = PARAMS[t], out = trackOut[t];
@@ -564,6 +582,7 @@ function onTick(time) {
     for (let k = 0; k < r.ratchet; k++) {
       const at = start + k * sub;
       if (tr.kit) { for (let l = 0; l < 8; l++) if (step.lanes & (1 << l)) playDrums(t, at, 60 + l, r.vel); }
+      else if (SLOTS[t] === "resonator") playResonator(t, at, note, r.vel);
       else if (SLOTS[t] === "kick") playKick(t, at, note, r.vel);
       else if (SLOTS[t] === "fm") playFm(t, at, note, r.vel, Math.max(0.02, gate));
       else if (SLOTS[t] === "macro") playMacro(t, at, note, r.vel, Math.max(0.02, gate));
@@ -1115,12 +1134,27 @@ function drawRight(g) {
   else if (slot === "fm") fmArt(g, t, p);
   else if (slot === "macro") macroArt(g, t, p);
   else if (slot === "drums") drumsArt(g, t, p);
+  else if (slot === "resonator") resonatorArt(g, t, p);
   else midiArt(g, t, p, accent);
   crosshairs(g, 14, 50, 452, 168, DIM);
   const base = UI.page === 1 && pages > 1 ? 4 : 0;
   const cells = [0, 1, 2, 3].map(i => { const d = cart.params[base + i]; return d ? [d[0], d[2](p[base + i]), p[base + i]] : ["", "", 0]; });
   footer(g, cells, 4);
   touchOverlay(g, cells, 4);
+}
+// resonator: what rings, drawn as what it is. A string: a line held at both ends that shivers (structure bows it,
+// bright thickens it); bells: rings spaced as the modes are (damping fades the outer ones).
+function resonatorArt(g, t, p) {
+  const lvl = Math.min(1, A.level[t] * 4), cy = 124, bells = p[0] >= .5;
+  if (!bells) {
+    const x0 = 60, x1 = 420; dot(g, x0, cy, 5, DIM); dot(g, x1, cy, 5, DIM);
+    g.strokeStyle = KC[5]; g.lineWidth = 1 + p[2] * 3; g.beginPath();
+    for (let i = 0; i <= 120; i++) { const u = i / 120, fix = Math.sin(u * Math.PI), y = cy - p[1] * 14 * fix + Math.sin(u * 25 + performance.now() / 40) * 40 * lvl * fix; i ? g.lineTo(x0 + u * (x1 - x0), y) : g.moveTo(x0 + u * (x1 - x0), y); }
+    g.stroke(); line(g, x0, cy + 56, x1, cy + 56, FAINT, 1); dot(g, x0 + (x1 - x0) * (0.2 + p[3] * 0.6), cy + 56, 4 + lvl * 4, KC[7]);
+  } else {
+    for (let k = 1; k <= 8; k++) { const r = 10 + Math.pow(k, 0.5 + p[1]) * 9 * (1 + lvl * .12), a = 1 - p[3] * (k - 1) / 9; ring(g, 240, cy, Math.min(112, r), mix(KC[5], 0.35 + 0.65 * a), (0.5 + p[2] * 2.5) * (1 - (k - 1) / 10)); }
+    dot(g, 240, cy, 4 + lvl * 10, FG);
+  }
 }
 // drums: the eight sounds as a 4 x 2 grid of keys (like the eight group keys), each with a small
 // picture that flashes when it plays; the chosen one is drawn large, where knobs 5-8 show tune

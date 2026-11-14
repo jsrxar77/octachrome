@@ -46,6 +46,7 @@ In three stages, from the simplest to the most open:
 | **KickSyn** | Synthetic kick: tone, decay, punch, saturation | A drum head seen from above |
 | **FmBass** | Two-operator FM bass | A planet and moon in orbit, the envelope as a mountain |
 | **MidiOutBridge** | Sends the track out the MK3's DIN MIDI to an external synth | A DIN connector and notes leaving through the cable |
+| **resonator** | A string or a bank of bells that rings when a note strikes it; four voices (a fifth note takes the oldest). Sound: `type` (string, bells), `structure`, `bright`, `damping`. Shape: `decay`, `color`, `spread` (how far apart the four voices sit in the stereo field), `level`. Built on the string and modal engines of the Plaits code (MIT) | A string held at both ends that shivers with the sound (structure bows it, bright thickens it), or eight rings spaced as the modes of a bell are, fading outward with the damping |
 | **drums** | Eight percussion sounds on one track, chosen by the pitch of the note: C kick, C# snare, D closed hat, D# open hat, E tom, F clap, F# rim, G crash (the notes above G wrap round). The knobs edit the sound picked with the `sound` knob and each sound keeps its own values. Sound: `tune`, `decay`, `tone`, `snap`. Shape: `body`, `level`, `pan`, `sound`. Built on the percussion engines of the Plaits code (MIT) | The eight sounds as a 4 × 2 grid of keys, each with a small picture that flashes when it plays; the chosen one large, with the four colours of knobs 5–8 showing tune (height), decay (size), tone (rings) and snap (spikes) |
 | **macro** | 24 engines in one (virtual analogue, FM, wavetable, chords, voice, strings, percussion), from the Plaits code (MIT, `crates/op8-plaits`). Sound: `engine`, `harmonics`, `timbre`, `morph`. Shape: `decay`, `color`, `variant`, `level` | A ring of 24 engines, a polar waveform that beats with the level, and a timbre × morph field |
 
@@ -67,7 +68,7 @@ Legal note on Mutable Instruments: the code of the STM32 modules (Plaits, Braids
 ### Proposed order
 
 1. ~~**macro**~~ (from Plaits): done.
-2. **resonator** (from Rings): strings and bells.
+2. ~~**resonator**~~: done (string and bells, from the Plaits modal and string engines).
 3. ~~**drums**~~: done (eight sounds chosen by the pitch of the note).
 4. **sampler**: record with SAMPLING and play with the keyboard.
 
@@ -89,14 +90,14 @@ Everything in OP-8 is built on eight, and the MK3 has sixteen pads. So the libra
 | **Instruments** (PLUG-IN) | 8 that always ship and cannot be removed | 8 places for instruments installed as separate packages (stage 2 and 3 of §3) |
 | **Projects** (FILE) | 8 music projects that always ship: a way into the instruments and the sequencer | 8 places for the player's own projects |
 
-The factory eight, confirmed by Javi on 2026-11-14 (the first three and the last two exist). **They are ordered from the most guttural to the most refined, drums first and the leads last**; that order is the order of the factory slots, of the tracks in the demo (A to E) and of the list the player will browse. The MIDI out has its place because the MK3 will eventually also take input: MIDI out and sound in. The order of work is drums (done), resonator, sampler, granular.
+The factory eight, confirmed by Javi on 2026-11-14 (all but the sampler and the granular exist). **They are ordered from the most guttural to the most refined, drums first and the leads last**; that order is the order of the factory slots, of the tracks in the demo (A to E) and of the list the player will browse. The MIDI out has its place because the MK3 will eventually also take input: MIDI out and sound in. The order of work is drums and resonator (done), sampler, granular.
 
 | # | Instrument | Idea | Status |
 | :-- | :-- | :-- | :-- |
 | 1 | **drums** | Eight percussion sounds on one track, in eight lanes | ✓ |
 | 2 | **KickSyn** | Synthetic kick | ✓ |
 | 3 | **FmBass** | Two-operator FM bass | ✓ |
-| 4 | **resonator** | Strings, bells and tubes (from Rings) | ○ |
+| 4 | **resonator** | Plucked strings and struck bells, four voices | ✓ |
 | 5 | **sampler** | Record with SAMPLING and play it | ○ |
 | 6 | **granular** | Granular on a sample (from Clouds / Beads) | ○ |
 | 7 | **MidiOutBridge** | The track out to an external synth (later also sound in) | ✓ |

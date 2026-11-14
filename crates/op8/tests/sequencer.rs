@@ -60,10 +60,10 @@ fn f_s04_pads_past_length_are_off() {
 #[test]
 fn f_s05_group_selects_track() {
     let mut b = Bench::demo();
-    b.press(Button::Group(3));
-    assert_eq!(b.ui().track, 3);
+    b.press(Button::Group(4));
+    assert_eq!(b.ui().track, 4);
     let lvl = |b: &Bench, g: u8| b.leds().slots[button_slot(Button::Group(g)).unwrap()] & 3;
-    assert!(lvl(&b, 3) > lvl(&b, 0), "selected group should be brighter");
+    assert!(lvl(&b, 4) > lvl(&b, 0), "selected group should be brighter");
 }
 
 // F-S06: encoder 1 changes the track length in steps of one, clamped to 1..=16.
@@ -85,13 +85,13 @@ fn f_s06_knob1_sets_length() {
 fn f_s07_mute_group_toggles_mute() {
     let mut b = Bench::demo();
     b.button_down(Button::Mute);
-    b.press(Button::Group(3));
+    b.press(Button::Group(4));
     b.button_up(Button::Mute);
-    assert!(b.project().tracks[3].muted);
+    assert!(b.project().tracks[4].muted);
     b.button_down(Button::Mute);
-    b.press(Button::Group(3));
+    b.press(Button::Group(4));
     b.button_up(Button::Mute);
-    assert!(!b.project().tracks[3].muted);
+    assert!(!b.project().tracks[4].muted);
 }
 
 // F-S08: a muted track sends no new notes. Track C is the MIDI track.
@@ -104,7 +104,7 @@ fn f_s08_muted_track_is_silent() {
     assert!(before > 0, "precondition: MIDI track should play notes before mute");
 
     b.button_down(Button::Mute);
-    b.press(Button::Group(3));
+    b.press(Button::Group(4));
     b.button_up(Button::Mute);
     let t = b.now_ms() + 50;
     b.run_ms(2500);
