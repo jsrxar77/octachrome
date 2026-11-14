@@ -56,6 +56,8 @@ pub struct Track {
     pub division: Division,
     pub brain_link: bool,
     pub muted: bool,
+    /// A drum track: eight lanes, one per sound, several of which can sound in one step.
+    pub kit: bool,
 }
 
 impl Default for Track {
@@ -66,6 +68,7 @@ impl Default for Track {
             division: Division::Sixteenth,
             brain_link: false,
             muted: false,
+            kit: false,
         }
     }
 }
@@ -106,6 +109,17 @@ impl Default for Project {
 /// queue into the audio thread.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Command {
+    /// Make a track a drum kit (eight lanes). Notes already on its steps become lanes by pitch class.
+    SetKit {
+        track: u8,
+        kit: bool,
+    },
+    /// Switch one lane of a kit step on or off.
+    ToggleLane {
+        track: u8,
+        step: u8,
+        lane: u8,
+    },
     ToggleStep {
         track: u8,
         step: u8,
@@ -195,6 +209,22 @@ impl Project {
     pub fn apply(&mut self, cmd: &Command) {
         use Command::*;
         match *cmd {
+            SetKit { track, kit } => {
+                if let Some(t) = self.tracks.get_mut(track as usize) {
+                    if kit && !t.kit {
+                        for s in t.steps.iter_mut().filter(|s| s.active && s.lanes == 0) {
+                            s.lanes = 1 << ((s.note % 12) % 8);
+                        }
+                    }
+                    t.kit = kit;
+                }
+            }
+            ToggleLane { track, step, lane } => {
+                if let Some(s) = self.step_mut(track, step) {
+                    s.lanes ^= 1 << (lane % 8);
+                    s.active = s.lanes != 0;
+                }
+            }
             ToggleStep { track, step } => {
                 if let Some(s) = self.step_mut(track, step) {
                     s.active = !s.active;

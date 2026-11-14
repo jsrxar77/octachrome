@@ -72,8 +72,8 @@ pub struct UiState {
     pub right_page: usize,
     /// Whether the selected track's instrument has a second page (the `shape` button).
     pub has_second: bool,
-    /// What the inspected step's note plays, when the instrument chooses a sound by the note (drums).
-    pub step_sound: Option<&'static str>,
+    /// The sound chosen on the right, as a lane 0..8, when the selected track's instrument is a kit (drums).
+    pub lane: Option<usize>,
     /// Active Punch-in FX: (slot, intensity).
     pub punch: Option<(usize, f32)>,
     pub strip: Option<f32>,

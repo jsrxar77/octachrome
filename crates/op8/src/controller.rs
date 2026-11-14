@@ -227,6 +227,14 @@ impl Controller {
         }
     }
 
+    /// Whether this step shows as on: on a kit, whether the chosen lane is on in it.
+    fn lane_on(&self, kit: bool, step: &Step) -> bool {
+        match (kit, self.ui.lane) {
+            (true, Some(l)) => step.lanes & (1 << l) != 0,
+            _ => step.active,
+        }
+    }
+
     /// The note a tap on a step places on this track's instrument, if it chooses a sound by a knob.
     fn paint_note(&self, h: &EngineHandle) -> Option<u8> {
         let c = h.slots[self.ui.track].as_ref()?;
@@ -324,17 +332,16 @@ impl Controller {
                     self.ui.inspect_step = None;
                 } else if was_down && !self.held.erase && self.inspector_pad.is_none() {
                     match self.paint_note(h) {
-                        // An instrument that chooses a sound with a knob (drums): a tap puts the
-                        // chosen sound on the step, or takes it off if it is already there.
+                        // A kit (drums): the pads are the steps of the lane chosen on the right.
+                        // A tap puts that sound on the step, or takes it off, leaving the other lanes.
                         Some(n) => {
+                            let lane = (n - op8_seq::step::KIT_BASE_NOTE) % 8;
+                            if !h.project.tracks[self.ui.track].kit {
+                                h.seq(Command::SetKit { track, kit: true });
+                            }
+                            h.seq(Command::ToggleLane { track, step, lane });
                             let s = h.project.tracks[self.ui.track].steps[step as usize];
-                            if s.active && s.note % 12 == n % 12 {
-                                h.seq(Command::ToggleStep { track, step });
-                            } else {
-                                let mut v = s;
-                                v.active = true;
-                                v.note = n;
-                                h.seq(Command::SetStep { track, step, value: v });
+                            if s.lanes & (1 << lane) != 0 {
                                 self.audition(h, n, s.velocity as f32 / 127.0, now, false);
                             }
                         }
@@ -430,6 +437,8 @@ impl Controller {
                     return;
                 }
                 match k {
+                    // a drum kit has no note on its steps (the sound is a lane): this knob does nothing
+                    0 if t.kit => false,
                     0 => {
                         let note = (s.note as i32 + n).clamp(0, 127) as u8;
                         h.seq(Command::SetStepNote { track, step, note });
@@ -574,13 +583,7 @@ impl Controller {
         } else {
             self.ui.has_second = false;
         }
-        self.ui.step_sound = match (self.ui.inspect_step, h.slots[self.ui.track].as_ref()) {
-            (Some(step), Some(c)) => {
-                let note = h.project.tracks[self.ui.track].steps[step as usize].note;
-                c.try_lock().ok().and_then(|c| c.note_label(note))
-            }
-            _ => None,
-        };
+        self.ui.lane = self.paint_note(h).map(|n| (n - op8_seq::step::KIT_BASE_NOTE) as usize % 8);
         if self.ui.mode == Mode::Step && self.inspector_pad.is_none() {
             if let Some((pad, _)) = self
                 .pad_down_at
@@ -625,7 +628,7 @@ impl Controller {
                         out.set_pad(pad, NiColor::White, 2);
                     } else if s >= track.len() {
                         out.set_pad(pad, NiColor::Off, 0);
-                    } else if track.steps[s].active {
+                    } else if self.lane_on(track.kit, &track.steps[s]) {
                         out.set_pad(pad, color, 3);
                     } else {
                         // Off is a dim white, not a dim colour: it stays apart from

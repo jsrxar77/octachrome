@@ -251,7 +251,8 @@ function compLabel(c) {
   }
 }
 const sameComp = (a, b) => (!a && !b) || (a && b && a.t === b.t && JSON.stringify(a.v) === JSON.stringify(b.v));
-const newStep = (active = false, note = 60) => ({ active, note, vel: 100, gate: 50, comps: [] });
+const newStep = (active = false, note = 60) => ({ active, note, vel: 100, gate: 50, comps: [], lanes: 0 });
+const kitStep = lanes => ({ ...newStep(lanes !== 0), lanes });
 const noteName = n => NOTE_NAMES[n % 12] + (Math.floor(n / 12) - 1);
 
 function makeRng(seed) { let x = (seed * 2654435761) >>> 0 || 1; return () => { x ^= x << 13; x >>>= 0; x ^= x >>> 17; x ^= x << 5; x >>>= 0; return x / 4294967296; }; }
@@ -336,11 +337,12 @@ function demoProject() {
   const m = tracks[3]; m.link = true;
   m.steps[0] = newStep(true, 60); m.steps[6] = newStep(true, 67);
   m.steps[10] = { ...newStep(true, 64), comps: [C("oct",1)] };
-  // drums: a backbeat; the pitch class of the note picks the sound (49 snare, 50 closed hat, 51 open hat, 54 rim)
-  const d = tracks[4];
-  for (const s of [4, 12]) d.steps[s] = newStep(true, 49);
-  for (const s of [2, 6, 10]) d.steps[s] = newStep(true, 50);
-  d.steps[14] = newStep(true, 51); d.steps[7] = { ...newStep(true, 54), comps: [C("chance",60)] };
+  // drums: a backbeat on a kit track; each lane is a sound (0 kick, 1 snare, 2 closed hat, 3 open hat, 4 tom, 5 clap, 6 rim, 7 crash)
+  const d = tracks[4]; d.kit = true;
+  for (const s of [0, 8]) d.steps[s] = kitStep(1);
+  for (const s of [4, 12]) d.steps[s] = kitStep(2);
+  for (const s of [2, 6, 10]) d.steps[s] = kitStep(4);
+  d.steps[14] = kitStep(8); d.steps[7] = { ...kitStep(64), comps: [C("chance",60)] };
   return p;
 }
 const P = demoProject();
@@ -561,7 +563,8 @@ function onTick(time) {
     const sub = stepDur / r.ratchet, gate = r.ratchet > 1 ? sub * Math.min(1, r.gate) : stepDur * r.gate;
     for (let k = 0; k < r.ratchet; k++) {
       const at = start + k * sub;
-      if (SLOTS[t] === "kick") playKick(t, at, note, r.vel);
+      if (tr.kit) { for (let l = 0; l < 8; l++) if (step.lanes & (1 << l)) playDrums(t, at, 60 + l, r.vel); }
+      else if (SLOTS[t] === "kick") playKick(t, at, note, r.vel);
       else if (SLOTS[t] === "fm") playFm(t, at, note, r.vel, Math.max(0.02, gate));
       else if (SLOTS[t] === "macro") playMacro(t, at, note, r.vel, Math.max(0.02, gate));
       else if (SLOTS[t] === "drums") playDrums(t, at, note, r.vel);
@@ -678,9 +681,10 @@ function padUp(pad) {
     else if (wasDown && !UI.erase && inspectorPad == null) {
       const s = P.tracks[UI.track].steps[padToStep(pad)];
       if (SLOTS[UI.track] === "drums") {
-        // a tap puts the chosen sound on the step, or takes it off if it is already there
-        const n = 60 + DRUMS.sel;
-        if (s.active && s.note % 12 === n % 12) s.active = false; else { s.active = true; s.note = n; audition(UI.track, n, s.vel / 127, false); }
+        // a kit: a tap toggles the lane chosen on the right, leaving the other lanes of the step
+        P.tracks[UI.track].kit = true;
+        s.lanes ^= 1 << DRUMS.sel; s.active = s.lanes !== 0;
+        if (s.lanes & (1 << DRUMS.sel)) audition(UI.track, 60 + DRUMS.sel, s.vel / 127, false);
       } else s.active = !s.active;
     }
   } else if (UI.mode === "brain") {
@@ -698,7 +702,7 @@ function knob(k, delta) {
   const tr = P.tracks[UI.track];
   if (UI.mode === "step" && UI.inspect != null) {
     const s = tr.steps[UI.inspect], n = detents(k, delta); if (!n) return;
-    if (k === 0) s.note = clamp(s.note + n, 0, 127);
+    if (k === 0) { if (!P.tracks[UI.track].kit) { s.note = clamp(s.note + n, 0, 127); audition(UI.track, s.note, s.vel / 127, false); } }
     else if (k === 1) s.vel = clamp(s.vel + n * 4, 1, 127);
     else if (k === 2) s.gate = clamp(s.gate + n * 5, 1, 100);
     else {
@@ -883,7 +887,7 @@ function drawLeft(g) {
   if (UI.mode === "step" && UI.inspect != null) inspector(g, accent);
   else if (UI.mode === "brain") brainView(g, accent);
   else if (UI.mode === "punch") punchView(g, accent);
-  else { rings(g); padGrid(g, accent); }
+  else { if (P.tracks[UI.track].kit) lanesView(g, accent); else rings(g); padGrid(g, accent); }
   const cells = leftFooter();
   footer(g, cells);
   touchOverlay(g, cells, 0);
@@ -941,13 +945,27 @@ function rings(g) {
   }
   txt(g, TRACK_NAMES[UI.track], cx, cy + 1, "mid", TRACK_COLORS[UI.track], "center", "middle");
 }
+// A kit track: eight lanes (one per sound) by sixteen steps; the lane chosen on the right is lit.
+function lanesView(g, accent) {
+  const tr = P.tracks[UI.track], x0 = 14, y0 = 56, px = 14.5, py = 20.5;
+  for (let lane = 0; lane < 8; lane++) {
+    const chosen = lane === DRUMS.sel, y = y0 + lane * py;
+    if (chosen) rrect(g, x0 - 4, y - 2, 16 * px + 6, py - 1, 4, PANEL);
+    for (let s = 0; s < tr.length; s++) {
+      const x = x0 + s * px, on = (tr.steps[s].lanes >> lane & 1) === 1;
+      rrect(g, x, y, px - 3, py - 5, 2, on ? mix(accent, chosen ? 1 : 0.6) : FAINT);
+      if (S.playing && s === S.playhead[UI.track]) rrect(g, x - 0.5, y - 0.5, px - 2, py - 4, 3, FG, 1);
+    }
+  }
+}
 function padGrid(g, accent) {
   const tr = P.tracks[UI.track], x0 = 262, y0 = 50, cs = 37, gap = 5;
   for (let s = 0; s < 16; s++) {
     const x = x0 + (s % 4) * (cs + gap), y = y0 + Math.floor(s / 4) * (cs + gap), st = tr.steps[s], inLen = s < tr.length;
     const isPh = S.playing && s === S.playhead[UI.track];
     if (!inLen) { dot(g, x + cs / 2, y + cs / 2, 1.5, FAINT); continue; }
-    if (st.active) {
+    const lit = tr.kit ? (st.lanes >> DRUMS.sel & 1) === 1 : st.active;
+    if (lit) {
       const k = 0.75 + 0.25 * st.vel / 127;
       rrect(g, x, y, cs, cs, 6, mix(accent, isPh ? 1 : k));
       // components: little white ticks along the bottom edge
@@ -974,7 +992,7 @@ function inspector(g, accent) {
   const s = P.tracks[UI.track].steps[UI.inspect];
   // big step number + note
   txt(g, String(UI.inspect + 1), 30, 52, "huge", s.active ? accent : DIM);
-  txt(g, SLOTS[UI.track] === "drums" ? DRUM_NAMES[(s.note % 12) % 8] : noteName(s.note), 30, 116, "mid", KC[0]);
+  if (!P.tracks[UI.track].kit) txt(g, noteName(s.note), 30, 116, "mid", KC[0]);
   // velocity as a vertical bar, gate as a horizontal bar (knob colours)
   fill(g, 120, 56, 10, 100, FAINT); fill(g, 120, 56 + 100 * (1 - s.vel / 127), 10, 100 * s.vel / 127, KC[1]);
   fill(g, 30, 152, 80, 6, FAINT); fill(g, 30, 152, 80 * s.gate / 100, 6, KC[2]);
@@ -1063,9 +1081,8 @@ function leftFooter() {
   if (UI.mode === "step" && UI.inspect != null) {
     const s = tr.steps[UI.inspect], cur = s.comps[UI.compCursor] || null;
     const pi = Math.max(0, COMPONENT_PRESETS.findIndex(c => sameComp(c, cur)));
-    // a drum kit: the note is a choice of sound, so the inspector says which
-    const drum = SLOTS[UI.track] === "drums";
-    return [drum ? ["sound", DRUM_NAMES[(s.note % 12) % 8], s.note / 127] : ["note", noteName(s.note), s.note / 127], ["velocity", String(s.vel), s.vel / 127], ["gate", s.gate + "%", s.gate / 100],
+    // a kit step has no note (its sounds are lanes): nothing in the first cell
+    return [tr.kit ? ["", "", 0] : ["note", noteName(s.note), s.note / 127], ["velocity", String(s.vel), s.vel / 127], ["gate", s.gate + "%", s.gate / 100],
       ["component", UI.compCursor >= s.comps.length ? "+" : compLabel(cur).toLowerCase(), pi / (COMPONENT_PRESETS.length - 1), cur ? (g, cx, cy, c) => compGlyph(g, cur, cx - 17, cy - 11, c) : null]];
   }
   if (UI.mode === "brain") return [["key", NOTE_NAMES[P.brain.key], P.brain.key / 11], ["scale", SCALES[P.brain.scale][0].toLowerCase(), P.brain.scale / 6], ["mode", BRAIN_MODES[P.brain.mode].toLowerCase(), P.brain.mode / 2], ["chords", String(P.brain.len), P.brain.len / 8]];

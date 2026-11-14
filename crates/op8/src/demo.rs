@@ -66,18 +66,22 @@ pub fn project() -> Project {
     synth.steps[0] = Step::on(60);
     synth.steps[6] = Step::on(67);
     synth.steps[10] = Step::on(64).with(StepComponent::Octave(1));
-    // drums: a backbeat. The note picks the sound by pitch class:
-    // 49 = C# snare, 50 = D closed hat, 51 = D# open hat, 54 = F# rim.
+    // drums: a backbeat on a kit track. Each lane is a sound (0 kick, 1 snare, 2 closed hat,
+    // 3 open hat, 4 tom, 5 clap, 6 rim, 7 crash); a step can have several lanes on.
     let kit = &mut p.tracks[4];
+    kit.kit = true;
     kit.length = 16;
+    for s in [0, 8] {
+        kit.steps[s] = Step::kit(1 << 0);
+    }
     for s in [4, 12] {
-        kit.steps[s] = Step::on(49);
+        kit.steps[s] = Step::kit(1 << 1);
     }
     for s in [2, 6, 10] {
-        kit.steps[s] = Step::on(50);
+        kit.steps[s] = Step::kit(1 << 2);
     }
-    kit.steps[14] = Step::on(51);
-    kit.steps[7] = Step::on(54).with(StepComponent::Chance(60));
+    kit.steps[14] = Step::kit(1 << 3);
+    kit.steps[7] = Step::kit(1 << 6).with(StepComponent::Chance(60));
     p
 }
 

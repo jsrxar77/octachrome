@@ -55,49 +55,49 @@ fn f_k04_at_most_eight_parameters() {
     }
 }
 
-// F-K09: on a drum track the step inspector says which sound the note plays, and the note knob chooses it.
+// F-K09: a kit step has no note: the inspector's first cell is empty and its knob does nothing; the sound is a lane.
 #[test]
-fn f_k09_inspector_names_the_drum_sound() {
+fn f_k09_a_kit_step_has_no_note() {
     let mut b = Bench::demo();
-    b.press(Button::Group(4)); // track E: drums
-    b.press(Button::Screen(2)); // components: opens the inspector on step 1
+    b.press(Button::Group(4)); // track E: drums, a kit
+    b.press(Button::Screen(2)); // opens the inspector on step 1
     b.run_ms(100);
-    let before = b.ui().step_sound.expect("a drum track names the sound");
-    b.knob(0, 40); // one detent up: the next note, the next sound
-    b.run_ms(100);
-    let after = b.ui().step_sound.expect("still named");
-    assert_ne!(before, after, "{before} -> {after}");
-    // a track whose instrument is a plain pitch names nothing
+    let before = b.project().tracks[4].steps[0];
+    b.knob(0, 40);
+    b.run_ms(50);
+    assert_eq!(b.project().tracks[4].steps[0], before, "the first knob changes nothing on a kit step");
+    // a plain-pitch track still has its note knob
     b.press(Button::Group(1));
     b.press(Button::Screen(2));
-    b.run_ms(100);
-    assert_eq!(b.ui().step_sound, None);
+    b.run_ms(50);
+    let note = b.project().tracks[1].steps[0].note;
+    b.knob(0, 40);
+    b.run_ms(50);
+    assert_eq!(b.project().tracks[1].steps[0].note, note + 1);
 }
 
-// F-K10: on a drum track a tap puts the chosen sound on the step (and takes it off if it is already there); the knob picks the sound.
+// F-K10: on a drum kit the pads are the steps of the lane chosen on the right (`sound`): a tap puts that sound
+// on the step or takes it off, and leaves the other lanes of the step as they are.
 #[test]
-fn f_k10_tap_places_the_chosen_drum_sound() {
+fn f_k10_a_tap_toggles_the_chosen_lane() {
     let mut b = Bench::demo();
-    b.press(Button::Group(4)); // track E: drums
+    b.press(Button::Group(4));
     b.press(Button::Screen(6)); // shape: the second page, where `sound` is the last knob
-    b.knob(7, 120); // 3 detents: kick -> snare
+    b.knob(7, 120); // 3 detents: kick -> snare (lane 1)
     let pad = (0..16u8)
-        .find(|&p| !b.project().tracks[4].steps[op8::Controller::pad_to_step(p) as usize].active)
+        .find(|&p| b.project().tracks[4].steps[op8::Controller::pad_to_step(p) as usize].lanes == 0)
         .expect("an empty step");
     let step = op8::Controller::pad_to_step(pad) as usize;
     b.tap(pad);
     b.run_ms(50);
-    let s = b.project().tracks[4].steps[step];
-    assert!(s.active, "the tap switched the step on");
-    assert_eq!(s.note % 12, 1, "with the snare (C#), the sound chosen on the right");
-    b.tap(pad);
-    b.run_ms(50);
-    assert!(!b.project().tracks[4].steps[step].active, "tapping the same sound again takes it off");
-    // a different chosen sound replaces the one on the step
-    b.tap(pad);
+    assert_eq!(b.project().tracks[4].steps[step].lanes, 0b10, "the snare lane is on");
+    // choose another sound, tap the same step: both lanes are on (two sounds in one step)
     b.knob(7, -120);
     b.tap(pad);
     b.run_ms(50);
-    let s = b.project().tracks[4].steps[step];
-    assert!(s.active && s.note % 12 != 1, "the step now has the other sound");
+    assert_eq!(b.project().tracks[4].steps[step].lanes, 0b11, "kick and snare together");
+    // tapping a lane that is on takes only that one off
+    b.tap(pad);
+    b.run_ms(50);
+    assert_eq!(b.project().tracks[4].steps[step].lanes, 0b10, "only the kick left");
 }

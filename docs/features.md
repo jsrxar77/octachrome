@@ -31,6 +31,7 @@ The buttons and their implementation status are in [buttons.md](buttons.md). Thi
 | F-S06 | Knob 1 in STEP changes the track length | `tracks[t].length` goes up and down, limited to 1–16 | ✓ |
 | F-S07 | MUTE + group mutes the track | `tracks[t].muted` toggles | ✓ |
 | F-S08 | A muted track emits no notes | track C (MIDI) muted: no new notes after the mute | ✓ |
+| F-S09 | A drum-kit track has eight lanes: a step plays one note per lane that is on (several sounds in one step), `SetKit` turns a track into a kit (existing notes become lanes by pitch class) and `ToggleLane` switches one lane ([instruments.md §7](instruments.md)) | `op8-seq` unit tests | ✓ |
 
 ## B · Brain (`tests/brain.rs`)
 
@@ -57,8 +58,8 @@ The buttons and their implementation status are in [buttons.md](buttons.md). Thi
 | F-K02 | With page 6 open, knobs 5–8 change parameters 5–8 | `right_page == 1`; `param(track, 4)` changes | ✓ |
 | F-K03 | Touching a knob shows the large overlay on the right screen | `knob_touch[i]` true; the screen hash changes | ✓ |
 | F-K04 | Each instrument exposes at most 8 parameters | `parameters().len() <= 8` for all cartridges (`builtin_names`) | ✓ |
-| F-K09 | On a drum track the step inspector says which sound the note plays (`sound`, not `note`), and the note knob changes it; a plain-pitch instrument still shows the note ([instruments.md §7](instruments.md)) | `ui.step_sound` | ✓ |
-| F-K10 | On a drum track a tap puts the chosen sound on the step (the `sound` knob picks it), takes it off if it is already there, and replaces a different sound ([instruments.md §7](instruments.md)) | step `active` and `note` after the taps | ✓ |
+| F-K09 | A kit step has no note: on a drum track the first knob of the step inspector does nothing and its cell is empty; a plain-pitch track keeps its note knob ([instruments.md §7](instruments.md)) | the step is unchanged after the knob | ✓ |
+| F-K10 | On a drum kit the pads are the steps of the lane chosen on the right (`sound`): a tap switches that lane on or off in the step and leaves the other lanes as they are, so several sounds can share a step | `steps[..].lanes` after the taps | ✓ |
 
 ## D · Screens (`tests/screens.rs`)
 

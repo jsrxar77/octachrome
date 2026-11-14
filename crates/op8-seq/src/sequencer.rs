@@ -317,7 +317,14 @@ impl Sequencer {
             for k in 0..r.ratchet.max(1) {
                 let on = (start + k as f64 * sub).floor() as u64;
                 let off = on + (gate.floor() as u64).max(1);
-                self.schedule_note(tr as u8, note, r.velocity, on, off);
+                if track.kit {
+                    // a drum kit: one note per lane that is on in this step
+                    for lane in (0..8u8).filter(|l| step.lanes & (1 << l) != 0) {
+                        self.schedule_note(tr as u8, crate::step::KIT_BASE_NOTE + lane, r.velocity, on, off);
+                    }
+                } else {
+                    self.schedule_note(tr as u8, note, r.velocity, on, off);
+                }
             }
         }
     }
@@ -506,6 +513,38 @@ mod tests {
             .filter(|(t, _, e)| e.kind == NoteKind::Off && *t > 0)
             .count();
         assert_eq!(offs, 4);
+    }
+
+    // F-S09
+    #[test]
+    fn a_kit_step_plays_one_note_per_lane() {
+        let mut p = Project::default();
+        p.tracks[0].kit = true;
+        p.tracks[0].steps[0] = Step::kit(0b0000_0101); // lanes 0 and 2 together
+        p.tracks[0].steps[1] = Step::kit(0b1000_0000); // lane 7 alone
+        let mut seq = Sequencer::new(p, SR);
+        seq.play();
+        let log = run(&mut seq, 12_000, 64);
+        let at = |t: u64| {
+            let mut n: Vec<u8> = log.iter().filter(|(tt, tr, e)| *tt == t && *tr == 0 && e.kind == NoteKind::On).map(|(_, _, e)| e.note).collect();
+            n.sort();
+            n
+        };
+        assert_eq!(at(0), [60, 62], "two lanes in one step sound together");
+        assert_eq!(at(6000), [67], "the next step has only its own lane");
+    }
+
+    #[test]
+    fn kit_commands_toggle_lanes_and_convert_notes() {
+        let mut p = Project::default();
+        p.tracks[0].steps[3] = Step::on(61); // a snare by its pitch class
+        p.apply(&Command::SetKit { track: 0, kit: true });
+        assert_eq!(p.tracks[0].steps[3].lanes, 0b10, "an existing note becomes its lane");
+        p.apply(&Command::ToggleLane { track: 0, step: 3, lane: 3 });
+        assert_eq!(p.tracks[0].steps[3].lanes, 0b1010);
+        p.apply(&Command::ToggleLane { track: 0, step: 3, lane: 1 });
+        p.apply(&Command::ToggleLane { track: 0, step: 3, lane: 3 });
+        assert!(!p.tracks[0].steps[3].active, "no lane left, the step is off");
     }
 
     #[test]

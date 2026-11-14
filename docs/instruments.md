@@ -104,10 +104,13 @@ The factory eight, confirmed by Javi on 2026-11-14 (the first four exist). The e
 
 Rules: the factory eight meet §2 like any other instrument; each factory project shows one thing (an instrument, a rhythm idea, the Brain) and is made only with the factory eight, so it always loads. Removing, replacing or overwriting a factory slot is not possible; a user slot starts empty.
 
-### How the sound of a drum step is chosen
+### How drums are programmed: eight lanes
 
-1. On the right screen, second page (screen button 6, `shape`), turn the last knob, `sound`: it picks one of the eight, and you **hear it** as you turn. The other knobs edit that sound (tune, decay, tone, snap, body, level, pan) and also play it.
-2. On the left, **tap a pad**: the step takes the chosen sound (and plays it). Tapping a step that already has that sound takes it off; tapping one with a different sound replaces it. One step holds one sound.
-3. To change a step's sound without touching the right screen, hold its pad and turn the first knob (`sound` on a drum track); it plays as it changes.
+A drum track is a **kit** with eight lanes, one per sound, and a step can have several lanes on at once (a kick and a hat together). It is not a melody: a step has no note, its sounds are lanes.
 
-The pitch class of the step's note is what picks the sound (C kick, C# snare, D closed hat, D# open hat, E tom, F clap, F# rim, G crash). Still to come: the chromatic KEYBOARD and PAD MODE, which will play the eight sounds straight from the pads ([buttons.md](buttons.md)).
+- **Right screen (the sound):** screen button 6 (`shape`) opens the second page, whose last knob, `sound`, chooses the sound; you hear it as you turn. The other knobs edit that sound (tune, decay, tone, snap, body, level, pan) and also play it.
+- **Left screen (the sequencer):** the eight lanes by sixteen steps, the chosen lane lit and the playhead marked. The sixteen pads are the steps of the chosen lane: **tap a pad** and that sound is on that step (it plays); tap again and it is off. The other lanes of the step stay as they are.
+- **Components** (ratchet, chance, every…), velocity and gate are per step and apply to all its lanes; they are in the step inspector on the left (hold a pad, or screen button 2). A kit step has no `note` knob.
+- Lane n plays note 60 + n; its pitch class is what picks the sound (C kick, C# snare, D closed hat, D# open hat, E tom, F clap, F# rim, G crash). A track becomes a kit the first time you tap a pad on a track whose instrument is drums.
+
+Still to come: the chromatic KEYBOARD and PAD MODE, which will play the eight sounds straight from the pads ([buttons.md](buttons.md)).
