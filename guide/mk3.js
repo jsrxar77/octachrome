@@ -33,7 +33,7 @@
   // groups A–H: two rows of four
   "ABCDEFGH".split("").forEach((g, i) => add(g, R(53 + 39 * (i % 4), 323 + 24 * Math.floor(i / 4), 34, 19), "y", "Group " + g + ": choose track " + g + ". Shift joins it to the Brain."));
   // transport
-  [["RESTART","y","Back to step 1 and keep playing"],["ERASE","p","Hold + a pad to erase the step"],["TAP","n","Tap tempo"],["FOLLOW","n","Recording quantisation"]]
+  [["RESTART","y","Back to step 1 and keep playing"],["ERASE","p","Hold + a pad to erase the step"],["TAP","y","Tap tempo; SHIFT + TAP is the metronome"],["FOLLOW","n","Recording quantisation"]]
     .forEach((b, i) => add(b[0], R(53 + 39 * i, 386, 34, 12), b[1], b[2]));
   [["PLAY","y","Play / pause"],["REC","p","Record what you play into the track (notes; automation is still to come)"],["STOP","p","Stop (twice to silence: planned)"],["SHIFT","y","Secondary functions"]]
     .forEach((b, i) => add(b[0], R(53 + 39 * i, 405, 34, 18), b[1], b[2]));

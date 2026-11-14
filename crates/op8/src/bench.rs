@@ -141,6 +141,11 @@ impl Bench {
         self.send(ControlEvent::Pad { pad, event: PadEvent::Strike(0.8) });
     }
 
+    /// Strike a pad with a given velocity (0..=1).
+    pub fn strike_at(&mut self, pad: u8, velocity: f32) {
+        self.send(ControlEvent::Pad { pad, event: PadEvent::Strike(velocity) });
+    }
+
     pub fn pressure(&mut self, pad: u8, value: f32) {
         self.send(ControlEvent::Pad { pad, event: PadEvent::Pressure(value) });
     }

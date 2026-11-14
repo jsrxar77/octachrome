@@ -61,6 +61,17 @@ pub fn draw_left(fb: &mut FrameBuffer480x272, ui: &UiState, p: &Project, st: &En
     let cells = left_footer(ui, p);
     draw_footer(fb, &cells, 0);
     touch_overlay(fb, &cells, 0, &ui.anim);
+    if let Some(held) = ui.held {
+        // TEMPO, SWING or VOLUME is held: what the encoder turns, big
+        let (name, value) = match held {
+            crate::Held::Tempo => ("tempo", format!("{:.1}", p.bpm)),
+            crate::Held::Swing => ("swing", format!("{:.0}%", p.swing * 100.0)),
+            crate::Held::Volume => ("volume", format!("{:.0}%", ui.master * 100.0)),
+        };
+        fb.fill_rect(0, STRIP_H, 480, FOOTER_Y - STRIP_H, t.bg);
+        text_v(fb, name, 240, 80, FontSize::Large, t.dim, Align::Center, VAlign::Middle);
+        text_v(fb, &value, 240, 140, FontSize::Huge, t.fg, Align::Center, VAlign::Middle);
+    }
 }
 
 fn top_bar(

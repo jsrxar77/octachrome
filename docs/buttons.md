@@ -49,7 +49,7 @@ They are the modules of the current mode, like M1–M4 on the OP-XY. Their name 
 | PAD MODE | Pads as sounds | (tracks) | The pads play the track's instrument by hand. On a drum kit pads 1–8 are the eight sounds and pads 9–16 are free; on any other instrument the pads climb the Brain's scale from its key. Pressing PAD MODE again goes back to STEP. Not recorded yet (REC) | ✓ |
 | PERFORM · Shift: choose | Perform FX on the Smart Strip | punch-in fx | **Punch-in FX**: each pad an effect, pressure is the intensity. Pressing PERFORM again goes back to STEP | ✓ |
 | NOTE REPEAT · Shift: arp | Repeat and arpeggiator | players (arp) | Repeat the held note; with Shift, arpeggiator | ○ (today it opens Punch) |
-| FIXED VEL | Fixed velocity | — | Fixed velocity when recording or playing | ○ |
+| FIXED VEL | Fixed velocity | — | Toggles a fixed velocity (100): the pads in PAD MODE, KEYBOARD and CHORDS play at it and REC writes it, whatever the strike | ✓ |
 
 ## 4. Editing
 
@@ -75,11 +75,11 @@ They are the modules of the current mode, like M1–M4 on the OP-XY. Their name 
 | STOP | Stop | stop (twice: silence) | Stop; twice silences all notes | ◐ (the second press is missing) |
 | REC · Shift: count-in | Record | record | Arms the recording: while the sequencer runs, what you play in PAD MODE or KEYBOARD is written into the track at the nearest step (a drum kit: into the lane of the sound). Chords, automation and the count-in are not recorded yet | ◐ |
 | RESTART · Shift: loop | From the start | play (2nd time) | Go back to step 1 and keep playing | ✓ |
-| TAP · Shift: metro | Tap tempo | tempo / metronome | Tap tempo; Shift toggles the metronome | ○ |
+| TAP · Shift: metro | Tap tempo | tempo / metronome | Tap tempo: the average gap of the last taps (the first tap after a pause of two seconds only starts counting). **SHIFT + TAP** turns the metronome on and off: a click on every beat while the sequencer runs, higher on the first of each bar | ✓ |
 | FOLLOW · Shift: grid | Follow playback | bar | Recording quantisation | ○ |
-| TEMPO + 4D encoder | Tempo | tempo | Tempo; Shift = fine | ○ |
-| SWING + 4D encoder | Swing | tempo (swing) | Global swing | ○ |
-| VOLUME + 4D encoder | Volume | volume | Master volume; holding a group = that track's volume | ○ |
+| TEMPO + 4D encoder | Tempo | tempo | While TEMPO is held, the 4D encoder turns the tempo (Shift = fine) and the left screen shows it big. Without a button held the encoder still turns the tempo | ✓ |
+| SWING + 4D encoder | Swing | tempo (swing) | While SWING is held, the 4D encoder turns the global swing and the left screen shows it big | ✓ |
+| VOLUME + 4D encoder | Volume | volume | While VOLUME is held, the 4D encoder turns the master volume and the left screen shows it big. (A track's volume with a group held is still to do) | ◐ |
 | SHIFT | Secondary functions | shift | Secondary functions (rule 12) | ✓ |
 
 ## 6. Other controls

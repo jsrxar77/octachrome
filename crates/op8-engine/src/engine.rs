@@ -48,6 +48,10 @@ pub enum EngineCommand {
         velocity: f32,
         on: bool,
     },
+    /// The master volume, 0.0..=1.0 (VOLUME + the 4D encoder).
+    MasterVolume(f32),
+    /// The metronome clicks on every beat while the sequencer runs (SHIFT + TAP).
+    Metronome(bool),
     /// Replace the whole project (FILE). Boxed: it is large, and the queue holds many commands.
     LoadProject(Box<op8_seq::Project>),
     /// Put a cartridge in a slot. The old one comes back through the
@@ -73,6 +77,13 @@ struct Audition {
 
 /// Lives on the audio thread.
 pub struct Engine {
+    master: f32,
+    metronome: bool,
+    /// The click that is sounding: samples left, its phase and its frequency.
+    click_left: u32,
+    click_phase: f32,
+    click_hz: f32,
+    last_beat: u64,
     audition: [Option<Audition>; TRACKS],
     /// Notes played by hand, waiting for the next block.
     live: [op8_seq::fixed::FixedVec<op8_cartridge::NoteEvent, 16>; TRACKS],
@@ -101,6 +112,8 @@ pub struct EngineHandle {
     pub slots: [Option<SharedCartridge>; TRACKS],
     params: [[f32; PARAMS_PER_SLOT]; TRACKS],
     playing: bool,
+    pub master: f32,
+    pub metronome: bool,
 }
 
 impl Engine {
@@ -118,6 +131,12 @@ impl Engine {
             }
         }
         let engine = Engine {
+            master: 1.0,
+            metronome: false,
+            click_left: 0,
+            click_phase: 0.0,
+            click_hz: 1000.0,
+            last_beat: 0,
             audition: [None; TRACKS],
             live: Default::default(),
             seq: Sequencer::new(project, SAMPLE_RATE),
@@ -142,6 +161,8 @@ impl Engine {
             slots,
             params,
             playing: false,
+            master: 1.0,
+            metronome: false,
         };
         (engine, handle)
     }
@@ -183,6 +204,11 @@ impl Engine {
                         let ev = if on { op8_cartridge::NoteEvent::on(0, note, velocity.clamp(0.0, 1.0)) } else { op8_cartridge::NoteEvent::off(0, note) };
                         q.push(ev);
                     }
+                }
+                EngineCommand::MasterVolume(v) => self.master = v.clamp(0.0, 1.0),
+                EngineCommand::Metronome(on) => {
+                    self.metronome = on;
+                    self.click_left = 0;
                 }
                 EngineCommand::LoadProject(p) => {
                     self.seq.load_project(*p);
@@ -305,8 +331,31 @@ impl Engine {
 
         let spt = self.seq.samples_per_tick() * 24.0;
         self.fx.process(out_l, out_r, spt);
+        // The metronome: a short click at the start of every beat while playing, a higher one on the bar.
+        if self.metronome && self.seq.is_playing() {
+            let beat = self.seq.tick_position() / 96;
+            if beat != self.last_beat {
+                self.last_beat = beat;
+                self.click_left = (SAMPLE_RATE * 0.03) as u32;
+                self.click_phase = 0.0;
+                self.click_hz = if beat % 4 == 0 { 1500.0 } else { 1000.0 };
+            }
+        }
+        if self.click_left > 0 {
+            for i in 0..n {
+                if self.click_left == 0 {
+                    break;
+                }
+                let env = self.click_left as f32 / (SAMPLE_RATE * 0.03);
+                let s = (self.click_phase * std::f32::consts::TAU).sin() * env * 0.35;
+                out_l[i] += s;
+                out_r[i] += s;
+                self.click_phase = (self.click_phase + self.click_hz / SAMPLE_RATE).fract();
+                self.click_left -= 1;
+            }
+        }
         for s in out_l.iter_mut().chain(out_r.iter_mut()) {
-            *s = soft_clip(*s);
+            *s = soft_clip(*s * self.master);
         }
     }
 
@@ -379,6 +428,8 @@ impl EngineHandle {
             EngineCommand::LoadProject(p) => Some(**p),
             _ => None,
         };
+        let master = if let EngineCommand::MasterVolume(v) = &cmd { Some(v.clamp(0.0, 1.0)) } else { None };
+        let metro = if let EngineCommand::Metronome(on) = &cmd { Some(*on) } else { None };
         let play = match &cmd {
             EngineCommand::Play => Some(true),
             EngineCommand::Stop => Some(false),
@@ -392,6 +443,12 @@ impl EngineHandle {
         }
         if let Some(p) = loaded {
             self.project = p;
+        }
+        if let Some(v) = master {
+            self.master = v;
+        }
+        if let Some(on) = metro {
+            self.metronome = on;
         }
         if let Some((t, i, v)) = param {
             if let Some(p) = self
