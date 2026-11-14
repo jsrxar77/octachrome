@@ -1,0 +1,350 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OP-8 · Guide</title>
+<link rel="icon" href="brand/op8-mark.svg" type="image/svg+xml">
+<meta name="description" content="How to play OP-8: a groovebox for the Maschine MK3. Interactive guide.">
+<meta name="color-scheme" content="dark">
+<style>
+@font-face{font-family:Jost;font-weight:300;src:url(fonts/Jost-Light.ttf)}
+@font-face{font-family:Jost;font-weight:400;src:url(fonts/Jost-Regular.ttf)}
+:root{
+  --bg:#000;--fg:#F2F4F8;--dim:#7E8794;--faint:#232831;--panel:#0D1118;--rec:#FF3B30;
+  --k1:#0099FF;--k2:#00E56A;--k3:#F2F4F8;--k4:#FF4F00;--k5:#8B6CFF;--k6:#FFD21F;--k7:#2ED3E6;--k8:#FF4FA0;
+  --acc:var(--k1);
+}
+*{box-sizing:border-box;margin:0}
+html{scroll-behavior:smooth;scroll-snap-type:y proximity}
+body{background:var(--bg);color:var(--fg);font:300 18px/1.5 Jost,system-ui,sans-serif;transition:background .4s,color .4s;-webkit-font-smoothing:antialiased}
+section{min-height:100svh;padding:12vh 20px 8vh;scroll-snap-align:start;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:28px;text-align:center}
+h1{font-weight:300;font-size:clamp(72px,18vw,200px);letter-spacing:.04em;line-height:1}
+h2{font-weight:400;font-size:clamp(28px,5vw,46px);letter-spacing:.02em}
+p.lead{color:var(--dim);max-width:34ch;font-size:clamp(18px,2.6vw,24px)}
+.dim{color:var(--dim)}
+button{font:inherit;color:inherit;background:var(--panel);border:1px solid var(--faint);border-radius:999px;padding:8px 18px;cursor:pointer;transition:.15s}
+button:hover{border-color:var(--dim)}
+button.on{border-color:var(--acc);color:var(--acc)}
+button:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--acc);outline-offset:3px}
+.top{position:fixed;top:14px;left:18px;z-index:6;font-size:15px;color:var(--dim)}.top a{color:var(--dim);text-decoration:none}.top a:hover,.top b{color:var(--fg)}.top b{font-weight:400}
+nav{position:fixed;right:14px;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:12px;z-index:5}
+nav a{width:10px;height:10px;border-radius:50%;background:var(--faint);display:block;transition:.2s}
+nav a.on{background:var(--acc);transform:scale(1.4)}
+.row{display:flex;flex-wrap:wrap;gap:10px;justify-content:center}
+.cap{min-height:2.8em;max-width:36ch;color:var(--fg);font-size:20px}
+.cap small{display:block;color:var(--dim);font-size:16px}
+
+/* hero pads */
+.pads{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;width:min(260px,70vw)}
+.pad{aspect-ratio:1;border-radius:10px;background:var(--panel);border:1px solid var(--faint)}
+.mark{width:min(460px,80vw);height:auto}
+.hero .pad{animation:breathe 3.2s ease-in-out infinite;animation-delay:calc(var(--i)*.12s)}
+@keyframes breathe{0%,100%{background:var(--panel)}50%{background:var(--c)}}
+.scroll{color:var(--dim);font-size:14px;letter-spacing:.3em;text-transform:uppercase;animation:nudge 2s infinite}
+@keyframes nudge{50%{transform:translateY(6px)}}
+
+/* surface */
+svg.mk3{width:min(1000px,96vw);height:auto}
+.hs{cursor:pointer}
+.hs:hover .hl,.hs.on .hl{stroke:var(--acc);stroke-width:2}
+.hs text{user-select:none}
+.hl{fill:none;stroke:transparent}
+
+/* step grid */
+.seq{display:grid;gap:6px;width:min(780px,94vw)}
+.line{display:grid;grid-template-columns:repeat(16,1fr);gap:4px;align-items:center}
+.st{aspect-ratio:1;border-radius:5px;background:var(--panel);border:1px solid var(--faint);cursor:pointer;position:relative;padding:0}
+.st.on{background:var(--c);border-color:var(--c)}
+.st.out{opacity:.12;pointer-events:none}
+.st.now::after{content:"";position:absolute;inset:-2px;border:2px solid var(--fg);border-radius:6px}
+.len{display:flex;justify-content:center;gap:14px;flex-wrap:wrap;color:var(--dim);font-size:15px}
+.len i{font-style:normal;color:var(--fg)}
+
+/* modes */
+.modes .pads{width:min(300px,70vw)}
+.modes .pad{display:grid;place-items:center;font-size:15px;color:var(--bg);font-weight:400;border:0}
+.screen2{display:grid;grid-template-columns:1fr 1fr;gap:10px;width:min(560px,92vw)}
+.scr{aspect-ratio:480/272;background:#000;border:1px solid var(--faint);border-radius:8px;overflow:hidden}
+.scr canvas{width:100%;height:100%;display:block}
+
+/* instruments */
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px;width:min(900px,94vw)}
+.card{background:var(--panel);border:1px solid var(--faint);border-radius:18px;padding:16px;text-align:left}
+.card canvas{width:100%;height:90px;display:block}
+.card h3{font-weight:400;font-size:20px;margin-top:6px}
+.knobs{display:flex;gap:6px;margin-top:10px}
+.knobs b{width:14px;height:14px;border-radius:50%;background:var(--c)}
+
+/* terminal */
+pre{background:var(--panel);border:1px solid var(--faint);border-radius:14px;padding:18px 22px;font:400 20px/1.5 ui-monospace,Menlo,monospace;text-align:left;color:var(--fg);max-width:94vw;overflow:auto}
+pre span{color:var(--dim)}
+.pw{display:flex;gap:18px;flex-wrap:wrap;justify-content:center}
+.pw div{background:var(--panel);border:1px solid var(--faint);border-radius:16px;padding:14px 20px;min-width:150px}
+.pw big{display:block;font-size:34px;font-weight:400}
+footer{padding:40px 20px 60px;text-align:center;color:var(--dim);font-size:15px}
+footer a{color:var(--fg)}
+@media (max-width:700px){nav{display:none}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;scroll-behavior:auto!important}}
+</style>
+</head>
+<body>
+
+<div class="top"><b>Guide</b> · <a href="brand.html">Brand</a> · <a href="manual.html">Manual</a></div>
+<nav id="nav" aria-label="Sections"></nav>
+
+<section class="hero" id="s0">
+  <svg class="mark" id="heroMark" role="img" aria-label="OP-8 mark: eight coloured keys, four and four"></svg>
+  <h1>OP-8</h1>
+  <p class="lead">A groovebox you play with a Maschine MK3.</p>
+  <div class="scroll">scroll</div>
+</section>
+
+<section id="s1">
+  <h2>The surface</h2>
+  <p class="lead">Every button, where it is on the unit. Tap one.</p>
+  <p class="dim" style="font-size:15px"><span style="color:var(--k2)">●</span> works today &nbsp; <span style="color:var(--k6)">●</span> partly &nbsp; <span style="opacity:.5">●</span> planned</p>
+  <svg class="mk3" viewBox="0 0 1000 950" role="img" aria-label="Maschine MK3 map" id="mk3"></svg>
+  <div class="cap" id="mk3cap" aria-live="polite">&nbsp;</div>
+</section>
+
+<section id="s2">
+  <h2>Make a beat</h2>
+  <p class="lead">Click steps. Press play. Every row has its own length.</p>
+  <div class="seq" id="seq"></div>
+  <div class="len" id="lens"></div>
+  <div class="row">
+    <button id="play">▶ Play</button>
+    <button id="clear">Clear</button>
+    <button id="tempo" aria-label="Tempo">112 BPM</button>
+  </div>
+</section>
+
+<section class="modes" id="s3">
+  <h2>Four modes</h2>
+  <div class="row" id="modeTabs"></div>
+  <div class="pads" id="modePads"></div>
+  <div class="cap" id="modeCap"></div>
+</section>
+
+<section id="s4">
+  <h2>Eight knobs, eight colours</h2>
+  <p class="lead">Each screen shows what the knob under it does.</p>
+  <div class="screen2">
+    <div class="scr"><canvas id="cL" width="480" height="272"></canvas></div>
+    <div class="scr"><canvas id="cR" width="480" height="272"></canvas></div>
+  </div>
+  <div class="row" id="themeTabs"></div>
+  <p class="dim" style="font-size:15px">Themes change the whole page. On the MK3: SETTINGS, then turn the 4D encoder.</p>
+</section>
+
+<section id="s4b">
+  <h2>Three themes</h2>
+  <p class="lead">Bright, soft, monochrome.</p>
+  <svg id="themeMk" role="img" aria-label="The MK3 in the chosen theme" style="width:min(1000px,96vw);height:auto;display:block;margin:auto"></svg>
+  <div class="cap" id="themeCap"></div>
+  <div class="row" id="themeTabs2"></div>
+</section>
+
+<section id="s5">
+  <h2>Instruments</h2>
+  <p class="lead">At most eight knobs. A drawing that shows the sound.</p>
+  <div class="cards" id="cards"></div>
+</section>
+
+<section id="s6">
+  <h2>Start it</h2>
+  <pre id="cmd"><span>$</span> op8</pre>
+  <div class="row"><button id="copy">Copy</button></div>
+  <p class="lead">Builds, frees the MK3 from NI's services, and plays.</p>
+  <div class="pw">
+    <div><big>&lt; 500 mA</big><span class="dim">screens 50, LEDs capped</span></div>
+    <div><big>≥ 500 mA</big><span class="dim">screens 80, full LEDs</span></div>
+  </div>
+  <p class="dim" style="font-size:15px">Plug the MK3 straight into the Mac, not through a hub.</p>
+</section>
+
+<footer>
+  <a href="manual.html">Manual</a> ·
+  <a href="brand.html">Brand</a> ·
+  <a href="../docs/architecture.md">Architecture</a> ·
+  <a href="../docs/buttons.md">Buttons</a> ·
+  <a href="../docs/instruments.md">Instruments</a> ·
+  <a href="../docs/design.md">Design</a> ·
+  <a href="../twin/op8-twin.html">Twin</a>
+</footer>
+
+<script src="mk3.js"></script>
+<script src="themes.js"></script>
+<script>
+const $ = (s, r = document) => r.querySelector(s);
+const el = (t, a = {}, h = "") => { const e = document.createElement(t); for (const k in a) e.setAttribute(k, a[k]); e.innerHTML = h; return e; };
+const THEMES = {};
+OP8.ORDER.forEach(n => { const t = OP8.THEMES[n]; THEMES[n] = { ...t, k: t.knobs }; });
+let theme = OP8.cur, K = THEMES[theme].k;
+function applyTheme(name) {
+  theme = name; const t = THEMES[name]; K = t.k;
+  const r = document.documentElement.style;
+  r.setProperty("--fg", t.fg); r.setProperty("--dim", t.dim); r.setProperty("--faint", t.faint); r.setProperty("--panel", t.panel); r.setProperty("--rec", t.rec);
+  K.forEach((c, i) => r.setProperty("--k" + (i + 1), c));
+  drawMark($("#heroMark"),t.brand,true);
+}
+OP8.on(applyTheme);
+
+/* nav dots */
+const secs = [...document.querySelectorAll("section")];
+secs.forEach((s, i) => { const a = el("a", { href: "#" + s.id, "aria-label": "Section " + (i + 1) }); $("#nav").append(a); });
+const io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting) { const i = secs.indexOf(e.target); document.querySelectorAll("#nav a").forEach((a, j) => a.classList.toggle("on", i === j)); } }), { threshold: .55 });
+secs.forEach(s => io.observe(s));
+
+
+/* the brand mark (docs/design.md §2.3): the unit's own arrangements of eight, rainbow order, the eighth white */
+function drawMark(svg,colors,run,kind){
+  const M=MK3.mark[kind||"keys"];svg.setAttribute("viewBox",M.vb);
+  svg.innerHTML=M.items.map((it,i)=>it[0]==="rect"
+    ?`<rect data-i="${i}" x="${it[1]}" y="${it[2]}" width="${it[3]}" height="${it[4]}" rx="${it[5]}" fill="${colors[i]}"/>`
+    :`<circle data-i="${i}" cx="${it[1]}" cy="${it[2]}" r="${it[3]}" fill="${colors[i]}"/>`).join("");
+  if(svg._t)clearInterval(svg._t);
+  if(run&&!matchMedia("(prefers-reduced-motion:reduce)").matches){let n=0;svg._t=setInterval(()=>{svg.querySelectorAll("[data-i]").forEach((r,i)=>r.style.opacity=i===n?1:.55);n=(n+1)%8},300)}
+}
+/* hero */
+/* surface map: the MK3 faceplate from mk3.js, as on the unit */
+const BTN=MK3.BTN,SW={y:"works today",p:"partly",n:"planned"};
+(function(){
+  const svg=$("#mk3");svg.setAttribute("viewBox",`0 0 ${MK3.W} ${MK3.H}`);
+  const [bx,by,bw,bh]=MK3.body;
+  let h=`<rect x="${bx}" y="${by}" width="${bw}" height="${bh}" rx="34" fill="var(--panel)" stroke="var(--faint)"/>`;
+  MK3.screens.forEach((r,s)=>{h+=`<rect x="${r[0]}" y="${r[1]}" width="${r[2]}" height="${r[3]}" rx="6" fill="#000" stroke="var(--faint)"/>`;
+    if(!s){const px=(r[2]-20)/16,py=(r[3]-20)/8;for(let r2=0;r2<8;r2++)for(let c=0;c<16;c++)h+=`<rect x="${r[0]+10+c*px}" y="${r[1]+10+r2*py}" width="${px-4}" height="${py-4}" rx="2" fill="${(r2*5+c*3)%7<2?"var(--k"+(r2+1)+")":"var(--faint)"}"/>`}
+    else{const w=r[2]-20,m=r[1]+r[3]*.42;h+=`<path d="M${r[0]+10} ${m} q${w/8} ${-r[3]*.5} ${w/4} 0 t${w/4} 0 t${w/4} 0 t${w/4} 0" fill="none" stroke="var(--k1)" stroke-width="3.5"/>`}});
+  MK3.knobs.forEach(([cx,cy,r],i)=>h+=`<circle cx="${cx}" cy="${cy}" r="${r}" fill="var(--bg)" stroke="var(--k${i+1})" stroke-width="3"/><circle cx="${cx}" cy="${cy}" r="3" fill="var(--k${i+1})"/>`);
+  const [ex,ey,er]=MK3.encoder;h+=`<circle cx="${ex}" cy="${ey}" r="${er}" fill="var(--bg)" stroke="var(--dim)" stroke-width="2"/><circle cx="${ex}" cy="${ey}" r="${er*.55}" fill="var(--faint)"/>`;
+  const st=MK3.strip;h+=`<rect x="${st[0]}" y="${st[1]}" width="${st[2]}" height="${st[3]}" rx="${st[3]/2}" fill="var(--bg)" stroke="var(--faint)"/>`;
+  MK3.pads.forEach(p=>h+=`<rect x="${p[0]}" y="${p[1]}" width="${p[2]}" height="${p[3]}" rx="8" fill="var(--faint)"/>`);
+  svg.innerHTML=h;
+  BTN.forEach((b,i)=>{const[l,x,y,w,hh,s]=b;
+    svg.insertAdjacentHTML("beforeend",`<g class="hs" tabindex="0" role="button" aria-label="${l}" data-b="${i}"><rect x="${x}" y="${y}" width="${w}" height="${hh}" rx="4" fill="var(--faint)"/><text x="${x+w/2}" y="${y+hh/2+3}" text-anchor="middle" font-size="${l.length>7?7.5:9}" fill="var(--fg)" style="pointer-events:none">${l}</text><circle cx="${x+w-4.5}" cy="${y+4.5}" r="2.4" fill="${s==="y"?"var(--k2)":s==="p"?"var(--k6)":"var(--dim)"}" opacity="${s==="n"?.5:1}"/><rect class="hl" x="${x}" y="${y}" width="${w}" height="${hh}" rx="4" pointer-events="all"/></g>`)});
+  const part=(id,r)=>`<g class="hs" tabindex="0" role="button" aria-label="${id}" data-id="${id}"><rect class="hl" x="${r[0]}" y="${r[1]}" width="${r[2]}" height="${r[3]}" rx="8" pointer-events="all"/></g>`;
+  const kn=MK3.knobs,P=MK3.pads;
+  const parts=[["knobs","8 knobs","Each knob has the colour of its parameter on screen.",[kn[0][0]-30,kn[0][1]-30,kn[7][0]-kn[0][0]+60,60]],["screens","Two screens","Left: time (steps). Right: sound (the instrument).",[MK3.screens[0][0],MK3.screens[0][1],MK3.screens[1][0]+MK3.screens[1][2]-MK3.screens[0][0],MK3.screens[0][3]]],["pads","16 pads","Steps, chord degrees or effects, depending on the mode.",[P[0][0],P[0][1],P[15][0]+P[15][2]-P[0][0],P[15][1]+P[15][3]-P[0][1]]],["strip","Smart Strip","Master filter today. Pitch, mod and notes later.",MK3.strip],["enc","4D encoder","Turn, tilt and push. In settings: ◀ ▶ picks the theme.",[ex-er,ey-er,er*2,er*2]]];
+  parts.forEach(p=>svg.insertAdjacentHTML("beforeend",part(p[0],p[3])));
+  const show=el=>{svg.querySelectorAll(".hs").forEach(x=>x.classList.toggle("on",x===el));
+    if(el.dataset.b!==undefined){const b=BTN[el.dataset.b];$("#mk3cap").innerHTML=`${b[0]} <span class="dim">· ${SW[b[5]]}</span><small>${b[6]}</small>`}
+    else{const p=parts.find(p=>p[0]===el.dataset.id);$("#mk3cap").innerHTML=`${p[1]}<small>${p[2]}</small>`}};
+  svg.querySelectorAll(".hs").forEach(el=>{el.addEventListener("click",()=>show(el));el.addEventListener("mouseenter",()=>show(el));el.addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" ")show(el)})});
+  show(svg.querySelector('[data-id="pads"]'));
+})();
+
+/* sequencer */
+const ROWS = [
+  { name: "kick", len: 16, steps: [0, 4, 8, 12], f: kick },
+  { name: "snare", len: 16, steps: [4, 12], f: snare },
+  { name: "hat", len: 12, steps: [0, 2, 4, 6, 8, 10], f: hat },
+  { name: "bass", len: 7, steps: [0, 3], f: bass },
+];
+const seq = $("#seq"); const cells = [];
+ROWS.forEach((r, ri) => {
+  const line = el("div", { class: "line", style: `--c:var(--k${[1, 4, 6, 2][ri]})` }); cells[ri] = [];
+  for (let i = 0; i < 16; i++) {
+    const b = el("button", { class: "st" + (r.steps.includes(i) ? " on" : "") + (i >= r.len ? " out" : ""), "aria-label": `${r.name} step ${i + 1}` });
+    b.onclick = () => { b.classList.toggle("on"); r.steps = cells[ri].map((c, j) => c.classList.contains("on") ? j : -1).filter(j => j >= 0); };
+    line.append(b); cells[ri].push(b);
+  }
+  seq.append(line);
+});
+$("#lens").innerHTML = ROWS.map(r => `${r.name} <i>${r.len}</i>`).join(" · ");
+
+let ac, playing = false, tick = 0, timer, bpm = 112;
+function ctx() { if (!ac) ac = new (window.AudioContext || window.webkitAudioContext)(); if (ac.state === "suspended") ac.resume(); return ac; }
+function env(g, t, a, d, peak) { g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(peak, t + a); g.gain.exponentialRampToValueAtTime(0.0001, t + d); }
+function kick(t) { const o = ac.createOscillator(), g = ac.createGain(); o.frequency.setValueAtTime(150, t); o.frequency.exponentialRampToValueAtTime(42, t + .12); env(g, t, .003, .35, .9); o.connect(g).connect(ac.destination); o.start(t); o.stop(t + .4); }
+function noise(t, d, hp, peak) { const n = ac.createBufferSource(), b = ac.createBuffer(1, ac.sampleRate * d, ac.sampleRate), x = b.getChannelData(0); for (let i = 0; i < x.length; i++) x[i] = Math.random() * 2 - 1; n.buffer = b; const f = ac.createBiquadFilter(), g = ac.createGain(); f.type = "highpass"; f.frequency.value = hp; env(g, t, .002, d, peak); n.connect(f).connect(g).connect(ac.destination); n.start(t); }
+function snare(t) { noise(t, .18, 1500, .5); }
+function hat(t) { noise(t, .05, 7000, .25); }
+function bass(t) { const o = ac.createOscillator(), g = ac.createGain(), f = ac.createBiquadFilter(); o.type = "sawtooth"; o.frequency.value = 55; f.frequency.value = 400; env(g, t, .005, .25, .35); o.connect(f).connect(g).connect(ac.destination); o.start(t); o.stop(t + .3); }
+
+function step() {
+  const t = ac.currentTime + .02;
+  ROWS.forEach((r, ri) => {
+    const i = tick % r.len;
+    if (r.steps.includes(i)) r.f(t);
+    cells[ri].forEach((c, j) => c.classList.toggle("now", j === i));
+  });
+  tick++;
+}
+function start() { ctx(); playing = true; tick = 0; $("#play").textContent = "■ Stop"; $("#play").classList.add("on"); step(); timer = setInterval(step, 60000 / bpm / 4); }
+function stop() { playing = false; clearInterval(timer); $("#play").textContent = "▶ Play"; $("#play").classList.remove("on"); cells.flat().forEach(c => c.classList.remove("now")); }
+$("#play").onclick = () => playing ? stop() : start();
+$("#clear").onclick = () => { ROWS.forEach((r, i) => { r.steps = []; cells[i].forEach(c => c.classList.remove("on")); }); };
+$("#tempo").onclick = e => { bpm = bpm >= 140 ? 80 : bpm + 12; e.target.textContent = bpm + " BPM"; if (playing) { stop(); start(); } };
+new IntersectionObserver(es => { if (!es[0].isIntersecting && playing) stop(); }, { threshold: 0 }).observe($("#s2"));
+
+/* modes */
+const MODES = {
+  STEP:    { cap: "Pads are the 16 steps. Hold one to open its components.", pad: i => ["var(--k" + ((i % 8) + 1) + ")", ""] , label: i => i + 1 },
+  CHORDS:  { cap: "Brain: pads are chord degrees. Hold one to play the chord.", pad: i => [i < 7 ? "var(--k5)" : "var(--faint)", ""], label: i => i < 7 ? ["I","II","III","IV","V","VI","VII"][i] : "" },
+  PERFORM: { cap: "Punch-in FX: each pad is an effect. Pressure is the amount.", pad: i => ["var(--k" + ((i % 8) + 1) + ")", ""], label: i => ["⟲","⟳","▮","≈","⇣","⇡","✦","◌","↯","⇄","∿","☰","⚡","◐","◑","◒"][i] },
+  SETTINGS:{ cap: "Both screens become settings. Turn the 4D encoder to pick a theme. CHANNEL goes back.", pad: () => ["var(--faint)", ""], label: () => "" },
+};
+const mt = $("#modeTabs"), mp = $("#modePads");
+for (let i = 0; i < 16; i++) mp.append(el("div", { class: "pad" }));
+function setMode(m) {
+  mt.querySelectorAll("button").forEach(b => b.classList.toggle("on", b.dataset.m === m));
+  const M = MODES[m]; [...mp.children].forEach((p, i) => { p.style.background = M.pad(i)[0]; p.textContent = M.label(i); });
+  $("#modeCap").textContent = M.cap;
+}
+Object.keys(MODES).forEach(m => { const b = el("button", { "data-m": m }, m); b.onclick = () => setMode(m); mt.append(b); });
+setMode("STEP");
+
+/* screens (simple animated drawings, in the theme colours) */
+const cL = $("#cL").getContext("2d"), cR = $("#cR").getContext("2d");
+function frame(ms) {
+  const t = ms / 1000, css = getComputedStyle(document.documentElement);
+  const fg = css.getPropertyValue("--fg"), dim = css.getPropertyValue("--dim"), faint = css.getPropertyValue("--faint");
+  cL.fillStyle = "#000"; cL.fillRect(0, 0, 480, 272);
+  for (let r = 0; r < 8; r++) for (let c = 0; c < 16; c++) {
+    const on = ((r * 5 + c * 3) % 7 < 2), now = Math.floor(t * 6) % 16 === c;
+    cL.fillStyle = on ? K[r] : faint; cL.globalAlpha = on ? 1 : .8;
+    cL.fillRect(24 + c * 27, 20 + r * 26, 22, 20);
+    if (now) { cL.globalAlpha = .9; cL.strokeStyle = fg; cL.lineWidth = 2; cL.strokeRect(23 + c * 27, 19 + r * 26, 24, 22); }
+  }
+  cL.globalAlpha = 1;
+  cR.fillStyle = "#000"; cR.fillRect(0, 0, 480, 272);
+  cR.strokeStyle = K[0]; cR.lineWidth = 3; cR.beginPath();
+  for (let x = 0; x < 480; x += 3) { const y = 110 + Math.sin(x / 22 + t * 3) * 40 * Math.sin(x / 150 + t); x ? cR.lineTo(x, y) : cR.moveTo(x, y); }
+  cR.stroke();
+  for (let i = 0; i < 8; i++) {
+    const cx = 30 + i * 60, cy = 210, a = -2.3 + (Math.sin(t * .8 + i) * .5 + .5) * 4.6;
+    cR.strokeStyle = faint; cR.lineWidth = 4; cR.beginPath(); cR.arc(cx, cy, 20, -2.3, 2.3); cR.stroke();
+    cR.strokeStyle = K[i]; cR.beginPath(); cR.arc(cx, cy, 20, -2.3, a); cR.stroke();
+  }
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+OP8.tabs($("#themeTabs"));
+
+/* instruments */
+const INST = [
+  { n: "KickSyn", k: 4, d: (c, t, w, h) => { c.beginPath(); for (let x = 0; x < w; x++) { const u = x / w; const y = h / 2 - Math.sin(u * u * 40 + t * 4) * Math.exp(-u * 3) * h * .4; x ? c.lineTo(x, y) : c.moveTo(x, y); } c.stroke(); } },
+  { n: "FmBass", k: 4, d: (c, t, w, h) => { c.beginPath(); for (let x = 0; x < w; x++) { const u = x / w * 12.56; const y = h / 2 - Math.sin(u + 2.2 * Math.sin(u * 2 + t * 2)) * h * .38; x ? c.lineTo(x, y) : c.moveTo(x, y); } c.stroke(); } },
+  { n: "macro", k: 8, d: (c, t, w, h) => { c.beginPath(); for (let a = 0; a <= 6.3; a += .05) { const r = (h * .3) * (1 + .4 * Math.sin(a * 5 + t * 2)); const x = w / 2 + Math.cos(a) * r * 1.4, y = h / 2 + Math.sin(a) * r; a ? c.lineTo(x, y) : c.moveTo(x, y); } c.closePath(); c.stroke(); } },
+];
+const cards = $("#cards"); const icv = [];
+INST.forEach((it, i) => {
+  const c = el("div", { class: "card" }, `<canvas width="400" height="120"></canvas><h3>${it.n}</h3><div class="knobs">${Array.from({ length: it.k }, (_, j) => `<b style="--c:var(--k${j + 1})"></b>`).join("")}</div>`);
+  cards.append(c); icv.push(c.querySelector("canvas"));
+});
+function drawCards(ms) {
+  icv.forEach((cv, i) => { const c = cv.getContext("2d"); c.clearRect(0, 0, 400, 120); c.lineWidth = 3; c.lineJoin = "round"; c.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue("--k" + (i * 3 % 8 + 1)); INST[i].d(c, ms / 1000, 400, 120); });
+  requestAnimationFrame(drawCards);
+}
+requestAnimationFrame(drawCards);
+
+/* copy */
+$("#copy").onclick = async e => { try { await navigator.clipboard.writeText("op8"); e.target.textContent = "Copied"; } catch (x) { e.target.textContent = "Select it"; } setTimeout(() => e.target.textContent = "Copy", 1400); };
+
+OP8.tabs($("#themeTabs2"));OP8.mount($("#themeMk"), $("#themeCap"));
+applyTheme(OP8.cur);
+</script>
+</body>
+</html>

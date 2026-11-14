@@ -1,9 +1,0 @@
-[package]
-name = "op3-seq"
-description = "Deterministic OP-XY-style sequencer: polymeter, accumulable step components, Brain harmony track"
-version.workspace = true
-edition.workspace = true
-license.workspace = true
-
-[dependencies]
-op3-cartridge.workspace = true

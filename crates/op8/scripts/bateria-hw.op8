@@ -1,0 +1,58 @@
+# Battery on the real MK3, in order, about 32 seconds. Each block is one area of
+# docs/features.md; pauses leave time to look at the screens and hear the result.
+
+# T · transport
+0.5   btn play              # start (F-T01)
+3.0   btn play              # pause
+4.0   btn play              # resume
+
+# S · step sequencer
+8.0   btn group a           # track A (kick)
+8.0   btn step              # STEP mode
+8.5   pad 15 strike 0.8     # toggle step 4 on (F-S01)
+9.0   pad 15 release
+9.5   pad 15 strike 0.8     # toggle it off again
+10.0  pad 15 release
+11.0  pad 15 strike 0.8     # hold past 300 ms opens the inspector (F-S02)
+11.5  pad 15 release
+13.0  knob 0 -200           # length 16 to 11 (F-S06)
+14.0  knob 0 200            # back to 16
+
+# S · mute (F-S07, F-S08): the MIDI track goes silent
+15.0  btn mute down
+15.0  btn group c
+15.1  btn mute up
+19.0  btn mute down
+19.0  btn group c
+19.1  btn mute up
+
+# B · Brain (F-B01 to F-B04)
+20.0  btn chords
+20.5  pad 3 strike 0.9      # hold a live chord (F-B02)
+21.5  pad 3 release
+22.0  knob 0 40             # key up one semitone (F-B04)
+23.0  knob 0 -40
+
+# P · Punch-in FX (F-P01, F-P02)
+24.0  btn perform
+24.5  pad 0 strike 0.4      # LPF while held
+24.8  pad 0 pressure 0.5
+25.2  pad 0 pressure 0.9
+25.6  pad 0 release
+
+# K · encoders and pages (F-K01 to F-K03)
+26.5  btn step
+26.6  btn group b           # FmBass
+27.0  touch 5 on            # overlay on the right screen (F-K03)
+27.0  knob 5 300            # index of FM, moves up
+28.0  touch 5 off
+28.2  btn screen 6          # second page
+28.5  knob 4 300            # encoder 5 now moves parameter 5 (F-K02)
+29.5  btn screen 5
+
+# Smart Strip
+30.0  strip 0.25            # filter master, left half (low-pass)
+31.0  strip off
+
+# end: stop the transport
+31.5  btn stop

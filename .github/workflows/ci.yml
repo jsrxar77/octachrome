@@ -22,17 +22,17 @@ jobs:
       - run: cargo test --workspace
       - run: cargo clippy --workspace --all-targets
       - name: Simulator smoke run
-        run: cargo run --release -p op3 -- sim -s 6 -o sim-out
+        run: cargo run --release -p op8 -- sim -s 6 -o sim-out
       - uses: actions/upload-artifact@v4
         with:
           name: sim-screenshots
           path: sim-out
       - name: Pi target check (no ALSA sysroot needed)
         env:
-          # op3-plaits compiles C++ in build.rs, so the check needs a cross compiler.
+          # op8-plaits compiles C++ in build.rs, so the check needs a cross compiler.
           CC_aarch64_unknown_linux_gnu: aarch64-linux-gnu-gcc
           CXX_aarch64_unknown_linux_gnu: aarch64-linux-gnu-g++
-        run: cargo check --target aarch64-unknown-linux-gnu -p op3 --no-default-features --features mk3
+        run: cargo check --target aarch64-unknown-linux-gnu -p op8 --no-default-features --features mk3
 
   macos:
     runs-on: macos-latest # Apple Silicon
@@ -40,5 +40,5 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
-      - run: cargo build -p op3
+      - run: cargo build -p op8
       - run: cargo test --workspace

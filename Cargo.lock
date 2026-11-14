@@ -777,52 +777,52 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9f7c3e4beb33f85d45ae3e3a1792185706c8e16d043238c593331cc7cd313b50"
 
 [[package]]
-name = "op3"
+name = "op8"
 version = "0.1.0"
 dependencies = [
  "anyhow",
  "cpal",
  "libc",
  "midir",
- "op3-cartridge",
- "op3-cartridges",
- "op3-engine",
- "op3-gfx",
- "op3-hw",
- "op3-seq",
- "op3-ui",
+ "op8-cartridge",
+ "op8-cartridges",
+ "op8-engine",
+ "op8-gfx",
+ "op8-hw",
+ "op8-seq",
+ "op8-ui",
  "rtrb",
 ]
 
 [[package]]
-name = "op3-cartridge"
+name = "op8-cartridge"
 version = "0.1.0"
 dependencies = [
- "op3-gfx",
+ "op8-gfx",
 ]
 
 [[package]]
-name = "op3-cartridges"
+name = "op8-cartridges"
 version = "0.1.0"
 dependencies = [
- "op3-cartridge",
- "op3-gfx",
- "op3-plaits",
+ "op8-cartridge",
+ "op8-gfx",
+ "op8-plaits",
  "rtrb",
 ]
 
 [[package]]
-name = "op3-engine"
+name = "op8-engine"
 version = "0.1.0"
 dependencies = [
- "op3-cartridge",
- "op3-cartridges",
- "op3-seq",
+ "op8-cartridge",
+ "op8-cartridges",
+ "op8-seq",
  "rtrb",
 ]
 
 [[package]]
-name = "op3-gfx"
+name = "op8-gfx"
 version = "0.1.0"
 dependencies = [
  "embedded-graphics",
@@ -830,39 +830,39 @@ dependencies = [
 ]
 
 [[package]]
-name = "op3-hw"
+name = "op8-hw"
 version = "0.1.0"
 dependencies = [
  "futures-lite",
  "hidapi",
  "libc",
  "nusb",
- "op3-gfx",
+ "op8-gfx",
 ]
 
 [[package]]
-name = "op3-plaits"
+name = "op8-plaits"
 version = "0.1.0"
 dependencies = [
  "cc",
 ]
 
 [[package]]
-name = "op3-seq"
+name = "op8-seq"
 version = "0.1.0"
 dependencies = [
- "op3-cartridge",
+ "op8-cartridge",
 ]
 
 [[package]]
-name = "op3-ui"
+name = "op8-ui"
 version = "0.1.0"
 dependencies = [
- "op3-cartridge",
- "op3-cartridges",
- "op3-engine",
- "op3-gfx",
- "op3-seq",
+ "op8-cartridge",
+ "op8-cartridges",
+ "op8-engine",
+ "op8-gfx",
+ "op8-seq",
 ]
 
 [[package]]

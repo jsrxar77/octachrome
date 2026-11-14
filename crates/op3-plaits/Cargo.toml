@@ -1,9 +1,0 @@
-[package]
-name = "op3-plaits"
-description = "Macro-oscillator DSP for the OP-3 'macro' instrument (vendored MIT C++ code behind a safe Rust API)"
-version.workspace = true
-edition.workspace = true
-license.workspace = true
-
-[build-dependencies]
-cc = "1"

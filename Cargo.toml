@@ -1,32 +1,31 @@
 [workspace]
 resolver = "2"
 members = [
-    "crates/op3-plaits",
-    "crates/op3-gfx",
-    "crates/op3-cartridge",
-    "crates/op3-seq",
-    "crates/op3-engine",
-    "crates/op3-cartridges",
-    "crates/op3-hw",
-    "crates/op3-ui",
-    "crates/op3",
+    "crates/op8-plaits",
+    "crates/op8-gfx",
+    "crates/op8-cartridge",
+    "crates/op8-seq",
+    "crates/op8-engine",
+    "crates/op8-cartridges",
+    "crates/op8-hw",
+    "crates/op8-ui",
+    "crates/op8",
 ]
 
 [workspace.package]
 version = "0.1.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"
-rust-version = "1.80"
 
 [workspace.dependencies]
-op3-gfx = { path = "crates/op3-gfx" }
-op3-cartridge = { path = "crates/op3-cartridge" }
-op3-seq = { path = "crates/op3-seq" }
-op3-engine = { path = "crates/op3-engine" }
-op3-cartridges = { path = "crates/op3-cartridges" }
-op3-hw = { path = "crates/op3-hw" }
-op3-ui = { path = "crates/op3-ui" }
-op3-plaits = { path = "crates/op3-plaits" }
+op8-gfx = { path = "crates/op8-gfx" }
+op8-cartridge = { path = "crates/op8-cartridge" }
+op8-seq = { path = "crates/op8-seq" }
+op8-engine = { path = "crates/op8-engine" }
+op8-cartridges = { path = "crates/op8-cartridges" }
+op8-hw = { path = "crates/op8-hw" }
+op8-ui = { path = "crates/op8-ui" }
+op8-plaits = { path = "crates/op8-plaits" }
 embedded-graphics = "0.8"
 rtrb = "0.3"
 fontdue = "0.9"
