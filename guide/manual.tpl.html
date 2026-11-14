@@ -1,16 +1,52 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>OP-8 · Manual</title>
+<link rel="icon" href="brand/op8-mark.svg" type="image/svg+xml">
+<meta name="description" content="The OP-8 manual: how the machine works, fourteen recipes you can follow from the first minute, and every button.">
 <style>
 @font-face{font-family:Jost;font-weight:300;src:url(fonts/Jost-Light.ttf)}
 @font-face{font-family:Jost;font-weight:400;src:url(fonts/Jost-Regular.ttf)}
-:root{color-scheme:dark;--bg:#000;--fg:#F2F4F8;--dim:#7E8794;--faint:#232831;--panel:#0D1118;--g:#00E56A;--y:#FFD21F;--acc:#0099FF}
+:root{color-scheme:dark;--bg:#000;--fg:#F2F4F8;--dim:#7E8794;--faint:#232831;--panel:#0D1118;--g:#00E56A;--y:#FFD21F;--acc:#0099FF;--rec:#FF3B30}
 *{box-sizing:border-box;margin:0}
-body{background:var(--bg);color:var(--fg);font:300 17px/1.45 Jost,system-ui,sans-serif;padding:40px 20px 80px;max-width:1000px;margin:auto;-webkit-font-smoothing:antialiased}
+html{scroll-behavior:smooth;scroll-padding-top:20px}
+body{background:var(--bg);color:var(--fg);font:300 18px/1.6 Jost,system-ui,sans-serif;padding:40px 20px 100px;max-width:1040px;margin:auto;-webkit-font-smoothing:antialiased}
 h1{font-weight:300;font-size:clamp(48px,10vw,96px);letter-spacing:.03em;line-height:1}
-h2{font-weight:400;font-size:22px;margin:38px 0 10px;display:flex;justify-content:space-between;align-items:baseline}
-h2 small{font-size:14px;color:var(--dim)}
-a{color:var(--dim)}
+h2{font-weight:400;font-size:clamp(26px,4vw,36px);margin:72px 0 6px;letter-spacing:.01em}
+h2 + .sub{color:var(--dim);margin-bottom:22px}
+h3{font-weight:400;font-size:22px;margin:40px 0 6px}
+h4{font-weight:400;font-size:17px;margin:22px 0 4px;color:var(--dim);letter-spacing:.08em;text-transform:uppercase}
+p{margin:10px 0;max-width:68ch}
+a{color:var(--acc);text-decoration:none}a:hover{text-decoration:underline}
+ul,ol{margin:10px 0 10px 1.3em;max-width:68ch}li{margin:5px 0}
+code{font:400 .92em ui-monospace,Menlo,monospace;background:var(--panel);border:1px solid var(--faint);border-radius:6px;padding:1px 6px}
+kbd{font:400 .82em Jost,system-ui,sans-serif;letter-spacing:.06em;background:var(--panel);border:1px solid var(--dim);border-radius:7px;padding:1px 8px;white-space:nowrap}
+b,strong{font-weight:400;color:#fff}
+.dim{color:var(--dim)}
+nav.toc{display:flex;flex-wrap:wrap;gap:8px 16px;margin:26px 0 0;padding:14px 0;border-top:1px solid var(--faint);border-bottom:1px solid var(--faint);font-size:16px}
+nav.toc a{color:var(--dim)}nav.toc a:hover{color:var(--fg);text-decoration:none}
+.callout{border-left:3px solid var(--acc);background:var(--panel);padding:12px 16px;margin:18px 0;border-radius:0 10px 10px 0;max-width:68ch}
+.callout.warn{border-color:var(--y)}
+.callout p{margin:4px 0}
+figure{margin:20px 0}
+figcaption{color:var(--dim);font-size:15px;margin-top:6px;max-width:80ch}
+.pair{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.pair.one{grid-template-columns:minmax(0,480px)}
+.pair img{width:100%;height:auto;display:block;border-radius:10px;border:1px solid var(--faint);background:#000}
+.recipe{margin:56px 0 0;padding-top:30px;border-top:1px solid var(--faint)}
+.recipe h3{margin-top:0;display:flex;gap:14px;align-items:baseline}
+.recipe h3 span{color:var(--dim);font-size:15px;letter-spacing:.1em}
+.goal{color:var(--dim);margin:4px 0 14px}
+ol.steps{list-style:none;margin:14px 0;padding:0;counter-reset:s}
+ol.steps li{counter-increment:s;display:grid;grid-template-columns:34px 1fr;gap:10px;margin:12px 0}
+ol.steps li::before{content:counter(s);width:28px;height:28px;border-radius:50%;border:1px solid var(--dim);display:grid;place-items:center;font-size:14px;color:var(--dim);margin-top:2px}
+.see{display:flex;gap:10px;margin:14px 0;max-width:68ch}.see::before{content:"you will see";flex:none;color:var(--g);font-size:13px;letter-spacing:.1em;text-transform:uppercase;padding-top:5px;width:92px}
+.next{color:var(--dim);max-width:68ch}.next b{color:var(--dim)}
+table{border-collapse:collapse;margin:14px 0;width:100%;font-size:16px}
+th{font-weight:400;text-align:left;color:var(--dim);font-size:13px;letter-spacing:.1em;text-transform:uppercase}
+td,th{padding:8px 12px 8px 0;border-top:1px solid var(--faint);vertical-align:top}
+td:first-child{white-space:nowrap;color:#fff;font-weight:400}
+.k{display:inline-block;width:11px;height:11px;border-radius:50%;margin-right:6px;vertical-align:-1px}
+/* reference (generated) */
 .bar{display:flex;height:14px;border-radius:7px;overflow:hidden;background:var(--faint);margin:22px 0 8px}
 .bar i{display:block;height:100%}
 .legend{display:flex;gap:18px;flex-wrap:wrap;color:var(--dim);font-size:15px}
@@ -20,18 +56,359 @@ button,input{font:inherit;color:inherit;background:var(--panel);border:1px solid
 button{cursor:pointer}button.on{border-color:var(--acc);color:var(--acc)}
 input{flex:1;min-width:180px}
 .r{display:grid;grid-template-columns:130px 14px 1fr;gap:12px;align-items:baseline;padding:10px 0;border-top:1px solid var(--faint)}
-.r b{font-weight:400}.d{width:10px;height:10px;border-radius:50%;display:inline-block}
+.r b{font-weight:400;color:var(--fg)}.d{width:10px;height:10px;border-radius:50%;display:inline-block}
 .y .d{background:var(--g)}.p .d{background:var(--y)}.n .d{background:var(--faint);border:1px solid var(--dim)}
 .r small{display:block;color:var(--dim);font-size:14px}
-@media(max-width:600px){.r{grid-template-columns:100px 14px 1fr}}
+h2.ref{display:flex;justify-content:space-between;align-items:baseline;font-size:22px;margin:38px 0 10px}
+h2.ref small{font-size:14px;color:var(--dim)}
+@media(max-width:700px){.pair{grid-template-columns:1fr}.r{grid-template-columns:100px 14px 1fr}ol.steps li{grid-template-columns:30px 1fr}}
 </style></head><body>
-<p><a href="index.html">Guide</a> · <a href="brand.html">Brand</a> · Manual</p>
+<p class="dim"><a href="index.html">Guide</a> · <a href="brand.html">Brand</a> · Manual</p>
 <h1>Manual</h1>
-<p style="color:var(--dim)">Every button, what it does in OP-8, and what is still missing.</p>
+<p class="dim" style="font-size:22px;max-width:40ch;margin-top:14px">How OP-8 works, from the first minute. Fourteen recipes you can follow with the unit in front of you, and then every button.</p>
+
+<nav class="toc" aria-label="Contents">
+  <a href="#welcome">What it is</a><a href="#unit">The unit</a><a href="#first">First ten minutes</a><a href="#recipes">Recipes</a><a href="#ideas">The ideas behind it</a><a href="#instruments">Instruments</a><a href="#reference">Every button</a><a href="#help">If something is odd</a><a href="#notyet">Not yet</a>
+</nav>
+
+<h2 id="welcome">What OP-8 is</h2>
+<p class="sub">A groovebox that lives in a Maschine MK3.</p>
+<p>You make music with <b>eight tracks</b>. Each track has a row of up to sixteen <b>steps</b> (the sixteen pads), and an <b>instrument</b> that makes its sound: drums, a kick, a bass, strings and bells, a synthesiser, or an outside synth through the MIDI cable. You tap steps to say <i>when</i> something plays and turn knobs to say <i>how it sounds</i>. Press <kbd>PLAY</kbd> and it plays.</p>
+<p>Three things make it different from a drum machine, and the recipes below use all of them:</p>
+<ul>
+  <li><b>Every track has its own length.</b> A bar of seven steps against a bar of sixteen drifts apart and comes back together by itself. Nobody has to program the variation.</li>
+  <li><b>A step can be more than a note.</b> Hold a pad and you can make a step repeat, play only sometimes, play every second time, or play late. These are <b>step components</b>.</li>
+  <li><b>The Brain knows chords.</b> Tracks connected to it follow a chord progression, so a bass line you wrote in one key plays in tune with the harmony, bar after bar.</li>
+</ul>
+<div class="callout"><p><b>No MK3 in front of you?</b> <code>op8 sim</code> runs the whole machine without hardware, and <code>twin/op8-twin.html</code> is a version you can click in the browser. The pictures in this manual are the real screens, taken from the simulator while it followed these same recipes.</p></div>
+
+<h2 id="unit">The unit</h2>
+<p class="sub">Two screens, sixteen pads, eight knobs. Learn these five facts and you can find everything else.</p>
+<figure>
+  <div class="pair"><img src="img/r01-start-left.png" alt="The left screen: the steps of track A, the tempo and the chord."><img src="img/r01-start-right.png" alt="The right screen: the instrument of track A, with four knobs."></div>
+  <figcaption>The two screens as OP-8 starts. Left: <b>time</b>, what plays and when. Right: <b>sound</b>, the instrument of the selected track.</figcaption>
+</figure>
+<ol>
+  <li><b>The left screen is time, the right screen is sound.</b> Under the left screen are knobs 1–4 and under the right one knobs 5–8. Each screen names what its four knobs do right above them, in the colour of the knob. Touch a knob (do not turn it) and a big label shows what it is and its value.</li>
+  <li><b>The eight buttons above the screens change the page.</b> Their names appear in the capsules along the top edge of each screen: <kbd>step</kbd>, <kbd>components</kbd>, <kbd>players</kbd>, <kbd>bar</kbd> on the left and <kbd>shape</kbd>, <kbd>sound</kbd>, <kbd>fx</kbd>, <kbd>mod</kbd> on the right. The open page is the bright one. A button with no name does nothing in that context.</li>
+  <li><b>The pads are the steps.</b> Step 1 is the <b>top-left</b> pad, step 16 the bottom-right: they read like a page. A pad in the track's colour is a step that plays, a dim white one is an empty step, a bright white one is where the playhead is, and a dark one is past the end of the track.</li>
+  <li><b>The eight group buttons A–H are the eight tracks.</b> Press one to choose the track you are working on: the pads, the left screen and the right screen all follow it.</li>
+  <li><b>The mode buttons change what the pads are.</b> <kbd>STEP</kbd> (steps, the default), <kbd>KEYBOARD</kbd> (a keyboard), <kbd>PAD MODE</kbd> (the sounds of the instrument), <kbd>CHORDS</kbd> (the chord progression) and <kbd>PERFORM</kbd> (live effects). Press the button of the mode you are in, or <kbd>STEP</kbd>, and you are back at the steps.</li>
+</ol>
+<div class="callout"><p><b>Every button follows one light rule:</b> dark means it does nothing right now, a very faint white means it can be pressed, and a strong white means it is on, pressed, or the mode you are in. If you are lost, look for the strong lights.</p></div>
+
+<h4>Starting it</h4>
+<p>On a Mac, plug the MK3 in <i>directly</i> (a hub can starve its screens of power), close Native Instruments' own software, and run <code>scripts/run.sh</code> (or just <code>op8</code>, if you set that alias up). On the Raspberry Pi 5 it starts by itself when the unit is powered. The sound comes out of the MK3's own audio outputs.</p>
+<p>OP-8 starts with a small demo already in it: a drum beat, a kick, a bass, a plucked line, a MIDI arpeggio and a synth line. It is there so there is always something to listen to and take apart.</p>
+
+<h2 id="first">Your first ten minutes</h2>
+<p class="sub">No rules, only things to press.</p>
+<ol class="steps">
+  <li><div>Press <kbd>PLAY</kbd>. The demo plays, and the pad lights run along the steps. Press <kbd>PLAY</kbd> again to pause, and <kbd>STOP</kbd> to stop. <kbd>RESTART</kbd> goes back to step 1 and keeps playing.</div></li>
+  <li><div>Press the group buttons <kbd>A</kbd> to <kbd>F</kbd> one after another. Each track has its own colour and its own instrument; the right screen changes with it. G and H are empty.</div></li>
+  <li><div>Hold <kbd>MUTE</kbd> and press a group button: that track goes quiet. Do it again to bring it back. Mute everything except the bass and the kick and you have the skeleton of the piece.</div></li>
+  <li><div>Turn knobs 5–8 while the demo plays. The right screen names what each one does, and the picture changes with the sound. This is the main way to shape a sound.</div></li>
+  <li><div>Hold <kbd>TEMPO</kbd> and turn the 4D encoder (the big knob in the corner): the tempo changes, and the left screen shows it in large numbers while you hold the button.</div></li>
+  <li><div>Press <kbd>FILE</kbd>. The sixteen pads are sixteen places for projects: the top two rows are eight that come with OP-8, the bottom two rows are yours. Tap one of the top row to load it. Press <kbd>FILE</kbd> again to leave. Whatever you do, you can always come back to the demo this way.</div></li>
+</ol>
+<div class="callout warn"><p><b>There is no undo yet.</b> If you are about to try something bold, save first: <kbd>FILE</kbd>, then <kbd>SHIFT</kbd> and a pad of the bottom two rows (recipe 12).</p></div>
+
+<h2 id="recipes">Recipes</h2>
+<p class="sub">Each one starts from a known place and ends with something you can hear. They are the way to learn the machine, and each one is also an automated test: if a recipe stops working, the build fails.</p>
+<p class="dim">Counting steps: pads read like a page, so <b>step 5 is the first pad of the second row</b>, step 9 the first pad of the third, and so on. A turn of a knob has about twenty-five small clicks; "a notch" below is one click.</p>
+
+<div class="recipe" id="r1">
+  <h3>1 <span>LISTEN AND TAKE IT APART</span></h3>
+  <p class="goal">Hear what the machine does and learn to mute and choose tracks.</p>
+  <ol class="steps">
+    <li><div>Press <kbd>PLAY</kbd>.</div></li>
+    <li><div>Hold <kbd>MUTE</kbd> and press group <kbd>B</kbd>. The kick drops out (its group light goes dark).</div></li>
+    <li><div>Press group <kbd>D</kbd> (no <kbd>MUTE</kbd>). The right screen now shows the <b>resonator</b>, the instrument that plays the plucked line. Turn knob 7 and listen.</div></li>
+    <li><div>Press <kbd>STOP</kbd>.</div></li>
+  </ol>
+  <figure><div class="pair"><img src="img/r01-playing-left.png" alt="The left screen while playing."><img src="img/r01-playing-right.png" alt="The right screen while playing."></div><figcaption>While it plays, the white pad is the playhead and the rings on the left show where each track is in its own loop.</figcaption></figure>
+  <p class="next"><b>Try next:</b> hold <kbd>SHIFT</kbd> and press a group button to disconnect that track from the Brain (recipe 3 explains it). The track stops following the chords.</p>
+</div>
+
+<div class="recipe" id="r2">
+  <h3>2 <span>BUILD A DRUM BEAT</span></h3>
+  <p class="goal">Kick, snare and hi-hat on one track, using the drum machine's eight lanes.</p>
+  <p>Track A is a <b>kit</b>: one track with eight sounds (kick, snare, closed hat, open hat, tom, clap, rim, crash). Instead of one note per step, every step can have any of the eight sounds switched on.</p>
+  <ol class="steps">
+    <li><div>Start from an empty project: <kbd>FILE</kbd>, tap the last pad of the second row (<b>blank</b>).</div></li>
+    <li><div>Press group <kbd>A</kbd>. The right screen shows <b>drums</b>, with a kick (the first sound) chosen.</div></li>
+    <li><div>Tap steps <b>1, 5, 9 and 13</b> (the left column of pads). Each tap sounds the kick and lights the pad.</div></li>
+    <li><div>Press screen button <kbd>5</kbd> (<kbd>shape</kbd>). Turn knob 8, <b>sound</b>, a tenth of a turn: the display switches to the snare, and you hear it as you turn. Tap steps <b>5</b> and <b>13</b>.</div></li>
+    <li><div>Turn knob 8 another tenth: the closed hat. Tap steps <b>3, 7, 11 and 15</b>.</div></li>
+    <li><div>Press <kbd>PLAY</kbd>. A beat. Tap a pad that is lit while a sound is chosen and only <i>that</i> sound goes off in that step; the others stay.</div></li>
+  </ol>
+  <figure><div class="pair"><img src="img/r02-beat-left.png" alt="The left screen: eight lanes by sixteen steps, the hat lane lit."><img src="img/r02-beat-right.png" alt="The right screen: the eight drum sounds, the hat chosen."></div><figcaption>Left: the eight lanes by sixteen steps; the chosen lane (the hat) is the bright row and the pads show that lane. Right: the eight sounds, the chosen one outlined. Knobs 5–8 edit the chosen sound.</figcaption></figure>
+  <p class="next"><b>Try next:</b> with the hat chosen, turn knobs 5–8 on the <kbd>sound</kbd> page (<kbd>6</kbd>): <b>tune</b>, <b>decay</b>, <b>tone</b> and <b>snap</b>. Each sound keeps its own settings. Hold a step's pad to give it a ratchet (recipe 5) for a hat roll.</p>
+</div>
+
+<div class="recipe" id="r3">
+  <h3>3 <span>A BASS THAT FOLLOWS THE CHORDS</span></h3>
+  <p class="goal">Write a four-note bass line and let the Brain keep it in tune with a chord progression.</p>
+  <p>The Brain is a chord progression that every connected track follows. Out of the box it plays I – vi – IV – V in C major, one chord a bar. A connected track plays the notes you wrote, moved to fit the chord that is sounding.</p>
+  <ol class="steps">
+    <li><div>Press group <kbd>C</kbd> (the <b>FmBass</b>). Tap steps <b>1, 4, 7 and 11</b>.</div></li>
+    <li><div>Hold <kbd>SHIFT</kbd> and press group <kbd>C</kbd>: the track is now connected to the Brain (do it again to disconnect).</div></li>
+    <li><div>To give a step its own note, <b>keep a finger on its pad</b>, here step 4. The left screen switches to that step. With your other hand turn <b>knob 1, note</b>: each notch is a semitone, and you hear the note as you turn. Lift your finger and it closes.</div></li>
+    <li><div>Press <kbd>CHORDS</kbd>. The pads are now the chords of the key. Turn <b>knob 1</b> two notches: the key becomes D. Knob 2 chooses the scale (major, minor, dorian…), knob 3 how tracks follow the chord, knob 4 how many chords the progression has.</div></li>
+    <li><div>Press <kbd>CHORDS</kbd> again to go back to the steps, then <kbd>PLAY</kbd>. Every bar the chord changes and the bass moves with it.</div></li>
+  </ol>
+  <figure><div class="pair"><img src="img/r03-inspector-left.png" alt="A step held: its note, velocity, gate and component."><img src="img/r03-chords-left.png" alt="The chords screen: D, Bm, G, A."></div><figcaption>Left: a step held open, with its note, velocity, gate and component under the four knobs. Right: the chords screen, with the progression and the key in the footer.</figcaption></figure>
+  <p>In <b>CHORDS</b> mode the pads are chords: hold one and you hear it (on the track you have selected), and the Brain plays that chord for as long as you hold it. Let go and the progression takes over again. Knob 3 chooses how a connected track follows: <b>chord</b> (the default) snaps each note to the nearest note of the chord, <b>scale</b> snaps it to the key's scale, <b>transpose</b> only moves it by the root.</p>
+  <p class="next"><b>Try next:</b> connect two tracks, say the bass and the resonator, and write different notes on each: they will always agree with each other.</p>
+</div>
+
+<div class="recipe" id="r4">
+  <h3>4 <span>PLAY A MELODY AND RECORD IT</span></h3>
+  <p class="goal">Play by hand and let OP-8 write down what you played.</p>
+  <ol class="steps">
+    <li><div>Press group <kbd>F</kbd> (the <b>macro</b> synth).</div></li>
+    <li><div>Press <kbd>KEYBOARD</kbd>. The pads become a chromatic keyboard starting at C3, with every C brighter. Play it: the pads play the selected track's instrument while you hold them, and hit harder for a louder note. The 4D encoder, pushed left and right, moves the whole keyboard an octave.</div></li>
+    <li><div>Press <kbd>REC</kbd> (it lights red) and then <kbd>PLAY</kbd>.</div></li>
+    <li><div>Play pads in time. Each note you play is written on the step you were closest to, with the velocity you played it at.</div></li>
+    <li><div>Press <kbd>KEYBOARD</kbd> again to go back to the steps. They are now lit where you played. Press <kbd>REC</kbd> again to disarm it.</div></li>
+  </ol>
+  <figure><div class="pair one"><img src="img/r04-keyboard-left.png" alt="The keyboard screen: sixteen pads with their note names."></div><figcaption>KEYBOARD: sixteen pads drawn as they are on the unit, each with its note, lit while held.</figcaption></figure>
+  <p><b>PAD MODE</b> is the same idea for sound instead of pitch: on the drum kit, pads 1 to 8 are the eight drum sounds (pad 1 is the bottom-left one), and on any other instrument the pads climb the key's scale. With <kbd>REC</kbd> armed, hitting drum pads writes into the right lane, and several sounds can share a step.</p>
+  <p>If you want every note at the same strength, turn <kbd>FIXED VEL</kbd> on: pads and recording use velocity 100 whatever the hit.</p>
+  <p class="next"><b>Try next:</b> on the bar page (recipe 9), knob 4, <b>rec rounds</b>, chooses how a note is placed: on the <b>nearest</b> step, on the step <b>down</b> that is sounding, or on the <b>up</b> next one.</p>
+</div>
+
+<div class="recipe" id="r5">
+  <h3>5 <span>MAKE A STEP SPECIAL</span></h3>
+  <p class="goal">Turn an ordinary step into a roll, a maybe, or an every-other-time.</p>
+  <ol class="steps">
+    <li><div>Press group <kbd>B</kbd> and tap step 1 (the kick).</div></li>
+    <li><div><b>Hold its pad.</b> After a moment the left screen shows the step's <b>components</b>.</div></li>
+    <li><div>With the pad still held, turn <b>knob 4, component</b> one notch: <b>ratchet ×2</b>, the step plays twice. One more notch: ratchet ×3. Turning it replaces the choice, and the list is: ratchets ×2–4, chance 75/50/25 %, every 1:2, 2:2, 1:4, 4:4, velocity −40 and +20, transpose +7 and −5, octave +1 and −1, hold, delay, random note, and back to none.</div></li>
+    <li><div>Let go of the pad and press <kbd>PLAY</kbd>: the kick now rolls on the first step.</div></li>
+  </ol>
+  <figure><div class="pair one"><img src="img/r05-components-left.png" alt="The components page: a step with a ratchet of three."></div><figcaption>A held step: its number, note, velocity and gate, and the component slot, here a ratchet of three.</figcaption></figure>
+  <table>
+    <tr><th>Component</th><th>What the step does</th></tr>
+    <tr><td>ratchet ×n</td><td>Plays n times inside its step: rolls and flams.</td></tr>
+    <tr><td>chance n%</td><td>Plays only some of the time: n times out of a hundred. Great for hats and ghost notes.</td></tr>
+    <tr><td>every n:m</td><td>Plays only on pass n of every m passes of the loop: <b>1:2</b> on the first of every two loops, <b>4:4</b> on every fourth.</td></tr>
+    <tr><td>velocity</td><td>Makes this step softer (−40) or louder (+20) than the others.</td></tr>
+    <tr><td>transpose / octave</td><td>Moves this step by seven semitones up, five down, or an octave up or down.</td></tr>
+    <tr><td>hold</td><td>Makes the note last one step longer.</td></tr>
+    <tr><td>delay</td><td>Plays the step a little late, off the grid.</td></tr>
+    <tr><td>random note</td><td>Plays a random note up to an octave above the written one, different each time.</td></tr>
+  </table>
+  <p>Components <b>stack</b>: put two on a step and they combine (a ratchet of 2 and a ratchet of 3 give six hits). Keep the pad held, move the cursor with the 4D encoder, and turn knob 4 to add a second one. A step holds up to six.</p>
+  <p class="next"><b>Try next:</b> chance 50 % on the closed hat of the beat from recipe 2 for a hat line that never plays the same way twice.</p>
+</div>
+
+<div class="recipe" id="r6">
+  <h3>6 <span>ONE NOTE BECOMES A CHORD OR AN ARPEGGIO</span></h3>
+  <p class="goal">Write one note per step and let the track play a whole chord, or run through it.</p>
+  <ol class="steps">
+    <li><div>Press group <kbd>D</kbd> (the resonator) and tap step 1.</div></li>
+    <li><div>Press screen button <kbd>3</kbd> (<kbd>players</kbd>). A piano keyboard appears.</div></li>
+    <li><div>Turn <b>knob 1, play</b> one notch to <b>chord</b>, and <b>knob 2, chord</b> one notch to <b>minor</b>. The keys of the chord light up on the left screen. Press <kbd>PLAY</kbd>: step 1 plays three notes together.</div></li>
+    <li><div>Turn knob 1 once more for <b>up</b>, an arpeggio. Now the step plays the chord one note after another, and a white key walks through them on the screen. <b>Knob 3, rate</b>, chooses how many notes fit in the step (2, 3, 4, 6 or 8).</div></li>
+    <li><div>Press <kbd>3</kbd> again to go back to the steps.</div></li>
+  </ol>
+  <figure><div class="pair one"><img src="img/r06-players-left.png" alt="The players page: a minor chord on a keyboard."></div><figcaption>The players page: the notes the chord makes are lit on the keyboard.</figcaption></figure>
+  <table>
+    <tr><th>Knob</th><th>What it does</th></tr>
+    <tr><td>1 · play</td><td><b>off</b> (each step plays its note), <b>chord</b>, or an arpeggio: <b>up</b>, <b>down</b>, <b>up-down</b>, <b>random</b>.</td></tr>
+    <tr><td>2 · chord</td><td>major, minor, 7th, m7, sus2, sus4, power.</td></tr>
+    <tr><td>3 · rate or strum</td><td>For an arpeggio, notes per step. For a chord, how much the notes are spread out like a strummed guitar: 0 plays them together.</td></tr>
+    <tr><td>4 · octaves</td><td>1 to 3: stacks the chord over more octaves.</td></tr>
+  </table>
+  <p>The players work on the note of each step, so a step with a transpose or a Brain connection plays the chord of <i>that</i> note. They do not apply to the drum kit.</p>
+</div>
+
+<div class="recipe" id="r7">
+  <h3>7 <span>GIVE A TRACK AN ECHO OR A ROOM</span></h3>
+  <p class="goal">Add an effect to one track, and only that track.</p>
+  <ol class="steps">
+    <li><div>Press group <kbd>D</kbd>, and <kbd>PLAY</kbd> the plucked line.</div></li>
+    <li><div>Press screen button <kbd>7</kbd> (<kbd>fx</kbd>). The right screen shows the effect of this track, now <b>off</b>.</div></li>
+    <li><div>Turn <b>knob 5, type</b> two notches to <b>reverb</b>: rings spread out from a point. Knob 6 is the <b>size</b> of the room, 7 its <b>tone</b>, 8 the <b>mix</b>: turn the mix up until you hear it.</div></li>
+    <li><div>Turn knob 5 one notch back for the <b>delay</b>: you see a note followed by echoes. Knob 6 is the <b>time</b> between echoes, 7 the <b>feedback</b> (how many there are), 8 the <b>mix</b>.</div></li>
+  </ol>
+  <figure><div class="pair"><img src="img/r07-reverb-right.png" alt="The fx page: reverb, rings spreading out."><img src="img/r07-delay-right.png" alt="The fx page: delay, a note and its echoes."></div><figcaption>The effect is drawn as what it does: rings that spread (reverb), a sound followed by fading echoes (delay).</figcaption></figure>
+  <table>
+    <tr><th>Effect</th><th>Its three knobs</th><th>What it is for</th></tr>
+    <tr><td>delay</td><td>time · feedback · mix</td><td>Echoes that bounce from left to right.</td></tr>
+    <tr><td>reverb</td><td>size · tone · mix</td><td>A small room. Tone darkens the tail.</td></tr>
+    <tr><td>chorus</td><td>rate · depth · mix</td><td>Thickens and widens a sound.</td></tr>
+    <tr><td>filter</td><td>sweep · resonance · mix</td><td>One knob from a closed low-pass (dark), through open, to a high-pass (thin).</td></tr>
+    <tr><td>drive</td><td>drive · tone · mix</td><td>Warm saturation up to a harsh distortion.</td></tr>
+  </table>
+  <p>Each track has <b>its own</b> effect, kept with the project. To take it off, turn knob 5 back to <b>off</b>. The <kbd>PERFORM</kbd> effects of recipe 10 are different: they are played live on everything at once and are not kept.</p>
+</div>
+
+<div class="recipe" id="r8">
+  <h3>8 <span>MAKE A KNOB MOVE BY ITSELF</span></h3>
+  <p class="goal">Let a slow wave turn one of the instrument's knobs, or the track's volume, for you.</p>
+  <ol class="steps">
+    <li><div>Press group <kbd>C</kbd> (the bass) and <kbd>PLAY</kbd>.</div></li>
+    <li><div>Press screen button <kbd>8</kbd> (<kbd>mod</kbd>). The right screen says <b>moves nothing</b>: an LFO (a wave that runs forever) does nothing until you tell it what to move.</div></li>
+    <li><div>Turn <b>knob 8, moves</b> three notches. The first notch is <b>volume</b>; after that come the instrument's own knobs in the order the screen shows them, so the second notch is <b>ratio</b> and the third is <b>index</b>, the FM depth of this bass. The tone now opens and closes by itself.</div></li>
+    <li><div><b>Knob 7, depth</b>, is how far it swings around the value you left the knob at. <b>Knob 6, rate</b>, is how fast (from one cycle in twenty seconds to twenty a second). <b>Knob 5, shape</b>, is the wave: sine, triangle, square, saw or random (a new random value every cycle).</div></li>
+  </ol>
+  <figure><div class="pair one"><img src="img/r08-mod-right.png" alt="The mod page: a triangle wave and what it moves."></div><figcaption>The wave of the LFO going by, with a dot at its present position. The taller the wave, the deeper it swings.</figcaption></figure>
+  <p>Turn the knob you are moving by hand and it becomes the middle of the swing: you still decide where the sound sits, and the LFO moves it around that. On <b>volume</b> it is a tremolo, a rhythmic dip that never gets louder than the track's level. Turn <b>moves</b> back to nothing and the knob returns to where you left it.</p>
+  <p class="next"><b>Try next:</b> shape <b>square</b>, volume, a fast rate: a chopped, gated sound.</p>
+</div>
+
+<div class="recipe" id="r9">
+  <h3>9 <span>TWO LENGTHS THAT DRIFT APART</span></h3>
+  <p class="goal">Give two tracks different lengths so that the music never repeats the same way.</p>
+  <ol class="steps">
+    <li><div>On tracks <kbd>B</kbd> and <kbd>C</kbd>, tap step 1.</div></li>
+    <li><div>On <kbd>C</kbd>, press screen button <kbd>4</kbd> (<kbd>bar</kbd>). Turn <b>knob 1, length</b>, left until it says 7.</div></li>
+    <li><div>Press <kbd>4</kbd> again and <kbd>PLAY</kbd>. The kick comes back every sixteen steps, the bass every seven: they meet again after 112 steps. The polymeter rings on the left screen show each track going round at its own pace.</div></li>
+  </ol>
+  <figure><div class="pair one"><img src="img/r09-bar-left.png" alt="The bar page: seven steps of sixteenths."></div><figcaption>The bar page: the steps inside the length are filled, the tall ones are beats, and the dot is where the playhead is.</figcaption></figure>
+  <table>
+    <tr><th>Knob</th><th>What it does</th></tr>
+    <tr><td>1 · length</td><td>How many steps the track has, 1 to 16.</td></tr>
+    <tr><td>2 · division</td><td>How long a step is: a 1/32, a 1/16 triplet, a 1/16, a 1/8 or a 1/4 note. Tracks can have different divisions too.</td></tr>
+    <tr><td>3 · shift</td><td>Turns the pattern round inside its length: each notch moves everything one step later (or earlier) and wraps what falls off the end to the start.</td></tr>
+    <tr><td>4 · rec rounds</td><td>Where recording puts a note (recipe 4).</td></tr>
+  </table>
+  <p class="next"><b>Try next:</b> shift a rhythm one notch to turn the whole pattern into a syncopation without changing any step.</p>
+</div>
+
+<div class="recipe" id="r10">
+  <h3>10 <span>PERFORM LIVE</span></h3>
+  <p class="goal">Play effects on the whole mix, with your hands, while it plays.</p>
+  <ol class="steps">
+    <li><div>Press <kbd>PLAY</kbd>, then <kbd>PERFORM</kbd>. Every pad is an effect, drawn on the left screen.</div></li>
+    <li><div>Hold the bottom-left pad (<b>lpf</b>, a low-pass filter). The harder you press, the darker the whole mix. Let go and it is gone.</div></li>
+    <li><div>Try the others. The bottom row: low-pass, high-pass, crush, down-sample. Second row: two gates, a tape stop, and <b>kill</b>, which cuts everything. Third row: <b>repeat</b> loops the last slice of the music (a quarter, an eighth, a sixteenth, a thirty-second). Top row: a triplet repeat, two audio stutters, and an echo.</div></li>
+    <li><div>Slide a finger along the Smart Strip (the touch strip) for a filter on everything: one half of the strip darkens the sound, the other half thins it out, and the middle does nothing.</div></li>
+    <li><div>Press <kbd>PERFORM</kbd> again to go back to the steps.</div></li>
+  </ol>
+  <figure><div class="pair one"><img src="img/r10-perform-left.png" alt="The perform screen: sixteen effects, the low-pass held."></div><figcaption>The sixteen effects, each with a picture, the held one lit. The footer shows its name and how hard it is held.</figcaption></figure>
+  <p class="next"><b>Try next:</b> in a quiet moment, hold a repeat and release it on the downbeat. That is the classic build-up.</p>
+</div>
+
+<div class="recipe" id="r11">
+  <h3>11 <span>CHOOSE AN INSTRUMENT</span></h3>
+  <p class="goal">Put a different instrument on a track.</p>
+  <ol class="steps">
+    <li><div>Press group <kbd>G</kbd> (empty).</div></li>
+    <li><div>Press <kbd>PLUG-IN</kbd>. Both screens show sixteen places. The top two rows are the eight instruments that come with OP-8, from the most guttural to the most refined: <b>drums</b>, <b>KickSyn</b>, <b>FmBass</b>, <b>resonator</b> on the first row; <b>sampler</b>, <b>granular</b> (not built yet, they say so), <b>midi out</b>, <b>macro</b> on the second. The two bottom rows are places for instruments you will install later. The instrument this track has is outlined.</div></li>
+    <li><div>Tap the fourth pad, the <b>resonator</b>. It goes on track G, and the screens go back to composing.</div></li>
+    <li><div>Press <kbd>5</kbd> (<kbd>shape</kbd>) and <kbd>6</kbd> (<kbd>sound</kbd>) to move between the instrument's two pages of four knobs.</div></li>
+  </ol>
+  <figure><div class="pair"><img src="img/r11-plugin-left.png" alt="PLUG-IN: sixteen places."><img src="img/r11-shape-right.png" alt="The second page of the resonator."></div><figcaption>Left: the sixteen places. Right: the second page of the resonator, with its drawing of eight bells.</figcaption></figure>
+  <p>The <b>midi out</b> is one bridge that sends a track out of the MK3's MIDI socket to an outside synth, so there is only one at a time: choosing it moves it from the track that had it. If you leave the drums for another instrument, the drum lanes turn back into ordinary notes and the pattern stays.</p>
+  <p class="next"><b>Try next:</b> put the <b>macro</b> on a track and turn its first knob, <b>engine</b>: it has twenty-four ways of making a sound, from plain waves to bells, voices and drums.</p>
+</div>
+
+<div class="recipe" id="r12">
+  <h3>12 <span>SAVE YOUR WORK AND COME BACK</span></h3>
+  <p class="goal">Keep a project and open it tomorrow.</p>
+  <ol class="steps">
+    <li><div>Press <kbd>FILE</kbd>. Sixteen places: eight factory projects on top (demo, four floor, backbeat, bassline, pluck, lead, polymeter, blank) and eight places of yours below.</div></li>
+    <li><div>Hold <kbd>SHIFT</kbd> and tap one of the empty bottom places. The right screen says <b>saved in user 1</b>.</div></li>
+    <li><div>Whenever you want it back: <kbd>FILE</kbd>, tap that place. The project, the instruments and every knob come back as you left them, and the screens go back to composing.</div></li>
+  </ol>
+  <figure><div class="pair one"><img src="img/r12-file-left.png" alt="FILE: the factory projects and empty places."></div><figcaption>The eight factory projects on top, your eight places below (empty ones are dim).</figcaption></figure>
+  <p>The projects live in <code>~/.config/op8/projects/</code> (one file each), so you can back them up or move them to another unit. The factory projects can be opened but never overwritten. What is saved: the steps and components, the tempo and swing, the chords, each track's instrument with its knobs, its players, its effect and its LFO.</p>
+  <p class="next"><b>Try next:</b> open <b>bassline</b> (a bass with an LFO), <b>pluck</b> (strings with reverb) and <b>lead</b> (an arpeggio with an echo): each factory project shows one idea.</p>
+</div>
+
+<div class="recipe" id="r13">
+  <h3>13 <span>TEMPO, SWING, VOLUME AND THE METRONOME</span></h3>
+  <p class="goal">Find the pace by tapping, and loosen the grid.</p>
+  <ol class="steps">
+    <li><div>Tap <kbd>TAP</kbd> four times at the pace you want. The tempo becomes the average of the gaps. A pause of more than two seconds starts the count again.</div></li>
+    <li><div>Hold <kbd>TEMPO</kbd> and turn the 4D encoder to fine-tune it (hold <kbd>SHIFT</kbd> too for tenths). The left screen shows it large while you hold.</div></li>
+    <li><div>Hold <kbd>SWING</kbd> and turn the encoder: the even steps arrive late, from straight (50 %) to a heavy shuffle (75 %). It applies to all tracks.</div></li>
+    <li><div>Hold <kbd>VOLUME</kbd> and turn the encoder: the master volume.</div></li>
+    <li><div>Hold <kbd>SHIFT</kbd> and press <kbd>TAP</kbd>: the <b>metronome</b>. A click on every beat while it plays, higher on the first of each bar. Again to turn it off.</div></li>
+  </ol>
+  <figure><div class="pair one"><img src="img/r13-tempo-left.png" alt="The tempo, large."></div><figcaption>While TEMPO is held the left screen shows only the value, large. The same for swing and volume.</figcaption></figure>
+</div>
+
+<div class="recipe" id="r14">
+  <h3>14 <span>CHANGE THE LOOK</span></h3>
+  <p class="goal">Pick a theme.</p>
+  <ol class="steps">
+    <li><div>Press <kbd>SETTINGS</kbd>. Both screens become the settings: a card for each theme on the left, the eight knob colours on the right.</div></li>
+    <li><div>Turn the 4D encoder (or push it left and right). The theme changes at once, on the screens <i>and</i> on every light of the unit: <b>glossy</b> is bright and saturated, <b>matte</b> is softer, <b>chrome</b> is one monochrome range from violet to blue.</div></li>
+    <li><div>Press <kbd>CHANNEL</kbd> (or <kbd>SETTINGS</kbd> again) to go back to composing. The theme is remembered the next time you start OP-8.</div></li>
+  </ol>
+  <figure><div class="pair"><img src="img/r14-settings-left.png" alt="Settings: the three themes."><img src="img/r14-matte-left.png" alt="The left screen once the matte theme is chosen."></div><figcaption>The three themes, and the same left screen after choosing <b>matte</b>. While settings is open the pads and knobs do nothing; <kbd>PLAY</kbd>, <kbd>STOP</kbd> and <kbd>RESTART</kbd> still do.</figcaption></figure>
+</div>
+
+<h2 id="ideas">The ideas behind it</h2>
+<p class="sub">Short, so you can keep them in your head.</p>
+
+<h3>Tracks, steps and the playhead</h3>
+<p>There are eight tracks (A to H). A track has up to sixteen steps and its own length, its own division and its own instrument. The playhead of each track runs on its own, but all of them follow one clock, so nothing ever drifts: a track of three steps and one of four line up again after exactly twelve. The rings on the left screen are the tracks seen as circles: each ring is one track, and the selected one is in front.</p>
+
+<h3>Notes, velocity and gate</h3>
+<p>A step has a <b>note</b>, a <b>velocity</b> (how hard it is hit) and a <b>gate</b> (how much of the step the note lasts, as a percentage). Hold a pad and the left knobs show them: note, velocity, gate, component. You hear the note as you turn it.</p>
+
+<h3>The Brain</h3>
+<p>A key, a scale and a progression of up to eight chords, one bar each. A track connected to the Brain (<kbd>SHIFT</kbd> + its group button) plays its notes moved to fit the current chord. The pads of <kbd>CHORDS</kbd> are the chords of the key: pads 1 to 7 (bottom-left first) are its seven triads, pad 8 a sus4, pads 9 to 15 the seven seventh chords and pad 16 a sus2. Hold one to hear it on the selected track and to make the Brain play it for as long as you hold.</p>
+
+<h3>Parameters have two pages and a name</h3>
+<p>An instrument has at most eight knobs: four on the <b>sound</b> page (<kbd>6</kbd>) and four on the <b>shape</b> page (<kbd>5</kbd>). When an instrument has only one page, <kbd>shape</kbd> is not shown. Every instrument draws a picture on the right screen that shows what the knobs do, in the same colour as the knob. Turn a knob and, after a moment's stillness, you hear one note that shows the result.</p>
+
+<h3>Light and colour</h3>
+<p>Each track has a colour, the same on the group button, the pads, the dot on the screen and the track's ring. The eight knobs have eight colours, the same on every screen: the colour of a knob is its label, its dial and, in the instrument's picture, the thing that knob moves.</p>
+
+<h2 id="instruments">The instruments</h2>
+<p class="sub">Eight come with OP-8. All of them sound good with any knob anywhere, and each has a picture.</p>
+<table>
+  <tr><th>Instrument</th><th>What it is</th><th>Its knobs</th></tr>
+  <tr><td>drums</td><td>Eight percussion sounds on one track, in eight lanes. Programmed by choosing a sound on the right and tapping its steps.</td><td>tune · decay · tone · snap / body · level · pan · <b>sound</b></td></tr>
+  <tr><td>KickSyn</td><td>A synthetic kick drum.</td><td>tune · decay · punch · drive / click · p.decay · vel · level</td></tr>
+  <tr><td>FmBass</td><td>A two-operator FM bass: round, growling, metallic.</td><td>ratio · index · decay · release / glide · sub · sustain · level</td></tr>
+  <tr><td>resonator</td><td>A plucked string or a struck bell. Four notes ring at once.</td><td>type · structure · bright · damping / decay · color · spread · level</td></tr>
+  <tr><td>sampler</td><td colspan="2" class="dim">Coming: record a sound and play it. Its place is already in PLUG-IN.</td></tr>
+  <tr><td>granular</td><td colspan="2" class="dim">Coming: clouds of tiny grains from a sample.</td></tr>
+  <tr><td>midi out</td><td>Sends the track's notes out of the MK3's MIDI socket to an outside synth. The track does not make a sound of its own.</td><td>channel · transpose · velocity · cc74</td></tr>
+  <tr><td>macro</td><td>Twenty-four engines in one: analogue waves, FM, wavetables, chords, voices, strings, drums. One note at a time.</td><td>engine · harmonics · timbre · morph / decay · color · variant · level</td></tr>
+</table>
+
+<h2 id="reference">Every button</h2>
+<p class="sub">What each button of the MK3 does in OP-8, what it does in Maschine and on the OP-XY, and what is still missing. This list is generated from <a href="../docs/buttons.md">docs/buttons.md</a>, so it is always the truth.</p>
 <div class="bar" id="bar"></div><div class="legend" id="leg"></div>
 <div class="f" id="tabs"></div><div class="f"><input id="q" placeholder="Search a button or a word"></div>
 <div id="list"></div>
-<p style="margin-top:40px;color:var(--dim);font-size:14px">Generated from <a href="../docs/buttons.md">docs/buttons.md</a> by <code>scripts/build-manual.py</code>. The order of work is in <a href="../docs/roadmap.md">roadmap.md</a>.</p>
+
+<h2 id="help">If something is odd</h2>
+<table>
+  <tr><th>It looks like…</th><th>Try this</th></tr>
+  <tr><td>No sound</td><td>Is <kbd>PLAY</kbd> lit? Is the track muted (its group light is dark)? Are there steps in it (lit pads)? Has the track an instrument (the right screen says <b>empty</b> if not: <kbd>PLUG-IN</kbd>)? Is the volume up (hold <kbd>VOLUME</kbd> and turn the encoder)? Is a <b>kill</b> or a high filter held in <kbd>PERFORM</kbd>?</td></tr>
+  <tr><td>Tapping a pad does not light a step</td><td>You are in another pad mode. Press <kbd>STEP</kbd> (or the button of the mode you are in) to get the steps back.</td></tr>
+  <tr><td>The left screen shows a single step and not the grid</td><td>You are holding a pad (the step opens while it is held), or you pressed screen button <kbd>2</kbd>. Lift the finger, or press <kbd>1</kbd>.</td></tr>
+  <tr><td>A button has no name above the screen</td><td>It does nothing in this context; its light is dark, too.</td></tr>
+  <tr><td>Everything is stuck on the settings screens</td><td>Press <kbd>CHANNEL</kbd>. In settings the pads, knobs and groups do nothing on purpose.</td></tr>
+  <tr><td>The bass plays the wrong notes after I changed the key</td><td>The track is connected to the Brain, so its notes are moved to the chord that sounds. <kbd>SHIFT</kbd> + the group button disconnects it.</td></tr>
+  <tr><td>An effect I put on does not go away</td><td>The track's effect (button <kbd>7</kbd>) stays until you set knob 5 back to <b>off</b>. The <kbd>PERFORM</kbd> effects go as soon as you let go of the pad.</td></tr>
+  <tr><td>The screens flicker or the unit resets</td><td>The MK3 needs power: connect it straight to the computer, not through a hub. See <a href="../docs/roadmap.md">the roadmap</a> for the details.</td></tr>
+</table>
+
+<h2 id="notyet">What OP-8 does not do yet</h2>
+<p class="sub">So that you do not look for it.</p>
+<ul>
+  <li><b>Undo.</b> Save with <kbd>FILE</kbd> before something bold.</li>
+  <li><b>Patterns, scenes and a song.</b> A project is one pattern for now. <kbd>PATTERN</kbd>, <kbd>SCENE</kbd> and <kbd>ARRANGER</kbd> are planned.</li>
+  <li><b>The sampler and the granular instrument.</b> Their places are reserved. <kbd>SAMPLING</kbd> and <kbd>BROWSER</kbd> come with them.</li>
+  <li><b>The mixer.</b> Level and pan per track and a master compressor are planned (<kbd>MIXER</kbd>). Today the track levels are the instruments' own <b>level</b> knobs.</li>
+  <li><b>Recording chords and knob movements.</b> <kbd>REC</kbd> writes notes and drum hits. Automation (<kbd>AUTO</kbd>) and a count-in are planned. The LFO of button <kbd>8</kbd> already moves knobs by itself.</li>
+  <li><b>Naming and deleting projects</b>, and presets for instruments.</li>
+  <li><b>Solo</b>, <b>duplicate</b>, <b>select</b> and <b>variation</b> buttons.</li>
+</ul>
+<p>The order in which these arrive is in <a href="../docs/roadmap.md">docs/roadmap.md</a>. The reference above says <i>works today</i>, <i>partly</i> or <i>planned</i> for each button.</p>
+
+<p style="margin-top:60px;color:var(--dim);font-size:14px">The recipes are <code>crates/op8/tests/manual.rs</code>; the pictures are taken from them by <code>scripts/manual-pictures.sh</code>; the button list is generated from <a href="../docs/buttons.md">docs/buttons.md</a> by <code>scripts/build-manual.py</code>.</p>
+
 <script>
 const D=__DATA__;
 const NAME={y:"works today",p:"partly",n:"planned"},COL={y:"var(--g)",p:"var(--y)",n:"var(--faint)"};
@@ -47,7 +424,7 @@ function draw(){
   [...tabs.children].forEach(b=>b.classList.toggle("on",b.textContent===sec));
   let h="",last="";
   D.filter(r=>(sec==="All"||r.s===sec)&&(!q||(r.n+" "+r.w+" "+r.m+" "+r.x).toLowerCase().includes(q))).forEach(r=>{
-    if(r.s!==last){last=r.s;const g=D.filter(x=>x.s===r.s);h+=`<h2>${esc(r.s)}<small>${g.filter(x=>x.t==="y").length}/${g.length}</small></h2>`}
+    if(r.s!==last){last=r.s;const g=D.filter(x=>x.s===r.s);h+=`<h2 class="ref">${esc(r.s)}<small>${g.filter(x=>x.t==="y").length}/${g.length}</small></h2>`}
     h+=`<div class="r ${r.t}"><b>${esc(r.n)}</b><span class="d" title="${NAME[r.t]}"></span><div>${esc(r.w)}${r.note?`<small>${esc(r.note)}</small>`:""}${r.m?`<small>Maschine: ${esc(r.m)} · OP-XY: ${esc(r.x)}</small>`:""}</div></div>`});
   document.getElementById("list").innerHTML=h||"<p style='color:var(--dim)'>Nothing found.</p>";
 }

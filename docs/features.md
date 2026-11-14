@@ -136,6 +136,7 @@ The buttons and their implementation status are in [buttons.md](buttons.md). Thi
 | F-G01 | The demo script parses and ends at 6.8 s | `end_ms() == 6800` | ✓ |
 | F-G02 | A script error gives the line number | message with `line N` for each malformed case | ✓ |
 | F-G03 | The `shot` captures are generated with their name | PNG files created in `OP8_BENCH_DIR` | ✓ |
+| F-G04 | Every recipe of the manual (`guide/manual.html`) works as written: following its buttons in order gives what it promises (a drum beat, a bass that follows the chords, a recorded melody, a ratchet, a chord and an arpeggio, an effect, an LFO, two lengths drifting apart, PERFORM, PLUG-IN, FILE, TAP and the metronome, the theme) | `crates/op8/tests/manual.rs` on the bench; its captures are the manual's pictures | ✓ |
 
 ## C · Settings (`tests/settings.rs`)
 

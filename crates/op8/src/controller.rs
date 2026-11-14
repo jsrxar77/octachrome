@@ -849,7 +849,14 @@ impl Controller {
                 match k {
                     0 => {
                         let i = PlayMode::ALL.iter().position(|x| *x == pl.mode).unwrap_or(0) as i32;
+                        let was = pl.mode;
                         pl.mode = PlayMode::ALL[(i + n).clamp(0, PlayMode::ALL.len() as i32 - 1) as usize];
+                        // a chord starts all together; an arpeggio starts at four notes a step
+                        if pl.mode == PlayMode::Chord && was != PlayMode::Chord {
+                            pl.speed = 0;
+                        } else if pl.mode.is_arp() && !was.is_arp() {
+                            pl.speed = 2;
+                        }
                     }
                     1 => {
                         let i = ChordType::ALL.iter().position(|x| *x == pl.chord).unwrap_or(0) as i32;

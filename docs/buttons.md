@@ -32,7 +32,7 @@ They are the modules of the current mode, like M1–M4 on the OP-XY. Their name 
 | :-- | :-- | :-- | :-- |
 | 1 | step: step grid and polymeter | seq | ✓ (back to the step view; named in the strip) |
 | 2 | components: step inspector | step components | ◐ (opens the inspector on step 1; holding a pad still opens it on that step) |
-| 3 | players: arpeggio and chords over the track | players | ✓ (knobs 1–4: `play` off, chord, up, down, up-down, random; `chord` major, minor, 7th, m7, sus2, sus4, power; `rate` (notes per step of an arpeggio) or `strum` (a chord); `octaves` 1–3. Not on a drum kit; the same button again goes back to the steps) |
+| 3 | players: arpeggio and chords over the track | players | ✓ (knobs 1–4: `play` off, chord, up, down, up-down, random; `chord` major, minor, 7th, m7, sus2, sus4, power; `rate` (notes per step of an arpeggio) or `strum` (a chord); `octaves` 1–3. Choosing `chord` starts all together, choosing an arpeggio starts at four notes a step. Not on a drum kit; the same button again goes back to the steps) |
 | 4 | bar: length, division and shift of the track | bar | ✓ (knobs 1–4: `length`, `division`, `shift` (turns the steps round the bar) and `rec rounds` (nearest, down, up: which step REC writes to). The same button again goes back. The step view's own knobs 1–2 stay as they were) |
 | 5 | shape: page 2 of the cartridge (envelopes) | M2 | ✓ |
 | 6 | sound: page 1 of the cartridge | M1 | ✓ |
