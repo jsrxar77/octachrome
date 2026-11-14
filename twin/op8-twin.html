@@ -157,6 +157,7 @@ canvas.lcd {
             <button class="btn" id="bRestart">RESTART</button>
             <button class="btn play" id="bPlay">PLAY</button>
             <button class="btn" id="bStop">STOP</button>
+            <button class="btn" id="bRec" title="Grabar lo que tocás">REC</button>
             <button class="btn" id="bShift">SHIFT</button>
           </div>
         </div>
@@ -609,7 +610,7 @@ function updateVisual() {
   while (S.vis.length && S.vis[0].time <= now) {
     const v = S.vis.shift();
     P.tracks.forEach((tr, t) => { S.playhead[t] = Math.floor(v.eff / DIVS[tr.div][1]) % tr.length; });
-    S.chordSlot = v.slot; S.chord = v.chord;
+    S.chordSlot = v.slot; S.chord = v.chord; S.eff = v.eff;
   }
 }
 
@@ -649,7 +650,7 @@ function setStrip(x) {
 }
 
 // ======================= controller (mirrors op8 Controller) =======================
-const UI = { octave: 0, down: Array(16).fill(false), main: "instrument", mode: "step", track: 0, inspect: null, compCursor: 0, touch: Array(8).fill(false), page: 0, live: null, strip: null, activity: Array(8).fill(0), lastCount: Array(8).fill(0), shift: false, mute: false, erase: false };
+const UI = { rec: false, octave: 0, down: Array(16).fill(false), main: "instrument", mode: "step", track: 0, inspect: null, compCursor: 0, touch: Array(8).fill(false), page: 0, live: null, strip: null, activity: Array(8).fill(0), lastCount: Array(8).fill(0), shift: false, mute: false, erase: false };
 const padDownAt = Array(16).fill(null); let inspectorPad = null; const knobAccum = Array(8).fill(0);
 const padToStep = pad => (3 - Math.floor(pad / 4)) * 4 + pad % 4; // bottom-left numbering -> reading order
 const DETENT = 40, SWEEP = 800;
@@ -686,6 +687,16 @@ function padNote(pad) {
   if (UI.mode === "keys") { const n = 48 + 12 * UI.octave + pad; return n >= 0 && n <= 127 ? n : null; }
   return null;
 }
+// REC: a note played by hand while the sequencer runs is written at the step nearest to now (a kit: the sound's lane is
+// switched on there, so several sounds can share a step). Chords are not recorded yet. Same rule as Controller::record.
+function recordNote(note, vel) {
+  if (!UI.rec || !S.playing) return;
+  const t = UI.track, tr = P.tracks[t], ticks = DIVS[tr.div][1];
+  let step = S.playhead[t]; if (((S.eff || 0) % ticks) / ticks >= 0.5) step = (step + 1) % tr.length;
+  const st = tr.steps[step], kit = SLOTS[t] === "drums";
+  if (kit) { tr.kit = true; st.lanes |= 1 << (note - 60) % 8; } else st.note = note;
+  st.active = true; st.vel = Math.max(1, Math.round(vel * 127));
+}
 function padDown(pad, vel) {
   if (UI.main === "file") { filePad(pad); return; }
   if (UI.main === "settings") return;
@@ -703,7 +714,7 @@ function padDown(pad, vel) {
     if (SLOTS[UI.track] !== "drums") { initAudio(); for (let i = 0; i < 12; i++) if (chord.mask >> ((chord.root + i) % 12) & 1) audition(UI.track, 48 + chord.root + i, Math.max(0.1, vel), false); }
   } else if (UI.mode === "pads" || UI.mode === "keys") {
     initAudio(); const n = padNote(pad);
-    if (n != null) { UI.down[pad] = true; audition(UI.track, n, Math.max(0.1, vel), false); }
+    if (n != null) { UI.down[pad] = true; audition(UI.track, n, Math.max(0.1, vel), false); recordNote(n, Math.max(0.1, vel)); }
   } else {
     initAudio();
     punchState.base = vel; setPunch(pad, vel);
@@ -1011,6 +1022,7 @@ function topBar(g, accent) {
   if (S.playing) { g.fillStyle = FG; g.beginPath(); g.moveTo(10, 8 + HDR); g.lineTo(20, 14 + HDR); g.lineTo(10, 20 + HDR); g.fill(); }
   else fill(g, 10, 9 + HDR, 10, 10, DIM);
   txt(g, P.bpm.toFixed(0), 28, 3 + HDR, "mid", FG);
+  if (UI.rec) dot(g, 100, 15 + HDR, 5, REC);
   // tempo pulse: a dot that blinks on each beat
   const beat = S.playing ? (S.playhead[0] % 4 === 0 ? A.hit[0] : 0) : 0;
   dot(g, 72, 15 + HDR, 3, mix("#ffffff", 0.25 + 0.75 * beat));
@@ -1435,6 +1447,7 @@ $("bPads").addEventListener("click", () => setMode(UI.mode === "pads" ? "step" :
 $("bKeys").addEventListener("click", () => setMode(UI.mode === "keys" ? "step" : "keys"));
 $("bChannel").addEventListener("click", () => setMain("instrument"));
 $("bSettings").addEventListener("click", () => setMain(UI.main === "settings" ? "instrument" : "settings"));
+$("bRec").addEventListener("click", () => { if (UI.main === "instrument") UI.rec = !UI.rec; });
 $("bFile").addEventListener("click", () => setMain(UI.main === "file" ? "instrument" : "file"));
 $("sb1").addEventListener("click", () => { if (UI.main === "instrument") setMode("step"); });
 $("sb2").addEventListener("click", () => { if (UI.main === "instrument") { setMode("step"); UI.inspect = 0; UI.compCursor = 0; } });
@@ -1492,7 +1505,7 @@ function updateLeds() {
     bPads: composing && UI.mode === "pads" ? 2 : 1, bKeys: composing && UI.mode === "keys" ? 2 : 1,
     bChannel: composing ? 2 : 1, bSettings: UI.main === "settings" ? 2 : 1, bFile: UI.main === "file" ? 2 : 1, bShift: UI.shift ? 2 : 1,
     bMute: composing ? (UI.mute ? 2 : 1) : 0, bErase: composing ? (UI.erase ? 2 : 1) : 0,
-    bStop: S.playing ? 1 : 2, bRestart: 1, jogL: !composing || UI.mode === "keys" ? 1 : 0, jogR: !composing || UI.mode === "keys" ? 1 : 0,
+    bStop: S.playing ? 1 : 2, bRestart: 1, bRec: composing ? (UI.rec ? 2 : 1) : 0, jogL: !composing || UI.mode === "keys" ? 1 : 0, jogR: !composing || UI.mode === "keys" ? 1 : 0,
     sb1: composing ? (UI.mode === "step" && UI.inspect == null ? 2 : 1) : 0, sb2: composing ? (UI.inspect != null ? 2 : 1) : 0,
     sb5: composing && second ? (shape ? 2 : 1) : 0, sb6: composing ? (shape ? 1 : 2) : 0,
   };

@@ -87,6 +87,8 @@ pub struct UiState {
     /// The slot last touched in FILE, and a line saying what happened.
     pub file_last: Option<usize>,
     pub file_note: String,
+    /// REC is armed: what is played by hand while the sequencer runs is written into the track.
+    pub rec: bool,
     /// KEYBOARD octave offset from C3 (pad 1 is C3 at 0).
     pub octave: i32,
     /// Pads held in PAD MODE / KEYBOARD (index = pad, bottom-left first), for the screen and the LEDs.

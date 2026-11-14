@@ -249,6 +249,7 @@ impl Controller {
                 };
                 self.set_main(to, h);
             }
+            Button::Rec if self.ui.main == Main::Instrument => self.ui.rec = !self.ui.rec,
             Button::File => {
                 let to = if self.ui.main == Main::File { Main::Instrument } else { Main::File };
                 self.set_main(to, h);
@@ -386,6 +387,7 @@ impl Controller {
                 h.send(EngineCommand::LiveNote { track, note, velocity, on: true });
                 self.held_notes[p] = Some(note);
                 self.ui.pads_down[p] = true;
+                self.record(h, note, velocity);
             }
             PadEvent::Release => {
                 if let Some(note) = self.held_notes[p].take() {
@@ -395,6 +397,42 @@ impl Controller {
             }
             _ => {}
         }
+    }
+
+    /// REC: write a note played by hand into the selected track, at the step nearest to now. On a drum
+    /// kit the sound's lane is switched on in that step (so several sounds can share it); anywhere
+    /// else the step takes the note and the velocity, keeping its gate and components. Does nothing
+    /// unless REC is armed and the sequencer is running.
+    fn record(&mut self, h: &mut EngineHandle, note: u8, velocity: f32) {
+        use std::sync::atomic::Ordering::Relaxed;
+        if !self.ui.rec || !h.status.playing.load(Relaxed) {
+            return;
+        }
+        let t = self.ui.track;
+        let len = h.project.tracks[t].len();
+        let mut step = h.status.playhead[t].load(Relaxed) as usize % len;
+        if h.status.phase[t].load(Relaxed) >= 128 {
+            step = (step + 1) % len; // late in the step: it belongs to the next one
+        }
+        let track = t as u8;
+        let mut v = h.project.tracks[t].steps[step];
+        if self.ui.lane.is_some() {
+            if !h.project.tracks[t].kit {
+                h.seq(Command::SetKit { track, kit: true });
+                v = h.project.tracks[t].steps[step];
+            }
+            v.lanes |= 1 << ((note - op8_seq::step::KIT_BASE_NOTE) % 8);
+        } else {
+            v.note = note;
+        }
+        v.active = true;
+        v.velocity = self.rec_velocity(velocity);
+        h.seq(Command::SetStep { track, step: step as u8, value: v });
+    }
+
+    /// The velocity written by REC (and, later, FIXED VEL).
+    fn rec_velocity(&self, velocity: f32) -> u8 {
+        (velocity * 127.0).round().clamp(1.0, 127.0) as u8
     }
 
     /// KEYBOARD: move the pads an octave (the 4D encoder, left and right).
@@ -868,7 +906,7 @@ impl Controller {
         for b in crate::lights::all() {
             let l = crate::lights::light(&self.ui, &ctx, b);
             if op8_hw::leds::button_is_colour(b) {
-                let colour = if b == Button::Play { NiColor::Green } else { NiColor::White };
+                let colour = if b == Button::Play { NiColor::Green } else if b == Button::Rec { NiColor::Red } else { NiColor::White };
                 out.set_button_color(b, colour, match l { crate::lights::Light::Off => 0, crate::lights::Light::Dim => 1, crate::lights::Light::Full => 3 });
             } else {
                 out.set_button(b, match l { crate::lights::Light::Off => 0.0, crate::lights::Light::Dim => FAINT_WHITE, crate::lights::Light::Full => 1.0 });

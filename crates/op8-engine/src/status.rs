@@ -7,6 +7,8 @@ use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU8, Ordering::Relaxed};
 pub struct EngineStatus {
     pub playing: AtomicBool,
     pub playhead: [AtomicU8; TRACKS],
+    /// How far into its step each track is, 0..=255 (the fraction of the step that has passed).
+    pub phase: [AtomicU8; TRACKS],
     /// Incremented on every note-on, per track (drives activity LEDs).
     pub note_count: [AtomicU32; TRACKS],
     /// Peak level per track as f32 bits, decaying.

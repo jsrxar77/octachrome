@@ -33,7 +33,7 @@ pub struct Context<'a> {
 pub fn all() -> Vec<Button> {
     use Button::*;
     let mut v = vec![
-        Shift, Step, Chords, Perform, PadMode, Keyboard, NoteRepeat, ChannelMidi, Settings, File, Mute, Erase, Play, Stop, Restart, JogLeft,
+        Shift, Rec, Step, Chords, Perform, PadMode, Keyboard, NoteRepeat, ChannelMidi, Settings, File, Mute, Erase, Play, Stop, Restart, JogLeft,
         JogRight,
     ];
     v.extend((1..=8).map(Screen));
@@ -51,6 +51,8 @@ pub fn light(ui: &UiState, c: &Context, b: Button) -> Light {
         // STOP has the focus while stopped, PLAY while playing
         Stop => state(!c.playing),
         Restart => Light::Dim,
+        // REC arms the recording: strong while armed, and only while composing
+        Rec => if composing { state(ui.rec) } else { Light::Off },
         // Going back to composing, or into settings
         ChannelMidi => state(composing),
         Settings => state(ui.main == Main::Settings),

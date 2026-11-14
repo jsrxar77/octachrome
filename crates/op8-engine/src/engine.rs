@@ -315,6 +315,7 @@ impl Engine {
         s.playing.store(self.seq.is_playing(), Relaxed);
         for t in 0..TRACKS {
             s.playhead[t].store(self.seq.playhead(t).step, Relaxed);
+            s.phase[t].store((self.seq.step_phase(t) * 255.0) as u8, Relaxed);
             s.note_count[t].store(self.note_counts[t], Relaxed);
             s.peak[t].store(self.peaks[t].to_bits(), Relaxed);
         }

@@ -35,7 +35,7 @@
   // transport
   [["RESTART","y","Back to step 1 and keep playing"],["ERASE","p","Hold + a pad to erase the step"],["TAP","n","Tap tempo"],["FOLLOW","n","Recording quantisation"]]
     .forEach((b, i) => add(b[0], R(53 + 39 * i, 386, 34, 12), b[1], b[2]));
-  [["PLAY","y","Play / pause"],["REC","n","Record notes and automation"],["STOP","p","Stop (twice to silence: planned)"],["SHIFT","y","Secondary functions"]]
+  [["PLAY","y","Play / pause"],["REC","p","Record what you play into the track (notes; automation is still to come)"],["STOP","p","Stop (twice to silence: planned)"],["SHIFT","y","Secondary functions"]]
     .forEach((b, i) => add(b[0], R(53 + 39 * i, 405, 34, 18), b[1], b[2]));
 
   const pads = [], knobs = [];
