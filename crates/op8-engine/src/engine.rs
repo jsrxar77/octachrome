@@ -48,6 +48,8 @@ pub enum EngineCommand {
         velocity: f32,
         on: bool,
     },
+    /// Replace the whole project (FILE). Boxed: it is large, and the queue holds many commands.
+    LoadProject(Box<op8_seq::Project>),
     /// Put a cartridge in a slot. The old one comes back through the
     /// handle's garbage queue so it is never freed on the audio thread.
     LoadCartridge {
@@ -181,6 +183,10 @@ impl Engine {
                         let ev = if on { op8_cartridge::NoteEvent::on(0, note, velocity.clamp(0.0, 1.0)) } else { op8_cartridge::NoteEvent::off(0, note) };
                         q.push(ev);
                     }
+                }
+                EngineCommand::LoadProject(p) => {
+                    self.seq.load_project(*p);
+                    self.audition = [None; TRACKS];
                 }
                 EngineCommand::Audition { track, note, velocity } => {
                     if let Some(a) = self.audition.get_mut(track as usize) {
@@ -368,6 +374,10 @@ impl EngineHandle {
             } => Some((*track, *index, *value)),
             _ => None,
         };
+        let loaded = match &cmd {
+            EngineCommand::LoadProject(p) => Some(**p),
+            _ => None,
+        };
         let play = match &cmd {
             EngineCommand::Play => Some(true),
             EngineCommand::Stop => Some(false),
@@ -378,6 +388,9 @@ impl EngineHandle {
         }
         if let Some(c) = mirror {
             self.project.apply(&c);
+        }
+        if let Some(p) = loaded {
+            self.project = p;
         }
         if let Some((t, i, v)) = param {
             if let Some(p) = self

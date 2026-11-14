@@ -115,6 +115,18 @@ impl Sequencer {
         s
     }
 
+    /// Replace the whole project (the FILE button). Whatever sounds is released, and if the
+    /// sequencer was playing it starts again from the first step.
+    pub fn load_project(&mut self, p: Project) {
+        let was_playing = self.playing;
+        self.stop();
+        self.project = p;
+        self.reseed();
+        if was_playing {
+            self.play();
+        }
+    }
+
     fn reseed(&mut self) {
         for (i, r) in self.rng.iter_mut().enumerate() {
             *r = Rng::new(self.project.seed ^ ((i as u64 + 1) << 32));

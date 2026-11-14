@@ -15,7 +15,7 @@
    [["ARRANGER","n","Scenes and the song"],["MIXER","n","Level and pan of the 8 tracks"]],
    [["BROWSER","n","Presets of the instrument"],["SAMPLING","n","Record a sample"]],
    [["PAGE ◀","n","Previous page of the current mode"],["PAGE ▶","n","Next page of the current mode"]],
-   [["FILE","n","Open and save projects"],["SETTINGS","p","Both screens become settings: pick the theme with the 4D encoder"]],
+   [["FILE","y","Open and save projects: the 16 pads are the 16 slots (factory top, yours bottom); SHIFT + a pad saves"],["SETTINGS","p","Both screens become settings: pick the theme with the 4D encoder"]],
    [["AUTO","n","Hold and turn a knob to record automation"],["MACRO","n","Brain, effect sends and inputs/outputs"]]]
     .forEach((row, r) => row.forEach((b, c) => add(b[0], R(c ? 90 : 40, [43, 65, 87, 109, 128, 150][r], c ? 34 : 36, r === 3 ? 12 : 17), b[1], b[2])));
   // volume / swing / tempo block, beside the 4D encoder

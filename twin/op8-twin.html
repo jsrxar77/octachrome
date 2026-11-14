@@ -172,6 +172,7 @@ canvas.lcd {
             <button class="btn" id="bMute">MUTE</button>
             <button class="btn" id="bChannel" title="Compose: the sequencer on the left, the instrument on the right">CHANNEL</button>
             <button class="btn" id="bSettings" title="Settings: both screens">SETTINGS</button>
+            <button class="btn" id="bFile" title="Proyectos: abrir y guardar">FILE</button>
           </div>
         </div>
         <div class="grp">
@@ -664,7 +665,7 @@ function setMode(m) {
 // Main modes: CHANNEL composes (sequencer left, instrument right); SETTINGS
 // takes both screens for the machine's settings (theme for now).
 const THEME_IDS = ["glossy", "matte", "chrome"];
-function setMain(m) { UI.main = m; UI.inspect = null; inspectorPad = null; }
+function setMain(m) { UI.main = m; UI.inspect = null; inspectorPad = null; if (m === "file") { UI.fileNote = ""; } }
 function themeStep(d) { LOOK.theme = THEME_IDS[((THEME_IDS.indexOf(LOOK.theme) + d) % 3 + 3) % 3]; applyLook(); }
 function groupPress(g) {
   if (UI.main === "settings") return;
@@ -686,6 +687,7 @@ function padNote(pad) {
   return null;
 }
 function padDown(pad, vel) {
+  if (UI.main === "file") { filePad(pad); return; }
   if (UI.main === "settings") return;
   if (UI.mode === "step") {
     if (padDownAt[pad] == null) {
@@ -713,7 +715,7 @@ function padPressure(pad, p) {
   }
 }
 function padUp(pad) {
-  if (UI.main === "settings") return;
+  if (UI.main === "settings" || UI.main === "file") return;
   if (UI.mode === "step") {
     const wasDown = padDownAt[pad] != null; padDownAt[pad] = null;
     if (inspectorPad === pad) { inspectorPad = null; UI.inspect = null; }
@@ -898,6 +900,53 @@ function touchOverlay(g, cells, base) {
 // active theme. The theme applies live, so the screens themselves are the
 // preview. Nothing is shown for a control that does nothing here (rule 11).
 function settingsBar(g, title) { dot(g, 16, 15, 6, FG); txt(g, title, 30, 6, "mid", FG); }
+// ---- FILE: projects (crates/op8/src/factory.rs and projectfile.rs). The factory eight, and the player's eight kept in localStorage.
+const FILE_NAMES = ["demo", "four floor", "backbeat", "bassline", "pluck", "lead", "polymeter", "blank"];
+function factoryProject(i) {
+  if (i === 0) return demoProject();
+  const p = demoProject(); p.tracks.forEach(t => { t.steps = Array.from({ length: 16 }, () => newStep()); t.length = 16; t.kit = false; t.link = false; });
+  p.brain.live = null;
+  const on = (t, steps, note) => steps.forEach(s => p.tracks[t].steps[s] = newStep(true, note));
+  const kit = (steps, lane) => steps.forEach(s => { const st = p.tracks[0].steps[s]; st.lanes |= 1 << lane; st.active = true; }); p.tracks[0].kit = true;
+  p.bpm = [122, 124, 96, 110, 84, 118, 100, 120][i];
+  if (i === 1) { kit([2, 6, 10, 14], 2); kit([15], 3); on(1, [0, 4, 8, 12], 36); }
+  if (i === 2) { kit([0, 10], 0); kit([4, 12], 1); kit([4, 12], 5); kit([0, 2, 4, 6, 8, 10, 12, 14], 2); kit([15], 4); }
+  if (i === 3) { const b = p.tracks[2]; b.length = 7; b.link = true; b.steps[0] = newStep(true, 36); b.steps[2] = newStep(true, 48); b.steps[3] = newStep(true, 43); b.steps[5] = newStep(true, 40); on(1, [0, 8], 36); }
+  if (i === 4) { const r = p.tracks[3]; r.length = 8; r.link = true; [[0, 60], [2, 64], [3, 67], [5, 72], [6, 67]].forEach(([s, n]) => r.steps[s] = newStep(true, n)); }
+  if (i === 5) { const m = p.tracks[5]; m.link = true; m.steps[0] = newStep(true, 60); m.steps[6] = newStep(true, 67); m.steps[10] = newStep(true, 64); }
+  if (i === 6) { p.tracks[1].length = 5; on(1, [0], 36); p.tracks[3].length = 7; on(3, [0], 60); on(3, [3], 67); p.tracks[0].length = 3; kit([0], 2); }
+  return p;
+}
+const userKey = n => "op8-user-" + n;
+function fileSlots() { return Array.from({ length: 16 }, (_, i) => i < 8 ? [FILE_NAMES[i], true] : (localStorage.getItem(userKey(i - 7)) ? ["user " + (i - 7), true] : ["", false])); }
+function loadProject(src) { const q = JSON.parse(JSON.stringify(src)); P.tracks = q.tracks; P.bpm = q.bpm; P.swing = q.swing; P.brain = q.brain; }
+function filePad(pad) {
+  const slot = padToStep(pad); UI.fileLast = slot;
+  if (UI.shift) {
+    if (slot < 8) { UI.fileNote = "the factory projects stay as they are"; return; }
+    try { localStorage.setItem(userKey(slot - 7), JSON.stringify({ p: P, drums: DRUMS.vals })); UI.fileNote = "saved in user " + (slot - 7); } catch (e) { UI.fileNote = "could not save"; }
+    return;
+  }
+  let src = null;
+  if (slot < 8) src = factoryProject(slot); else { try { const j = JSON.parse(localStorage.getItem(userKey(slot - 7))); if (j) { src = j.p; if (j.drums) DRUMS.vals = j.drums; } } catch (e) {} }
+  if (!src) { UI.fileNote = "empty: SHIFT + tap saves here"; return; }
+  loadProject(src); UI.main = "instrument"; UI.mode = "step"; UI.fileNote = "";
+}
+function fileLeft(g) {
+  fill(g, 0, 0, 480, 272, BG); dot(g, 16, 15, 6, FG); txt(g, UI.shift ? "save" : "open", 30, 6, "mid", FG);
+  if (S.playing) { g.fillStyle = FG; g.beginPath(); g.moveTo(460, 8); g.lineTo(470, 14); g.lineTo(460, 20); g.fill(); } else fill(g, 460, 9, 10, 10, DIM);
+  fileSlots().forEach(([name, has], i) => {
+    const x = 12 + (i % 4) * 114, y = 44 + Math.floor(i / 4) * 48, last = UI.fileLast === i;
+    if (has) rrect(g, x, y, 108, 42, 8, i < 8 ? PANEL : FAINT);
+    rrect(g, x + .5, y + .5, 107, 41, 8, last ? FG : has ? DIM : FAINT, last ? 2 : 1);
+    txt(g, name || "empty", x + 54, y + 21, "m", has ? FG : DIM, "center", "middle");
+  });
+}
+function fileRight(g) {
+  fill(g, 0, 0, 480, 272, BG); dot(g, 16, 15, 6, FG); txt(g, "projects", 30, 6, "mid", FG);
+  [["tap a pad", "opens it"], ["shift + tap", "saves into your slots"]].forEach(([a, b], i) => { txt(g, a, 30, 80 + i * 56, "mid", FG); txt(g, b, 30, 110 + i * 56, "m", DIM); });
+  if (UI.fileNote) txt(g, UI.fileNote, 30, 208, "mid", FG);
+}
 function settingsLeft(g) {
   fill(g, 0, 0, 480, 272, BG);
   settingsBar(g, "settings");
@@ -927,6 +976,7 @@ const RING = { cx: 118, cy: 137, r0: 26, step: 8 };
 function drawLeft(g) {
   animate();
   if (UI.main === "settings") { settingsLeft(g); return; }
+  if (UI.main === "file") { fileLeft(g); return; }
   const accent = TRACK_COLORS[UI.track];
   fill(g, 0, 0, 480, 272, BG);
   topBar(g, accent);
@@ -1158,6 +1208,7 @@ const scopeBuf = new Float32Array(2048);
 function readScope(t) { if (!actx || !analysers[t]) { scopeBuf.fill(0); return 0; } analysers[t].getFloatTimeDomainData(scopeBuf); let st = 0; for (let i = 0; i < 1024; i++) if (scopeBuf[i] <= 0 && scopeBuf[i + 1] > 0) { st = i + 1; break; } return st; }
 function drawRight(g) {
   if (UI.main === "settings") { settingsRight(g); return; }
+  if (UI.main === "file") { fileRight(g); return; }
   const t = UI.track, accent = TRACK_COLORS[t], slot = SLOTS[t];
   fill(g, 0, 0, 480, 272, BG);
   dot(g, 16, 15 + HDR, 6, accent);
@@ -1384,6 +1435,7 @@ $("bPads").addEventListener("click", () => setMode(UI.mode === "pads" ? "step" :
 $("bKeys").addEventListener("click", () => setMode(UI.mode === "keys" ? "step" : "keys"));
 $("bChannel").addEventListener("click", () => setMain("instrument"));
 $("bSettings").addEventListener("click", () => setMain(UI.main === "settings" ? "instrument" : "settings"));
+$("bFile").addEventListener("click", () => setMain(UI.main === "file" ? "instrument" : "file"));
 $("sb1").addEventListener("click", () => { if (UI.main === "instrument") setMode("step"); });
 $("sb2").addEventListener("click", () => { if (UI.main === "instrument") { setMode("step"); UI.inspect = 0; UI.compCursor = 0; } });
 $("sb5").addEventListener("click", () => { if (UI.main === "instrument") UI.page = 1; });
@@ -1438,7 +1490,7 @@ function updateLeds() {
   const L = {
     bStep: composing && UI.mode === "step" ? 2 : 1, bChords: composing && UI.mode === "brain" ? 2 : 1, bPerform: composing && UI.mode === "punch" ? 2 : 1,
     bPads: composing && UI.mode === "pads" ? 2 : 1, bKeys: composing && UI.mode === "keys" ? 2 : 1,
-    bChannel: composing ? 2 : 1, bSettings: composing ? 1 : 2, bShift: UI.shift ? 2 : 1,
+    bChannel: composing ? 2 : 1, bSettings: UI.main === "settings" ? 2 : 1, bFile: UI.main === "file" ? 2 : 1, bShift: UI.shift ? 2 : 1,
     bMute: composing ? (UI.mute ? 2 : 1) : 0, bErase: composing ? (UI.erase ? 2 : 1) : 0,
     bStop: S.playing ? 1 : 2, bRestart: 1, jogL: !composing || UI.mode === "keys" ? 1 : 0, jogR: !composing || UI.mode === "keys" ? 1 : 0,
     sb1: composing ? (UI.mode === "step" && UI.inspect == null ? 2 : 1) : 0, sb2: composing ? (UI.inspect != null ? 2 : 1) : 0,

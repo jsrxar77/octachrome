@@ -4,6 +4,7 @@ It comes from the [button map](buttons.md) and from [instruments.md](instruments
 
 ## Done
 
+- FILE: save and open projects (the factory eight and the player's eight; [architecture.md](architecture.md)).
 - Engine, sequencer with polymeter, Step Components, Brain and Punch-in FX.
 - Cartridges KickSyn, FmBass, MidiOutBridge, **macro**, **drums** (eight percussion sounds in eight lanes) and **resonator** (strings and bells, four voices) (24 engines, from the Plaits code, MIT). macro has `engine`/`harmonics`/`timbre`/`morph` on page 1 and `decay`/`color`/`variant`/`level` on page 2.
 - MK3 driver (pads, knobs, buttons, LEDs, screens), `hw-test`, and deployment on the Pi 5 with systemd.
@@ -93,7 +94,7 @@ Known limits of the setup:
 - PATTERN: 16 patterns per track.
 - SCENE and ARRANGER: scenes and song.
 - DUPLICATE, SELECT, SOLO, VARIATION, EVENTS, LOCK.
-- FILE: projects, save and open.
+- Done: FILE opens the eight factory projects and the player's eight and saves into them (the projects folder). To do: naming a project, deleting one, saving a copy.
 
 ## 6. Mix and samples
 
@@ -108,4 +109,4 @@ Known limits of the setup:
 - A triple-buffer snapshot of the cartridge UI so that `draw_ui` never shares the mutex with the audio.
 - Real-time priority for the audio thread on Linux (`audio_thread_priority`), and a latency measurement on the Pi 5.
 - MIDI with timestamps (today it goes out as soon as the queue is drained, up to 1 ms plus one block).
-- Save and load projects and presets (`save_state` already exists in the cartridges).
+- Presets per instrument (BROWSER); projects already save the instruments' state.

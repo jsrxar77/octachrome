@@ -33,6 +33,9 @@ pub fn draw_left(fb: &mut FrameBuffer480x272, ui: &UiState, p: &Project, st: &En
     if ui.main == crate::Main::Settings {
         return crate::settings::draw_left(fb, st);
     }
+    if ui.main == crate::Main::File {
+        return crate::files::draw_left(fb, ui, st);
+    }
     let t = theme();
     fb.clear(t.bg);
     let accent = track_color(ui.track);

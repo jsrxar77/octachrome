@@ -177,6 +177,10 @@ The theme is chosen with `op8 run -t glossy|matte|chrome` or `OP8_THEME`.
 - **PAD MODE and KEYBOARD (left):** the sixteen pads drawn as they are on the unit (pad 1 bottom-left), each with the note or the drum sound it plays (`Small`), lit while held; on the left, what the pads are (the key and scale, `kit`, or the keyboard's octave `C3`). The footer shows `octave` (KEYBOARD) and `tempo`.
 - **Right: the instrument of the selected track.** Each cartridge draws its animated illustration using colours 5–8 for what those encoders move. Footer with encoders 5–8.
 
+### Projects view (FILE)
+
+FILE is a main mode like settings: both screens, no footer, no strip. **Left:** the sixteen slots as the pads are (reading order, top-left first), each a rounded cell with the project's name (`m`); the top two rows are the factory projects (`panel` fill) and the bottom two are the player's (`faint` fill, or an outline and `empty` where there is nothing); the slot last touched has a 2 px `fg` outline; the title is `open`, or `save` while SHIFT is held. **Right:** `projects`, what a tap does and what SHIFT + tap does, and below a line saying what just happened. The pad LEDs are white: level 2 for the factory slots, 3 for the player's that hold a project, 1 for the empty ones. The play mark stays on the left.
+
 ### Settings view
 
 Settings is a **main mode** (SETTINGS button; see [buttons.md](buttons.md)): it takes **both** screens, and the rule that the left is time and the right is sound is suspended while it is open. Composing (CHANNEL) is the other main mode. Each setting is a page that uses both screens: the left shows the choices, the right shows what they mean. Today there is one page, the theme.

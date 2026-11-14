@@ -16,6 +16,7 @@
 //! ```
 
 mod anim;
+mod files;
 mod left;
 mod right;
 mod settings;
@@ -37,6 +38,8 @@ pub enum Main {
     Instrument,
     /// The machine's settings (SETTINGS): both screens.
     Settings,
+    /// Projects (FILE): the sixteen pads open or save them, both screens.
+    File,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -78,6 +81,12 @@ pub struct UiState {
     pub right_page: usize,
     /// Whether the selected track's instrument has a second page (the `shape` button).
     pub has_second: bool,
+    /// The sixteen project slots shown in FILE, in reading order (top-left first): the name and
+    /// whether there is a project in it. The top two rows are the factory projects.
+    pub files: Vec<(String, bool)>,
+    /// The slot last touched in FILE, and a line saying what happened.
+    pub file_last: Option<usize>,
+    pub file_note: String,
     /// KEYBOARD octave offset from C3 (pad 1 is C3 at 0).
     pub octave: i32,
     /// Pads held in PAD MODE / KEYBOARD (index = pad, bottom-left first), for the screen and the LEDs.

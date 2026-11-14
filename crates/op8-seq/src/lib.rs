@@ -15,6 +15,7 @@
 
 pub mod brain;
 pub mod fixed;
+pub mod io;
 pub mod project;
 pub mod sequencer;
 pub mod step;
