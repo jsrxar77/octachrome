@@ -25,7 +25,7 @@ const RING_CY: f32 = 126.0;
 const RING_R0: f32 = 26.0;
 const RING_STEP: f32 = 11.0;
 const GRID_X: i32 = 262;
-const GRID_Y: i32 = 38;
+const GRID_Y: i32 = 42;
 const CELL: i32 = 40;
 const GAP: i32 = 6;
 

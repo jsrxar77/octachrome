@@ -709,7 +709,7 @@ function applyLook() {
   TRACK_COLORS.splice(0, 8, ...t.tracks); // the track accents follow the theme, as the pad LEDs do
   // One family (Jost), tuned toward the OP-XY screen: light weights, small
   // labels with open tracking, big numbers in the lightest weight.
-  FONT = { s: '400 11px "Jost", sans-serif', m: '400 15px "Jost", sans-serif', l: '400 20px "Jost", sans-serif',
+  FONT = { s: '400 11px "Jost", sans-serif', lab: '400 13px "Jost", sans-serif', m: '400 15px "Jost", sans-serif', l: '400 20px "Jost", sans-serif',
     mid: '400 21px "Jost", sans-serif', big: '300 34px "Jost", sans-serif', huge: '300 62px "Jost", sans-serif' };
   if (document.fonts) Object.values(FONT).forEach(x => document.fonts.load(x).catch(() => {}));
   try { localStorage.setItem("op8-look", JSON.stringify(LOOK)); } catch {}
@@ -721,7 +721,7 @@ applyLook();
 function crosshairs(g, x, y, w, h, c, arm = 3) {
   for (const [px, py] of [[x, y], [x + w, y], [x, y + h], [x + w, y + h]]) { line(g, px - arm, py + 0.5, px + arm + 1, py + 0.5, c); line(g, px + 0.5, py - arm, px + 0.5, py + arm + 1, c); }
 }
-const TRACK_SP = { s: "0.6px", m: "0.3px", l: "0.2px", mid: "0.2px", big: "0px", huge: "-1px" };
+const TRACK_SP = { s: "0.6px", lab: "0.5px", m: "0.3px", l: "0.2px", mid: "0.2px", big: "0px", huge: "-1px" };
 function txt(g, s, x, y, size, color, align = "left", base = "top") { g.font = FONT[size]; if ("letterSpacing" in g) g.letterSpacing = TRACK_SP[size]; g.fillStyle = color; g.textAlign = align; g.textBaseline = base; g.fillText(s, x, y); }
 function box(g, x, y, w, h, c, lw = 1) { g.strokeStyle = c; g.lineWidth = lw; g.strokeRect(x + lw / 2, y + lw / 2, w - lw, h - lw); }
 function fill(g, x, y, w, h, c) { g.fillStyle = c; g.fillRect(x, y, w, h); }
@@ -839,12 +839,12 @@ const BUTTON_CX = [24, 164, 304, 444];
 function buttonStrip(g, labels) {
   labels.forEach(([name, on], i) => {
     if (!name) return;
-    g.font = FONT.s; const w = g.measureText(name).width + 18, x = Math.min(Math.max(1, BUTTON_CX[i] - w / 2), 479 - w);
-    rrect(g, x, 1, w, 14, 7, PANEL); rrect(g, x + 0.5, 1.5, w - 1, 13, 6.5, on ? FG : FAINT, 1);
-    txt(g, name, x + w / 2, 8, "s", on ? FG : DIM, "center", "middle");
+    g.font = FONT.lab; const w = g.measureText(name).width + 20, x = Math.min(Math.max(1, BUTTON_CX[i] - w / 2), 479 - w);
+    rrect(g, x, 1, w, 18, 9, PANEL); rrect(g, x + 0.5, 1.5, w - 1, 17, 8.5, on ? FG : FAINT, 1);
+    txt(g, name, x + w / 2, 10, "lab", on ? FG : DIM, "center", "middle");
   });
 }
-const HDR = 14; // the header items sit this far below where they used to, under the strip
+const HDR = 16; // the header items sit this far below where they used to, under the strip
 function topBar(g, accent) {
   if (UI.main === "instrument") buttonStrip(g, [["step", UI.mode === "step" && UI.inspect == null], ["components", UI.inspect != null], ["", false], ["", false]]);
   if (S.playing) { g.fillStyle = FG; g.beginPath(); g.moveTo(10, 8 + HDR); g.lineTo(20, 14 + HDR); g.lineTo(10, 20 + HDR); g.fill(); }
@@ -882,7 +882,7 @@ function rings(g) {
   txt(g, TRACK_NAMES[UI.track], cx, cy + 1, "mid", TRACK_COLORS[UI.track], "center", "middle");
 }
 function padGrid(g, accent) {
-  const tr = P.tracks[UI.track], x0 = 262, y0 = 38, cs = 40, gap = 6;
+  const tr = P.tracks[UI.track], x0 = 262, y0 = 42, cs = 40, gap = 6;
   for (let s = 0; s < 16; s++) {
     const x = x0 + (s % 4) * (cs + gap), y = y0 + Math.floor(s / 4) * (cs + gap), st = tr.steps[s], inLen = s < tr.length;
     const isPh = S.playing && s === S.playhead[UI.track];

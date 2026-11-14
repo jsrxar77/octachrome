@@ -26,6 +26,8 @@ fn fonts() -> &'static [Font; 2] {
 pub enum FontSize {
     /// 11 px, parameter names under the dials.
     Small,
+    /// 13 px, the names of the screen buttons in the strip.
+    Label,
     /// 15 px, values under the dials.
     Medium,
     /// 20 px, inspector values.
@@ -43,6 +45,7 @@ impl FontSize {
     const fn spec(self) -> (f32, bool, f32) {
         match self {
             FontSize::Small => (11.0, false, 0.6),
+            FontSize::Label => (13.0, false, 0.5),
             FontSize::Medium => (15.0, false, 0.3),
             FontSize::Value => (20.0, false, 0.2),
             FontSize::Large => (21.0, false, 0.2),

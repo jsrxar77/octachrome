@@ -19,11 +19,11 @@ pub fn track_color(i: usize) -> Rgb565 {
 pub const TRACK_NAMES: [&str; 8] = ["A", "B", "C", "D", "E", "F", "G", "H"];
 
 /// Height of the strip that names the 4 screen buttons above each screen.
-pub const STRIP_H: i32 = 16;
+pub const STRIP_H: i32 = 20;
 /// Centre of each of the 4 screen buttons, in screen pixels (measured on the unit: about 140 px apart).
 pub const BUTTON_CX: [i32; 4] = [24, 164, 304, 444];
 /// Vertical centre of the header items (name, tempo, chord, track dots), below the strip.
-pub const HEADER_CY: f32 = 29.0;
+pub const HEADER_CY: f32 = 31.0;
 
 pub const FOOTER_Y: i32 = 224;
 pub const FOOTER_COL: i32 = 120;
@@ -194,7 +194,7 @@ pub fn button_strip(fb: &mut FrameBuffer480x272, labels: &[(&str, bool); 4]) {
         if name.is_empty() {
             continue;
         }
-        let w = text_width(name, FontSize::Small) + 18.0;
+        let w = text_width(name, FontSize::Label) + 20.0;
         let x = (BUTTON_CX[i] as f32 - w / 2.0).clamp(1.0, 479.0 - w);
         let h = (STRIP_H - 2) as f32;
         fill_round_rect(fb, x, 1.0, w, h, h / 2.0, t.panel);
@@ -204,8 +204,8 @@ pub fn button_strip(fb: &mut FrameBuffer480x272, labels: &[(&str, bool); 4]) {
             name,
             (x + w / 2.0) as i32,
             // The x-height of lowercase text, not its capitals, is what sits in the middle.
-            7,
-            FontSize::Small,
+            9,
+            FontSize::Label,
             if *on { t.fg } else { t.dim },
             op8_gfx::Align::Center,
             op8_gfx::VAlign::Middle,

@@ -58,11 +58,11 @@ fn f_d04_mode_changes_screen() {
 /// Centres of the four screen buttons (see `op8_ui::theme::BUTTON_CX`).
 const CX: [usize; 4] = [24, 164, 304, 444];
 
-/// Lit pixels in the strip (the top 18 rows) around one screen button.
+/// Lit pixels in the strip (the top 20 rows) around one screen button.
 fn strip_lit(b: &Bench, screen: Screen, col: usize) -> usize {
     let fb = b.screen(screen);
     let mut n = 0;
-    for y in 0..18usize {
+    for y in 0..20usize {
         for x in CX[col].saturating_sub(60)..(CX[col] + 60).min(480) {
             if fb.pixels()[y * 480 + x] != 0 {
                 n += 1;
@@ -101,7 +101,7 @@ fn f_d10_screens_name_their_buttons() {
     b.run_ms(100);
     for screen in [Screen::Left, Screen::Right] {
         let fb = b.screen(screen);
-        let lit = (0..18usize).flat_map(|y| (120..360usize).map(move |x| (x, y))).filter(|&(x, y)| fb.pixels()[y * 480 + x] != 0).count();
+        let lit = (0..20usize).flat_map(|y| (120..360usize).map(move |x| (x, y))).filter(|&(x, y)| fb.pixels()[y * 480 + x] != 0).count();
         assert_eq!(lit, 0, "{screen:?}: no strip in settings");
     }
 }
@@ -113,7 +113,7 @@ fn f_d11_active_and_empty_steps_are_far_apart() {
     b.press(Button::Group(0));
     b.run_ms(100);
     let lum = |b: &Bench, step: usize| {
-        let (x, y) = (262 + (step % 4) * 46 + 20, 38 + (step / 4) * 46 + 20);
+        let (x, y) = (262 + (step % 4) * 46 + 20, 42 + (step / 4) * 46 + 20);
         let p = b.screen(Screen::Left).pixels()[y * 480 + x];
         let (r, g, bl) = ((p >> 11) & 31, (p >> 5) & 63, p & 31);
         (r as u32 * 8 + g as u32 * 4 + bl as u32 * 8) as f32
