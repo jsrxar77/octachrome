@@ -19,11 +19,11 @@ pub fn track_color(i: usize) -> Rgb565 {
 pub const TRACK_NAMES: [&str; 8] = ["A", "B", "C", "D", "E", "F", "G", "H"];
 
 /// Height of the strip that names the 4 screen buttons above each screen.
-pub const STRIP_H: i32 = 18;
+pub const STRIP_H: i32 = 16;
 /// Centre of each of the 4 screen buttons, in screen pixels (measured on the unit: about 140 px apart).
 pub const BUTTON_CX: [i32; 4] = [24, 164, 304, 444];
 /// Vertical centre of the header items (name, tempo, chord, track dots), below the strip.
-pub const HEADER_CY: f32 = 28.0;
+pub const HEADER_CY: f32 = 29.0;
 
 pub const FOOTER_Y: i32 = 224;
 pub const FOOTER_COL: i32 = 120;
@@ -203,7 +203,8 @@ pub fn button_strip(fb: &mut FrameBuffer480x272, labels: &[(&str, bool); 4]) {
             fb,
             name,
             (x + w / 2.0) as i32,
-            9,
+            // The x-height of lowercase text, not its capitals, is what sits in the middle.
+            7,
             FontSize::Small,
             if *on { t.fg } else { t.dim },
             op8_gfx::Align::Center,

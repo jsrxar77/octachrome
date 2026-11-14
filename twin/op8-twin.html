@@ -840,11 +840,11 @@ function buttonStrip(g, labels) {
   labels.forEach(([name, on], i) => {
     if (!name) return;
     g.font = FONT.s; const w = g.measureText(name).width + 18, x = Math.min(Math.max(1, BUTTON_CX[i] - w / 2), 479 - w);
-    rrect(g, x, 1, w, 16, 8, PANEL); rrect(g, x + 0.5, 1.5, w - 1, 15, 7.5, on ? FG : FAINT, 1);
-    txt(g, name, x + w / 2, 9, "s", on ? FG : DIM, "center", "middle");
+    rrect(g, x, 1, w, 14, 7, PANEL); rrect(g, x + 0.5, 1.5, w - 1, 13, 6.5, on ? FG : FAINT, 1);
+    txt(g, name, x + w / 2, 8, "s", on ? FG : DIM, "center", "middle");
   });
 }
-const HDR = 13; // the header items sit this far below where they used to, under the strip
+const HDR = 14; // the header items sit this far below where they used to, under the strip
 function topBar(g, accent) {
   if (UI.main === "instrument") buttonStrip(g, [["step", UI.mode === "step" && UI.inspect == null], ["components", UI.inspect != null], ["", false], ["", false]]);
   if (S.playing) { g.fillStyle = FG; g.beginPath(); g.moveTo(10, 8 + HDR); g.lineTo(20, 14 + HDR); g.lineTo(10, 20 + HDR); g.fill(); }
