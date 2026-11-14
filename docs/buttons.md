@@ -45,9 +45,9 @@ They are the modules of the current mode, like M1–M4 on the OP-XY. Their name 
 | :-- | :-- | :-- | :-- | :-- |
 | STEP | Step sequencer | seq (steps) | Pads = the 16 steps of the track. Holding a pad opens its components | ✓ |
 | KEYBOARD | Chromatic pads | keyboard | Pads = the track's chromatic keyboard. 4D encoder ◀ ▶ = octave (the − and + of the OP-XY) | ○ |
-| CHORDS | Chord mode | players (chords) / brain | **Brain**: chord progression. Pads = degrees; holding one = live chord | ✓ |
+| CHORDS | Chord mode | players (chords) / brain | **Brain**: chord progression. Pads = degrees; holding one = live chord. Pressing CHORDS again goes back to STEP | ✓ |
 | PAD MODE | Pads as sounds | (tracks) | Pads 1–8 trigger the 8 tracks; 9–16 are left for a drum cartridge | ○ |
-| PERFORM · Shift: choose | Perform FX on the Smart Strip | punch-in fx | **Punch-in FX**: each pad an effect, pressure is the intensity | ✓ |
+| PERFORM · Shift: choose | Perform FX on the Smart Strip | punch-in fx | **Punch-in FX**: each pad an effect, pressure is the intensity. Pressing PERFORM again goes back to STEP | ✓ |
 | NOTE REPEAT · Shift: arp | Repeat and arpeggiator | players (arp) | Repeat the held note; with Shift, arpeggiator | ○ (today it opens Punch) |
 | FIXED VEL | Fixed velocity | — | Fixed velocity when recording or playing | ○ |
 

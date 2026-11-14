@@ -47,6 +47,7 @@ The buttons and their implementation status are in [buttons.md](buttons.md). Thi
 |---|---|---|---|
 | F-P01 | PERFORM switches to Punch mode | `ui.mode == Punch` | ✓ |
 | F-P02 | A pad in Punch engages the effect while held and turns it off on release | `ui.punch` is `Some` during the press and `None` after | ✓ |
+| F-P03 | There is always a way back to the sequencer: STEP leaves Punch and Brain, and pressing PERFORM or CHORDS again while in that mode goes back to STEP | `ui.mode` after the presses | ✓ |
 
 ## K · Knobs (`tests/knobs.rs`)
 

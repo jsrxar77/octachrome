@@ -21,3 +21,22 @@ fn f_p02_pad_engages_effect_while_held() {
     b.release(0);
     assert!(b.ui().punch.is_none(), "effect still engaged after release");
 }
+
+// F-P03: STEP leaves Punch, and pressing PERFORM again does too: there is always a way back.
+#[test]
+fn f_p03_there_is_always_a_way_back_to_step() {
+    let mut b = Bench::demo();
+    b.press(Button::Perform);
+    b.press(Button::Step);
+    assert_eq!(b.ui().mode, op8_ui::Mode::Step);
+    b.press(Button::Perform);
+    b.press(Button::Perform);
+    assert_eq!(b.ui().mode, op8_ui::Mode::Step, "PERFORM twice is back on STEP");
+    b.press(Button::Chords);
+    b.press(Button::Chords);
+    assert_eq!(b.ui().mode, op8_ui::Mode::Step, "so is CHORDS twice");
+    b.press(Button::NoteRepeat);
+    b.press(Button::Settings);
+    b.press(Button::Perform);
+    assert_eq!(b.ui().mode, op8_ui::Mode::Punch, "from settings PERFORM enters Punch, it does not toggle out");
+}

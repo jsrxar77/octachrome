@@ -195,8 +195,10 @@ impl Controller {
                 h.send(EngineCommand::Play);
             }
             Button::Step => self.set_mode(Mode::Step, h),
-            Button::Chords => self.set_mode(Mode::Brain, h),
-            Button::Perform | Button::NoteRepeat => self.set_mode(Mode::Punch, h),
+            // Pressing the button of the mode you are in leaves it for STEP, so
+            // there is always a way back to the sequencer.
+            Button::Chords => self.toggle_mode(Mode::Brain, h),
+            Button::Perform | Button::NoteRepeat => self.toggle_mode(Mode::Punch, h),
             // Main modes: SETTINGS toggles the settings view (both screens);
             // CHANNEL goes back to composing.
             Button::Settings => {
@@ -226,6 +228,12 @@ impl Controller {
             h.seq(Command::SetLiveChord(None));
         }
         self.pad_down_at = [None; 16];
+    }
+
+    /// Like `set_mode`, but the button of the mode already active goes back to STEP.
+    fn toggle_mode(&mut self, m: Mode, h: &mut EngineHandle) {
+        let to = if self.ui.main == Main::Instrument && self.ui.mode == m { Mode::Step } else { m };
+        self.set_mode(to, h);
     }
 
     /// A pad mode button: choose the pad mode, and go back to composing.
