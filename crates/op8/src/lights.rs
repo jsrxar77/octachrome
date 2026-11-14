@@ -33,7 +33,7 @@ pub struct Context<'a> {
 pub fn all() -> Vec<Button> {
     use Button::*;
     let mut v = vec![
-        Shift, Step, Chords, Perform, PadMode, Keyboard, NoteRepeat, ChannelMidi, Settings, Mute, Erase, Play, Stop, Restart, JogLeft,
+        Shift, Step, Chords, Perform, PadMode, Keyboard, NoteRepeat, ChannelMidi, Settings, File, Mute, Erase, Play, Stop, Restart, JogLeft,
         JogRight,
     ];
     v.extend((1..=8).map(Screen));
@@ -53,7 +53,8 @@ pub fn light(ui: &UiState, c: &Context, b: Button) -> Light {
         Restart => Light::Dim,
         // Going back to composing, or into settings
         ChannelMidi => state(composing),
-        Settings => state(!composing),
+        Settings => state(ui.main == Main::Settings),
+        File => state(ui.main == Main::File),
         // The pad-mode buttons all work from settings too (they go back to composing).
         Step => state(composing && ui.mode == Mode::Step),
         Chords => state(composing && ui.mode == Mode::Brain),
@@ -65,7 +66,7 @@ pub fn light(ui: &UiState, c: &Context, b: Button) -> Light {
         Erase => if composing { state(c.erase) } else { Light::Off },
         // The 4D encoder's sides: the theme in settings, the octave on the keyboard
         JogLeft | JogRight => {
-            if !composing || ui.mode == Mode::Keys {
+            if ui.main == Main::Settings || (composing && ui.mode == Mode::Keys) {
                 Light::Dim
             } else {
                 Light::Off

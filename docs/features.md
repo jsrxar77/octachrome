@@ -140,6 +140,17 @@ The buttons and their implementation status are in [buttons.md](buttons.md). Thi
 | F-C08 | On the real MK3: the SETTINGS button reaches the app and its LED lights, the 4D encoder changes the theme on both screens, the choice survives a restart, and `-t` overrides it | **manual review**, with `OP8_LOG_EVENTS=1` | R |
 | F-C09 | The theme changes the pad and group LEDs, not only the screens: track B's pad and group key take that theme's colour from `track_led_colors`, and the three themes do not light the pads alike | `crates/op8/tests/settings.rs` | ✓ |
 
+## F · Files (`tests/files.rs`, `crates/op8-seq`, `crates/op8`)
+
+| ID | Behaviour | How it is verified | Status |
+| :-- | :-- | :-- | :-- |
+| F-F01 | A project round-trips through bytes (`op8_seq::io`), and garbage, a truncated file or another version is refused | unit tests | ✓ |
+| F-F02 | A project file (the project and each track's instrument name and state) round-trips, and a damaged or other-version file is refused | unit test (`projectfile.rs`) | ✓ |
+| F-F03 | The eight factory projects load and differ from each other | unit test (`factory.rs`) | ✓ |
+| F-F04 | FILE shows the sixteen slots (the factory projects in the top two rows) on both screens; a pad opens the project, with its instruments, and goes back to composing; FILE again leaves | the project in the engine after the tap | ✓ |
+| F-F05 | SHIFT + a pad of the player's slots saves into it (a file in the projects folder), and a tap opens it again with the tempo and the instruments' knobs | the files and the project after reopening | ✓ |
+| F-F06 | An empty slot says so and does not load; SHIFT on a factory slot does not overwrite it; a damaged file is refused and the project stays as it was | the project is unchanged | ✓ |
+
 ## H · Hardware link (`crates/op8-hw`, `crates/op8`)
 
 | ID | What must happen | How it is verified | Status |

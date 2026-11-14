@@ -159,6 +159,7 @@ fn run(mut script: Option<Script>, theme_given: bool) -> Result<()> {
         }
         app.settings_path = Some(path);
     }
+    app.ctl.projects_dir = op8::projectfile::default_dir();
     app.log_events = std::env::var_os("OP8_LOG_EVENTS").is_some();
     app.no_leds = std::env::var_os("OP8_NO_LEDS").is_some();
     if let Some(dir) = std::env::var_os("OP8_DUMP_DIR") {

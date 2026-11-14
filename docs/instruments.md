@@ -88,7 +88,7 @@ Everything in OP-8 is built on eight, and the MK3 has sixteen pads. So the libra
 | | Factory (pads 1–8) | Yours (pads 9–16) |
 | :-- | :-- | :-- |
 | **Instruments** (PLUG-IN) | 8 that always ship and cannot be removed | 8 places for instruments installed as separate packages (stage 2 and 3 of §3) |
-| **Projects** (FILE) | 8 music projects that always ship: a way into the instruments and the sequencer | 8 places for the player's own projects |
+| **Projects** (FILE) | 8 music projects that always ship (done: demo, four floor, backbeat, bassline, pluck, lead, polymeter, blank) | 8 places for the player's own projects (done) |
 
 The factory eight, confirmed by Javi on 2026-11-14 (all but the sampler and the granular exist). **They are ordered from the most guttural to the most refined, drums first and the leads last**; that order is the order of the factory slots, of the tracks in the demo (A to E) and of the list the player will browse. The MIDI out has its place because the MK3 will eventually also take input: MIDI out and sound in. The order of work is drums and resonator (done), sampler, granular.
 

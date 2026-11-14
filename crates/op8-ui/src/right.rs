@@ -20,6 +20,9 @@ pub fn draw_right(
     if ui.main == crate::Main::Settings {
         return crate::settings::draw_right(fb);
     }
+    if ui.main == crate::Main::File {
+        return crate::files::draw_right(fb, ui);
+    }
     let t = theme();
     let accent = track_color(ui.track);
     let Some(c) = cartridge else {

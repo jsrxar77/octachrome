@@ -98,6 +98,8 @@ fn chord_notes(c: Chord) -> Vec<u8> {
 #[derive(Default)]
 pub struct Controller {
     pub ui: UiState,
+    /// Where the player's projects are saved and read, if anywhere (FILE does nothing for the user slots without it).
+    pub projects_dir: Option<std::path::PathBuf>,
     /// The buttons that are down right now, for their lights.
     down: std::collections::HashSet<Button>,
     /// The notes of the chord that a CHORDS pad is sounding, to release them.
@@ -143,7 +145,8 @@ impl Controller {
         match ev {
             ControlEvent::Button { button, pressed } => self.button(button, pressed, h),
             // In settings the pads and knobs do nothing; the 4D encoder picks the theme.
-            ControlEvent::Pad { .. } | ControlEvent::Knob { .. } if self.ui.main == Main::Settings => {}
+            ControlEvent::Pad { pad, event } if self.ui.main == Main::File => self.file_pad(pad, event, h),
+            ControlEvent::Pad { .. } | ControlEvent::Knob { .. } if self.ui.main != Main::Instrument => {}
             ControlEvent::Encoder { delta } if self.ui.main == Main::Settings => {
                 self.step_theme(delta)
             }
@@ -199,7 +202,7 @@ impl Controller {
             Button::Mute => self.held.mute = pressed,
             Button::Erase => self.held.erase = pressed,
             _ if !pressed => {}
-            Button::Group(_) if self.ui.main == Main::Settings => {}
+            Button::Group(_) if self.ui.main != Main::Instrument => {}
             Button::Group(g) => {
                 let t = g as usize;
                 if self.held.shift {
@@ -246,6 +249,10 @@ impl Controller {
                 };
                 self.set_main(to, h);
             }
+            Button::File => {
+                let to = if self.ui.main == Main::File { Main::Instrument } else { Main::File };
+                self.set_main(to, h);
+            }
             Button::ChannelMidi => self.set_main(Main::Instrument, h),
             Button::JogLeft if self.ui.main == Main::Instrument && self.ui.mode == Mode::Keys => self.shift_octave(-1, h),
             Button::JogRight if self.ui.main == Main::Instrument && self.ui.mode == Mode::Keys => self.shift_octave(1, h),
@@ -269,6 +276,64 @@ impl Controller {
         match (kit, self.ui.lane) {
             (true, Some(l)) => step.lanes & (1 << l) != 0,
             _ => step.active,
+        }
+    }
+
+    /// Look at the player's folder: which of the eight user slots hold a project.
+    fn refresh_files(&mut self) {
+        self.ui.files = (0..16)
+            .map(|i| {
+                if i < 8 {
+                    (crate::factory::NAMES[i].to_string(), true)
+                } else {
+                    let has = self.projects_dir.as_ref().is_some_and(|d| crate::projectfile::user_path(d, i - 8).is_file());
+                    (if has { format!("user {}", i - 7) } else { String::new() }, has)
+                }
+            })
+            .collect();
+    }
+
+    /// FILE: a pad opens the project in its slot; SHIFT + a pad of the player's slots saves into it.
+    fn file_pad(&mut self, pad: u8, ev: PadEvent, h: &mut EngineHandle) {
+        if !matches!(ev, PadEvent::Press | PadEvent::Strike(_)) || self.pad_down_at[pad as usize].is_some() {
+            if ev == PadEvent::Release {
+                self.pad_down_at[pad as usize] = None;
+            }
+            return;
+        }
+        self.pad_down_at[pad as usize] = Some(0);
+        let slot = Self::pad_to_step(pad) as usize; // reading order: the top two rows are the factory projects
+        self.ui.file_last = Some(slot);
+        if self.held.shift {
+            if slot < 8 {
+                self.ui.file_note = "the factory projects stay as they are".into();
+                return;
+            }
+            let Some(dir) = &self.projects_dir else {
+                self.ui.file_note = "nowhere to save".into();
+                return;
+            };
+            let f = crate::projectfile::ProjectFile::capture(h);
+            self.ui.file_note = match crate::projectfile::save(&crate::projectfile::user_path(dir, slot - 8), &f) {
+                Ok(()) => format!("saved in user {}", slot - 7),
+                Err(e) => format!("could not save: {e}"),
+            };
+            self.refresh_files();
+            return;
+        }
+        let file = if slot < 8 {
+            Some(crate::factory::file(slot))
+        } else {
+            self.projects_dir.as_ref().and_then(|d| crate::projectfile::load(&crate::projectfile::user_path(d, slot - 8)))
+        };
+        match file {
+            Some(f) => {
+                f.apply(h);
+                self.ui.file_note = String::new();
+                self.set_main(Main::Instrument, h);
+                self.ui.mode = Mode::Step;
+            }
+            None => self.ui.file_note = "empty: SHIFT + tap saves here".into(),
         }
     }
 
@@ -356,8 +421,12 @@ impl Controller {
     /// Change the main mode (docs/buttons.md §1). Entering settings lets go of
     /// the pads, which do nothing there.
     fn set_main(&mut self, m: Main, h: &mut EngineHandle) {
-        if m == Main::Settings {
+        if m != Main::Instrument {
             self.release_pads(h);
+        }
+        if m == Main::File {
+            self.refresh_files();
+            self.ui.file_note.clear();
         }
         self.ui.main = m;
         self.ui.inspect_step = None;
@@ -727,6 +796,18 @@ impl Controller {
         let track = &h.project.tracks[tr];
         let composing = self.ui.main == Main::Instrument;
         // In settings the pads do nothing, so they stay dark.
+        if self.ui.main == Main::File {
+            // the factory projects, the player's that exist, and the empty slots that can be saved into
+            for pad in 0..16u8 {
+                let slot = Self::pad_to_step(pad) as usize;
+                let level = match self.ui.files.get(slot) {
+                    Some((_, true)) if slot < 8 => 2,
+                    Some((_, true)) => 3,
+                    _ => 1,
+                };
+                out.set_pad(pad, NiColor::White, level);
+            }
+        }
         for pad in (0..16u8).filter(|_| composing) {
             match self.ui.mode {
                 Mode::Step => {

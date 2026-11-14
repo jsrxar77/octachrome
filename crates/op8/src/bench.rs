@@ -186,6 +186,11 @@ impl Bench {
         &self.app.handle.project
     }
 
+    /// Where FILE saves the player's projects (a folder of the test's own).
+    pub fn set_projects_dir(&mut self, dir: std::path::PathBuf) {
+        self.app.ctl.projects_dir = Some(dir);
+    }
+
     pub fn ui(&self) -> &UiState {
         &self.app.ctl.ui
     }

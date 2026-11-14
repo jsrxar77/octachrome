@@ -151,6 +151,10 @@ Principles:
 
 Cargo runs each crate's tests from the crate's folder, so give `OP8_BENCH_DIR` as an absolute path.
 
+### Projects on disk
+
+A project file (`crates/op8/src/projectfile.rs`) is `OP8P`, a version byte, the project (`op8_seq::io`, a plain versioned binary written by hand) and, for each of the eight tracks, the name and saved state of its instrument. It is written next to its name and renamed, so a crash never leaves half a project, and read defensively. The player's eight live in `~/.config/op8/projects/user-1.op8p … user-8.op8p` (`OP8_PROJECTS` overrides the folder); the factory eight are built in (`crates/op8/src/factory.rs`). Opening one sends `EngineCommand::LoadProject` and loads each instrument (the running MIDI bridge stays, because it owns the MIDI queue); the sequencer restarts from step 1 if it was playing.
+
 ## 10. Decisions taken (do not reopen without Javi) and known limits
 
 **Decisions**
