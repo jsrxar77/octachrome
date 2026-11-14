@@ -10,6 +10,7 @@ It comes from the [button map](buttons.md) and from [instruments.md](instruments
 - Screens on the real MK3: full-width row bands with compression, sent from a thread of their own, with a full refresh every 500 ms (see [architecture.md §7](architecture.md)).
 - Visual language: 8 knob colours, three themes, Jost, drawings per instrument, touch overlay.
 - Buttons ✓: STEP, CHORDS (Brain), PERFORM (Punch-in), groups A–H, MUTE, ERASE + pad, PLAY, STOP, RESTART, SHIFT, screen 5–6. The rest is in [buttons.md](buttons.md).
+- The step grid shows active and empty steps far apart (screen and pad LEDs), and the screens name their buttons in a strip along the top.
 - Test bench, scripts and feature cases that run without hardware ([features.md](features.md)).
 - Main modes: CHANNEL (composing) and SETTINGS (both screens). Settings has one page today, the theme: it is chosen with the 4D encoder and kept in a settings file ([architecture.md §10](architecture.md)). Tried in the Twin first.
 - The audio comes back by itself when the MK3's audio device drops (it used to stay dead, leaving the sequencer frozen).
@@ -55,8 +56,7 @@ Known limits of the setup:
 
 ## 1. Navigation skeleton (next)
 
-- Top strip with the labels of screen buttons 1–8 (rule 11).
-- Screen buttons 1–4: step, components, players, bar. 5–8: sound, shape, fx, mod.
+- Done: the button strip names the screen buttons that work (1 step, 2 components, 5 sound, 6 shape; [design.md §4](design.md)). To do: buttons 3 players, 4 bar, 7 fx, 8 mod, and their names in the strip as they are built.
 - PAGE ◀ ▶, 4D encoder (▲ ▼ ◀ ▶, push, turn).
 - SETTINGS: audio, MIDI and brightness as further pages (the theme page is done). The 4D ▲ ▼ chooses the page once there is more than one, and the right screen then shows its page dots.
 

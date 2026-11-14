@@ -70,6 +70,9 @@ The buttons and their implementation status are in [buttons.md](buttons.md). Thi
 | F-D06 | A flat screen takes a few bytes and noise is not inflated | `flat_screens_are_tiny_and_noise_is_not_inflated`: 32 bytes for a black screen; the same as raw for noise | ✓ |
 | F-D08 | The optional delta sending (`OP8_DISPLAY_DELTA=1`): a few changed pixels cost a small transfer, the screen ends up showing the new frame, and a pair is sent even if only one of its pixels changed | `a_small_change_costs_a_small_transfer_and_still_round_trips` and `changed_pairs_are_sent_even_when_only_one_pixel_differs` in `crates/op8-hw` | ✓ (not looked at on the real screens) |
 | F-D09 | Each theme defines the eight brand colours and ends in its white; glossy and matte follow the rainbow order (red, orange, yellow, green, blue, indigo, violet), chrome is one range drifting one way ([design.md §2.3](design.md)) | `op8-gfx` unit test | ✓ |
+| F-D10 | Each screen names what its buttons do, in the column of the button: `step`, `components` (left) and `sound`, `shape` (right); a button with no function shows nothing; the open page is underlined; in settings the strip is empty ([design.md §4](design.md)) | pixels of the top 14 rows per 120 px column | ✓ |
+| F-D11 | On the step grid an active step and an empty one are far apart in brightness (the active at least 5 times brighter) | pixel luminance of both cells | ✓ |
+| F-D12 | Screen button 1 goes back to the step view and 2 opens the components; both, and 5 and 6, do nothing in settings | `ui.mode` and `ui.inspect_step` | ✓ |
 | F-D07 | On the real MK3, the two animated screens look complete and in step | **manual review** with photo and video; `OP8_DISPLAY_STATS=1` gives the figures | R |
 
 ## L · LEDs (`tests/leds.rs`)
@@ -77,7 +80,8 @@ The buttons and their implementation status are in [buttons.md](buttons.md). Thi
 | ID | What must happen | How it is verified | Status |
 |---|---|---|---|
 | F-L01 | PLAY lights green when playing and dim when stopped | palette `Green`, level 3 vs 1 | ✓ |
-| F-L02 | The step pads show the track colour: active bright, inactive dim | levels 3 and 1 with the colour of `track_led_colors` (glossy) | ✓ |
+| F-L02 | The step pads show the track colour: active bright in the track colour, inactive a dim white (F-L07) | level 3 with the colour of `track_led_colors` (glossy) | ✓ |
+| F-L07 | An empty step lights its pad as a dim white (level 1), not a dim colour, so it stays apart from an active pad under any cap | palette `White`, level 1 | ✓ |
 
 ## M · MIDI (`tests/midi.rs`)
 

@@ -149,7 +149,8 @@ The theme is chosen with `op8 run -t glossy|matte|chrome` or `OP8_THEME`.
 
 ```
 ┌────────────────────────────────────────────────┐
-│ ● name                           ● ● (pages)   │  top bar, 32 px
+│   step      components                         │  button strip, 14 px
+│ ● name                           ● ● (pages)   │  top bar, 32 px (its items centred at y = 22)
 │ +                                            + │
 │               animated drawing                 │  drawing area
 │ +                                            + │
@@ -158,7 +159,8 @@ The theme is chosen with `op8 run -t glossy|matte|chrome` or `OP8_THEME`.
 └────────────────────────────────────────────────┘
 ```
 
-- **Left (fixed): time.** Tempo, the Brain chord, polymeter rings (one per track, the selected one in front), a mirror of the 16 pads. Footer with encoders 1–4.
+- **Button strip (14 px, y 0..14):** the name of what each of the four buttons above the screen does, `Small`, centred in the same 120 px column as the physical button (rule 11). The open page is `fg` with a 2 px line under it; the others `dim`. A button with no function shows nothing, and in settings the strip is empty. Left today: `step` (button 1: back to the step view) and `components` (2: the inspector). Right today: `sound` (5) and `shape` (6, only for an instrument with a second page). The names of buttons 3, 4, 7 and 8 appear as those buttons are built ([buttons.md](buttons.md)).
+- **Left (fixed): time.** Tempo, the Brain chord, polymeter rings (one per track, the selected one in front), a mirror of the 16 pads. Footer with encoders 1–4. On the mirror an active step is the track colour at 75–100 % (by velocity) and an empty step is a nearly black cell of the track colour (10 %) with a `faint` outline, so on and off are far apart; on the pads an active step is the track colour at the highest level the theme and supply allow and an empty step is a dim white (level 1), so they stay apart even when the levels are capped.
 - **Right: the instrument of the selected track.** Each cartridge draws its animated illustration using colours 5–8 for what those encoders move. Footer with encoders 5–8.
 
 ### Settings view

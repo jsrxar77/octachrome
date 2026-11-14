@@ -37,6 +37,17 @@ pub fn draw_left(fb: &mut FrameBuffer480x272, ui: &UiState, p: &Project, st: &En
     fb.clear(t.bg);
     let accent = track_color(ui.track);
     top_bar(fb, ui, p, st, accent);
+    if ui.main == crate::Main::Instrument {
+        button_strip(
+            fb,
+            &[
+                ("step", ui.mode == Mode::Step && ui.inspect_step.is_none()),
+                ("components", ui.inspect_step.is_some()),
+                ("", false),
+                ("", false),
+            ],
+        );
+    }
     match (ui.mode, ui.inspect_step) {
         (Mode::Step, Some(step)) => inspector(fb, ui, p, step as usize, accent),
         (Mode::Brain, _) => brain_view(fb, p, st, accent),
@@ -61,16 +72,17 @@ fn top_bar(
     let t = theme();
     let playing = st.playing.load(Relaxed);
     if playing {
-        fill_convex(fb, &[(10.0, 8.0), (20.0, 14.0), (10.0, 20.0)], t.fg);
+        let cy = HEADER_CY;
+        fill_convex(fb, &[(10.0, cy - 6.0), (20.0, cy), (10.0, cy + 6.0)], t.fg);
     } else {
-        fill_round_rect(fb, 10.0, 9.0, 10.0, 10.0, 1.5, t.dim);
+        fill_round_rect(fb, 10.0, HEADER_CY - 5.0, 10.0, 10.0, 1.5, t.dim);
     }
     let bpm = format!("{:.0}", p.bpm);
     let end = text_v(
         fb,
         &bpm,
         28,
-        14,
+        HEADER_CY as i32,
         FontSize::Large,
         t.fg,
         Align::Left,
@@ -85,7 +97,7 @@ fn top_bar(
     fill_circle(
         fb,
         end as f32 + 8.0,
-        15.0,
+        HEADER_CY + 1.0,
         3.0,
         t.fg.scale(0.25 + 0.75 * beat),
     );
@@ -103,7 +115,7 @@ fn top_bar(
         fb,
         &chord.name(),
         240,
-        14,
+        HEADER_CY as i32,
         FontSize::Large,
         c,
         Align::Center,
@@ -112,7 +124,7 @@ fn top_bar(
     // track dots
     #[allow(clippy::needless_range_loop)]
     for i in 0..TRACKS {
-        let (x, y) = (338.0 + i as f32 * 18.0, 15.0);
+        let (x, y) = (338.0 + i as f32 * 18.0, HEADER_CY + 1.0);
         let (col, sel, tr) = (track_color(i), i == ui.track, &p.tracks[i]);
         let r = if sel { 6.0 } else { 4.0 } + ui.anim.hit[i] * 2.0;
         let fill = if tr.muted {
@@ -230,13 +242,15 @@ fn pad_grid(
             let k = if is_ph {
                 1.0
             } else {
-                0.45 + 0.55 * step.velocity as f32 / 127.0
+                0.75 + 0.25 * step.velocity as f32 / 127.0
             };
             fill_round_rect(fb, x, y, cs, cs, 6.0, accent.scale(k));
             for c in 0..step.components.len() as i32 {
                 fb.fill_rect(x as i32 + 6 + c * 5, y as i32 + CELL - 7, 3, 3, t.bg);
             }
         } else {
+            // Off: a nearly black cell of the track colour, so on and off are far apart.
+            fill_round_rect(fb, x, y, cs, cs, 6.0, accent.scale(0.10));
             stroke_round_rect(fb, x, y, cs, cs, 6.0, 1.0, t.faint);
         }
         if is_ph {

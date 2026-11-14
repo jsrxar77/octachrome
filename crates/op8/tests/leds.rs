@@ -34,3 +34,34 @@ fn f_l02_step_pads_show_track_colour() {
     assert_eq!(b.leds().pad(on) >> 2, NiColor::Red as u8, "active pad should be the track colour");
     assert_eq!(b.leds().pad(off) & 3, 1, "inactive pad {off} should be dim");
 }
+
+// F-L07: an empty step is a dim white, not a dim colour, so it stays apart from an active pad under any cap.
+#[test]
+fn f_l07_empty_steps_are_dim_white() {
+    let mut b = Bench::demo();
+    b.press(Button::Group(0));
+    let off_pad = (0..16u8)
+        .find(|&p| {
+            let step = op8::Controller::pad_to_step(p) as usize;
+            step < 16 && !b.project().tracks[0].steps[step].active
+        })
+        .expect("an empty step");
+    assert_eq!(b.leds().pad(off_pad) >> 2, NiColor::White as u8);
+    assert_eq!(b.leds().pad(off_pad) & 3, 1);
+}
+
+// F-D12: screen button 1 goes back to the step view and 2 opens the components; they do nothing in settings.
+#[test]
+fn f_d12_screen_buttons_1_and_2() {
+    let mut b = Bench::demo();
+    b.press(Button::Perform);
+    b.press(Button::Screen(1));
+    assert_eq!(b.ui().mode, op8_ui::Mode::Step);
+    b.press(Button::Screen(2));
+    assert!(b.ui().inspect_step.is_some(), "components opens the inspector");
+    b.press(Button::Screen(1));
+    assert!(b.ui().inspect_step.is_none(), "step closes it");
+    b.press(Button::Settings);
+    b.press(Button::Screen(2));
+    assert!(b.ui().inspect_step.is_none(), "nothing happens in settings");
+}

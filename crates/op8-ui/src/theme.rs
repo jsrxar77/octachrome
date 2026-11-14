@@ -18,6 +18,11 @@ pub fn track_color(i: usize) -> Rgb565 {
 
 pub const TRACK_NAMES: [&str; 8] = ["A", "B", "C", "D", "E", "F", "G", "H"];
 
+/// Height of the strip that names the 4 screen buttons above each screen.
+pub const STRIP_H: i32 = 14;
+/// Vertical centre of the header items (name, tempo, chord, track dots), below the strip.
+pub const HEADER_CY: f32 = 22.0;
+
 pub const FOOTER_Y: i32 = 224;
 pub const FOOTER_COL: i32 = 120;
 /// Drawing area between the top bar and the footer.
@@ -173,5 +178,33 @@ pub fn touch_overlay(
     if let Some(b) = c.bar {
         fb.fill_rect(120, 182, 240, 3, fade(t.faint));
         fb.fill_rect(120, 182, (240.0 * b.clamp(0.0, 1.0)) as i32, 3, fade(col));
+    }
+}
+
+/// The strip along the top of a screen: the name of what each of the 4 buttons
+/// above it does (rule 11), in the same 120 px column as the button. A button
+/// with no function shows nothing; the page that is open is `fg` with a line
+/// under it, the others `dim`.
+pub fn button_strip(fb: &mut FrameBuffer480x272, labels: &[(&str, bool); 4]) {
+    let t = op8_gfx::theme();
+    for (i, (name, on)) in labels.iter().enumerate() {
+        if name.is_empty() {
+            continue;
+        }
+        let cx = i as i32 * FOOTER_COL + FOOTER_COL / 2;
+        let end = op8_gfx::text_v(
+            fb,
+            name,
+            cx,
+            6,
+            op8_gfx::FontSize::Small,
+            if *on { t.fg } else { t.dim },
+            op8_gfx::Align::Center,
+            op8_gfx::VAlign::Middle,
+        );
+        let _ = end;
+        if *on {
+            fb.fill_rect(cx - 14, STRIP_H - 2, 28, 2, t.fg);
+        }
     }
 }

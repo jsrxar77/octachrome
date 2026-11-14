@@ -24,12 +24,12 @@ pub fn draw_right(
     let accent = track_color(ui.track);
     let Some(c) = cartridge else {
         fb.clear(t.bg);
-        fill_circle(fb, 16.0, 15.0, 6.0, accent);
+        fill_circle(fb, 16.0, HEADER_CY, 6.0, accent);
         text_v(
             fb,
             "empty",
             30,
-            15,
+            HEADER_CY as i32,
             FontSize::Large,
             t.dim,
             Align::Left,
@@ -42,12 +42,12 @@ pub fn draw_right(
     // If the audio thread holds the cartridge, keep the previous frame.
     let Ok(c) = c.try_lock() else { return };
     fb.clear(t.bg);
-    fill_circle(fb, 16.0, 15.0, 6.0, accent);
+    fill_circle(fb, 16.0, HEADER_CY, 6.0, accent);
     text_v(
         fb,
         &c.info().name.to_lowercase(),
         30,
-        15,
+        HEADER_CY as i32,
         FontSize::Large,
         t.fg,
         Align::Left,
@@ -61,10 +61,19 @@ pub fn draw_right(
     if pages > 1 {
         for i in 0..pages {
             let col = if i == ui.right_page { t.fg } else { t.faint };
-            fill_circle(fb, 456.0 + i as f32 * 12.0, 15.0, 3.0, col);
+            fill_circle(fb, 456.0 + i as f32 * 12.0, HEADER_CY, 3.0, col);
         }
     }
 
+    button_strip(
+        fb,
+        &[
+            ("sound", ui.right_page == 0),
+            (if pages > 1 { "shape" } else { "" }, ui.right_page == 1),
+            ("", false),
+            ("", false),
+        ],
+    );
     c.draw_ui(fb, accent);
 
     // Keep the cartridge inside its area.

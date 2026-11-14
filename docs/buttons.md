@@ -26,12 +26,12 @@ The left screen always shows time and the right screen always shows sound. A mai
 
 ## 2. Screen buttons 1–8 (above the screens)
 
-They are the modules of the current mode, like M1–M4 on the OP-XY. Their name is shown in the top strip (rule 11). In Instrument mode:
+They are the modules of the current mode, like M1–M4 on the OP-XY. Their name is shown in the button strip along the top of each screen, only for the buttons that do something (rule 11, [design.md §4](design.md)). In Instrument mode:
 
 | Button | Module | On the OP-XY | Status |
 | :-- | :-- | :-- | :-- |
-| 1 | step: step grid and polymeter | seq | ◐ (view done, button unassigned) |
-| 2 | components: step inspector | step components | ◐ (today opened by holding a pad) |
+| 1 | step: step grid and polymeter | seq | ✓ (back to the step view; named in the strip) |
+| 2 | components: step inspector | step components | ◐ (opens the inspector on step 1; holding a pad still opens it on that step) |
 | 3 | players: arpeggio and chords over the track | players | ○ |
 | 4 | bar: length, division and quantisation | bar | ◐ (today on knobs 1–2) |
 | 5 | sound: page 1 of the cartridge | M1 | ✓ |

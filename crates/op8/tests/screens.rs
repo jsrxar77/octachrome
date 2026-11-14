@@ -54,3 +54,64 @@ fn f_d04_mode_changes_screen() {
     b.press(Button::Step);
     assert_eq!(b.ui().mode, op8_ui::Mode::Step);
 }
+
+/// Lit pixels in the strip (the top 14 rows) of one 120 px column of a screen.
+fn strip_lit(b: &Bench, screen: Screen, col: usize) -> usize {
+    let fb = b.screen(screen);
+    let mut n = 0;
+    for y in 0..14usize {
+        for x in col * 120..(col + 1) * 120 {
+            if fb.pixels()[y * 480 + x] != 0 {
+                n += 1;
+            }
+        }
+    }
+    n
+}
+
+// F-D10: each screen names what its buttons do, in the column of the button; a button with no function shows nothing.
+#[test]
+fn f_d10_screens_name_their_buttons() {
+    let mut b = Bench::demo();
+    b.press(Button::Group(3)); // track D: macro, with two parameter pages
+    b.run_ms(100);
+    // Left: step, components; 3 and 4 do nothing.
+    assert!(strip_lit(&b, Screen::Left, 0) > 20 && strip_lit(&b, Screen::Left, 1) > 20);
+    assert_eq!(strip_lit(&b, Screen::Left, 2) + strip_lit(&b, Screen::Left, 3), 0);
+    // Right: sound, shape; 7 and 8 do nothing.
+    assert!(strip_lit(&b, Screen::Right, 0) > 20 && strip_lit(&b, Screen::Right, 1) > 20);
+    assert_eq!(strip_lit(&b, Screen::Right, 2) + strip_lit(&b, Screen::Right, 3), 0);
+    // The page that is open is marked: the line under its name moves with it.
+    let line = |b: &Bench, col: usize| {
+        let fb = b.screen(Screen::Right);
+        (col * 120..(col + 1) * 120).filter(|&x| fb.pixels()[13 * 480 + x] != 0).count()
+    };
+    assert!(line(&b, 0) > 0 && line(&b, 1) == 0, "sound is open");
+    b.press(Button::Screen(6));
+    b.run_ms(100);
+    assert!(line(&b, 1) > 0 && line(&b, 0) == 0, "shape is open");
+    // In settings the buttons do nothing, so nothing is named.
+    b.press(Button::Settings);
+    b.run_ms(100);
+    for col in 1..3 {
+        assert_eq!(strip_lit(&b, Screen::Left, col) + strip_lit(&b, Screen::Right, col), 0, "column {col}");
+    }
+}
+
+// F-D11: on the step grid an active step and an empty one are far apart in brightness.
+#[test]
+fn f_d11_active_and_empty_steps_are_far_apart() {
+    let mut b = Bench::demo();
+    b.press(Button::Group(0));
+    b.run_ms(100);
+    let lum = |b: &Bench, step: usize| {
+        let (x, y) = (262 + (step % 4) * 46 + 20, 38 + (step / 4) * 46 + 20);
+        let p = b.screen(Screen::Left).pixels()[y * 480 + x];
+        let (r, g, bl) = ((p >> 11) & 31, (p >> 5) & 63, p & 31);
+        (r as u32 * 8 + g as u32 * 4 + bl as u32 * 8) as f32
+    };
+    let steps: Vec<_> = (0..16).map(|s| (s, b.project().tracks[0].steps[s].active)).collect();
+    let on = steps.iter().find(|s| s.1).expect("an active step").0;
+    let off = steps.iter().find(|s| !s.1).expect("an empty step").0;
+    assert!(lum(&b, on) > 5.0 * lum(&b, off).max(1.0), "active {} vs empty {}", lum(&b, on), lum(&b, off));
+}

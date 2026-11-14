@@ -212,8 +212,15 @@ impl Controller {
             Button::ChannelMidi => self.set_main(Main::Instrument, h),
             Button::JogLeft if self.ui.main == Main::Settings => self.step_theme(-1),
             Button::JogRight if self.ui.main == Main::Settings => self.step_theme(1),
-            Button::Screen(5) => self.ui.right_page = 0,
-            Button::Screen(6) => self.ui.right_page = 1,
+            // Screen buttons: 1 = step view, 2 = components of the first step, 5 = sound, 6 = shape.
+            Button::Screen(1) if self.ui.main == Main::Instrument => self.set_mode(Mode::Step, h),
+            Button::Screen(2) if self.ui.main == Main::Instrument => {
+                self.set_mode(Mode::Step, h);
+                self.ui.inspect_step = Some(0);
+                self.ui.comp_cursor = 0;
+            }
+            Button::Screen(5) if self.ui.main == Main::Instrument => self.ui.right_page = 0,
+            Button::Screen(6) if self.ui.main == Main::Instrument => self.ui.right_page = 1,
             _ => {}
         }
     }
@@ -558,7 +565,9 @@ impl Controller {
                     } else if track.steps[s].active {
                         out.set_pad(pad, color, 3);
                     } else {
-                        out.set_pad(pad, color, 1);
+                        // Off is a dim white, not a dim colour: it stays apart from
+                        // an active pad even when the theme or the supply caps the levels.
+                        out.set_pad(pad, NiColor::White, 1);
                     }
                 }
                 Mode::Brain => {

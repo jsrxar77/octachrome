@@ -832,19 +832,31 @@ function drawLeft(g) {
   footer(g, cells);
   touchOverlay(g, cells, 0);
 }
+// The strip along the top of a screen: the name of what each of its 4 buttons does
+// (rule 11), in the column of the button; a button with no function shows nothing.
+function buttonStrip(g, labels) {
+  labels.forEach(([name, on], i) => {
+    if (!name) return;
+    const cx = i * 120 + 60;
+    txt(g, name, cx, 6, "s", on ? FG : DIM, "center", "middle");
+    if (on) fill(g, cx - 14, 12, 28, 2, FG);
+  });
+}
+const HDR = 8; // the header items sit this far below where they used to, under the strip
 function topBar(g, accent) {
-  if (S.playing) { g.fillStyle = FG; g.beginPath(); g.moveTo(10, 8); g.lineTo(20, 14); g.lineTo(10, 20); g.fill(); }
-  else fill(g, 10, 9, 10, 10, DIM);
-  txt(g, P.bpm.toFixed(0), 28, 3, "mid", FG);
+  if (UI.main === "instrument") buttonStrip(g, [["step", UI.mode === "step" && UI.inspect == null], ["components", UI.inspect != null], ["", false], ["", false]]);
+  if (S.playing) { g.fillStyle = FG; g.beginPath(); g.moveTo(10, 8 + HDR); g.lineTo(20, 14 + HDR); g.lineTo(10, 20 + HDR); g.fill(); }
+  else fill(g, 10, 9 + HDR, 10, 10, DIM);
+  txt(g, P.bpm.toFixed(0), 28, 3 + HDR, "mid", FG);
   // tempo pulse: a dot that blinks on each beat
   const beat = S.playing ? (S.playhead[0] % 4 === 0 ? A.hit[0] : 0) : 0;
-  dot(g, 72, 15, 3, mix("#ffffff", 0.25 + 0.75 * beat));
+  dot(g, 72, 15 + HDR, 3, mix("#ffffff", 0.25 + 0.75 * beat));
   // Brain chord, centred, pulses on change
   const cn = chordName(S.chord), s = 1 + A.chordPulse * 0.25;
-  g.save(); g.translate(240, 15); g.scale(s, s); txt(g, cn, 0, 0, "mid", P.brain.live ? accent : FG, "center", "middle"); g.restore();
+  g.save(); g.translate(240, 15 + HDR); g.scale(s, s); txt(g, cn, 0, 0, "mid", P.brain.live ? accent : FG, "center", "middle"); g.restore();
   // track dots
   for (let t = 0; t < 8; t++) {
-    const x = 338 + t * 18, y = 15, c = TRACK_COLORS[t], sel = t === UI.track, tr = P.tracks[t];
+    const x = 338 + t * 18, y = 15 + HDR, c = TRACK_COLORS[t], sel = t === UI.track, tr = P.tracks[t];
     dot(g, x, y, (sel ? 6 : 4) + A.hit[t] * 2, tr.muted ? FAINT : sel ? c : mix(c, 0.55));
     if (tr.link) ring(g, x, y, sel ? 8.5 : 6.5, c, 1);
   }
@@ -874,11 +886,11 @@ function padGrid(g, accent) {
     const isPh = S.playing && s === S.playhead[UI.track];
     if (!inLen) { dot(g, x + cs / 2, y + cs / 2, 1.5, FAINT); continue; }
     if (st.active) {
-      const k = 0.45 + 0.55 * st.vel / 127;
+      const k = 0.75 + 0.25 * st.vel / 127;
       rrect(g, x, y, cs, cs, 6, mix(accent, isPh ? 1 : k));
       // components: little white ticks along the bottom edge
       st.comps.forEach((_, i) => fill(g, x + 6 + i * 5, y + cs - 7, 3, 3, "#000"));
-    } else rrect(g, x + 0.5, y + 0.5, cs - 1, cs - 1, 6, FAINT, 1);
+    } else { rrect(g, x, y, cs, cs, 6, mix(accent, 0.10)); rrect(g, x + 0.5, y + 0.5, cs - 1, cs - 1, 6, FAINT, 1); }
     if (isPh) rrect(g, x - 2.5, y - 2.5, cs + 5, cs + 5, 8, FG, 2);
   }
 }
@@ -1006,12 +1018,13 @@ function drawRight(g) {
   if (UI.main === "settings") { settingsRight(g); return; }
   const t = UI.track, accent = TRACK_COLORS[t], slot = SLOTS[t];
   fill(g, 0, 0, 480, 272, BG);
-  dot(g, 16, 15, 6, accent);
-  if (!slot) { txt(g, "empty", 30, 8, "m", DIM); ring(g, 240, 126, 50, FAINT, 2); line(g, 205, 161, 275, 91, FAINT, 2); return; }
+  dot(g, 16, 15 + HDR, 6, accent);
+  if (!slot) { txt(g, "empty", 30, 8 + HDR, "m", DIM); ring(g, 240, 126, 50, FAINT, 2); line(g, 205, 161, 275, 91, FAINT, 2); return; }
   const cart = CARTS[slot], p = PARAMS[t];
-  txt(g, cart.name.toLowerCase(), 30, 6, "mid", FG);
+  txt(g, cart.name.toLowerCase(), 30, 6 + HDR, "mid", FG);
   const pages = cart.params.length > 4 ? 2 : 1;
-  if (pages > 1) for (let i = 0; i < pages; i++) dot(g, 456 + i * 12, 15, 3, i === UI.page ? FG : FAINT);
+  buttonStrip(g, [["sound", UI.page === 0], [pages > 1 ? "shape" : "", UI.page === 1], ["", false], ["", false]]);
+  if (pages > 1) for (let i = 0; i < pages; i++) dot(g, 456 + i * 12, 15 + HDR, 3, i === UI.page ? FG : FAINT);
   if (slot === "kick") kickArt(g, t, p);
   else if (slot === "fm") fmArt(g, t, p);
   else if (slot === "macro") macroArt(g, t, p);
@@ -1182,8 +1195,10 @@ $("bChords").addEventListener("click", () => setMode("brain"));
 $("bPerform").addEventListener("click", () => setMode("punch"));
 $("bChannel").addEventListener("click", () => setMain("instrument"));
 $("bSettings").addEventListener("click", () => setMain(UI.main === "settings" ? "instrument" : "settings"));
-$("sb5").addEventListener("click", () => UI.page = 0);
-$("sb6").addEventListener("click", () => UI.page = 1);
+$("sb1").addEventListener("click", () => { if (UI.main === "instrument") setMode("step"); });
+$("sb2").addEventListener("click", () => { if (UI.main === "instrument") { setMode("step"); UI.inspect = 0; UI.compCursor = 0; } });
+$("sb5").addEventListener("click", () => { if (UI.main === "instrument") UI.page = 0; });
+$("sb6").addEventListener("click", () => { if (UI.main === "instrument") UI.page = 1; });
 $("jogL").addEventListener("click", () => jog(-1));
 $("jogR").addEventListener("click", () => jog(1));
 // Modifiers latch on click (a mouse can't hold two buttons). Shift and Mute
