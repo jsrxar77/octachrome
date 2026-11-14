@@ -72,9 +72,9 @@ pub const THEMES: [Theme; 3] = [
             c(0xFF8A1F),
             c(0xFFD21F),
             c(0x00E56A),
-            c(0x2ED3E6),
             c(0x0099FF),
-            c(0x8B6CFF),
+            c(0x4B4BFF),
+            c(0xB15CFF),
             c(0xF2F4F8),
         ],
         rec: c(0xFF3B30),
@@ -101,8 +101,8 @@ pub const THEMES: [Theme; 3] = [
             c(0xD9822B),
             c(0xE3C77A),
             c(0x7FB58A),
-            c(0x6FB3B8),
             c(0x3B8EBA),
+            c(0x5F6BB5),
             c(0xA88BC7),
             c(0xF4EFE6),
         ],
@@ -130,9 +130,9 @@ pub const THEMES: [Theme; 3] = [
             c(0xFF8A1F),
             c(0xFFD60A),
             c(0x00F076),
-            c(0x34D3E8),
             c(0x4C8DFF),
-            c(0x9D7BFF),
+            c(0x6A5CFF),
+            c(0xB07BFF),
             c(0xEEF0F5),
         ],
         rec: c(0xFF2244),
@@ -178,16 +178,24 @@ mod brand_tests {
 
     // F-D09
     #[test]
-    fn f_d09_each_theme_has_eight_brand_colours_in_rainbow_order_ending_in_white() {
+    fn f_d09_each_theme_has_eight_brand_colours_in_fixed_rainbow_order_ending_in_white() {
         for t in THEMES.iter() {
             assert_eq!(t.brand[7], t.fg, "{}: the eighth brand button is the theme's white", t.name);
-            // Whatever the theme's range, the first seven run through the hues red to violet.
-            let hues: Vec<f32> = t.brand[..7].iter().map(|&c| hue(c)).collect();
-            assert!(hues[0] < 15.0, "{}: starts at red, got {}", t.name, hues[0]);
-            for w in hues.windows(2) {
-                assert!(w[1] > w[0] + 10.0, "{}: hues rise along the rainbow: {:?}", t.name, hues);
+            // The order is fixed: red, orange, yellow, green, blue, indigo, violet, then white.
+            // A theme may change the range and the hue a little, never the order.
+            const BANDS: [(&str, f32, f32); 7] = [
+                ("red", -1.0, 15.0),
+                ("orange", 15.0, 42.0),
+                ("yellow", 42.0, 75.0),
+                ("green", 100.0, 170.0),
+                ("blue", 190.0, 228.0),
+                ("indigo", 228.0, 258.0),
+                ("violet", 258.0, 300.0),
+            ];
+            for (i, (name, lo, hi)) in BANDS.iter().enumerate() {
+                let h = hue(t.brand[i]);
+                assert!(h > *lo && h <= *hi, "{}: button {} must be {}, hue {}", t.name, i + 1, name, h);
             }
-            assert!(hues[6] > 240.0, "{}: ends in violet: {:?}", t.name, hues);
         }
     }
 }

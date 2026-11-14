@@ -68,7 +68,7 @@ The buttons and their implementation status are in [buttons.md](buttons.md). Thi
 | F-D05 | The sending to the MK3 is exact: what is encoded is what the reference reader reconstructs, for any band of rows | `bands_round_trip` in `crates/op8-hw` (bands of 1 row, full screen and the middle; it does not write outside the band) | ✓ |
 | F-D06 | A flat screen takes a few bytes and noise is not inflated | `flat_screens_are_tiny_and_noise_is_not_inflated`: 32 bytes for a black screen; the same as raw for noise | ✓ |
 | F-D08 | The optional delta sending (`OP8_DISPLAY_DELTA=1`): a few changed pixels cost a small transfer, the screen ends up showing the new frame, and a pair is sent even if only one of its pixels changed | `a_small_change_costs_a_small_transfer_and_still_round_trips` and `changed_pairs_are_sent_even_when_only_one_pixel_differs` in `crates/op8-hw` | ✓ (not looked at on the real screens) |
-| F-D09 | Each theme defines the eight brand colours (rainbow order, the eighth is the theme's white) ([design.md §2.3](design.md)) | `op8-gfx` unit test | ✓ |
+| F-D09 | Each theme defines the eight brand colours (fixed order: red, orange, yellow, green, blue, indigo, violet, white; each button is checked against the hue of its place) ([design.md §2.3](design.md)) | `op8-gfx` unit test | ✓ |
 | F-D07 | On the real MK3, the two animated screens look complete and in step | **manual review** with photo and video; `OP8_DISPLAY_STATS=1` gives the figures | R |
 
 ## L · LEDs (`tests/leds.rs`)

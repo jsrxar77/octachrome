@@ -72,15 +72,16 @@ The mark of OP-8 is the 8 on its side: an infinity loop made of **eight buttons*
 | 2 orange | `#FF8A1F` | `#D9822B` | `#FF8A1F` |
 | 3 yellow | `#FFD21F` | `#E3C77A` | `#FFD60A` |
 | 4 green | `#00E56A` | `#7FB58A` | `#00F076` |
-| 5 cyan | `#2ED3E6` | `#6FB3B8` | `#34D3E8` |
-| 6 blue | `#0099FF` | `#3B8EBA` | `#4C8DFF` |
-| 7 violet | `#8B6CFF` | `#A88BC7` | `#9D7BFF` |
+| 5 blue | `#0099FF` | `#3B8EBA` | `#4C8DFF` |
+| 6 indigo | `#4B4BFF` | `#5F6BB5` | `#6A5CFF` |
+| 7 violet | `#B15CFF` | `#A88BC7` | `#B07BFF` |
 | 8 white | `#F2F4F8` | `#F4EFE6` | `#EEF0F5` |
 
 Rules of the mark:
 
+- Always eight buttons, always in this order: **red, orange, yellow, green, blue, indigo, violet, white**. The order never changes, in any theme, size or use.
 - Always eight buttons, always in this order, always on absolute black, evenly spaced along the loop. Never fewer, never another colour, never outlined or filled with a gradient.
-- The colours come from the active theme (`Theme.brand` in `crates/op8-gfx/src/theme.rs`). A theme may shift the range and the hue (muted in op-1 field, brighter in op-xy), but it always has **eight** that recall the rainbow: seven hues running from red to violet, then the theme's own white. A test checks the order (F-D09).
+- The colours come from the active theme (`Theme.brand` in `crates/op8-gfx/src/theme.rs`). A theme may shift the range and the hue (muted in op-1 field, brighter in op-xy), but it always has **eight** that recall the rainbow: the seven colours of the rainbow in its order (red, orange, yellow, green, blue, indigo, violet), then the theme's own white. A test checks that each button is the colour of its place (F-D09).
 - A thin loop in `faint` runs behind the buttons so the 8 reads at once. The buttons are rounded squares, like the pads. A single button may light in turn, like a playhead; nothing else moves.
 - The wordmark is `OP-8` in Jost Light. The mark can stand alone or above the wordmark; the wordmark never carries the colours.
 - The master file is `guide/brand/op8-mark.svg`.

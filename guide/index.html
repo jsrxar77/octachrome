@@ -167,9 +167,9 @@ footer a{color:var(--fg)}
 const $ = (s, r = document) => r.querySelector(s);
 const el = (t, a = {}, h = "") => { const e = document.createElement(t); for (const k in a) e.setAttribute(k, a[k]); e.innerHTML = h; return e; };
 const THEMES = {
-  "op-1":       { fg:"#F2F4F8", dim:"#7E8794", faint:"#232831", panel:"#0D1118", rec:"#FF3B30", brand:["#FF2D2D","#FF8A1F","#FFD21F","#00E56A","#2ED3E6","#0099FF","#8B6CFF","#F2F4F8"], k:["#0099FF","#00E56A","#F2F4F8","#FF4F00","#8B6CFF","#FFD21F","#2ED3E6","#FF4FA0"] },
-  "op-1 field": { fg:"#F4EFE6", dim:"#8E918F", faint:"#262A30", panel:"#12161D", rec:"#E63946", brand:["#D9534F","#D9822B","#E3C77A","#7FB58A","#6FB3B8","#3B8EBA","#A88BC7","#F4EFE6"], k:["#3B8EBA","#D9822B","#A9AFB8","#F2652A","#7FB58A","#E3C77A","#A88BC7","#D9677A"] },
-  "op-xy":      { fg:"#EEF0F5", dim:"#80858F", faint:"#24262C", panel:"#0F1014", rec:"#FF2244", brand:["#FF3B2F","#FF8A1F","#FFD60A","#00F076","#34D3E8","#4C8DFF","#9D7BFF","#EEF0F5"], k:["#94A8C6","#00F076","#EEF0F5","#FF3844","#FFD60A","#34D3E8","#9D7BFF","#FF8A1F"] },
+  "op-1":       { fg:"#F2F4F8", dim:"#7E8794", faint:"#232831", panel:"#0D1118", rec:"#FF3B30", brand:["#FF2D2D","#FF8A1F","#FFD21F","#00E56A","#0099FF","#4B4BFF","#B15CFF","#F2F4F8"], k:["#0099FF","#00E56A","#F2F4F8","#FF4F00","#8B6CFF","#FFD21F","#2ED3E6","#FF4FA0"] },
+  "op-1 field": { fg:"#F4EFE6", dim:"#8E918F", faint:"#262A30", panel:"#12161D", rec:"#E63946", brand:["#D9534F","#D9822B","#E3C77A","#7FB58A","#3B8EBA","#5F6BB5","#A88BC7","#F4EFE6"], k:["#3B8EBA","#D9822B","#A9AFB8","#F2652A","#7FB58A","#E3C77A","#A88BC7","#D9677A"] },
+  "op-xy":      { fg:"#EEF0F5", dim:"#80858F", faint:"#24262C", panel:"#0F1014", rec:"#FF2244", brand:["#FF3B2F","#FF8A1F","#FFD60A","#00F076","#4C8DFF","#6A5CFF","#B07BFF","#EEF0F5"], k:["#94A8C6","#00F076","#EEF0F5","#FF3844","#FFD60A","#34D3E8","#9D7BFF","#FF8A1F"] },
 };
 let theme = "op-1", K = THEMES[theme].k;
 function applyTheme(name) {

@@ -87,7 +87,7 @@ function drawMark(svg,colors,run){
   if(svg._t)clearInterval(svg._t);
   if(run&&!matchMedia("(prefers-reduced-motion:reduce)").matches){let n=0;svg._t=setInterval(()=>{svg.querySelectorAll("rect").forEach((r,i)=>r.style.opacity=i===n?1:.55);n=(n+1)%8},300)}
 }
-const T={"op-1":["#FF2D2D", "#FF8A1F", "#FFD21F", "#00E56A", "#2ED3E6", "#0099FF", "#8B6CFF", "#F2F4F8"],"op-1 field":["#D9534F", "#D9822B", "#E3C77A", "#7FB58A", "#6FB3B8", "#3B8EBA", "#A88BC7", "#F4EFE6"],"op-xy":["#FF3B2F", "#FF8A1F", "#FFD60A", "#00F076", "#34D3E8", "#4C8DFF", "#9D7BFF", "#EEF0F5"]};
+const T={"op-1":["#FF2D2D", "#FF8A1F", "#FFD21F", "#00E56A", "#0099FF", "#4B4BFF", "#B15CFF", "#F2F4F8"],"op-1 field":["#D9534F", "#D9822B", "#E3C77A", "#7FB58A", "#3B8EBA", "#5F6BB5", "#A88BC7", "#F4EFE6"],"op-xy":["#FF3B2F", "#FF8A1F", "#FFD60A", "#00F076", "#4C8DFF", "#6A5CFF", "#B07BFF", "#EEF0F5"]};
 const mk=document.getElementById("mark");
 Object.keys(T).forEach((n,i)=>{const b=document.createElement("button");b.textContent=n;b.onclick=()=>drawMark(mk,T[n],true);document.getElementById("th").append(b);if(!i)drawMark(mk,T[n],true)});
 </script></body></html>
