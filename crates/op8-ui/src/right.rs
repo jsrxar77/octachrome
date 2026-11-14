@@ -59,33 +59,44 @@ pub fn draw_right(
         Align::Left,
         VAlign::Middle,
     );
-    let pages = if c.secondary_parameters().is_some() {
-        2
-    } else {
-        1
-    };
-    if pages > 1 {
-        for i in 0..pages {
-            let col = if i == ui.right_page { t.fg } else { t.faint };
-            fill_circle(fb, 456.0 + i as f32 * 12.0, HEADER_CY, 3.0, col);
-        }
+    // the pages of the right screen: sound, shape (if the instrument has one), fx and mod
+    let page = crate::right_page(ui);
+    let mut pages = vec![0usize];
+    if c.secondary_parameters().is_some() {
+        pages.push(1);
+    }
+    pages.extend([2, 3]);
+    for (i, pg) in pages.iter().enumerate() {
+        let col = if *pg == page { t.fg } else { t.faint };
+        fill_circle(fb, 456.0 - (pages.len() - 1 - i) as f32 * 12.0, HEADER_CY, 3.0, col);
     }
 
     button_strip(fb, &crate::strip_labels(ui, 1));
-    c.draw_ui(fb, accent);
+    match page {
+        2 => crate::pages::fx_view(fb, ui),
+        3 => crate::pages::lfo_view(fb, ui),
+        _ => c.draw_ui(fb, accent),
+    }
 
-    // Keep the cartridge inside its area.
     fb.fill_rect(0, AREA_Y + AREA_H, 480, 272 - (AREA_Y + AREA_H), t.bg);
-    crosshairs(fb, 14, 50, 452, 168, t.dim);
+    if page < 2 {
+        crosshairs(fb, 14, 50, 452, 168, t.dim);
+    }
 
-    let (descs, base) = match (ui.right_page, c.secondary_parameters()) {
-        (1, Some(s)) => (s, 4),
-        _ => (c.parameters(), 0),
+    let cells: [FooterCell; 4] = match page {
+        2 => crate::fx_footer(ui),
+        3 => crate::lfo_footer(ui),
+        _ => {
+            let (descs, base) = match (page, c.secondary_parameters()) {
+                (1, Some(s)) => (s, 4),
+                _ => (c.parameters(), 0),
+            };
+            std::array::from_fn(|i| {
+                let v = c.parameter_value(base + i).unwrap_or(params[base + i]);
+                FooterCell::new(descs[i].name, descs[i].format(v).to_lowercase(), Some(v))
+            })
+        }
     };
-    let cells: [FooterCell; 4] = std::array::from_fn(|i| {
-        let v = c.parameter_value(base + i).unwrap_or(params[base + i]);
-        FooterCell::new(descs[i].name, descs[i].format(v).to_lowercase(), Some(v))
-    });
     draw_footer(fb, &cells, 4);
     touch_overlay(fb, &cells, 4, &ui.anim);
 }

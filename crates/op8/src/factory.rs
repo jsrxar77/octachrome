@@ -3,7 +3,7 @@
 //! C FmBass, D resonator, E MIDI out, F macro), so it always loads.
 
 use crate::projectfile::ProjectFile;
-use op8_seq::{Project, Step, StepComponent};
+use op8_seq::{ChordType, FxKind, Lfo, LfoShape, PlayMode, Players, Project, Step, StepComponent, TrackFx};
 
 pub const NAMES: [&str; 8] = ["demo", "four floor", "backbeat", "bassline", "pluck", "lead", "polymeter", "blank"];
 
@@ -58,6 +58,8 @@ pub fn project(i: usize) -> Project {
             b.steps[2] = Step::on(48).with(StepComponent::Ratchet(2));
             b.steps[3] = Step::on(43);
             b.steps[5] = Step::on(40).with(StepComponent::Octave(1));
+            // a slow LFO swings the `index` knob of the FmBass: the tone opens and closes by itself
+            b.lfo = Lfo { shape: LfoShape::Triangle, rate: 60, depth: 170, target: 3 };
             for s in [0, 8] {
                 p.tracks[1].steps[s] = Step::on(36);
             }
@@ -71,6 +73,8 @@ pub fn project(i: usize) -> Project {
             for (s, n) in [(0, 60), (2, 64), (3, 67), (5, 72), (6, 67)] {
                 r.steps[s] = Step::on(n);
             }
+            // a reverb on the track, so the strings ring in a room
+            r.fx = TrackFx { kind: FxKind::Reverb, a: 190, b: 140, c: 110 };
         }
         5 => {
             // A slow lead line
@@ -80,6 +84,9 @@ pub fn project(i: usize) -> Project {
             m.steps[0] = Step::on(60);
             m.steps[6] = Step::on(67).with(StepComponent::Hold(2));
             m.steps[10] = Step::on(64).with(StepComponent::Octave(1));
+            // each note is an arpeggio of its chord, with an echo behind it
+            m.players = Players { mode: PlayMode::Up, chord: ChordType::Minor, speed: 2, octaves: 2 };
+            m.fx = TrackFx { kind: FxKind::Delay, a: 178, b: 110, c: 90 };
         }
         6 => {
             // Three lengths drifting apart: 5, 7 and 3 steps

@@ -23,7 +23,7 @@ These six documents are the only ones in `docs/`. Each fact lives in exactly one
 
 The interactive twin lives outside `docs/`: `twin/op8-twin.html` (HTML/WebAudio). Every UI change is tried there first.
 
-The user guide is `guide/index.html`: one self-contained page (its own Jost fonts, no network), for people who play OP-8. `.github/workflows/pages.yml` publishes it as a GitHub Pages site once Pages is enabled with source "GitHub Actions" (a free plan needs a public repository). Until then: `open guide/index.html`. `guide/brand.html` shows the brand mark ([design.md §2.3](design.md)); `guide/themes.js` is the guide's copy of the three themes (keep it in step with `theme.rs`), shared by the guide and the brand page through `localStorage`; `guide/mk3.js` holds the geometry of the unit that every picture takes ([design.md §2.4](design.md)). `guide/manual.html` lists every button with its status; it is generated from [buttons.md](buttons.md) by `python3 scripts/build-manual.py` (run it after changing the button map).
+The user guide is `guide/index.html`: one self-contained page (its own Jost fonts, no network), for people who play OP-8. `.github/workflows/pages.yml` publishes it as a GitHub Pages site once Pages is enabled with source "GitHub Actions" (a free plan needs a public repository). Until then: `open guide/index.html`. `guide/brand.html` shows the brand mark ([design.md §2.3](design.md)); `guide/themes.js` is the guide's copy of the three themes (keep it in step with `theme.rs`), shared by the guide and the brand page through `localStorage`; `guide/mk3.js` holds the geometry of the unit that every picture takes ([design.md §2.4](design.md)). `guide/manual.html` is the user manual: the ideas, fourteen recipes with pictures, the instruments, a list of every button with its status (generated from [buttons.md](buttons.md) by `python3 scripts/build-manual.py`; run it after changing the button map) and what is missing. The recipes are tests (`crates/op8/tests/manual.rs`, F-G04) and `scripts/manual-pictures.sh` takes the pictures from them into `guide/img/` (run it after changing a screen).
 
 ## 1. Central idea
 
@@ -80,6 +80,7 @@ Audio runs separately, in blocks of 100 to 128 samples at 48 kHz. For each UI fr
 ## 4. Audio engine
 
 - `Engine::render` runs the sequencer (`Sequencer::process`), which emits `NoteEvent`s per track. Each track has a cartridge in its slot.
+- Each track's audio goes through the track's own **effect** (`crates/op8-engine/src/track_fx.rs`: delay, reverb, chorus, filter or drive, with three knobs; its buffers are allocated once when the engine starts, so the audio thread never allocates) before it is mixed, and the track's **LFO** moves one knob of its instrument (or its volume) once per block, around the value the player left it. Both live in the `Track` of the project (`op8_seq::rack`), so they are saved with it and edited with `Command::SetFx` and `Command::SetLfo`. The **players** (an arpeggio or a chord over each step's note) are applied by the sequencer, which turns one step into several notes (`Command::SetPlayers`).
 - The mix goes through Punch-in FX and the Smart Strip filter and comes out in stereo.
 - Audio publishes to `EngineStatus` (`playing`, `playhead[t]`, `peak[t]`, `note_count[t]`, `chord_*`, `dropped_events`).
 - MIDI cartridges (`MidiOutBridge`) push to an `rtrb<MidiMessage>` queue consumed by a separate thread (`midi.rs`) or by the test bench.
@@ -102,7 +103,7 @@ Each instrument implements `InstrumentCartridge`. The mandatory methods are `pro
 ## 7. Screens and LEDs
 
 - Left: time (tempo, chord, polymeter rings, pad mirror, knobs 1–4).
-- Right: the track's instrument (knobs 5–8, pages with buttons 5 and 6).
+- Right: the track's instrument (knobs 5–8, pages with buttons 5 and 6), and the track's effect and LFO (buttons 7 and 8).
 - Theme: `glossy` (default), `matte`, `chrome`. Chosen with `-t` or `OP8_THEME`.
 - LEDs: 103 slots (62 buttons, 25 of the strip, 16 pads). The pads are in HID order (top-left = 0), but the pad number the user sees is bottom-left first. See `leds.rs`.
 
@@ -153,7 +154,7 @@ Cargo runs each crate's tests from the crate's folder, so give `OP8_BENCH_DIR` a
 
 ### Projects on disk
 
-A project file (`crates/op8/src/projectfile.rs`) is `OP8P`, a version byte, the project (`op8_seq::io`, a plain versioned binary written by hand) and, for each of the eight tracks, the name and saved state of its instrument. It is written next to its name and renamed, so a crash never leaves half a project, and read defensively. The player's eight live in `~/.config/op8/projects/user-1.op8p … user-8.op8p` (`OP8_PROJECTS` overrides the folder); the factory eight are built in (`crates/op8/src/factory.rs`). Opening one sends `EngineCommand::LoadProject` and loads each instrument (the running MIDI bridge stays, because it owns the MIDI queue); the sequencer restarts from step 1 if it was playing.
+A project file (`crates/op8/src/projectfile.rs`) is `OP8P`, a version byte, the project (`op8_seq::io`, a plain versioned binary written by hand; version 2 adds each track's players, effect and LFO, and a version 1 file still opens with those off) and, for each of the eight tracks, the name and saved state of its instrument. It is written next to its name and renamed, so a crash never leaves half a project, and read defensively. The player's eight live in `~/.config/op8/projects/user-1.op8p … user-8.op8p` (`OP8_PROJECTS` overrides the folder); the factory eight are built in (`crates/op8/src/factory.rs`). Opening one sends `EngineCommand::LoadProject` and loads each instrument (the running MIDI bridge stays, because it owns the MIDI queue); the sequencer restarts from step 1 if it was playing.
 
 ## 10. Decisions taken (do not reopen without Javi) and known limits
 

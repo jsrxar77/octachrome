@@ -19,6 +19,8 @@ pub struct Anim {
     /// 1 when the Brain chord changes, decaying.
     pub chord_pulse: f32,
     last_chord: (u8, u16),
+    /// Frames drawn so far, for what moves by itself (the pictures of the effect and the LFO).
+    pub frame: u32,
 }
 
 fn ease(cur: f32, target: f32, k: f32) -> f32 {
@@ -27,6 +29,7 @@ fn ease(cur: f32, target: f32, k: f32) -> f32 {
 
 pub fn animate(ui: &mut UiState, p: &Project, st: &EngineStatus) {
     let a = &mut ui.anim;
+    a.frame = a.frame.wrapping_add(1);
     for t in 0..TRACKS {
         let n = st.note_count[t].load(Relaxed);
         if n != a.last_count[t] {

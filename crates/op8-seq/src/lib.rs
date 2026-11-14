@@ -17,11 +17,13 @@ pub mod brain;
 pub mod fixed;
 pub mod io;
 pub mod project;
+pub mod rack;
 pub mod sequencer;
 pub mod step;
 
 pub use brain::{Brain, BrainMode, Chord, ChordKind, ChordSlot, Scale};
 pub use project::{Command, Division, Project, Track};
+pub use rack::{ChordType, FxKind, Lfo, LfoShape, PlayMode, Players, TrackFx, LFO_TARGETS};
 pub use sequencer::{BlockEvents, ParamEvent, Playhead, Sequencer};
 pub use step::{Components, ResolvedStep, Step, StepComponent};
 

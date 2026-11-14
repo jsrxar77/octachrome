@@ -49,6 +49,8 @@ pub fn draw_left(fb: &mut FrameBuffer480x272, ui: &UiState, p: &Project, st: &En
         (Mode::Brain, _) => brain_view(fb, p, st, accent),
         (Mode::Punch, _) => punch_view(fb, ui, accent),
         (Mode::Pads | Mode::Keys, _) => play_view(fb, ui, p, accent),
+        _ if ui.left_page == crate::LeftPage::Players => crate::pages::players_view(fb, ui, p, accent),
+        _ if ui.left_page == crate::LeftPage::Bar => crate::pages::bar_view(fb, ui, p, accent),
         _ => {
             if p.tracks[ui.track].kit {
                 lanes_view(fb, ui, p, st, accent);
@@ -774,6 +776,13 @@ fn punch_view(fb: &mut FrameBuffer480x272, ui: &UiState, accent: Rgb565) {
 /// what each knob does.
 pub fn left_footer(ui: &UiState, p: &Project) -> [FooterCell; 4] {
     let t = &p.tracks[ui.track];
+    if ui.mode == Mode::Step && ui.inspect_step.is_none() {
+        match ui.left_page {
+            crate::LeftPage::Players => return crate::pages::players_footer(ui),
+            crate::LeftPage::Bar => return crate::pages::bar_footer(ui, p),
+            crate::LeftPage::Steps => {}
+        }
+    }
     match (ui.mode, ui.inspect_step) {
         (Mode::Step, Some(s)) => {
             let st = &t.steps[s as usize];
