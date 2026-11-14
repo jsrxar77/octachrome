@@ -34,6 +34,9 @@ The buttons and their implementation status are in [buttons.md](buttons.md). Thi
 | F-S07 | MUTE + group mutes the track | `tracks[t].muted` toggles | ✓ |
 | F-S08 | A muted track emits no notes | track E (MIDI) muted: no new notes after the mute | ✓ |
 | F-S09 | A drum-kit track has eight lanes: a step plays one note per lane that is on (several sounds in one step), `SetKit` turns a track into a kit (existing notes become lanes by pitch class) and `ToggleLane` switches one lane ([instruments.md §7](instruments.md)) | `op8-seq` unit tests | ✓ |
+| F-S12 | Shifting a track turns its steps round inside its length (they wrap round the end of the bar; those beyond the length stay put) | `Command::ShiftTrack` on the project | ✓ |
+| F-S13 | The players: a chord player sounds the whole chord on the note of a step, together or strummed over the step; an arpeggio plays its notes one after another inside the step, in order (up, down, up-down, random) and carries on round the chord across steps; the chord stacks over 1–3 octaves and stays inside the MIDI range; a drum kit ignores the players | note events of the sequencer; `op8-seq` unit tests | ✓ |
+| F-S14 | The players page (button 3): knobs 1–4 set `play`, `chord`, `rate`/`strum` and `octaves` and stop at the ends of their lists; a drum kit's track takes none of it; with a chord on, a step sounds three notes at once, and with an eight-note arpeggio one step sounds eight; both pages (players, bar) draw something | `project().tracks[..].players`, `status().note_count`, lit pixels | ✓ |
 
 ## B · Brain (`tests/brain.rs`)
 
@@ -67,6 +70,7 @@ The buttons and their implementation status are in [buttons.md](buttons.md). Thi
 | F-K10 | On a drum kit the pads are the steps of the lane chosen on the right (`sound`): a tap switches that lane on or off in the step and leaves the other lanes as they are, so several sounds can share a step | `steps[..].lanes` after the taps | ✓ |
 | F-K11 | Holding TEMPO, SWING or VOLUME and turning the 4D encoder turns that one (VOLUME is the master volume: half of it, quieter) and the left screen shows it big while it is held | `project` and `ui.master` | ✓ |
 | F-K12 | FIXED VEL makes the pads and REC use the same velocity, whatever the strike | the velocity REC writes | ✓ |
+| F-K13 | The bar page (button 4): knobs 1–4 are `length`, `division`, `shift` and `rec rounds`; the same button, or STEP / button 1, goes back to the steps; a shift keeps the steps inside the length | `project()`, `ui().left_page`, `ui().quantize` | ✓ |
 
 ## D · Screens (`tests/screens.rs`)
 
@@ -80,11 +84,12 @@ The buttons and their implementation status are in [buttons.md](buttons.md). Thi
 | F-D06 | A flat screen takes a few bytes and noise is not inflated | `flat_screens_are_tiny_and_noise_is_not_inflated`: 32 bytes for a black screen; the same as raw for noise | ✓ |
 | F-D08 | The optional delta sending (`OP8_DISPLAY_DELTA=1`): a few changed pixels cost a small transfer, the screen ends up showing the new frame, and a pair is sent even if only one of its pixels changed | `a_small_change_costs_a_small_transfer_and_still_round_trips` and `changed_pairs_are_sent_even_when_only_one_pixel_differs` in `crates/op8-hw` | ✓ (not looked at on the real screens) |
 | F-D09 | Each theme defines the eight brand colours and ends in its white; glossy and matte follow the rainbow order (red, orange, yellow, green, blue, indigo, violet), chrome is one range drifting one way ([design.md §2.3](design.md)) | `op8-gfx` unit test | ✓ |
-| F-D10 | Each screen names what its buttons do, in a capsule centred on the button: `step`, `components` (left) and `shape`, `sound` (right, in that order); a button with no function shows nothing; the open page is underlined; in settings the strip is empty ([design.md §4](design.md)) | pixels of the top 18 rows around each button; the open page has the `fg` outline | ✓ |
+| F-D10 | Each screen names what its buttons do, in a capsule centred on the button: `step`, `components`, `players`, `bar` (left) and `shape`, `sound`, `fx`, `mod` (right, in that order); `shape` only for an instrument with a second page, and a button with no function shows nothing; the open page is underlined; in settings the strip is empty ([design.md §4](design.md)) | pixels of the top 18 rows around each button; the open page has the `fg` outline | ✓ |
 | F-D11 | On the step grid an active step and an empty one are far apart in brightness (the active at least 5 times brighter) | pixel luminance of both cells | ✓ |
-| F-D12 | Screen button 1 goes back to the step view and 2 opens the components; both, and 5 and 6, do nothing in settings | `ui.mode` and `ui.inspect_step` | ✓ |
+| F-D12 | Screen button 1 goes back to the step view and 2 opens the components; both, and 3 to 8, do nothing in settings | `ui.mode` and `ui.inspect_step` | ✓ |
 | F-D13 | The text in a capsule is centred in it by its ink, within a pixel horizontally and 2.5 px vertically ([design.md §3](design.md)) | pixels of the strip | ✓ |
 | F-D14 | The LED of each of the eight screen buttons agrees with what the screens say: no label, no light; a label, dim; the open page, full; `shape` only for an instrument with a second page; all dark in settings ([design.md §4](design.md)) | `leds().slots` of `Screen(1..8)` against `screen_buttons` | ✓ |
+| F-D15 | All eight screen buttons are named in the strip and lit; the fx and mod pages (right) draw, each of the six effects has its own picture, and the page dots show the pages that exist | pixel hashes and LED slots | ✓ |
 | F-D07 | On the real MK3, the two animated screens look complete and in step | **manual review** with photo and video; `OP8_DISPLAY_STATS=1` gives the figures | R |
 
 ## L · LEDs (`tests/leds.rs`)
@@ -121,6 +126,8 @@ The buttons and their implementation status are in [buttons.md](buttons.md). Thi
 | F-A11 | A choice is heard at once, without playing the sequence: turning a knob of the selected instrument or `sound`, turning the note of a step, and tapping a drum step all play the note (`EngineCommand::Audition`) | peak of the track's audio with the sequence stopped | ✓ |
 | F-A12 | A choice is auditioned once, not over and over: the `sound` knob plays each new sound once, and a continuous knob plays nothing while it moves and one note when it has been still for 250 ms | note count of the track | ✓ |
 | F-A13 | resonator: both kinds (string, bells) ring when struck; four notes ring together and a fifth takes the oldest voice; silent without notes and bounded with every knob at maximum ([instruments.md §7](instruments.md)) | `op8-cartridges` unit tests (`resonator.rs`) | ✓ |
+| F-A14 | The effect of a track (button 7): off leaves the sound as it is; delay and reverb leave a tail after the sound and no mix leaves none; a low-pass takes out the highs; every effect stays finite and bounded with its knobs at 0, half and full; knob 5 chooses the effect (and stops at the ends), knobs 6–8 move its three knobs, and the delay fills the gap after a kick; it belongs to one track and is saved with it | `op8-engine` unit tests (`track_fx.rs`), the audio of a bench between two kicks, `project().tracks[..].fx` | ✓ |
+| F-A15 | The LFO of a track (button 8): it swings a knob of the instrument around where the player left it, touches no other knob, and puts it back when it is turned off; on the volume it dips the track from full volume and never raises it; the page's knobs set `shape`, `rate`, `depth` and `moves`, and the footer names the knob it moves | `op8-engine` unit tests, `project().tracks[..].lfo`, `ui().lfo_target` | ✓ |
 
 ## G · Scripts (`tests/script.rs`)
 
@@ -163,6 +170,7 @@ The buttons and their implementation status are in [buttons.md](buttons.md). Thi
 | F-F04 | FILE shows the sixteen slots (the factory projects in the top two rows) on both screens; a pad opens the project, with its instruments, and goes back to composing; FILE again leaves | the project in the engine after the tap | ✓ |
 | F-F05 | SHIFT + a pad of the player's slots saves into it (a file in the projects folder), and a tap opens it again with the tempo and the instruments' knobs | the files and the project after reopening | ✓ |
 | F-F06 | An empty slot says so and does not load; SHIFT on a factory slot does not overwrite it; a damaged file is refused and the project stays as it was | the project is unchanged | ✓ |
+| F-F07 | The players, the effect and the LFO of every track are saved with the project and come back with it; a project saved before they existed (version 1) still opens, with them off | save, open another project, open it again; `op8-seq` unit test of a version 1 file | ✓ |
 
 ## R · Recording (`tests/rec.rs`)
 
@@ -172,6 +180,7 @@ The buttons and their implementation status are in [buttons.md](buttons.md). Thi
 | F-R02 | A note played in PAD MODE or KEYBOARD while the sequencer runs is written at the nearest step (early in a step it stays, late in it goes to the next) with its note and velocity | the step after the strikes | ✓ |
 | F-R03 | On a drum kit REC switches on the lane of the sound played, several sounds can share a step, and the track becomes a kit | `steps[..].lanes` | ✓ |
 | F-R04 | Nothing is written when REC is not armed, when the sequencer is stopped, or for CHORDS pads | the steps stay empty | ✓ |
+| F-R05 | REC writes where the bar page says: `nearest` (late in a step it goes to the next), `down` (the step that is sounding) or `up` (the next one) | the step REC writes into | ✓ |
 
 ## H · Hardware link (`crates/op8-hw`, `crates/op8`)
 

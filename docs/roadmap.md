@@ -59,14 +59,14 @@ Known limits of the setup:
 
 ## 1. Navigation skeleton (next)
 
-- Done: the button strip names the screen buttons that work (1 step, 2 components, 5 sound, 6 shape; [design.md §4](design.md)). To do: buttons 3 players, 4 bar, 7 fx, 8 mod, and their names in the strip as they are built.
+- Done: all eight screen buttons are named in the strip and work: 1 step, 2 components, 3 players, 4 bar, 5 shape, 6 sound, 7 fx, 8 mod ([design.md §4](design.md)).
 - PAGE ◀ ▶, 4D encoder (▲ ▼ ◀ ▶, push, turn).
 - SETTINGS: audio, MIDI and brightness as further pages (the theme page is done). The 4D ▲ ▼ chooses the page once there is more than one, and the right screen then shows its page dots.
 
 ## 2. Playing and recording
 
 - Done: PAD MODE and KEYBOARD play the track's instrument from the pads (octave on the 4D encoder). They are not recorded yet: that is REC, below.
-- Done: REC writes notes played by hand into the track at the nearest step (a drum kit: into its lane). To do: recording chords and knob movements (automation), the count-in.
+- Done: REC writes notes played by hand into the track at the nearest step, or the one sounding, or the next (the bar page; a drum kit: into its lane). To do: recording chords and knob movements (automation), the count-in.
 - Done: TAP (tap tempo, SHIFT + TAP the metronome), TEMPO, SWING and VOLUME with the 4D encoder (master volume), and FIXED VEL. To do: a track's volume with a group held, the count-in.
 - AUTO: automation per knob.
 
@@ -82,9 +82,9 @@ Known limits of the setup:
 ## 4. Track sound
 
 - BROWSER: presets per cartridge.
-- fx modules (button 7) and mod/LFO (button 8) per track.
+- Done: an effect per track (delay, reverb, chorus, filter, drive; button 7) and an LFO per track (button 8). To do: more effects (check the CPU on the Pi first), an LFO that follows the tempo, a second LFO, and an effect send shared by all tracks.
 - MACRO (Auxiliary): effect sends and Brain.
-- NOTE REPEAT and arpeggiator (players, button 3).
+- Done: the players (button 3): an arpeggio or a chord over each step. To do: NOTE REPEAT, an arpeggio that takes its notes from the Brain's chord instead of its own, and players on a drum kit (a roll).
 
 ## 5. Structure
 

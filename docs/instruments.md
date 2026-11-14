@@ -15,7 +15,7 @@ An instrument is a piece of code that fulfils the `InstrumentCartridge` contract
 | **Drawing** | An animated graphic that shows what the sound does, in the central area of the right screen | Uses the colours of knobs 5–8 for what those knobs move |
 | **State** | Save and load its values (presets and parameter locks) | A list of numbers, versioned |
 
-The track's effect and modulation (buttons 7 and 8) are not the instrument's: they are the same for all, which keeps each instrument simple.
+The track's effect and modulation (buttons 7 and 8) are not the instrument's: they are the same for all, which keeps each instrument simple. The effect is one of delay, reverb, chorus, filter or drive; the LFO can move any of the instrument's eight knobs, so what an instrument offers to move is exactly its parameter list.
 
 ## 2. Rules for an instrument
 
