@@ -18,6 +18,8 @@ The buttons and their implementation status are in [buttons.md](buttons.md). Thi
 | F-T02 | STOP stops the sequencer; the audio falls to silence | `playing == false` and `silent` in the last stretch | ✓ |
 | F-T03 | RESTART goes back to step 1 and keeps playing | the playhead of track A is 0 after RESTART | ✓ |
 | F-T04 | Tracks of different length drift apart (polymeter) and the playhead never exceeds its length | track C (length 7): playhead always in 0..=6 and reaches 6 | ✓ |
+| F-T05 | TAP works the tempo out from the taps (the average gap of the last ones), and a pause of more than two seconds starts over | `project.bpm` after taps at known times | ✓ |
+| F-T06 | SHIFT + TAP turns the metronome on and off: it clicks on every beat of a running sequencer and is silent when off | peak of the audio | ✓ |
 
 ## S · Sequencer (`tests/sequencer.rs`)
 
@@ -63,6 +65,8 @@ The buttons and their implementation status are in [buttons.md](buttons.md). Thi
 | F-K04 | Each instrument exposes at most 8 parameters | `parameters().len() <= 8` for all cartridges (`builtin_names`) | ✓ |
 | F-K09 | A kit step has no note: on a drum track the first knob of the step inspector does nothing and its cell is empty; a plain-pitch track keeps its note knob ([instruments.md §7](instruments.md)) | the step is unchanged after the knob | ✓ |
 | F-K10 | On a drum kit the pads are the steps of the lane chosen on the right (`sound`): a tap switches that lane on or off in the step and leaves the other lanes as they are, so several sounds can share a step | `steps[..].lanes` after the taps | ✓ |
+| F-K11 | Holding TEMPO, SWING or VOLUME and turning the 4D encoder turns that one (VOLUME is the master volume: half of it, quieter) and the left screen shows it big while it is held | `project` and `ui.master` | ✓ |
+| F-K12 | FIXED VEL makes the pads and REC use the same velocity, whatever the strike | the velocity REC writes | ✓ |
 
 ## D · Screens (`tests/screens.rs`)
 

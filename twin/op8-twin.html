@@ -158,6 +158,11 @@ canvas.lcd {
             <button class="btn play" id="bPlay">PLAY</button>
             <button class="btn" id="bStop">STOP</button>
             <button class="btn" id="bRec" title="Grabar lo que tocás">REC</button>
+            <button class="btn" id="bTap" title="Tap tempo · SHIFT + TAP: metrónomo">TAP</button>
+            <button class="btn" id="bTempo" title="Tempo: con el botón activo, JOG ◀ ▶ lo cambia">TEMPO</button>
+            <button class="btn" id="bSwing" title="Swing">SWING</button>
+            <button class="btn" id="bVolume" title="Volumen general">VOLUME</button>
+            <button class="btn" id="bFixed" title="Velocity fija">FIXED VEL</button>
             <button class="btn" id="bShift">SHIFT</button>
           </div>
         </div>
@@ -386,6 +391,7 @@ const CARTS = {
     params: [["CHANNEL",0,v=>"CH "+(Math.min(15,Math.floor(v*16))+1)],["TRANSP",.5,v=>{const s=Math.round(-24+48*v);return (s>0?"+":"")+s+"st";}],["VEL",1,v=>Math.round(v*100)+"%"],["CC74",.5,v=>Math.round(v*100)+"%"]] },
 };
 // the instruments run from the most guttural to the most refined: drums, kick, bass, MIDI out, then the leads (macro)
+let VOL = 1; // master volume
 const SLOTS = ["drums", "kick", "fm", "resonator", "midi", "macro", null, null];
 const PARAMS = SLOTS.map(s => s ? CARTS[s].params.map(p => p[1]) : null);
 // the knobs edit the chosen drum sound: keep its values in step with PARAMS
@@ -564,8 +570,10 @@ function play() {
 function stop() { S.playing = false; setPunch(null, 0); S.repeat = null; }
 const spt = () => 60 / (P.bpm * PPQN);
 
+function click(time, accent) { const o = actx.createOscillator(), g = actx.createGain(); o.frequency.value = accent ? 1500 : 1000; g.gain.setValueAtTime(0.35, time); g.gain.exponentialRampToValueAtTime(0.001, time + 0.03); o.connect(g).connect(master); o.start(time); o.stop(time + 0.04); }
 function onTick(time) {
   const tick = S.tick;
+  if (UI.metro && tick % 96 === 0) click(time, tick % 384 === 0);
   if (S.repeatReq != null) { const len = S.repeatReq; S.repeat = { start: tick - tick % len, len }; S.repeatReq = null; }
   let eff = tick, windowStart = false;
   if (S.repeat) { const o = (tick - S.repeat.start) % S.repeat.len; eff = S.repeat.start + o; windowStart = o === 0; }
@@ -651,7 +659,7 @@ function setStrip(x) {
 }
 
 // ======================= controller (mirrors op8 Controller) =======================
-const UI = { rec: false, octave: 0, down: Array(16).fill(false), main: "instrument", mode: "step", track: 0, inspect: null, compCursor: 0, touch: Array(8).fill(false), page: 0, live: null, strip: null, activity: Array(8).fill(0), lastCount: Array(8).fill(0), shift: false, mute: false, erase: false };
+const UI = { held: null, metro: false, fixed: false, rec: false, octave: 0, down: Array(16).fill(false), main: "instrument", mode: "step", track: 0, inspect: null, compCursor: 0, touch: Array(8).fill(false), page: 0, live: null, strip: null, activity: Array(8).fill(0), lastCount: Array(8).fill(0), shift: false, mute: false, erase: false };
 const padDownAt = Array(16).fill(null); let inspectorPad = null; const knobAccum = Array(8).fill(0);
 const padToStep = pad => (3 - Math.floor(pad / 4)) * 4 + pad % 4; // bottom-left numbering -> reading order
 const DETENT = 40, SWEEP = 800;
@@ -698,7 +706,8 @@ function recordNote(note, vel) {
   if (kit) { tr.kit = true; st.lanes |= 1 << (note - 60) % 8; } else st.note = note;
   st.active = true; st.vel = Math.max(1, Math.round(vel * 127));
 }
-function padDown(pad, vel) {
+function padDown(pad, vel0) {
+  const vel = UI.fixed ? 100 / 127 : vel0;
   if (UI.main === "file") { filePad(pad); return; }
   if (UI.main === "plugin") { plugPad(pad); return; }
   if (UI.main === "settings") return;
@@ -789,6 +798,9 @@ function knob(k, delta) {
 }
 function jog(d) {
   if (UI.main === "settings") { themeStep(d); return; }
+  if (UI.held === "swing") { P.swing = clamp(P.swing + d * 0.005, 0.5, 0.75); return; }
+  if (UI.held === "volume") { VOL = clamp(VOL + d * 0.01, 0, 1); if (master) master.gain.value = 0.8 * VOL; return; }
+  if (UI.held === "tempo") { P.bpm = clamp(P.bpm + d * (UI.shift ? 0.1 : 1), 20, 300); return; }
   if (UI.mode === "keys") { UI.octave = clamp(UI.octave + d, -2, 4); UI.down.fill(false); return; }
   if (UI.inspect != null) {
     const s = P.tracks[UI.track].steps[UI.inspect];
@@ -1034,6 +1046,12 @@ function drawLeft(g) {
   else { if (P.tracks[UI.track].kit) lanesView(g, accent); else rings(g); padGrid(g, accent); }
   const cells = leftFooter();
   footer(g, cells);
+  if (UI.held) {
+    // TEMPO, SWING or VOLUME is held: what the encoder turns, big
+    fill(g, 0, 20, 480, 204, BG);
+    txt(g, UI.held, 240, 80, "mid", DIM, "center", "middle");
+    txt(g, UI.held === "tempo" ? P.bpm.toFixed(1) : UI.held === "swing" ? Math.round(P.swing * 100) + "%" : Math.round(VOL * 100) + "%", 240, 140, "huge", FG, "center", "middle");
+  }
   touchOverlay(g, cells, 0);
 }
 // The strip along the top of a screen: the name of what each of its 4 buttons does
@@ -1484,6 +1502,18 @@ $("bPads").addEventListener("click", () => setMode(UI.mode === "pads" ? "step" :
 $("bKeys").addEventListener("click", () => setMode(UI.mode === "keys" ? "step" : "keys"));
 $("bChannel").addEventListener("click", () => setMain("instrument"));
 $("bSettings").addEventListener("click", () => setMain(UI.main === "settings" ? "instrument" : "settings"));
+// TAP works the tempo out from the taps; SHIFT + TAP is the metronome. TEMPO, SWING and VOLUME are held on the unit; in the twin a click
+// holds them (and releases them), and JOG ◀ ▶ turns the one held. FIXED VEL toggles.
+const taps = [];
+$("bTap").addEventListener("click", () => {
+  if (UI.main !== "instrument") return;
+  if (UI.shift) { UI.metro = !UI.metro; return; }
+  const now = performance.now(); if (taps.length && now - taps[taps.length - 1] > 2000) taps.length = 0;
+  taps.push(now); if (taps.length > 5) taps.shift();
+  if (taps.length >= 2) P.bpm = clamp(60000 / ((taps[taps.length - 1] - taps[0]) / (taps.length - 1)), 20, 300);
+});
+for (const [id, h] of [["bTempo", "tempo"], ["bSwing", "swing"], ["bVolume", "volume"]]) $(id).addEventListener("click", () => { if (UI.main === "instrument") UI.held = UI.held === h ? null : h; });
+$("bFixed").addEventListener("click", () => { if (UI.main === "instrument") UI.fixed = !UI.fixed; });
 $("bRec").addEventListener("click", () => { if (UI.main === "instrument") UI.rec = !UI.rec; });
 $("bFile").addEventListener("click", () => setMain(UI.main === "file" ? "instrument" : "file"));
 $("bPlug").addEventListener("click", () => setMain(UI.main === "plugin" ? "instrument" : "plugin"));
@@ -1543,7 +1573,7 @@ function updateLeds() {
     bPads: composing && UI.mode === "pads" ? 2 : 1, bKeys: composing && UI.mode === "keys" ? 2 : 1,
     bChannel: composing ? 2 : 1, bSettings: UI.main === "settings" ? 2 : 1, bFile: UI.main === "file" ? 2 : 1, bPlug: UI.main === "plugin" ? 2 : 1, bShift: UI.shift ? 2 : 1,
     bMute: composing ? (UI.mute ? 2 : 1) : 0, bErase: composing ? (UI.erase ? 2 : 1) : 0,
-    bStop: S.playing ? 1 : 2, bRestart: 1, bRec: composing ? (UI.rec ? 2 : 1) : 0, jogL: !composing || UI.mode === "keys" ? 1 : 0, jogR: !composing || UI.mode === "keys" ? 1 : 0,
+    bStop: S.playing ? 1 : 2, bRestart: 1, bRec: composing ? (UI.rec ? 2 : 1) : 0, bTap: composing ? (UI.metro ? 2 : 1) : 0, bTempo: composing ? (UI.held === "tempo" ? 2 : 1) : 0, bSwing: composing ? (UI.held === "swing" ? 2 : 1) : 0, bVolume: composing ? (UI.held === "volume" ? 2 : 1) : 0, bFixed: composing ? (UI.fixed ? 2 : 1) : 0, jogL: !composing || UI.mode === "keys" ? 1 : 0, jogR: !composing || UI.mode === "keys" ? 1 : 0,
     sb1: composing ? (UI.mode === "step" && UI.inspect == null ? 2 : 1) : 0, sb2: composing ? (UI.inspect != null ? 2 : 1) : 0,
     sb5: composing && second ? (shape ? 2 : 1) : 0, sb6: composing ? (shape ? 1 : 2) : 0,
   };

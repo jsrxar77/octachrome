@@ -44,6 +44,14 @@ pub enum Main {
     Plugin,
 }
 
+/// What the 4D encoder is turning while its button is held.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Held {
+    Tempo,
+    Swing,
+    Volume,
+}
+
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum Mode {
     #[default]
@@ -94,6 +102,14 @@ pub struct UiState {
     /// The slot last touched in FILE, and a line saying what happened.
     pub file_last: Option<usize>,
     pub file_note: String,
+    /// TEMPO, SWING or VOLUME is held: the 4D encoder turns it and the left screen shows it big.
+    pub held: Option<Held>,
+    /// The metronome is on (SHIFT + TAP).
+    pub metronome: bool,
+    /// FIXED VEL is on: the pads always play at the same velocity.
+    pub fixed_vel: bool,
+    /// The master volume, 0.0..=1.0.
+    pub master: f32,
     /// REC is armed: what is played by hand while the sequencer runs is written into the track.
     pub rec: bool,
     /// KEYBOARD octave offset from C3 (pad 1 is C3 at 0).

@@ -101,3 +101,55 @@ fn f_k10_a_tap_toggles_the_chosen_lane() {
     b.run_ms(50);
     assert_eq!(b.project().tracks[0].steps[step].lanes, 0b10, "only the kick left");
 }
+
+// F-K11: holding TEMPO, SWING or VOLUME and turning the 4D encoder turns that one, and the left screen shows it big while it is held.
+#[test]
+fn f_k11_held_buttons_take_the_encoder() {
+    let mut b = Bench::demo();
+    let (bpm, swing) = (b.project().bpm, b.project().swing);
+    b.button_down(Button::Swing);
+    b.encoder(4);
+    b.run_ms(50);
+    assert_eq!(b.ui().held, Some(op8_ui::Held::Swing));
+    assert!(b.project().swing > swing, "swing went up");
+    assert_eq!(b.project().bpm, bpm, "and the tempo did not move");
+    b.button_up(Button::Swing);
+    assert_eq!(b.ui().held, None);
+    b.button_down(Button::Tempo);
+    b.encoder(-3);
+    b.button_up(Button::Tempo);
+    assert_eq!(b.project().bpm, bpm - 3.0);
+    // VOLUME is the master volume: half of it, half the level
+    b.press(Button::Play);
+    b.run_ms(1500);
+    let loud = b.peak(500, 1500);
+    b.button_down(Button::Volume);
+    b.encoder(-50);
+    b.button_up(Button::Volume);
+    assert!((b.ui().master - 0.5).abs() < 0.02 || b.ui().master < 0.6, "master {}", b.ui().master);
+    b.run_ms(1500);
+    let quiet = b.peak(2000, 3000);
+    assert!(quiet < loud * 0.8, "quieter: {quiet} vs {loud}");
+}
+
+// F-K12: FIXED VEL makes every pad play and REC write the same velocity, whatever the strike.
+#[test]
+fn f_k12_fixed_velocity() {
+    let mut b = Bench::empty();
+    b.press(Button::Group(2));
+    b.press(Button::Keyboard);
+    b.press(Button::Rec);
+    b.press(Button::Play);
+    b.run_ms(20);
+    b.strike_at(0, 0.3);
+    b.release(0);
+    let s = b.project().tracks[2].steps.iter().find(|s| s.active).copied().expect("recorded");
+    assert_eq!(s.velocity, 38, "a soft strike is soft");
+    b.press(Button::FixedVel);
+    assert!(b.ui().fixed_vel);
+    b.run_ms(600);
+    b.strike_at(1, 0.3);
+    b.release(1);
+    let fixed: Vec<u8> = b.project().tracks[2].steps.iter().filter(|s| s.active && s.note == 49).map(|s| s.velocity).collect();
+    assert_eq!(fixed, [100], "with FIXED VEL the same soft strike is written as 100");
+}

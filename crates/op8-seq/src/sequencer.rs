@@ -195,6 +195,11 @@ impl Sequencer {
         }
     }
 
+    /// The tick the sequencer has reached (96 per quarter note), for the metronome.
+    pub fn tick_position(&self) -> u64 {
+        self.last_eff
+    }
+
     /// How far into its current step a track is, 0.0..1.0 (for recording to the nearest step).
     pub fn step_phase(&self, track: usize) -> f32 {
         let ticks = self.project.tracks[track].division.ticks() as u64;

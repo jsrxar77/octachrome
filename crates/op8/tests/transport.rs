@@ -64,3 +64,49 @@ fn f_t04_polymeter_stays_in_length() {
     assert_eq!(max, 6, "playhead never reached the last step");
     assert_eq!(seen_others.len(), 7, "expected all seven steps, got {seen_others:?}");
 }
+
+// F-T05: TAP works the tempo out from the taps (the average gap of the last ones), and a pause of more than two seconds starts over.
+#[test]
+fn f_t05_tap_sets_the_tempo() {
+    let mut b = Bench::empty();
+    let mut at = Vec::new();
+    for _ in 0..4 {
+        at.push(b.now_ms());
+        b.press(Button::Tap);
+        b.run_ms(500);
+    }
+    let want = 60_000.0 / ((at[3] - at[0]) as f32 / 3.0);
+    assert!((b.project().bpm - want).abs() < 2.0, "four taps {:?} ms apart are {want} bpm: {}", at, b.project().bpm);
+    // after a long pause the first tap only starts counting
+    b.run_ms(3000);
+    let bpm = b.project().bpm;
+    let first = b.now_ms();
+    b.press(Button::Tap);
+    assert_eq!(b.project().bpm, bpm, "one tap does not change the tempo");
+    b.run_ms(600);
+    let second = b.now_ms();
+    b.press(Button::Tap);
+    let want = 60_000.0 / (second - first) as f32;
+    assert!((b.project().bpm - want).abs() < 3.0, "two taps {} ms apart are {want} bpm: {}", second - first, b.project().bpm);
+}
+
+// F-T06: SHIFT + TAP turns the metronome on and off; while it is on it clicks on every beat of a running sequencer, and it is silent when off.
+#[test]
+fn f_t06_shift_tap_is_the_metronome() {
+    let mut b = Bench::empty();
+    b.press(Button::Play);
+    b.run_ms(700);
+    assert!(b.silent(0, 700), "an empty pattern is silent without the metronome");
+    b.button_down(Button::Shift);
+    b.press(Button::Tap);
+    b.button_up(Button::Shift);
+    assert!(b.ui().metronome);
+    b.run_ms(1000);
+    assert!(b.peak(800, 1700) > 0.02, "the metronome clicks");
+    b.button_down(Button::Shift);
+    b.press(Button::Tap);
+    b.button_up(Button::Shift);
+    assert!(!b.ui().metronome);
+    b.run_ms(400);
+    assert!(b.silent(1900, 2100), "and stops");
+}

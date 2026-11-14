@@ -37,6 +37,8 @@ use op8_ui::{Main, Mode, UiState, COMPONENT_PRESETS};
 use std::sync::atomic::Ordering::Relaxed;
 
 pub const HOLD_MS: u64 = 300;
+/// The velocity a pad plays and REC writes while FIXED VEL is on.
+const FIXED_VELOCITY: u8 = 100;
 /// A button that has something to do is this bright (of 1.0): a very faint white.
 const FAINT_WHITE: f32 = 0.10;
 /// How long a knob of the instrument has to be still before its result is auditioned.
@@ -113,6 +115,10 @@ pub struct Controller {
     pub ui: UiState,
     /// Where the player's projects are saved and read, if anywhere (FILE does nothing for the user slots without it).
     pub projects_dir: Option<std::path::PathBuf>,
+    /// When the last taps of TAP were, to work out a tempo.
+    taps: Vec<u64>,
+    /// The time of the event being handled (ms).
+    now: u64,
     /// The buttons that are down right now, for their lights.
     down: std::collections::HashSet<Button>,
     /// The notes of the chord that a CHORDS pad is sounding, to release them.
@@ -155,6 +161,7 @@ impl Controller {
     }
 
     pub fn handle(&mut self, ev: ControlEvent, h: &mut EngineHandle, now_ms: u64) {
+        self.now = now_ms;
         match ev {
             ControlEvent::Button { button, pressed } => self.button(button, pressed, h),
             // In settings the pads and knobs do nothing; the 4D encoder picks the theme.
@@ -176,6 +183,18 @@ impl Controller {
                     *t = touched;
                 }
             }
+            ControlEvent::Encoder { delta } if self.ui.held.is_some() => match self.ui.held {
+                Some(op8_ui::Held::Swing) => {
+                    h.seq(Command::SetSwing(h.project.swing + delta as f32 * 0.005));
+                }
+                Some(op8_ui::Held::Volume) => {
+                    h.send(EngineCommand::MasterVolume(h.master + delta as f32 * 0.01));
+                }
+                _ => {
+                    let step = if self.held.shift { 0.1 } else { 1.0 };
+                    h.seq(Command::SetBpm(h.project.bpm + delta as f32 * step));
+                }
+            },
             ControlEvent::Encoder { delta } => {
                 if self.ui.inspect_step.is_some() {
                     let max = self
@@ -207,6 +226,16 @@ impl Controller {
             self.down.insert(b);
         } else {
             self.down.remove(&b);
+        }
+        // TEMPO, SWING and VOLUME: while one is held the 4D encoder turns it
+        let held = match b {
+            Button::Tempo => Some(op8_ui::Held::Tempo),
+            Button::Swing => Some(op8_ui::Held::Swing),
+            Button::Volume => Some(op8_ui::Held::Volume),
+            _ => None,
+        };
+        if let Some(hd) = held {
+            self.ui.held = if pressed && self.ui.main == Main::Instrument { Some(hd) } else { None };
         }
         match b {
             Button::Shift => {
@@ -264,6 +293,12 @@ impl Controller {
                 self.set_main(to, h);
             }
             Button::Rec if self.ui.main == Main::Instrument => self.ui.rec = !self.ui.rec,
+            Button::Tap if self.ui.main == Main::Instrument && self.held.shift => {
+                self.ui.metronome = !self.ui.metronome;
+                h.send(EngineCommand::Metronome(self.ui.metronome));
+            }
+            Button::Tap if self.ui.main == Main::Instrument => self.tap_tempo(h),
+            Button::FixedVel if self.ui.main == Main::Instrument => self.ui.fixed_vel = !self.ui.fixed_vel,
             Button::PlugIn => {
                 let to = if self.ui.main == Main::Plugin { Main::Instrument } else { Main::Plugin };
                 self.set_main(to, h);
@@ -459,7 +494,7 @@ impl Controller {
         match ev {
             PadEvent::Press | PadEvent::Strike(_) if self.held_notes[p].is_none() => {
                 let Some(note) = op8_ui::pad_note(&self.ui, &h.project, pad) else { return };
-                let velocity = if let PadEvent::Strike(v) = ev { v.clamp(0.1, 1.0) } else { 0.8 };
+                let velocity = self.pad_velocity(if let PadEvent::Strike(v) = ev { v } else { 0.8 });
                 h.send(EngineCommand::LiveNote { track, note, velocity, on: true });
                 self.held_notes[p] = Some(note);
                 self.ui.pads_down[p] = true;
@@ -506,9 +541,36 @@ impl Controller {
         h.seq(Command::SetStep { track, step: step as u8, value: v });
     }
 
-    /// The velocity written by REC (and, later, FIXED VEL).
+    /// The velocity written by REC: the strike's, or 100 with FIXED VEL.
     fn rec_velocity(&self, velocity: f32) -> u8 {
+        if self.ui.fixed_vel {
+            return FIXED_VELOCITY;
+        }
         (velocity * 127.0).round().clamp(1.0, 127.0) as u8
+    }
+
+    /// The velocity a pad plays at: the strike's, or the fixed one.
+    fn pad_velocity(&self, strike: f32) -> f32 {
+        if self.ui.fixed_vel {
+            FIXED_VELOCITY as f32 / 127.0
+        } else {
+            strike.clamp(0.1, 1.0)
+        }
+    }
+
+    /// TAP: the tempo from the last taps (the first tap after a pause only starts counting).
+    fn tap_tempo(&mut self, h: &mut EngineHandle) {
+        if self.taps.last().is_some_and(|&t| self.now.saturating_sub(t) > 2000) {
+            self.taps.clear();
+        }
+        self.taps.push(self.now);
+        if self.taps.len() > 5 {
+            self.taps.remove(0);
+        }
+        if self.taps.len() >= 2 {
+            let span = (self.taps[self.taps.len() - 1] - self.taps[0]) as f32 / (self.taps.len() - 1) as f32;
+            h.seq(Command::SetBpm(60_000.0 / span));
+        }
     }
 
     /// KEYBOARD: move the pads an octave (the 4D encoder, left and right).
@@ -627,7 +689,7 @@ impl Controller {
                     // The chord itself sounds on the selected track's instrument, as long as the pad is
                     // held (a drum kit has no chords: its sounds are not notes).
                     if self.ui.lane.is_none() {
-                        let velocity = if let PadEvent::Strike(v) = ev { v.clamp(0.1, 1.0) } else { 0.8 };
+                        let velocity = self.pad_velocity(if let PadEvent::Strike(v) = ev { v } else { 0.8 });
                         let track = self.ui.track as u8;
                         self.chord_notes = chord_notes(chord);
                         for &note in &self.chord_notes {
@@ -856,6 +918,8 @@ impl Controller {
     /// Once per UI frame: promote long holds to the inspector, age the
     /// activity LEDs.
     pub fn tick(&mut self, h: &mut EngineHandle, now_ms: u64) {
+        self.ui.master = h.master;
+        self.ui.metronome = h.metronome;
         // Does this track's instrument have a second page? (If the audio thread holds the lock this frame, keep the last answer.)
         if let Some(c) = h.slots[self.ui.track].as_ref() {
             if let Ok(c) = c.try_lock() {
