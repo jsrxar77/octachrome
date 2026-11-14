@@ -85,6 +85,8 @@ pub fn track_led_colors(id: op8_gfx::ThemeId) -> [NiColor; TRACKS] {
 #[derive(Default)]
 pub struct Controller {
     pub ui: UiState,
+    /// When the last note was auditioned, so a knob turn does not machine-gun it.
+    last_audition_ms: u64,
     pad_down_at: [Option<u64>; 16],
     /// The pad whose hold opened the inspector (its release must not toggle).
     inspector_pad: Option<u8>,
@@ -127,7 +129,7 @@ impl Controller {
                 Mode::Brain => self.brain_pad(pad, event, h),
                 Mode::Punch => self.punch_pad(pad, event, h),
             },
-            ControlEvent::Knob { index, delta } => self.knob(index as usize, delta, h),
+            ControlEvent::Knob { index, delta } => self.knob(index as usize, delta, h, now_ms),
             ControlEvent::KnobTouch { index, touched } => {
                 if let Some(t) = self.ui.knob_touch.get_mut(index as usize) {
                     *t = touched;
@@ -225,6 +227,29 @@ impl Controller {
         }
     }
 
+    /// The note a tap on a step places on this track's instrument, if it chooses a sound by a knob.
+    fn paint_note(&self, h: &EngineHandle) -> Option<u8> {
+        let c = h.slots[self.ui.track].as_ref()?;
+        let c = c.try_lock().ok()?;
+        c.paint_note()
+    }
+
+    /// The note to play when a knob is turned: the chosen sound, else the track's first step, else a C.
+    fn audition_note(&self, h: &EngineHandle) -> u8 {
+        self.paint_note(h).unwrap_or_else(|| {
+            h.project.tracks[self.ui.track].steps.iter().find(|s| s.active).map_or(48, |s| s.note)
+        })
+    }
+
+    /// Play a note on the selected track now. `throttle` keeps a turning knob from retriggering it more than a few times a second.
+    fn audition(&mut self, h: &mut EngineHandle, note: u8, velocity: f32, now_ms: u64, throttle: bool) {
+        if throttle && now_ms.saturating_sub(self.last_audition_ms) < 160 {
+            return;
+        }
+        self.last_audition_ms = now_ms;
+        h.send(EngineCommand::Audition { track: self.ui.track as u8, note, velocity });
+    }
+
     /// Let go of whatever a pad is holding: an engaged effect, a live chord.
     fn release_pads(&mut self, h: &mut EngineHandle) {
         if self.ui.mode == Mode::Punch && self.ui.punch.is_some() {
@@ -298,7 +323,25 @@ impl Controller {
                     self.inspector_pad = None;
                     self.ui.inspect_step = None;
                 } else if was_down && !self.held.erase && self.inspector_pad.is_none() {
-                    h.seq(Command::ToggleStep { track, step });
+                    match self.paint_note(h) {
+                        // An instrument that chooses a sound with a knob (drums): a tap puts the
+                        // chosen sound on the step, or takes it off if it is already there.
+                        Some(n) => {
+                            let s = h.project.tracks[self.ui.track].steps[step as usize];
+                            if s.active && s.note % 12 == n % 12 {
+                                h.seq(Command::ToggleStep { track, step });
+                            } else {
+                                let mut v = s;
+                                v.active = true;
+                                v.note = n;
+                                h.seq(Command::SetStep { track, step, value: v });
+                                self.audition(h, n, s.velocity as f32 / 127.0, now, false);
+                            }
+                        }
+                        None => {
+                            h.seq(Command::ToggleStep { track, step });
+                        }
+                    }
                 }
             }
             PadEvent::Pressure(_) => {}
@@ -368,10 +411,13 @@ impl Controller {
         n
     }
 
-    fn knob(&mut self, k: usize, delta: i32, h: &mut EngineHandle) {
+    fn knob(&mut self, k: usize, delta: i32, h: &mut EngineHandle, now_ms: u64) {
         if k >= 4 {
             let index = self.ui.right_page * 4 + (k - 4);
             h.nudge_param(self.ui.track, index, delta as f32 / SWEEP);
+            // Hear what the knob did.
+            let note = self.audition_note(h);
+            self.audition(h, note, 0.9, now_ms, true);
             return;
         }
         let track = self.ui.track as u8;
@@ -384,11 +430,13 @@ impl Controller {
                     return;
                 }
                 match k {
-                    0 => h.seq(Command::SetStepNote {
-                        track,
-                        step,
-                        note: (s.note as i32 + n).clamp(0, 127) as u8,
-                    }),
+                    0 => {
+                        let note = (s.note as i32 + n).clamp(0, 127) as u8;
+                        h.seq(Command::SetStepNote { track, step, note });
+                        // Hear the note (on a drum track, the sound) as it changes.
+                        self.audition(h, note, s.velocity as f32 / 127.0, now_ms, false);
+                        true
+                    }
                     1 => h.seq(Command::SetStepVelocity {
                         track,
                         step,

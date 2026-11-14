@@ -73,3 +73,31 @@ fn f_k09_inspector_names_the_drum_sound() {
     b.run_ms(100);
     assert_eq!(b.ui().step_sound, None);
 }
+
+// F-K10: on a drum track a tap puts the chosen sound on the step (and takes it off if it is already there); the knob picks the sound.
+#[test]
+fn f_k10_tap_places_the_chosen_drum_sound() {
+    let mut b = Bench::demo();
+    b.press(Button::Group(4)); // track E: drums
+    b.press(Button::Screen(6)); // shape: the second page, where `sound` is the last knob
+    b.knob(7, 120); // 3 detents: kick -> snare
+    let pad = (0..16u8)
+        .find(|&p| !b.project().tracks[4].steps[op8::Controller::pad_to_step(p) as usize].active)
+        .expect("an empty step");
+    let step = op8::Controller::pad_to_step(pad) as usize;
+    b.tap(pad);
+    b.run_ms(50);
+    let s = b.project().tracks[4].steps[step];
+    assert!(s.active, "the tap switched the step on");
+    assert_eq!(s.note % 12, 1, "with the snare (C#), the sound chosen on the right");
+    b.tap(pad);
+    b.run_ms(50);
+    assert!(!b.project().tracks[4].steps[step].active, "tapping the same sound again takes it off");
+    // a different chosen sound replaces the one on the step
+    b.tap(pad);
+    b.knob(7, -120);
+    b.tap(pad);
+    b.run_ms(50);
+    let s = b.project().tracks[4].steps[step];
+    assert!(s.active && s.note % 12 != 1, "the step now has the other sound");
+}

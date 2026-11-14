@@ -106,4 +106,8 @@ Rules: the factory eight meet §2 like any other instrument; each factory projec
 
 ### How the sound of a drum step is chosen
 
-The pitch class of a step's note picks the drum sound (see the table under *Already done*). To choose it: hold the step's pad (or press screen button 2, `components`, which opens the inspector on step 1); the first knob of the left screen is `sound` on a drum track (`note` on any other) and turning it moves through the sounds one note at a time: C kick, C# snare, D closed hat, D# open hat, E tom, F clap, F# rim, G crash. The footer shows the name, not the note. The knobs on the right (and `sound` on page 2) edit the *chosen* sound's own tune, decay, tone, snap, body, level and pan. Still to come: the chromatic KEYBOARD and PAD MODE, which will play the eight sounds straight from the pads ([buttons.md](buttons.md)).
+1. On the right screen, second page (screen button 6, `shape`), turn the last knob, `sound`: it picks one of the eight, and you **hear it** as you turn. The other knobs edit that sound (tune, decay, tone, snap, body, level, pan) and also play it.
+2. On the left, **tap a pad**: the step takes the chosen sound (and plays it). Tapping a step that already has that sound takes it off; tapping one with a different sound replaces it. One step holds one sound.
+3. To change a step's sound without touching the right screen, hold its pad and turn the first knob (`sound` on a drum track); it plays as it changes.
+
+The pitch class of the step's note is what picks the sound (C kick, C# snare, D closed hat, D# open hat, E tom, F clap, F# rim, G crash). Still to come: the chromatic KEYBOARD and PAD MODE, which will play the eight sounds straight from the pads ([buttons.md](buttons.md)).

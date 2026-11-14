@@ -186,6 +186,12 @@ pub trait InstrumentCartridge: Send + Sync {
         None
     }
 
+    /// The note a tap on a step should place (and that the knobs audition), when the
+    /// instrument chooses a sound with a knob: drums returns the chosen sound's note.
+    fn paint_note(&self) -> Option<u8> {
+        None
+    }
+
     /// What a note plays on this instrument, if the note chooses a sound (a drum
     /// kit): its name, for the step inspector. `None` for a plain pitch.
     fn note_label(&self, _note: u8) -> Option<&'static str> {

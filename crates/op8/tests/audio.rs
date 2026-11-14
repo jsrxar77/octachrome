@@ -52,3 +52,26 @@ fn f_a05_same_script_same_audio() {
     let (a, c) = (run(), run());
     assert!(a.0 == c.0 && a.1 == c.1, "two runs differ");
 }
+
+// F-A11: choosing a sound can be heard at once, without playing the sequence: turning a knob of the instrument
+// (or `sound`) and tapping a step all play it.
+#[test]
+fn f_a11_choices_are_auditioned() {
+    use op8_hw::Button;
+    // a knob turn on the drum track
+    let mut b = Bench::demo();
+    b.press(Button::Group(4));
+    b.run_ms(300);
+    let quiet = b.peak(0, 300);
+    b.press(Button::Screen(6));
+    b.knob(7, 120);
+    b.run_ms(400);
+    assert!(b.peak(300, 700) > quiet + 0.01, "turning `sound` plays the sound: {} vs {}", b.peak(300, 700), quiet);
+    // a tap on a step
+    let mut b = Bench::demo();
+    b.press(Button::Group(4));
+    b.run_ms(100);
+    b.tap(0);
+    b.run_ms(300);
+    assert!(b.peak(100, 700) > 0.01, "tapping a step plays its sound");
+}

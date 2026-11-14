@@ -203,6 +203,9 @@ impl InstrumentCartridge for Drums {
             _ => None,
         }
     }
+    fn paint_note(&self) -> Option<u8> {
+        Some(60 + self.selected as u8)
+    }
     fn note_label(&self, note: u8) -> Option<&'static str> {
         Some(SOUND_NAMES[sound_of(note)])
     }

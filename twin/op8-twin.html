@@ -454,6 +454,17 @@ function playDrums(t, time, note, vel) {
   else if (k === 5) { noise(900 * f, 5000); }
   else osc(900 * f, 700 * f, "square");
 }
+// Hear a choice at once: play the note on the track's instrument outside the sequence.
+let lastAudition = 0;
+function audition(t, note, vel, throttle) {
+  if (!actx || !SLOTS[t]) return;
+  const now = performance.now(); if (throttle && now - lastAudition < 160) return; lastAudition = now;
+  const at = actx.currentTime + 0.01;
+  if (SLOTS[t] === "drums") playDrums(t, at, note, vel);
+  else if (SLOTS[t] === "kick") playKick(t, at, note, vel);
+  else if (SLOTS[t] === "fm") playFm(t, at, note, vel, 0.25);
+  else if (SLOTS[t] === "macro") playMacro(t, at, note, vel, 0.25);
+}
 function playFm(t, time, note, vel, dur) {
   const p = PARAMS[t], out = trackOut[t];
   const f = 440 * Math.pow(2, (note - 69) / 12), ratio = [0.5,1,2,3,4][Math.min(4, Math.floor(p[0] * 5))];
@@ -664,7 +675,14 @@ function padUp(pad) {
   if (UI.mode === "step") {
     const wasDown = padDownAt[pad] != null; padDownAt[pad] = null;
     if (inspectorPad === pad) { inspectorPad = null; UI.inspect = null; }
-    else if (wasDown && !UI.erase && inspectorPad == null) { const s = P.tracks[UI.track].steps[padToStep(pad)]; s.active = !s.active; }
+    else if (wasDown && !UI.erase && inspectorPad == null) {
+      const s = P.tracks[UI.track].steps[padToStep(pad)];
+      if (SLOTS[UI.track] === "drums") {
+        // a tap puts the chosen sound on the step, or takes it off if it is already there
+        const n = 60 + DRUMS.sel;
+        if (s.active && s.note % 12 === n % 12) s.active = false; else { s.active = true; s.note = n; audition(UI.track, n, s.vel / 127, false); }
+      } else s.active = !s.active;
+    }
   } else if (UI.mode === "brain") {
     if (UI.live === pad) { UI.live = null; P.brain.live = null; if (!S.playing) S.chord = brainChord(P.brain, 0); }
   } else if (punchState.slot === pad) setPunch(null, 0);
@@ -674,7 +692,8 @@ function knob(k, delta) {
   if (k >= 4) {
     const t = UI.track; if (!PARAMS[t]) return;
     const i = UI.page * 4 + (k - 4); if (i >= PARAMS[t].length) return;
-    PARAMS[t][i] = clamp(PARAMS[t][i] + delta / SWEEP, 0, 1); if (SLOTS[t] === "drums") drumsSync(t, i); return;
+    PARAMS[t][i] = clamp(PARAMS[t][i] + delta / SWEEP, 0, 1); if (SLOTS[t] === "drums") drumsSync(t, i);
+    audition(t, SLOTS[t] === "drums" ? 60 + DRUMS.sel : (P.tracks[t].steps.find(x => x.active) || { note: 48 }).note, 0.9, true); return;
   }
   const tr = P.tracks[UI.track];
   if (UI.mode === "step" && UI.inspect != null) {
