@@ -182,6 +182,10 @@ The theme is chosen with `op8 run -t glossy|matte|chrome` or `OP8_THEME`.
 
 FILE is a main mode like settings: both screens, no footer, no strip. **Left:** the sixteen slots as the pads are (reading order, top-left first), each a rounded cell with the project's name (`m`); the top two rows are the factory projects (`panel` fill) and the bottom two are the player's (`faint` fill, or an outline and `empty` where there is nothing); the slot last touched has a 2 px `fg` outline; the title is `open`, or `save` while SHIFT is held. **Right:** `projects`, what a tap does and what SHIFT + tap does, and below a line saying what just happened. The pad LEDs are white: level 2 for the factory slots, 3 for the player's that hold a project, 1 for the empty ones. The play mark stays on the left.
 
+### Instruments view (PLUG-IN)
+
+Like FILE (above): both screens, no footer, no strip. **Left:** the sixteen places as the pads are, with the same cells; the top two rows are the factory instruments in the order of [instruments.md §7](instruments.md), the instrument of the selected track has the 2 px `fg` outline, one that is not built yet has an outline only, and the bottom two rows are the places for installed instruments (`empty`). **Right:** `plug-in`, what a tap does, and what just happened. The pad LEDs are white: level 3 for the track's instrument, 2 for the others that can be chosen, off for the rest.
+
 ### Settings view
 
 Settings is a **main mode** (SETTINGS button; see [buttons.md](buttons.md)): it takes **both** screens, and the rule that the left is time and the right is sound is suspended while it is open. Composing (CHANNEL) is the other main mode. Each setting is a page that uses both screens: the left shows the choices, the right shows what they mean. Today there is one page, the theme.

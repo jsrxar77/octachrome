@@ -91,7 +91,7 @@ Audio runs separately, in blocks of 100 to 128 samples at 48 kHz. For each UI fr
 
 `Controller` (`crates/op8/src/controller.rs`) holds `UiState` (mode, selected track, open inspector, right-screen page, active punch, live chord) and knob counters. It is the only one that decides what an event means. Its mode table is in its header.
 
-Pad modes: `Step`, `Brain`, `Punch`, `Pads` and `Keys`. They change with STEP, CHORDS, PERFORM, PAD MODE and KEYBOARD (`EngineCommand::LiveNote` plays a pad's note by hand), and the pads mean different things in each.
+Main modes: `Instrument` (composing), `Settings`, `File` (projects) and `Plugin` (instruments); the last three take both screens and use the pads to choose. Pad modes: `Step`, `Brain`, `Punch`, `Pads` and `Keys`. They change with STEP, CHORDS, PERFORM, PAD MODE and KEYBOARD (`EngineCommand::LiveNote` plays a pad's note by hand), and the pads mean different things in each.
 
 Above them sit the **main modes** (`Main` in `op8-ui`, the "main modes" table of [buttons.md](buttons.md)): `Instrument` for composing (CHANNEL), and `Settings` (SETTINGS), which takes both screens. In `Settings` the controller ignores pads, knobs and groups, turns the 4D encoder and ◀ ▶ into theme changes, and lets PLAY, STOP and RESTART through. Entering it lets go of anything a pad is holding (an engaged effect, a live chord). A pad mode button always returns to `Instrument`. A theme change sets the global theme at once and raises `Controller::theme_changed`; `App` saves it to the settings file if it has a path (`App::settings_path`), so the simulator and the test bench never write to disk.
 

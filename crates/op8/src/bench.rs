@@ -186,6 +186,11 @@ impl Bench {
         &self.app.handle.project
     }
 
+    /// The name of the instrument on a track, if there is one.
+    pub fn instrument(&self, track: usize) -> Option<String> {
+        self.app.handle.slots[track].as_ref().and_then(|c| c.lock().ok().map(|c| c.info().name))
+    }
+
     /// Where FILE saves the player's projects (a folder of the test's own).
     pub fn set_projects_dir(&mut self, dir: std::path::PathBuf) {
         self.app.ctl.projects_dir = Some(dir);

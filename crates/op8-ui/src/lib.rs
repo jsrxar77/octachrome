@@ -40,6 +40,8 @@ pub enum Main {
     Settings,
     /// Projects (FILE): the sixteen pads open or save them, both screens.
     File,
+    /// Instruments (PLUG-IN): the sixteen pads choose the instrument of the selected track, both screens.
+    Plugin,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -84,6 +86,11 @@ pub struct UiState {
     /// The sixteen project slots shown in FILE, in reading order (top-left first): the name and
     /// whether there is a project in it. The top two rows are the factory projects.
     pub files: Vec<(String, bool)>,
+    /// The sixteen places of PLUG-IN, in reading order: the name and whether it can be chosen (the top two
+    /// rows are the factory instruments), and the one the selected track has now.
+    pub plugs: Vec<(String, bool)>,
+    pub plug_current: Option<usize>,
+    pub plug_note: String,
     /// The slot last touched in FILE, and a line saying what happened.
     pub file_last: Option<usize>,
     pub file_note: String,

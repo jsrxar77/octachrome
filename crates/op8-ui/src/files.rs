@@ -21,9 +21,15 @@ fn bar(fb: &mut FrameBuffer480x272, title: &str) {
 }
 
 pub fn draw_left(fb: &mut FrameBuffer480x272, ui: &crate::UiState, st: &EngineStatus) {
+    pick_left(fb, st, if ui.shift { "save" } else { "open" }, &ui.files, ui.file_last);
+}
+
+/// A grid of sixteen choices as the pads are (reading order), the top two rows the factory ones: used by
+/// FILE (projects) and PLUG-IN (instruments). A cell is `(name, available)`; the one in `last` is outlined.
+pub fn pick_left(fb: &mut FrameBuffer480x272, st: &EngineStatus, title: &str, cells: &[(String, bool)], last: Option<usize>) {
     let t = theme();
     fb.clear(t.bg);
-    bar(fb, if ui.shift { "save" } else { "open" });
+    bar(fb, title);
     // transport stays visible: PLAY keeps working
     if st.playing.load(Relaxed) {
         fill_convex(fb, &[(460.0, 8.0), (470.0, 14.0), (460.0, 20.0)], t.fg);
@@ -34,9 +40,9 @@ pub fn draw_left(fb: &mut FrameBuffer480x272, ui: &crate::UiState, st: &EngineSt
     for i in 0..16usize {
         let (col, row) = ((i % 4) as f32, (i / 4) as f32);
         let (x, y) = (12.0 + col * (CELL_W + GAP), 44.0 + row * (CELL_H + GAP));
-        let (name, has) = ui.files.get(i).cloned().unwrap_or_default();
+        let (name, has) = cells.get(i).cloned().unwrap_or_default();
         let factory = i < 8;
-        let last = ui.file_last == Some(i);
+        let last = last == Some(i);
         if has {
             fill_round_rect(fb, x, y, CELL_W, CELL_H, 8.0, if factory { t.panel } else { t.faint });
         }
@@ -48,19 +54,20 @@ pub fn draw_left(fb: &mut FrameBuffer480x272, ui: &crate::UiState, st: &EngineSt
 }
 
 pub fn draw_right(fb: &mut FrameBuffer480x272, ui: &crate::UiState) {
+    pick_right(fb, "projects", &[("tap a pad", "opens it"), ("shift + tap", "saves into your slots")], &ui.file_note);
+}
+
+/// The right screen of a picker: its title, what the pads do, and what just happened.
+pub fn pick_right(fb: &mut FrameBuffer480x272, title: &str, lines: &[(&str, &str)], note: &str) {
     let t = theme();
     fb.clear(t.bg);
-    bar(fb, "projects");
-    let lines = [
-        ("tap a pad", "opens it"),
-        ("shift + tap", "saves into your slots"),
-    ];
+    bar(fb, title);
     for (i, (a, b)) in lines.iter().enumerate() {
         let y = 90 + i as i32 * 56;
         text_v(fb, a, 30, y, FontSize::Large, t.fg, Align::Left, VAlign::Middle);
         text_v(fb, b, 30, y + 24, FontSize::Medium, t.dim, Align::Left, VAlign::Middle);
     }
-    if !ui.file_note.is_empty() {
-        text_v(fb, &ui.file_note, 30, 220, FontSize::Large, t.fg, Align::Left, VAlign::Middle);
+    if !note.is_empty() {
+        text_v(fb, note, 30, 220, FontSize::Large, t.fg, Align::Left, VAlign::Middle);
     }
 }

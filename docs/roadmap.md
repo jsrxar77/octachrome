@@ -74,9 +74,8 @@ Known limits of the setup:
 ## 3. Instruments (the centre)
 
 - **Eight and eight.** 8 factory instruments + 8 installed ones ([instruments.md §7](instruments.md)). Factory today: drums, KickSyn, FmBass, resonator, MidiOutBridge, macro, ordered from the most guttural to the most refined (leads last). To build, in this order: sampler, granular.
-- PLUG-IN shows the 16 places on the 4×4 pads (1–8 factory, 9–16 installed); an empty installed place says so.
+- Done: PLUG-IN shows the 16 places on the pads (the factory eight on top, eight places for installed ones below) and puts the chosen instrument on the selected track.
 
-- Cartridge registry list and PLUG-IN to choose the cartridge of each track (from `builtin_names()`).
 - Kit of reusable drawings in `op8-gfx` (oscilloscope, envelope, polar waveform).
 - Load instruments as a separate package from `cartridges/` (stage 2 of [instruments.md](instruments.md)).
 - More instruments: resonator (from Rings), drums (8 sounds on the pads), sampler. Each one meets [instruments.md](instruments.md): at most 8 knobs, a drawing without text, and any combination sounds good.

@@ -33,7 +33,7 @@ pub struct Context<'a> {
 pub fn all() -> Vec<Button> {
     use Button::*;
     let mut v = vec![
-        Shift, Rec, Step, Chords, Perform, PadMode, Keyboard, NoteRepeat, ChannelMidi, Settings, File, Mute, Erase, Play, Stop, Restart, JogLeft,
+        Shift, Rec, Step, Chords, Perform, PadMode, Keyboard, NoteRepeat, ChannelMidi, Settings, File, PlugIn, Mute, Erase, Play, Stop, Restart, JogLeft,
         JogRight,
     ];
     v.extend((1..=8).map(Screen));
@@ -57,6 +57,7 @@ pub fn light(ui: &UiState, c: &Context, b: Button) -> Light {
         ChannelMidi => state(composing),
         Settings => state(ui.main == Main::Settings),
         File => state(ui.main == Main::File),
+        PlugIn => state(ui.main == Main::Plugin),
         // The pad-mode buttons all work from settings too (they go back to composing).
         Step => state(composing && ui.mode == Mode::Step),
         Chords => state(composing && ui.mode == Mode::Brain),

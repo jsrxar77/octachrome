@@ -36,6 +36,9 @@ pub fn draw_left(fb: &mut FrameBuffer480x272, ui: &UiState, p: &Project, st: &En
     if ui.main == crate::Main::File {
         return crate::files::draw_left(fb, ui, st);
     }
+    if ui.main == crate::Main::Plugin {
+        return crate::files::pick_left(fb, st, "instruments", &ui.plugs, ui.plug_current);
+    }
     let t = theme();
     fb.clear(t.bg);
     let accent = track_color(ui.track);
