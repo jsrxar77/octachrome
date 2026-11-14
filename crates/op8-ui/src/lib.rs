@@ -45,6 +45,10 @@ pub enum Mode {
     Step,
     Brain,
     Punch,
+    /// PAD MODE: the pads play the track's instrument (a kit's sounds, or the scale).
+    Pads,
+    /// KEYBOARD: the pads are a chromatic keyboard.
+    Keys,
 }
 
 impl Mode {
@@ -53,6 +57,8 @@ impl Mode {
             Mode::Step => "step",
             Mode::Brain => "brain",
             Mode::Punch => "punch",
+            Mode::Pads => "pads",
+            Mode::Keys => "keys",
         }
     }
 }
@@ -72,6 +78,10 @@ pub struct UiState {
     pub right_page: usize,
     /// Whether the selected track's instrument has a second page (the `shape` button).
     pub has_second: bool,
+    /// KEYBOARD octave offset from C3 (pad 1 is C3 at 0).
+    pub octave: i32,
+    /// Pads held in PAD MODE / KEYBOARD (index = pad, bottom-left first), for the screen and the LEDs.
+    pub pads_down: [bool; 16],
     /// The sound chosen on the right, as a lane 0..8, when the selected track's instrument is a kit (drums).
     pub lane: Option<usize>,
     /// Active Punch-in FX: (slot, intensity).
@@ -84,6 +94,24 @@ pub struct UiState {
     pub shift: bool,
     /// Smoothed animation state, advanced by [`animate`].
     pub anim: Anim,
+}
+
+/// The note a pad plays in PAD MODE or KEYBOARD (pad 0 is bottom-left), if it plays one.
+/// PAD MODE on a drum kit: pads 0–7 are the eight sounds (note 60 + lane), the rest are free;
+/// on any other instrument the pads climb the Brain's scale from its key. KEYBOARD is chromatic
+/// from C3, shifted by the octave.
+pub fn pad_note(ui: &UiState, p: &op8_seq::Project, pad: u8) -> Option<u8> {
+    let pad = pad as i32;
+    let n = match ui.mode {
+        Mode::Pads if ui.lane.is_some() => (pad < 8).then_some(op8_seq::step::KIT_BASE_NOTE as i32 + pad)?,
+        Mode::Pads => {
+            let iv = p.brain.scale.intervals();
+            48 + p.brain.key as i32 + iv[(pad % 7) as usize] as i32 + 12 * (pad / 7)
+        }
+        Mode::Keys => 48 + 12 * ui.octave + pad,
+        _ => return None,
+    };
+    (0..=127).contains(&n).then_some(n as u8)
 }
 
 /// The eight screen buttons above the two screens, in one table, so that what a
@@ -176,7 +204,7 @@ mod tests {
         let p = project();
         let st = EngineStatus::default();
         let mut fb = FrameBuffer480x272::new();
-        for mode in [Mode::Step, Mode::Brain, Mode::Punch] {
+        for mode in [Mode::Step, Mode::Brain, Mode::Punch, Mode::Pads, Mode::Keys] {
             for inspect in [None, Some(0)] {
                 let ui = UiState {
                     mode,

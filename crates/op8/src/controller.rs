@@ -87,6 +87,8 @@ pub fn track_led_colors(id: op8_gfx::ThemeId) -> [NiColor; TRACKS] {
 #[derive(Default)]
 pub struct Controller {
     pub ui: UiState,
+    /// The note each pad is holding in PAD MODE / KEYBOARD, to release it.
+    held_notes: [Option<u8>; 16],
     /// A note to audition once the knob that asked for it has been still for a moment.
     audition_due: Option<u64>,
     /// When a knob of the instrument last moved.
@@ -134,6 +136,7 @@ impl Controller {
                 Mode::Step => self.step_pad(pad, event, h, now_ms),
                 Mode::Brain => self.brain_pad(pad, event, h),
                 Mode::Punch => self.punch_pad(pad, event, h),
+                Mode::Pads | Mode::Keys => self.play_pad(pad, event, h),
             },
             ControlEvent::Knob { index, delta } => self.knob(index as usize, delta, h, now_ms),
             ControlEvent::KnobTouch { index, touched } => {
@@ -190,6 +193,10 @@ impl Controller {
                         muted: !h.project.tracks[t].muted,
                     });
                 } else {
+                    if matches!(self.ui.mode, Mode::Pads | Mode::Keys) {
+                        // held notes belong to the track they were played on
+                        self.release_pads(h);
+                    }
                     self.ui.track = t;
                     self.ui.inspect_step = None;
                     self.inspector_pad = None;
@@ -205,6 +212,8 @@ impl Controller {
             Button::Step => self.set_mode(Mode::Step, h),
             // Pressing the button of the mode you are in leaves it for STEP, so
             // there is always a way back to the sequencer.
+            Button::PadMode => self.toggle_mode(Mode::Pads, h),
+            Button::Keyboard => self.toggle_mode(Mode::Keys, h),
             Button::Chords => self.toggle_mode(Mode::Brain, h),
             Button::Perform | Button::NoteRepeat => self.toggle_mode(Mode::Punch, h),
             // Main modes: SETTINGS toggles the settings view (both screens);
@@ -218,6 +227,8 @@ impl Controller {
                 self.set_main(to, h);
             }
             Button::ChannelMidi => self.set_main(Main::Instrument, h),
+            Button::JogLeft if self.ui.main == Main::Instrument && self.ui.mode == Mode::Keys => self.shift_octave(-1, h),
+            Button::JogRight if self.ui.main == Main::Instrument && self.ui.mode == Mode::Keys => self.shift_octave(1, h),
             Button::JogLeft if self.ui.main == Main::Settings => self.step_theme(-1),
             Button::JogRight if self.ui.main == Main::Settings => self.step_theme(1),
             // Screen buttons: 1 = step view, 2 = components of the first step, 5 = shape, 6 = sound.
@@ -269,7 +280,41 @@ impl Controller {
         if self.ui.mode == Mode::Brain && self.ui.live_chord_pad.take().is_some() {
             h.seq(Command::SetLiveChord(None));
         }
+        for pad in 0..16 {
+            if let Some(note) = self.held_notes[pad].take() {
+                h.send(EngineCommand::LiveNote { track: self.ui.track as u8, note, velocity: 0.0, on: false });
+            }
+        }
+        self.ui.pads_down = [false; 16];
         self.pad_down_at = [None; 16];
+    }
+
+    /// PAD MODE and KEYBOARD: a pad plays its note on the track's instrument while it is held (no recording yet).
+    fn play_pad(&mut self, pad: u8, ev: PadEvent, h: &mut EngineHandle) {
+        let p = pad as usize;
+        let track = self.ui.track as u8;
+        match ev {
+            PadEvent::Press | PadEvent::Strike(_) if self.held_notes[p].is_none() => {
+                let Some(note) = op8_ui::pad_note(&self.ui, &h.project, pad) else { return };
+                let velocity = if let PadEvent::Strike(v) = ev { v.clamp(0.1, 1.0) } else { 0.8 };
+                h.send(EngineCommand::LiveNote { track, note, velocity, on: true });
+                self.held_notes[p] = Some(note);
+                self.ui.pads_down[p] = true;
+            }
+            PadEvent::Release => {
+                if let Some(note) = self.held_notes[p].take() {
+                    h.send(EngineCommand::LiveNote { track, note, velocity: 0.0, on: false });
+                }
+                self.ui.pads_down[p] = false;
+            }
+            _ => {}
+        }
+    }
+
+    /// KEYBOARD: move the pads an octave (the 4D encoder, left and right).
+    fn shift_octave(&mut self, by: i32, h: &mut EngineHandle) {
+        self.release_pads(h);
+        self.ui.octave = (self.ui.octave + by).clamp(-2, 4);
     }
 
     /// Like `set_mode`, but the button of the mode already active goes back to STEP.
@@ -537,6 +582,12 @@ impl Controller {
                     ));
                 }
             }
+            (Mode::Keys, 0) => {
+                let n = self.detents(k, delta);
+                if n != 0 {
+                    self.shift_octave(n.signum(), h);
+                }
+            }
             (Mode::Step, 0) => {
                 let n = self.detents(k, delta);
                 if n != 0 {
@@ -659,6 +710,15 @@ impl Controller {
                     let hue = colors[pad as usize % 8];
                     out.set_pad(pad, hue, if lit { 3 } else { 1 });
                 }
+                Mode::Pads | Mode::Keys => {
+                    match op8_ui::pad_note(&self.ui, &h.project, pad) {
+                        Some(_) if self.ui.pads_down[pad as usize] => out.set_pad(pad, NiColor::White, 3),
+                        // C is marked on the keyboard so the player can find their way
+                        Some(n) if self.ui.mode == Mode::Keys && n % 12 == 0 => out.set_pad(pad, color, 3),
+                        Some(_) => out.set_pad(pad, color, 1),
+                        None => out.set_pad(pad, NiColor::Off, 0),
+                    }
+                }
                 Mode::Punch => {
                     let lit = self.ui.punch.map(|(s, _)| s) == Some(pad as usize);
                     out.set_pad(
@@ -688,6 +748,8 @@ impl Controller {
         out.set_button(Button::Step, lit(self.ui.mode == Mode::Step));
         out.set_button(Button::Chords, lit(self.ui.mode == Mode::Brain));
         out.set_button(Button::Perform, lit(self.ui.mode == Mode::Punch));
+        out.set_button(Button::PadMode, lit(self.ui.mode == Mode::Pads));
+        out.set_button(Button::Keyboard, lit(self.ui.mode == Mode::Keys));
         out.set_button(Button::ChannelMidi, if composing { 1.0 } else { 0.2 });
         out.set_button(Button::Settings, if composing { 0.2 } else { 1.0 });
         out.set_button(Button::Shift, if self.held.shift { 1.0 } else { 0.2 });

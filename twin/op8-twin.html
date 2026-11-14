@@ -164,6 +164,8 @@ canvas.lcd {
             <button class="btn" id="bStep">STEP</button>
             <button class="btn" id="bChords">CHORDS</button>
             <button class="btn" id="bPerform">PERFORM</button>
+            <button class="btn" id="bPads" title="Los pads tocan el instrumento">PAD MODE</button>
+            <button class="btn" id="bKeys" title="Los pads son un teclado cromático">KEYBOARD</button>
             <button class="btn" id="bErase">ERASE</button>
             <button class="btn" id="bMute">MUTE</button>
             <button class="btn" id="bChannel" title="Compose: the sequencer on the left, the instrument on the right">CHANNEL</button>
@@ -644,7 +646,7 @@ function setStrip(x) {
 }
 
 // ======================= controller (mirrors op8 Controller) =======================
-const UI = { main: "instrument", mode: "step", track: 0, inspect: null, compCursor: 0, touch: Array(8).fill(false), page: 0, live: null, strip: null, activity: Array(8).fill(0), lastCount: Array(8).fill(0), shift: false, mute: false, erase: false };
+const UI = { octave: 0, down: Array(16).fill(false), main: "instrument", mode: "step", track: 0, inspect: null, compCursor: 0, touch: Array(8).fill(false), page: 0, live: null, strip: null, activity: Array(8).fill(0), lastCount: Array(8).fill(0), shift: false, mute: false, erase: false };
 const padDownAt = Array(16).fill(null); let inspectorPad = null; const knobAccum = Array(8).fill(0);
 const padToStep = pad => (3 - Math.floor(pad / 4)) * 4 + pad % 4; // bottom-left numbering -> reading order
 const DETENT = 40, SWEEP = 800;
@@ -670,6 +672,17 @@ function groupPress(g) {
   else { UI.track = g; UI.inspect = null; inspectorPad = null; }
   UI.shift = false; UI.mute = false;
 }
+// PAD MODE and KEYBOARD: the note a pad plays (pad 0 is bottom-left), if it plays one. PAD MODE on a drum kit:
+// pads 1-8 are the eight sounds; on any other instrument the pads climb the Brain's scale. KEYBOARD is chromatic from C3.
+function padNote(pad) {
+  const kit = SLOTS[UI.track] === "drums";
+  if (UI.mode === "pads") {
+    if (kit) return pad < 8 ? 60 + pad : null;
+    const iv = SCALES[P.brain.scale][1]; return 48 + P.brain.key + iv[pad % 7] + 12 * Math.floor(pad / 7);
+  }
+  if (UI.mode === "keys") { const n = 48 + 12 * UI.octave + pad; return n >= 0 && n <= 127 ? n : null; }
+  return null;
+}
 function padDown(pad, vel) {
   if (UI.main === "settings") return;
   if (UI.mode === "step") {
@@ -682,6 +695,9 @@ function padDown(pad, vel) {
     const chord = pad <= 6 ? diatonic(b.key, b.scale, pad, "triad") : pad === 7 ? diatonic(b.key, b.scale, 0, "sus4")
       : pad <= 14 ? diatonic(b.key, b.scale, pad - 8, "seventh") : diatonic(b.key, b.scale, 4, "sus2");
     UI.live = pad; b.live = chord; if (!S.playing) S.chord = chord;
+  } else if (UI.mode === "pads" || UI.mode === "keys") {
+    initAudio(); const n = padNote(pad);
+    if (n != null) { UI.down[pad] = true; audition(UI.track, n, Math.max(0.1, vel), false); }
   } else {
     initAudio();
     punchState.base = vel; setPunch(pad, vel);
@@ -708,7 +724,8 @@ function padUp(pad) {
     }
   } else if (UI.mode === "brain") {
     if (UI.live === pad) { UI.live = null; P.brain.live = null; if (!S.playing) S.chord = brainChord(P.brain, 0); }
-  } else if (punchState.slot === pad) setPunch(null, 0);
+  } else if (UI.mode === "pads" || UI.mode === "keys") UI.down[pad] = false;
+  else if (punchState.slot === pad) setPunch(null, 0);
 }
 function knob(k, delta) {
   if (UI.main === "settings") return;
@@ -753,6 +770,7 @@ function knob(k, delta) {
 }
 function jog(d) {
   if (UI.main === "settings") { themeStep(d); return; }
+  if (UI.mode === "keys") { UI.octave = clamp(UI.octave + d, -2, 4); UI.down.fill(false); return; }
   if (UI.inspect != null) {
     const s = P.tracks[UI.track].steps[UI.inspect];
     UI.compCursor = clamp(UI.compCursor + d, 0, Math.min(s.comps.length, 5));
@@ -911,6 +929,7 @@ function drawLeft(g) {
   if (UI.mode === "step" && UI.inspect != null) inspector(g, accent);
   else if (UI.mode === "brain") brainView(g, accent);
   else if (UI.mode === "punch") punchView(g, accent);
+  else if (UI.mode === "pads" || UI.mode === "keys") playView(g, accent);
   else { if (P.tracks[UI.track].kit) lanesView(g, accent); else rings(g); padGrid(g, accent); }
   const cells = leftFooter();
   footer(g, cells);
@@ -1091,6 +1110,20 @@ function fxGlyph(g, kind, x, y, w, h, col, amt) {
   }
 }
 const FX_SUB = { 96: "1/4", 48: "1/8", 24: "1/16", 12: "1/32", 16: "1/16T", 6: "1/16", 3: "1/32" };
+// PAD MODE and KEYBOARD: the sixteen pads as on the unit (pad 1 bottom-left), each with the note or sound it plays.
+const SOUND_LABELS = ["kick", "snare", "c-hat", "o-hat", "tom", "clap", "rim", "crash"];
+function playView(g, accent) {
+  const kit = SLOTS[UI.track] === "drums";
+  for (let pad = 0; pad < 16; pad++) {
+    const x = 262 + (pad % 4) * 42, y = 50 + (3 - Math.floor(pad / 4)) * 42, n = padNote(pad), down = UI.down[pad];
+    if (n == null) { rrect(g, x + .5, y + .5, 36, 36, 6, FAINT, 1); continue; }
+    if (down) rrect(g, x, y, 37, 37, 6, FG); else { rrect(g, x, y, 37, 37, 6, mix(accent, 0.30)); rrect(g, x + .5, y + .5, 36, 36, 6, mix(accent, 0.6), 1); }
+    txt(g, kit && UI.mode === "pads" ? SOUND_LABELS[n - 60] : noteName(n), x + 18.5, y + 18.5, "s", down ? BG : FG, "center", "middle");
+  }
+  const title = UI.mode === "keys" ? "C" + (3 + UI.octave) : kit ? "kit" : NOTE_NAMES[P.brain.key];
+  const sub = UI.mode === "keys" ? "keyboard" : kit ? "eight sounds" : SCALES[P.brain.scale][0].toLowerCase() + " scale";
+  txt(g, title, 30, 66, "huge", accent); txt(g, sub, 30, 140, "mid", DIM);
+}
 function punchView(g, accent) {
   PUNCH.forEach(([name, kind], i) => {
     const col = i % 4, row = 3 - Math.floor(i / 4), x = 12 + col * 116, y = 52 + row * 42, on = punchState.slot === i;
@@ -1343,6 +1376,8 @@ $("bRestart").addEventListener("click", play);
 $("bStep").addEventListener("click", () => setMode("step"));
 $("bChords").addEventListener("click", () => setMode("brain"));
 $("bPerform").addEventListener("click", () => setMode("punch"));
+$("bPads").addEventListener("click", () => setMode(UI.mode === "pads" ? "step" : "pads"));
+$("bKeys").addEventListener("click", () => setMode(UI.mode === "keys" ? "step" : "keys"));
 $("bChannel").addEventListener("click", () => setMain("instrument"));
 $("bSettings").addEventListener("click", () => setMain(UI.main === "settings" ? "instrument" : "settings"));
 $("sb1").addEventListener("click", () => { if (UI.main === "instrument") setMode("step"); });
@@ -1396,6 +1431,8 @@ function updateLeds() {
   $("bStep").classList.toggle("on", composing && UI.mode === "step");
   $("bChords").classList.toggle("on", composing && UI.mode === "brain");
   $("bPerform").classList.toggle("on", composing && UI.mode === "punch");
+  $("bPads").classList.toggle("on", composing && UI.mode === "pads");
+  $("bKeys").classList.toggle("on", composing && UI.mode === "keys");
   $("bChannel").classList.toggle("on", UI.main === "instrument");
   $("bSettings").classList.toggle("on", UI.main === "settings");
   $("bShift").classList.toggle("on", UI.shift);

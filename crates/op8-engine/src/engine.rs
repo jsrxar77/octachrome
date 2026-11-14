@@ -40,6 +40,14 @@ pub enum EngineCommand {
         note: u8,
         velocity: f32,
     },
+    /// A note played by hand on a track's instrument (a pad in PAD MODE or KEYBOARD): started on
+    /// `on`, released on `!on`. Joins the sequence's notes at the next block.
+    LiveNote {
+        track: u8,
+        note: u8,
+        velocity: f32,
+        on: bool,
+    },
     /// Put a cartridge in a slot. The old one comes back through the
     /// handle's garbage queue so it is never freed on the audio thread.
     LoadCartridge {
@@ -64,6 +72,8 @@ struct Audition {
 /// Lives on the audio thread.
 pub struct Engine {
     audition: [Option<Audition>; TRACKS],
+    /// Notes played by hand, waiting for the next block.
+    live: [op8_seq::fixed::FixedVec<op8_cartridge::NoteEvent, 16>; TRACKS],
     seq: Sequencer,
     slots: [Option<SharedCartridge>; TRACKS],
     rx: rtrb::Consumer<EngineCommand>,
@@ -107,6 +117,7 @@ impl Engine {
         }
         let engine = Engine {
             audition: [None; TRACKS],
+            live: Default::default(),
             seq: Sequencer::new(project, SAMPLE_RATE),
             slots: slots.clone(),
             rx,
@@ -163,6 +174,12 @@ impl Engine {
                         if let Ok(mut c) = c.lock() {
                             c.set_parameter(index as usize, value);
                         }
+                    }
+                }
+                EngineCommand::LiveNote { track, note, velocity, on } => {
+                    if let Some(q) = self.live.get_mut(track as usize) {
+                        let ev = if on { op8_cartridge::NoteEvent::on(0, note, velocity.clamp(0.0, 1.0)) } else { op8_cartridge::NoteEvent::off(0, note) };
+                        q.push(ev);
                     }
                 }
                 EngineCommand::Audition { track, note, velocity } => {
@@ -239,6 +256,12 @@ impl Engine {
                     .unwrap_or(self.base_params[t][p.index as usize % PARAMS_PER_SLOT]);
                 c.set_parameter(p.index as usize, v);
             }
+            // Notes played by hand come first in this block, in the order they were played.
+            for i in 0..self.live[t].as_slice().len() {
+                let ev = self.live[t].as_slice()[i];
+                self.events.notes[t].insert(i, ev);
+            }
+            self.live[t].clear();
             // An auditioned note joins the sequence's events for this block (sorted by offset).
             if let Some(a) = &mut self.audition[t] {
                 if !a.started {
