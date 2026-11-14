@@ -73,7 +73,7 @@ They are the modules of the current mode, like M1–M4 on the OP-XY. Their name 
 | :-- | :-- | :-- | :-- | :-- |
 | PLAY | Play | play | Play / pause | ✓ |
 | STOP | Stop | stop (twice: silence) | Stop; twice silences all notes | ◐ (the second press is missing) |
-| REC · Shift: count-in | Record | record | Record notes played on the pads and automation | ○ |
+| REC · Shift: count-in | Record | record | Arms the recording: while the sequencer runs, what you play in PAD MODE or KEYBOARD is written into the track at the nearest step (a drum kit: into the lane of the sound). Chords, automation and the count-in are not recorded yet | ◐ |
 | RESTART · Shift: loop | From the start | play (2nd time) | Go back to step 1 and keep playing | ✓ |
 | TAP · Shift: metro | Tap tempo | tempo / metronome | Tap tempo; Shift toggles the metronome | ○ |
 | FOLLOW · Shift: grid | Follow playback | bar | Recording quantisation | ○ |

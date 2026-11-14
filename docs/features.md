@@ -151,6 +151,15 @@ The buttons and their implementation status are in [buttons.md](buttons.md). Thi
 | F-F05 | SHIFT + a pad of the player's slots saves into it (a file in the projects folder), and a tap opens it again with the tempo and the instruments' knobs | the files and the project after reopening | ✓ |
 | F-F06 | An empty slot says so and does not load; SHIFT on a factory slot does not overwrite it; a damaged file is refused and the project stays as it was | the project is unchanged | ✓ |
 
+## R · Recording (`tests/rec.rs`)
+
+| ID | Behaviour | How it is verified | Status |
+| :-- | :-- | :-- | :-- |
+| F-R01 | REC arms and disarms (strong white while armed, faint otherwise, a red mark on the left screen), and does nothing in settings | `ui.rec` | ✓ |
+| F-R02 | A note played in PAD MODE or KEYBOARD while the sequencer runs is written at the nearest step (early in a step it stays, late in it goes to the next) with its note and velocity | the step after the strikes | ✓ |
+| F-R03 | On a drum kit REC switches on the lane of the sound played, several sounds can share a step, and the track becomes a kit | `steps[..].lanes` | ✓ |
+| F-R04 | Nothing is written when REC is not armed, when the sequencer is stopped, or for CHORDS pads | the steps stay empty | ✓ |
+
 ## H · Hardware link (`crates/op8-hw`, `crates/op8`)
 
 | ID | What must happen | How it is verified | Status |

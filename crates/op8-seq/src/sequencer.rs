@@ -195,6 +195,12 @@ impl Sequencer {
         }
     }
 
+    /// How far into its current step a track is, 0.0..1.0 (for recording to the nearest step).
+    pub fn step_phase(&self, track: usize) -> f32 {
+        let ticks = self.project.tracks[track].division.ticks() as u64;
+        (self.last_eff % ticks) as f32 / ticks as f32
+    }
+
     /// The Brain chord sounding now.
     pub fn current_chord(&self) -> Chord {
         self.project.brain.chord_at(self.last_eff / 24)

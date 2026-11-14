@@ -99,6 +99,10 @@ fn top_bar(
         3.0,
         t.fg.scale(0.25 + 0.75 * beat),
     );
+    // REC is armed: a red dot after the tempo
+    if ui.rec {
+        fill_circle(fb, end as f32 + 26.0, HEADER_CY + 1.0, 5.0, t.rec);
+    }
     // Brain chord, centred; brightens when it changes
     let chord = if playing {
         st.chord()

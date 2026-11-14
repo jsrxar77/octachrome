@@ -66,7 +66,8 @@ Known limits of the setup:
 ## 2. Playing and recording
 
 - Done: PAD MODE and KEYBOARD play the track's instrument from the pads (octave on the 4D encoder). They are not recorded yet: that is REC, below.
-- REC (notes and automation), TAP + metronome, FIXED VEL.
+- Done: REC writes notes played by hand into the track at the nearest step (a drum kit: into its lane). To do: recording chords and knob movements (automation), the count-in.
+- TAP + metronome, FIXED VEL.
 - TEMPO, SWING and VOLUME with the 4D encoder.
 - AUTO: automation per knob.
 

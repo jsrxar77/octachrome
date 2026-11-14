@@ -83,7 +83,8 @@ fn f_l09_buttons_are_dark_faint_or_strong() {
     // composing, step mode: STEP has the focus, the other pad modes can be chosen, REC does nothing yet
     assert!(strong(&b, Button::Step) && faint(&b, Button::Chords) && faint(&b, Button::Perform), "the mode in use is strong, the others faint");
     assert!(faint(&b, Button::PadMode) && faint(&b, Button::Keyboard) && faint(&b, Button::Shift) && faint(&b, Button::Mute) && faint(&b, Button::Erase));
-    assert!(off(&b, Button::Rec) && off(&b, Button::Tap) && off(&b, Button::Scene), "no function yet, dark");
+    assert!(faint(&b, Button::Rec), "REC can be armed");
+    assert!(off(&b, Button::Tap) && off(&b, Button::Scene), "no function yet, dark");
     assert!(strong(&b, Button::ChannelMidi) && faint(&b, Button::Settings), "composing: CHANNEL has the focus");
     // a button held down has the focus: SHIFT, then PERFORM held
     b.button_down(Button::Shift);
