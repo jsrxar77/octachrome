@@ -30,6 +30,9 @@ button:hover{border-color:var(--dim)}
 .eights div{background:var(--panel);border:1px solid var(--faint);border-radius:16px;padding:14px 20px;min-width:140px}
 .eights b{display:block;font-size:44px;font-weight:300}
 .eights span{color:var(--dim);font-size:15px}
+@keyframes holo{0%,100%{filter:hue-rotate(-14deg) saturate(1.1)}50%{filter:hue-rotate(14deg) saturate(1.3) brightness(1.1)}}
+@keyframes glint{0%,70%{transform:translateX(0) skewX(-20deg)}100%{transform:translateX(330px) skewX(-20deg)}}
+.glint{animation:glint 4s ease-in-out infinite}
 </style></head><body>
 <p><a href="index.html">← Guide</a></p>
 
@@ -54,6 +57,13 @@ button:hover{border-color:var(--dim)}
   <svg class="mark" id="mko" role="img" aria-label="Play the scale"></svg>
   <div class="row"><button id="scale">▶ Play the scale</button></div>
   <p style="color:var(--dim);margin-top:14px;font-size:15px">Tap a key. The white is the first note, one octave up.</p>
+</section>
+
+<section>
+  <h2>Chrome: three ideas</h2>
+  <p style="color:var(--dim);margin-bottom:22px">Glossy is vivid, matte is muted. Chrome has to be the one people want to show.</p>
+  <div class="opts" id="chr"></div>
+  <p style="color:var(--dim);margin-top:18px;font-size:15px">Same eight, same order, same layout. Only the finish changes.</p>
 </section>
 
 <section>
@@ -110,4 +120,26 @@ function draw(){drawMark(document.getElementById("mk"),T[cur],true,"keys");drawM
 Object.keys(T).forEach(n=>{const b=document.createElement("button");b.textContent=n;b.onclick=()=>{cur=n;draw()};document.getElementById("th").append(b)});
 document.getElementById("scale").onclick=()=>{for(let i=0;i<8;i++)setTimeout(()=>note(i),i*260)};
 draw();
+
+/* chrome ideas (not in the themes yet) */
+(function(){
+  const IDEAS=[
+   {n:"A · Neon",note:"Fluorescent colours that glow on black, like tubes. Loud, photographs well.",c:["#FF2A1F","#FF7A00","#FFEE00","#00FF85","#00C8FF","#4B3BFF","#C13BFF","#FFFFFF"],glow:true},
+   {n:"B · Anodised",note:"Coloured aluminium: the keys have a metal sheen, and a glint of light sweeps across them every few seconds. The UI turns graphite and silver; colour lives only in the eight.",c:["#D8404A","#E8803A","#E6C255","#4FBF8A","#4A90D9","#6A67D6","#A66BD0","#E4E8EE"],metal:true},
+   {n:"C · Holo",note:"Iridescent: the colours drift a few degrees, like a hologram sticker tilting in the light.",c:["#FF3B2F","#FF8A1F","#FFD60A","#00F076","#2DA8FF","#6A5CFF","#C86BFF","#F4F7FF"],holo:true}
+  ];
+  const box=document.getElementById("chr");
+  IDEAS.forEach((d,k)=>{
+    const M=MK3.mark.keys,id="g"+k;
+    let defs=`<defs><linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".55"/><stop offset=".45" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".35"/></linearGradient>
+      <linearGradient id="${id}s" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset=".5" stop-color="#fff" stop-opacity=".9"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>
+      <clipPath id="${id}c">${M.items.map(it=>`<rect x="${it[1]}" y="${it[2]}" width="${it[3]}" height="${it[4]}" rx="${it[5]}"/>`).join("")}</clipPath>
+      ${d.glow?`<filter id="${id}f" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>`:""}</defs>`;
+    let keys=M.items.map((it,i)=>`<rect x="${it[1]}" y="${it[2]}" width="${it[3]}" height="${it[4]}" rx="${it[5]}" fill="${d.c[i]}"/>`).join("");
+    if(d.metal)keys+=M.items.map(it=>`<rect x="${it[1]}" y="${it[2]}" width="${it[3]}" height="${it[4]}" rx="${it[5]}" fill="url(#${id})"/>`).join("")+`<g clip-path="url(#${id}c)"><rect class="glint" x="-60" y="0" width="40" height="78" fill="url(#${id}s)" transform="skewX(-20)"/></g>`;
+    const d1=document.createElement("div");d1.className="opt";
+    d1.innerHTML=`<svg viewBox="0 0 238 78" style="width:100%;max-width:260px;${d.holo?"animation:holo 6s ease-in-out infinite;":""}">${defs}<g ${d.glow?`filter="url(#${id}f)"`:""}>${keys}</g></svg><p><b style="color:var(--fg);font-weight:400">${d.n}</b><br>${d.note}</p>`;
+    box.append(d1);
+  });
+})();
 </script></body></html>
