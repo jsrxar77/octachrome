@@ -26,7 +26,7 @@ The left screen always shows time and the right screen always shows sound. A mai
 
 ## 2. Screen buttons 1–8 (above the screens)
 
-They are the modules of the current mode, like M1–M4 on the OP-XY. Their name is shown in the button strip along the top of each screen, only for the buttons that do something (rule 11, [design.md §4](design.md)). In Instrument mode:
+They are the modules of the current mode, like M1–M4 on the OP-XY. Their name is shown in the button strip along the top of each screen, only for the buttons that do something (rule 11, [design.md §4](design.md)). Their LED follows the same table: dark if the button does nothing, dim if it does something, full if its page is open. In Instrument mode:
 
 | Button | Module | On the OP-XY | Status |
 | :-- | :-- | :-- | :-- |

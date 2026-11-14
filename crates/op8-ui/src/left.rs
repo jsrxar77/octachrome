@@ -21,12 +21,12 @@ use std::f32::consts::{FRAC_PI_2, PI, TAU};
 use std::sync::atomic::Ordering::Relaxed;
 
 const RING_CX: f32 = 118.0;
-const RING_CY: f32 = 134.0;
+const RING_CY: f32 = 137.0;
 const RING_R0: f32 = 26.0;
-const RING_STEP: f32 = 8.5;
+const RING_STEP: f32 = 8.0;
 const GRID_X: i32 = 262;
-const GRID_Y: i32 = 48;
-const CELL: i32 = 38;
+const GRID_Y: i32 = 50;
+const CELL: i32 = 37;
 const GAP: i32 = 5;
 
 pub fn draw_left(fb: &mut FrameBuffer480x272, ui: &UiState, p: &Project, st: &EngineStatus) {
@@ -37,17 +37,7 @@ pub fn draw_left(fb: &mut FrameBuffer480x272, ui: &UiState, p: &Project, st: &En
     fb.clear(t.bg);
     let accent = track_color(ui.track);
     top_bar(fb, ui, p, st, accent);
-    if ui.main == crate::Main::Instrument {
-        button_strip(
-            fb,
-            &[
-                ("step", ui.mode == Mode::Step && ui.inspect_step.is_none()),
-                ("components", ui.inspect_step.is_some()),
-                ("", false),
-                ("", false),
-            ],
-        );
-    }
+    button_strip(fb, &crate::strip_labels(ui, 0));
     match (ui.mode, ui.inspect_step) {
         (Mode::Step, Some(step)) => inspector(fb, ui, p, step as usize, accent),
         (Mode::Brain, _) => brain_view(fb, p, st, accent),

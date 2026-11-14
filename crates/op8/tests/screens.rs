@@ -58,11 +58,11 @@ fn f_d04_mode_changes_screen() {
 /// Centres of the four screen buttons (see `op8_ui::theme::BUTTON_CX`).
 const CX: [usize; 4] = [24, 164, 304, 444];
 
-/// Lit pixels in the strip (the top 22 rows) around one screen button.
+/// Lit pixels in the strip (the top 24 rows) around one screen button.
 fn strip_lit(b: &Bench, screen: Screen, col: usize) -> usize {
     let fb = b.screen(screen);
     let mut n = 0;
-    for y in 0..22usize {
+    for y in 0..24usize {
         for x in CX[col].saturating_sub(60)..(CX[col] + 60).min(480) {
             if fb.pixels()[y * 480 + x] != 0 {
                 n += 1;
@@ -101,7 +101,7 @@ fn f_d10_screens_name_their_buttons() {
     b.run_ms(100);
     for screen in [Screen::Left, Screen::Right] {
         let fb = b.screen(screen);
-        let lit = (0..22usize).flat_map(|y| (120..360usize).map(move |x| (x, y))).filter(|&(x, y)| fb.pixels()[y * 480 + x] != 0).count();
+        let lit = (0..24usize).flat_map(|y| (120..360usize).map(move |x| (x, y))).filter(|&(x, y)| fb.pixels()[y * 480 + x] != 0).count();
         assert_eq!(lit, 0, "{screen:?}: no strip in settings");
     }
 }
@@ -113,7 +113,7 @@ fn f_d11_active_and_empty_steps_are_far_apart() {
     b.press(Button::Group(0));
     b.run_ms(100);
     let lum = |b: &Bench, step: usize| {
-        let (x, y) = (262 + (step % 4) * 43 + 19, 48 + (step / 4) * 43 + 19);
+        let (x, y) = (262 + (step % 4) * 42 + 18, 50 + (step / 4) * 42 + 18);
         let p = b.screen(Screen::Left).pixels()[y * 480 + x];
         let (r, g, bl) = ((p >> 11) & 31, (p >> 5) & 63, p & 31);
         (r as u32 * 8 + g as u32 * 4 + bl as u32 * 8) as f32
@@ -141,12 +141,43 @@ fn f_d13_capsule_text_is_centred() {
                 let p = fb.pixels()[y * 480 + x];
                 (p >> 11) + ((p >> 5) & 63) / 2 + (p & 31) > 12
             };
-            let ink: Vec<(usize, usize)> = (3..19).flat_map(|y| (c0 + 8..c1 - 8).map(move |x| (x, y))).filter(|&(x, y)| bright(x, y)).collect();
+            let ink: Vec<(usize, usize)> = (4..21).flat_map(|y| (c0 + 8..c1 - 8).map(move |x| (x, y))).filter(|&(x, y)| bright(x, y)).collect();
             let (x0, x1) = (ink.iter().map(|p| p.0).min().unwrap(), ink.iter().map(|p| p.0).max().unwrap());
             let (y0, y1) = (ink.iter().map(|p| p.1).min().unwrap(), ink.iter().map(|p| p.1).max().unwrap());
-            let (cx, cy) = ((c0 + c1) as f32 / 2.0, 11.0);
+            let (cx, cy) = ((c0 + c1) as f32 / 2.0, 12.0);
             assert!(((x0 + x1) as f32 / 2.0 - cx).abs() <= 1.0, "{screen:?} {col}: ink x {x0}..{x1} in capsule {c0}..{c1}");
             assert!(((y0 + y1) as f32 / 2.0 - cy).abs() <= 2.5, "{screen:?} {col}: ink y {y0}..{y1}");
         }
+    }
+}
+
+// F-D14: the LED of each of the eight screen buttons agrees with what the screens say: no label, no light; a label, dim; the open page, full.
+#[test]
+fn f_d14_screen_button_leds_match_the_labels() {
+    use op8_hw::leds::button_slot;
+    let led = |b: &Bench, n: u8| b.leds().slots[button_slot(Button::Screen(n)).unwrap()];
+    let mut b = Bench::demo();
+    b.press(Button::Group(3)); // track D: macro, two pages
+    b.tick();
+    let labels = |b: &Bench| op8_ui::screen_buttons(b.ui());
+    let all = labels(&b);
+    assert!(all[0].is_some() && all[1].is_some() && all[4].is_some() && all[5].is_some(), "step, components, sound, shape");
+    for n in 1..=8u8 {
+        assert_eq!(led(&b, n) > 0, all[n as usize - 1].is_some(), "button {n}: lit exactly when it has a label");
+    }
+    assert!(led(&b, 5) > led(&b, 6) && led(&b, 1) > led(&b, 2), "the open page is brighter than the other");
+    b.press(Button::Screen(6));
+    b.tick();
+    assert!(led(&b, 6) > led(&b, 5), "shape is open now");
+    // A track whose instrument has one page (track C, the MIDI bridge) has no `shape`: no label, and the button is dark.
+    b.press(Button::Group(2));
+    b.tick();
+    assert_eq!(led(&b, 6), 0, "no second page, no light");
+    assert!(led(&b, 5) > 0);
+    // In settings nothing is named and nothing is lit.
+    b.press(Button::Settings);
+    b.tick();
+    for n in 1..=8u8 {
+        assert_eq!(led(&b, n), 0, "settings: button {n} is dark");
     }
 }

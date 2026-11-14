@@ -74,6 +74,7 @@ The buttons and their implementation status are in [buttons.md](buttons.md). Thi
 | F-D11 | On the step grid an active step and an empty one are far apart in brightness (the active at least 5 times brighter) | pixel luminance of both cells | ✓ |
 | F-D12 | Screen button 1 goes back to the step view and 2 opens the components; both, and 5 and 6, do nothing in settings | `ui.mode` and `ui.inspect_step` | ✓ |
 | F-D13 | The text in a capsule is centred in it by its ink, within a pixel horizontally and 2.5 px vertically ([design.md §3](design.md)) | pixels of the strip | ✓ |
+| F-D14 | The LED of each of the eight screen buttons agrees with what the screens say: no label, no light; a label, dim; the open page, full; `shape` only for an instrument with a second page; all dark in settings ([design.md §4](design.md)) | `leds().slots` of `Screen(1..8)` against `screen_buttons` | ✓ |
 | F-D07 | On the real MK3, the two animated screens look complete and in step | **manual review** with photo and video; `OP8_DISPLAY_STATS=1` gives the figures | R |
 
 ## L · LEDs (`tests/leds.rs`)

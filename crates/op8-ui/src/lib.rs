@@ -70,6 +70,8 @@ pub struct UiState {
     pub knob_touch: [bool; 8],
     /// Right screen parameter page: 0 = main, 1 = secondary.
     pub right_page: usize,
+    /// Whether the selected track's instrument has a second page (the `shape` button).
+    pub has_second: bool,
     /// Active Punch-in FX: (slot, intensity).
     pub punch: Option<(usize, f32)>,
     pub strip: Option<f32>,
@@ -80,6 +82,32 @@ pub struct UiState {
     pub shift: bool,
     /// Smoothed animation state, advanced by [`animate`].
     pub anim: Anim,
+}
+
+/// The eight screen buttons above the two screens, in one table, so that what a
+/// screen says about a button and what the button's LED does can never differ:
+/// `None` = no function (no label, LED off); `Some((name, open))` = it does
+/// something (a label; LED dim, or full when its page is the open one).
+/// Buttons 1–4 are above the left screen, 5–8 above the right one.
+pub fn screen_buttons(ui: &UiState) -> [Option<(&'static str, bool)>; 8] {
+    let mut b = [None; 8];
+    if ui.main != Main::Instrument {
+        return b; // in settings the buttons do nothing
+    }
+    b[0] = Some(("step", ui.mode == Mode::Step && ui.inspect_step.is_none()));
+    b[1] = Some(("components", ui.inspect_step.is_some()));
+    let shape = ui.right_page == 1 && ui.has_second;
+    b[4] = Some(("sound", !shape));
+    if ui.has_second {
+        b[5] = Some(("shape", shape));
+    }
+    b
+}
+
+/// The labels of the four buttons above one screen (`0` = left, `1` = right), as the strip draws them.
+pub fn strip_labels(ui: &UiState, screen: usize) -> [(&'static str, bool); 4] {
+    let all = screen_buttons(ui);
+    std::array::from_fn(|i| all[screen * 4 + i].unwrap_or(("", false)))
 }
 
 /// The menu knob 4 scrolls through in the inspector.

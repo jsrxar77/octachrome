@@ -709,7 +709,7 @@ function applyLook() {
   TRACK_COLORS.splice(0, 8, ...t.tracks); // the track accents follow the theme, as the pad LEDs do
   // One family (Jost), tuned toward the OP-XY screen: light weights, small
   // labels with open tracking, big numbers in the lightest weight.
-  FONT = { s: '400 11px "Jost", sans-serif', lab: '400 14px "Jost", sans-serif', m: '400 15px "Jost", sans-serif', l: '400 20px "Jost", sans-serif',
+  FONT = { s: '400 11px "Jost", sans-serif', lab: '400 15px "Jost", sans-serif', m: '400 15px "Jost", sans-serif', l: '400 20px "Jost", sans-serif',
     mid: '400 21px "Jost", sans-serif', big: '300 34px "Jost", sans-serif', huge: '300 62px "Jost", sans-serif' };
   if (document.fonts) Object.values(FONT).forEach(x => document.fonts.load(x).catch(() => {}));
   try { localStorage.setItem("op8-look", JSON.stringify(LOOK)); } catch {}
@@ -817,7 +817,7 @@ function settingsRight(g) {
 }
 
 // ---- left screen ----
-const RING = { cx: 118, cy: 134, r0: 26, step: 8.5 };
+const RING = { cx: 118, cy: 137, r0: 26, step: 8 };
 function drawLeft(g) {
   animate();
   if (UI.main === "settings") { settingsLeft(g); return; }
@@ -839,16 +839,16 @@ const BUTTON_CX = [24, 164, 304, 444];
 function buttonStrip(g, labels) {
   labels.forEach(([name, on], i) => {
     if (!name) return;
-    g.font = FONT.lab; const w = Math.round(g.measureText(name).width + 24), x = Math.min(Math.max(1, Math.round(BUTTON_CX[i] - w / 2)), 479 - w);
-    rrect(g, x, 1, w, 20, 10, PANEL); rrect(g, x + 0.5, 1.5, w - 1, 19, 9.5, on ? FG : FAINT, 1);
+    g.font = FONT.lab; const w = Math.round(g.measureText(name).width + 28), x = Math.min(Math.max(1, Math.round(BUTTON_CX[i] - w / 2)), 479 - w);
+    rrect(g, x, 1, w, 22, 11, on ? FG : FAINT); rrect(g, x + 1, 2, w - 2, 20, 10, PANEL); // a 1 px band between two filled shapes: uniform all round
     // centred as the eye does (design.md §3): the ink horizontally, the x-height vertically
     g.font = FONT.lab; if ("letterSpacing" in g) g.letterSpacing = TRACK_SP.lab;
     const m = g.measureText(name), xh = g.measureText("x").actualBoundingBoxAscent;
     g.fillStyle = on ? FG : DIM; g.textAlign = "left"; g.textBaseline = "alphabetic";
-    g.fillText(name, Math.round(x + w / 2 - (m.actualBoundingBoxRight - m.actualBoundingBoxLeft) / 2 + m.actualBoundingBoxLeft), Math.round(11 + xh / 2));
+    g.fillText(name, Math.round(x + w / 2 - (m.actualBoundingBoxRight - m.actualBoundingBoxLeft) / 2 + m.actualBoundingBoxLeft), Math.round(12 + xh / 2));
   });
 }
-const HDR = 20; // the header items sit this far below where they used to, under the strip
+const HDR = 22; // the header items sit this far below where they used to, under the strip
 function topBar(g, accent) {
   if (UI.main === "instrument") buttonStrip(g, [["step", UI.mode === "step" && UI.inspect == null], ["components", UI.inspect != null], ["", false], ["", false]]);
   if (S.playing) { g.fillStyle = FG; g.beginPath(); g.moveTo(10, 8 + HDR); g.lineTo(20, 14 + HDR); g.lineTo(10, 20 + HDR); g.fill(); }
@@ -886,7 +886,7 @@ function rings(g) {
   txt(g, TRACK_NAMES[UI.track], cx, cy + 1, "mid", TRACK_COLORS[UI.track], "center", "middle");
 }
 function padGrid(g, accent) {
-  const tr = P.tracks[UI.track], x0 = 262, y0 = 48, cs = 38, gap = 5;
+  const tr = P.tracks[UI.track], x0 = 262, y0 = 50, cs = 37, gap = 5;
   for (let s = 0; s < 16; s++) {
     const x = x0 + (s % 4) * (cs + gap), y = y0 + Math.floor(s / 4) * (cs + gap), st = tr.steps[s], inLen = s < tr.length;
     const isPh = S.playing && s === S.playhead[UI.track];
@@ -1035,7 +1035,7 @@ function drawRight(g) {
   else if (slot === "fm") fmArt(g, t, p);
   else if (slot === "macro") macroArt(g, t, p);
   else midiArt(g, t, p, accent);
-  crosshairs(g, 14, 46, 452, 172, DIM);
+  crosshairs(g, 14, 50, 452, 168, DIM);
   const base = UI.page === 1 && pages > 1 ? 4 : 0;
   const cells = [0, 1, 2, 3].map(i => { const d = cart.params[base + i]; return d ? [d[0], d[2](p[base + i]), p[base + i]] : ["", "", 0]; });
   footer(g, cells, 4);

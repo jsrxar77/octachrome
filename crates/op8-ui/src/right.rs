@@ -65,20 +65,12 @@ pub fn draw_right(
         }
     }
 
-    button_strip(
-        fb,
-        &[
-            ("sound", ui.right_page == 0),
-            (if pages > 1 { "shape" } else { "" }, ui.right_page == 1),
-            ("", false),
-            ("", false),
-        ],
-    );
+    button_strip(fb, &crate::strip_labels(ui, 1));
     c.draw_ui(fb, accent);
 
     // Keep the cartridge inside its area.
     fb.fill_rect(0, AREA_Y + AREA_H, 480, 272 - (AREA_Y + AREA_H), t.bg);
-    crosshairs(fb, 14, 46, 452, 172, t.dim);
+    crosshairs(fb, 14, 50, 452, 168, t.dim);
 
     let (descs, base) = match (ui.right_page, c.secondary_parameters()) {
         (1, Some(s)) => (s, 4),

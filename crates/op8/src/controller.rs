@@ -518,6 +518,14 @@ impl Controller {
     /// Once per UI frame: promote long holds to the inspector, age the
     /// activity LEDs.
     pub fn tick(&mut self, h: &EngineHandle, now_ms: u64) {
+        // Does this track's instrument have a second page? (If the audio thread holds the lock this frame, keep the last answer.)
+        if let Some(c) = h.slots[self.ui.track].as_ref() {
+            if let Ok(c) = c.try_lock() {
+                self.ui.has_second = c.secondary_parameters().is_some();
+            }
+        } else {
+            self.ui.has_second = false;
+        }
         if self.ui.mode == Mode::Step && self.inspector_pad.is_none() {
             if let Some((pad, _)) = self
                 .pad_down_at
@@ -607,14 +615,15 @@ impl Controller {
         out.set_button(Button::ChannelMidi, if composing { 1.0 } else { 0.2 });
         out.set_button(Button::Settings, if composing { 0.2 } else { 1.0 });
         out.set_button(Button::Shift, if self.held.shift { 1.0 } else { 0.2 });
-        out.set_button(
-            Button::Screen(5),
-            if self.ui.right_page == 0 { 1.0 } else { 0.2 },
-        );
-        out.set_button(
-            Button::Screen(6),
-            if self.ui.right_page == 1 { 1.0 } else { 0.2 },
-        );
+        // The eight screen buttons: lit only if they do something, full if their page is open.
+        for (i, b) in op8_ui::screen_buttons(&self.ui).iter().enumerate() {
+            let level = match b {
+                None => 0.0,
+                Some((_, true)) => 1.0,
+                Some((_, false)) => 0.25,
+            };
+            out.set_button(Button::Screen(i as u8 + 1), level);
+        }
         // Smart Strip shows the filter position.
         if let Some(x) = self.ui.strip {
             let i = (x * 24.0).round() as usize;
