@@ -1,7 +1,7 @@
 //! Settings: the main mode that takes both screens (design.md §4).
 //!
-//! Left: one card per theme, each drawn in that theme's own colours, the active
-//! one outlined. Right: the eight encoder colours as dials and the track
+//! Left: one card per theme, each drawn in that theme's own colours (its eight
+//! brand keys, the backlight it asks for and its LED level), the active one outlined. Right: the eight encoder colours as dials and the track
 //! colours, in the active theme. The theme applies live, so the screens are
 //! their own preview. A control that does nothing here shows nothing (rule 11).
 
@@ -45,18 +45,24 @@ pub fn draw_left(fb: &mut FrameBuffer480x272, st: &EngineStatus) {
         fill_round_rect(fb, x, CARD_Y, CARD_W, CARD_H, 8.0, c.panel);
         let (w, col) = if on { (2.0, t.fg) } else { (1.0, t.faint) };
         stroke_round_rect(fb, x, CARD_Y, CARD_W, CARD_H, 8.0, w, col);
-        for (i, k) in c.knobs.iter().enumerate() {
-            let (cx, cy) = (x + 28.0 + (i % 4) as f32 * 27.0, CARD_Y + 36.0 + (i / 4) as f32 * 32.0);
-            fill_circle(fb, cx, cy, 9.0, *k);
+        // The theme's eight colours as the brand keys, four and four.
+        for (i, k) in c.brand.iter().enumerate() {
+            let (kx, ky) = (x + 14.0 + (i % 4) as f32 * 28.0, CARD_Y + 20.0 + (i / 4) as f32 * 18.0);
+            fill_round_rect(fb, kx, ky, 24.0, 13.0, 3.0, *k);
         }
-        for (i, chip) in [c.fg, c.dim, c.faint, c.rec].into_iter().enumerate() {
-            fill_round_rect(fb, x + 22.0 + i as f32 * 24.0, CARD_Y + 98.0, 20.0, 6.0, 1.5, chip);
+        // Its light: the backlight it asks for, then the level of the pad LEDs.
+        let track_w = CARD_W - 28.0;
+        fill_round_rect(fb, x + 14.0, CARD_Y + 72.0, track_w, 5.0, 2.0, c.faint);
+        fill_round_rect(fb, x + 14.0, CARD_Y + 72.0, (track_w * c.light.backlight).max(4.0), 5.0, 2.0, c.fg);
+        for lvl in 0..3u8 {
+            let col = if lvl < c.light.led_level { c.fg } else { c.faint };
+            fill_round_rect(fb, x + 14.0 + lvl as f32 * 16.0, CARD_Y + 90.0, 12.0, 12.0, 3.0, col);
         }
         text(
             fb,
             c.name,
             (x + CARD_W / 2.0) as i32,
-            (CARD_Y + 116.0) as i32,
+            (CARD_Y + 128.0) as i32,
             FontSize::Medium,
             if on { t.fg } else { t.dim },
             Align::Center,

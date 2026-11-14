@@ -696,9 +696,9 @@ function controllerTick() {
 // Design tokens: see docs/design.md. Three themes, each with four encoder
 // colours: knobs 1–4 drive the sequencer (left screen), 5–8 the instrument (right) and three type families to compare.
 const THEMES = {
-  glossy:   { name: "glossy",       bg: "#000", fg: "#F2F4F8", dim: "#7E8794", faint: "#232831", panel: "#0D1118", knobs: ["#0099FF", "#00E56A", "#F2F4F8", "#FF4F00", "#8B6CFF", "#FFD21F", "#2ED3E6", "#FF4FA0"], brand: ["#FF2D2D", "#FF8A1F", "#FFD21F", "#00E56A", "#0099FF", "#4B4BFF", "#B15CFF", "#F2F4F8"], rec: "#FF3B30" },
-  matte: { name: "matte", bg: "#000", fg: "#F4EFE6", dim: "#8E918F", faint: "#262A30", panel: "#12161D", knobs: ["#3B8EBA", "#D9822B", "#A9AFB8", "#F2652A", "#7FB58A", "#E3C77A", "#A88BC7", "#D9677A"], brand: ["#D9534F", "#D9822B", "#E3C77A", "#7FB58A", "#3B8EBA", "#5F6BB5", "#A88BC7", "#F4EFE6"], rec: "#E63946" },
-  chrome:  { name: "chrome",      bg: "#000", fg: "#EEF0F5", dim: "#80858F", faint: "#24262C", panel: "#0F1014", knobs: ["#D633FF", "#A442FF", "#8652FF", "#7361FF", "#707AFF", "#809DFF", "#8FBCFF", "#EEF0F5"], brand: ["#D633FF", "#A442FF", "#8652FF", "#7361FF", "#707AFF", "#809DFF", "#8FBCFF", "#EEF0F5"], rec: "#FF2244" },
+  glossy:   { name: "glossy",       bg: "#000", fg: "#F2F4F8", dim: "#7E8794", faint: "#232831", panel: "#0D1118", knobs: ["#0099FF", "#00E56A", "#F2F4F8", "#FF4F00", "#8B6CFF", "#FFD21F", "#2ED3E6", "#FF4FA0"], brand: ["#FF2D2D", "#FF8A1F", "#FFD21F", "#00E56A", "#0099FF", "#4B4BFF", "#B15CFF", "#F2F4F8"], rec: "#FF3B30", light: { backlight: 1, led: 3 } },
+  matte: { name: "matte", bg: "#000", fg: "#F4EFE6", dim: "#8E918F", faint: "#262A30", panel: "#12161D", knobs: ["#3B8EBA", "#D9822B", "#A9AFB8", "#F2652A", "#7FB58A", "#E3C77A", "#A88BC7", "#D9677A"], brand: ["#D9534F", "#D9822B", "#E3C77A", "#7FB58A", "#3B8EBA", "#5F6BB5", "#A88BC7", "#F4EFE6"], rec: "#E63946", light: { backlight: 0.6, led: 2 } },
+  chrome:  { name: "chrome",      bg: "#000", fg: "#EEF0F5", dim: "#80858F", faint: "#24262C", panel: "#0F1014", knobs: ["#D633FF", "#A442FF", "#8652FF", "#7361FF", "#707AFF", "#809DFF", "#8FBCFF", "#EEF0F5"], brand: ["#D633FF", "#A442FF", "#8652FF", "#7361FF", "#707AFF", "#809DFF", "#8FBCFF", "#EEF0F5"], rec: "#FF2244", light: { backlight: 0.8, led: 3 } },
 };
 let BG, FG, DIM, FAINT, KC, PANEL, REC, FONT;
 const prefs = (() => { try { return JSON.parse(localStorage.getItem("op8-look") || "{}"); } catch { return {}; } })();
@@ -800,9 +800,11 @@ function settingsLeft(g) {
     const t = THEMES[id], x = X0 + n * (W + GAP), on = id === LOOK.theme;
     rrect(g, x, Y, W, H, 8, t.panel);
     rrect(g, x + 1, Y + 1, W - 2, H - 2, 8, on ? FG : FAINT, on ? 2 : 1);
-    t.knobs.forEach((c, i) => dot(g, x + 28 + (i % 4) * 27, Y + 36 + Math.floor(i / 4) * 32, 9, c));
-    [t.fg, t.dim, t.faint, t.rec].forEach((c, i) => fill(g, x + 22 + i * 24, Y + 98, 20, 6, c));
-    txt(g, t.name, x + W / 2, Y + 124, "m", on ? FG : DIM, "center");
+    t.brand.forEach((c, i) => rrect(g, x + 14 + (i % 4) * 28, Y + 20 + Math.floor(i / 4) * 18, 24, 13, 3, c));
+    const tw = W - 28;
+    rrect(g, x + 14, Y + 72, tw, 5, 2, t.faint); rrect(g, x + 14, Y + 72, Math.max(4, tw * t.light.backlight), 5, 2, t.fg);
+    for (let l = 0; l < 3; l++) rrect(g, x + 14 + l * 16, Y + 90, 12, 12, 3, l < t.light.led ? t.fg : t.faint);
+    txt(g, t.name, x + W / 2, Y + 128, "m", on ? FG : DIM, "center");
   });
 }
 function settingsRight(g) {

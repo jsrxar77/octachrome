@@ -80,11 +80,12 @@ The mark of OP-8 is **eight buttons, one per colour of the rainbow, the eighth w
 Rules of the mark:
 
 - Always eight buttons, always in a fixed order that recalls the rainbow. In glossy and matte it is **red, orange, yellow, green, blue, indigo, violet, white**. In chrome it is one range, from the strongest violet drifting to blue, then white. The order never changes, in any size or use.
-- The eight are laid out **as the MK3 lays out eight** (§2.4): the eight group keys, **four and four** (the main mark), or the **eight knobs in a row** (the long mark). Reading order is left to right, then the second row. Never another arrangement: no loop, no circle, no stairs.
+- The eight are laid out **as the MK3 lays out eight** (§2.4): the eight group keys, **four and four** (the main mark), or the **eight knobs in a row** (the long mark). Reading order is left to right, then the second row. Those two are the mark. **Alternates** are allowed for the logo, the wordmark and play, with the same eight colours in the same order: the **infinity loop** (an 8 on its side, eight keys along it, for OP-8 read as OP-∞), a dial, a pad ring and two stacked fours (`guide/brand.html`). A picture of the unit itself never uses an alternate (§2.4).
 - Always on absolute black. Never fewer than eight, never another colour, never outlined, never a gradient.
 - The colours come from the active theme (`Theme.brand` in `crates/op8-gfx/src/theme.rs`). A theme may shift the range (softer in matte), but it always has **eight**: in glossy and matte the seven colours of the rainbow in their order, in chrome seven steps of one range, and in all of them the theme's own white last. A test checks that each button is the colour of its place (F-D09).
 - The keys keep the proportion of the unit's group keys and rounded corners; the knobs are circles. A single button may light in turn, like a playhead; nothing else moves. In the guide the eight can be played as a major scale, the white being the octave.
 - The wordmark is `OP-8` in Jost Light. The mark can stand alone or above the wordmark; the wordmark never carries the colours.
+- The loop and the other alternates are drawn from the same colours (`Theme.brand`); the infinity loop has no master file yet.
 - The master files are `guide/brand/op8-mark.svg` (4 + 4) and `guide/brand/op8-mark-knobs.svg` (a row). Their geometry is `MK3.mark` in `guide/mk3.js`.
 
 ### 2.4 Pictures of the unit
@@ -178,7 +179,7 @@ Settings is a **main mode** (SETTINGS button; see [buttons.md](buttons.md)): it 
 - **Capsule:** radius = height / 2, LED dot on the left, text without brackets, minimum margin of 8 px.
 - **Calibration crosses:** 3 px `+` in the corners of each technical view.
 - **Touch overlay:** darkens the drawing area; name in the encoder colour, value in `huge`, a thin 3 px bar.
-- **Theme card:** 136 × 160 px, 8 px corners, filled with *its own* theme's `panel` colour. Inside: that theme's eight encoder colours as 9 px dots in two rows of four; four chips (`fg`, `dim`, `faint`, `rec`); and its name in `m`, lowercase, below. A card is always drawn in its own colours, never the active theme's, so all three can be compared at once. The active card has a 2 px `fg` outline and an `fg` name; the others a 1 px `faint` outline and a `dim` name.
+- **Theme card:** 136 × 160 px, 8 px corners, filled with *its own* theme's `panel` colour. Inside: that theme's eight brand colours as small keys, four and four (the mark); a bar for the screen backlight it asks for; three squares for the level of the pad LEDs ([§2.5](#25-light)); and its name in `m`, lowercase, below. A card is always drawn in its own colours, never the active theme's, so all three can be compared at once. The active card has a 2 px `fg` outline and an `fg` name; the others a 1 px `faint` outline and a `dim` name.
 
 ## 6. Motion
 
