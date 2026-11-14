@@ -2,7 +2,7 @@
 //! `op8 run` on first boot and by `op8 sim`.
 
 use op8_cartridge::InstrumentCartridge;
-use op8_cartridges::{Drums, FmBass, KickSyn, MacroOsc, MidiMessage, MidiOutBridge};
+use op8_cartridges::{Drums, FmBass, KickSyn, MacroOsc, MidiMessage, MidiOutBridge, Resonator};
 use op8_engine::{Engine, EngineHandle, SharedCartridge};
 use op8_seq::{Project, Step, StepComponent, TRACKS};
 use std::sync::{Arc, Mutex};
@@ -14,7 +14,7 @@ fn shared(c: impl InstrumentCartridge + 'static) -> Option<SharedCartridge> {
 }
 
 /// The instruments run from the most guttural to the most refined: A drums (a kit), B KickSyn,
-/// C FmBass, D MidiOutBridge, E macro (the leads); F–H empty.
+/// C FmBass, D resonator, E MidiOutBridge, F macro (the leads); G–H empty.
 pub fn slots() -> (
     [Option<SharedCartridge>; TRACKS],
     rtrb::Consumer<MidiMessage>,
@@ -24,8 +24,9 @@ pub fn slots() -> (
     s[0] = shared(Drums::new());
     s[1] = shared(KickSyn::new());
     s[2] = shared(FmBass::new());
-    s[3] = shared(bridge);
-    s[4] = shared(MacroOsc::new());
+    s[3] = shared(Resonator::new());
+    s[4] = shared(bridge);
+    s[5] = shared(MacroOsc::new());
     (s, midi_rx)
 }
 
@@ -68,7 +69,16 @@ pub fn project() -> Project {
         .with(StepComponent::Every { n: 2, of: 2 })
         .with(StepComponent::Octave(1));
 
-    let arp = &mut p.tracks[3];
+    // D, resonator: a slow plucked line that follows the Brain.
+    let pluck = &mut p.tracks[3];
+    pluck.length = 12;
+    pluck.brain_link = true;
+    pluck.steps[0] = Step::on(60);
+    pluck.steps[3] = Step::on(64);
+    pluck.steps[6] = Step::on(67).with(StepComponent::Chance(80));
+    pluck.steps[9] = Step::on(72).with(StepComponent::Velocity(-30));
+
+    let arp = &mut p.tracks[4];
     arp.length = 5;
     arp.brain_link = true;
     arp.steps[0] = Step::on(60);
@@ -77,7 +87,7 @@ pub fn project() -> Project {
     arp.steps[4] = Step::on(72).with(StepComponent::Chance(60));
 
     // macro: a slow chord-ish line on the 'va' engine, linked to the Brain.
-    let synth = &mut p.tracks[4];
+    let synth = &mut p.tracks[5];
     synth.length = 16;
     synth.brain_link = true;
     synth.steps[0] = Step::on(60);

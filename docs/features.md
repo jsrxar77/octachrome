@@ -30,7 +30,7 @@ The buttons and their implementation status are in [buttons.md](buttons.md). Thi
 | F-S05 | Tapping a group A–H selects the track; its LED is brighter than the others | `ui.track` and the group LED level | ✓ |
 | F-S06 | Knob 1 in STEP changes the track length | `tracks[t].length` goes up and down, limited to 1–16 | ✓ |
 | F-S07 | MUTE + group mutes the track | `tracks[t].muted` toggles | ✓ |
-| F-S08 | A muted track emits no notes | track D (MIDI) muted: no new notes after the mute | ✓ |
+| F-S08 | A muted track emits no notes | track E (MIDI) muted: no new notes after the mute | ✓ |
 | F-S09 | A drum-kit track has eight lanes: a step plays one note per lane that is on (several sounds in one step), `SetKit` turns a track into a kit (existing notes become lanes by pitch class) and `ToggleLane` switches one lane ([instruments.md §7](instruments.md)) | `op8-seq` unit tests | ✓ |
 
 ## B · Brain (`tests/brain.rs`)
@@ -111,6 +111,7 @@ The buttons and their implementation status are in [buttons.md](buttons.md). Thi
 | F-A10 | drums: silent without notes, and all eight at once stay within full scale | `op8-cartridges` unit tests | ✓ |
 | F-A11 | A choice is heard at once, without playing the sequence: turning a knob of the selected instrument or `sound`, turning the note of a step, and tapping a drum step all play the note (`EngineCommand::Audition`) | peak of the track's audio with the sequence stopped | ✓ |
 | F-A12 | A choice is auditioned once, not over and over: the `sound` knob plays each new sound once, and a continuous knob plays nothing while it moves and one note when it has been still for 250 ms | note count of the track | ✓ |
+| F-A13 | resonator: both kinds (string, bells) ring when struck; four notes ring together and a fifth takes the oldest voice; silent without notes and bounded with every knob at maximum ([instruments.md §7](instruments.md)) | `op8-cartridges` unit tests (`resonator.rs`) | ✓ |
 
 ## G · Scripts (`tests/script.rs`)
 
