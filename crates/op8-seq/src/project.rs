@@ -216,6 +216,13 @@ impl Project {
                             s.lanes = 1 << ((s.note % 12) % 8);
                         }
                     }
+                    if !kit && t.kit {
+                        // leaving the kit: a step's first lane becomes its note
+                        for s in t.steps.iter_mut().filter(|s| s.lanes != 0) {
+                            s.note = crate::step::KIT_BASE_NOTE + s.lanes.trailing_zeros() as u8;
+                            s.lanes = 0;
+                        }
+                    }
                     t.kit = kit;
                 }
             }

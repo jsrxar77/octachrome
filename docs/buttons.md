@@ -13,7 +13,7 @@ The left screen always shows time and the right screen always shows sound. A mai
 | MK3 button | In Maschine | On the OP-XY | In OP-8 | Status |
 | :-- | :-- | :-- | :-- | :-- |
 | CHANNEL | Channel properties | instrument | **Instrument**: the default mode, for composing. Sequencer on the left, the track's cartridge on the right. CHANNEL goes back here from settings | ✓ |
-| PLUG-IN | Channel plug-ins | instrument (engine) | Choose the track's cartridge (cartridge list on the right). The 16 pads are the 16 places: 1–8 factory, 9–16 installed ([instruments.md §7](instruments.md)) | ○ |
+| PLUG-IN | Channel plug-ins | instrument (engine) | **Instruments**: a main mode that takes both screens. The 16 pads are the 16 places (the top two rows are the factory instruments from the most guttural to the most refined, the bottom two are for installed ones); a tap puts that instrument on the selected track and goes back to composing. The MIDI out moves from the track that has it. PLUG-IN again leaves ([instruments.md §7](instruments.md)) | ✓ |
 | MACRO | Macros | auxiliary | **Auxiliary**: Brain, effect sends and inputs/outputs | ○ |
 | ARRANGER | Ideas and song | arrange | **Arrange**: scenes and the song chain | ○ |
 | MIXER | Mix | mix | **Mix**: level and pan of the 8 tracks, master EQ and compressor | ○ |

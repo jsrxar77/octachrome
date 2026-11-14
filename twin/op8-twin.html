@@ -174,6 +174,7 @@ canvas.lcd {
             <button class="btn" id="bChannel" title="Compose: the sequencer on the left, the instrument on the right">CHANNEL</button>
             <button class="btn" id="bSettings" title="Settings: both screens">SETTINGS</button>
             <button class="btn" id="bFile" title="Proyectos: abrir y guardar">FILE</button>
+            <button class="btn" id="bPlug" title="Elegir el instrumento de la pista">PLUG-IN</button>
           </div>
         </div>
         <div class="grp">
@@ -666,7 +667,7 @@ function setMode(m) {
 // Main modes: CHANNEL composes (sequencer left, instrument right); SETTINGS
 // takes both screens for the machine's settings (theme for now).
 const THEME_IDS = ["glossy", "matte", "chrome"];
-function setMain(m) { UI.main = m; UI.inspect = null; inspectorPad = null; if (m === "file") { UI.fileNote = ""; } }
+function setMain(m) { UI.main = m; UI.inspect = null; inspectorPad = null; if (m === "file") { UI.fileNote = ""; } if (m === "plugin") UI.plugNote = ""; }
 function themeStep(d) { LOOK.theme = THEME_IDS[((THEME_IDS.indexOf(LOOK.theme) + d) % 3 + 3) % 3]; applyLook(); }
 function groupPress(g) {
   if (UI.main === "settings") return;
@@ -699,6 +700,7 @@ function recordNote(note, vel) {
 }
 function padDown(pad, vel) {
   if (UI.main === "file") { filePad(pad); return; }
+  if (UI.main === "plugin") { plugPad(pad); return; }
   if (UI.main === "settings") return;
   if (UI.mode === "step") {
     if (padDownAt[pad] == null) {
@@ -726,7 +728,7 @@ function padPressure(pad, p) {
   }
 }
 function padUp(pad) {
-  if (UI.main === "settings" || UI.main === "file") return;
+  if (UI.main === "settings" || UI.main === "file" || UI.main === "plugin") return;
   if (UI.mode === "step") {
     const wasDown = padDownAt[pad] != null; padDownAt[pad] = null;
     if (inspectorPad === pad) { inspectorPad = null; UI.inspect = null; }
@@ -943,6 +945,39 @@ function filePad(pad) {
   if (!src) { UI.fileNote = "empty: SHIFT + tap saves here"; return; }
   loadProject(src); UI.main = "instrument"; UI.mode = "step"; UI.fileNote = "";
 }
+// ---- PLUG-IN: the instrument of the selected track (Controller::plugin_pad). The factory eight, then eight places for installed ones.
+const FACTORY_INSTRUMENTS = [["drums", "drums", true], ["KickSyn", "kick", true], ["FmBass", "fm", true], ["resonator", "resonator", true], ["sampler", null, false], ["granular", null, false], ["midi out", "midi", true], ["macro", "macro", true]];
+function plugPad(pad) {
+  const slot = padToStep(pad), t = UI.track, f = FACTORY_INSTRUMENTS[slot];
+  if (!f) { UI.plugNote = "empty: installed instruments will go here"; return; }
+  if (!f[2]) { UI.plugNote = f[0] + " is not built yet"; return; }
+  if (SLOTS[t] !== f[1]) {
+    if (f[1] === "midi") { const from = SLOTS.indexOf("midi"); if (from < 0) { UI.plugNote = "no MIDI out is running"; return; } PARAMS[t] = PARAMS[from]; SLOTS[from] = null; PARAMS[from] = null; }
+    else { PARAMS[t] = CARTS[f[1]].params.map(p => p[1]); if (f[1] === "drums") PARAMS[t][7] = .5 / 8; }
+    SLOTS[t] = f[1];
+    if (f[1] !== "drums" && P.tracks[t].kit) { P.tracks[t].kit = false; P.tracks[t].steps.forEach(st => { if (st.lanes) { st.note = 60 + Math.log2(st.lanes & -st.lanes); st.lanes = 0; } }); }
+  }
+  UI.page = 0; UI.main = "instrument"; UI.plugNote = "";
+}
+function plugCells() { const cur = FACTORY_INSTRUMENTS.findIndex(f => f[1] === SLOTS[UI.track]); return { cells: Array.from({ length: 16 }, (_, i) => FACTORY_INSTRUMENTS[i] ? [FACTORY_INSTRUMENTS[i][0], FACTORY_INSTRUMENTS[i][2]] : ["", false]), cur }; }
+function pickLeft(title, cells, last) {
+  return g => {
+    fill(g, 0, 0, 480, 272, BG); dot(g, 16, 15, 6, FG); txt(g, title, 30, 6, "mid", FG);
+    if (S.playing) { g.fillStyle = FG; g.beginPath(); g.moveTo(460, 8); g.lineTo(470, 14); g.lineTo(460, 20); g.fill(); } else fill(g, 460, 9, 10, 10, DIM);
+    cells.forEach(([name, has], i) => {
+      const x = 12 + (i % 4) * 114, y = 44 + Math.floor(i / 4) * 48, on = last === i;
+      if (has) rrect(g, x, y, 108, 42, 8, i < 8 ? PANEL : FAINT);
+      rrect(g, x + .5, y + .5, 107, 41, 8, on ? FG : has ? DIM : FAINT, on ? 2 : 1);
+      txt(g, name || "empty", x + 54, y + 21, "m", has ? FG : DIM, "center", "middle");
+    });
+  };
+}
+function plugLeft(g) { const { cells, cur } = plugCells(); pickLeft("instruments", cells, cur)(g); }
+function plugRight(g) {
+  fill(g, 0, 0, 480, 272, BG); dot(g, 16, 15, 6, FG); txt(g, "plug-in", 30, 6, "mid", FG);
+  txt(g, "tap a pad", 30, 80, "mid", FG); txt(g, "puts that instrument on the selected track", 30, 110, "m", DIM);
+  if (UI.plugNote) txt(g, UI.plugNote, 30, 208, "mid", FG);
+}
 function fileLeft(g) {
   fill(g, 0, 0, 480, 272, BG); dot(g, 16, 15, 6, FG); txt(g, UI.shift ? "save" : "open", 30, 6, "mid", FG);
   if (S.playing) { g.fillStyle = FG; g.beginPath(); g.moveTo(460, 8); g.lineTo(470, 14); g.lineTo(460, 20); g.fill(); } else fill(g, 460, 9, 10, 10, DIM);
@@ -988,6 +1023,7 @@ function drawLeft(g) {
   animate();
   if (UI.main === "settings") { settingsLeft(g); return; }
   if (UI.main === "file") { fileLeft(g); return; }
+  if (UI.main === "plugin") { plugLeft(g); return; }
   const accent = TRACK_COLORS[UI.track];
   fill(g, 0, 0, 480, 272, BG);
   topBar(g, accent);
@@ -1221,6 +1257,7 @@ function readScope(t) { if (!actx || !analysers[t]) { scopeBuf.fill(0); return 0
 function drawRight(g) {
   if (UI.main === "settings") { settingsRight(g); return; }
   if (UI.main === "file") { fileRight(g); return; }
+  if (UI.main === "plugin") { plugRight(g); return; }
   const t = UI.track, accent = TRACK_COLORS[t], slot = SLOTS[t];
   fill(g, 0, 0, 480, 272, BG);
   dot(g, 16, 15 + HDR, 6, accent);
@@ -1449,6 +1486,7 @@ $("bChannel").addEventListener("click", () => setMain("instrument"));
 $("bSettings").addEventListener("click", () => setMain(UI.main === "settings" ? "instrument" : "settings"));
 $("bRec").addEventListener("click", () => { if (UI.main === "instrument") UI.rec = !UI.rec; });
 $("bFile").addEventListener("click", () => setMain(UI.main === "file" ? "instrument" : "file"));
+$("bPlug").addEventListener("click", () => setMain(UI.main === "plugin" ? "instrument" : "plugin"));
 $("sb1").addEventListener("click", () => { if (UI.main === "instrument") setMode("step"); });
 $("sb2").addEventListener("click", () => { if (UI.main === "instrument") { setMode("step"); UI.inspect = 0; UI.compCursor = 0; } });
 $("sb5").addEventListener("click", () => { if (UI.main === "instrument") UI.page = 1; });
@@ -1503,7 +1541,7 @@ function updateLeds() {
   const L = {
     bStep: composing && UI.mode === "step" ? 2 : 1, bChords: composing && UI.mode === "brain" ? 2 : 1, bPerform: composing && UI.mode === "punch" ? 2 : 1,
     bPads: composing && UI.mode === "pads" ? 2 : 1, bKeys: composing && UI.mode === "keys" ? 2 : 1,
-    bChannel: composing ? 2 : 1, bSettings: UI.main === "settings" ? 2 : 1, bFile: UI.main === "file" ? 2 : 1, bShift: UI.shift ? 2 : 1,
+    bChannel: composing ? 2 : 1, bSettings: UI.main === "settings" ? 2 : 1, bFile: UI.main === "file" ? 2 : 1, bPlug: UI.main === "plugin" ? 2 : 1, bShift: UI.shift ? 2 : 1,
     bMute: composing ? (UI.mute ? 2 : 1) : 0, bErase: composing ? (UI.erase ? 2 : 1) : 0,
     bStop: S.playing ? 1 : 2, bRestart: 1, bRec: composing ? (UI.rec ? 2 : 1) : 0, jogL: !composing || UI.mode === "keys" ? 1 : 0, jogR: !composing || UI.mode === "keys" ? 1 : 0,
     sb1: composing ? (UI.mode === "step" && UI.inspect == null ? 2 : 1) : 0, sb2: composing ? (UI.inspect != null ? 2 : 1) : 0,

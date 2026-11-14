@@ -23,6 +23,9 @@ pub fn draw_right(
     if ui.main == crate::Main::File {
         return crate::files::draw_right(fb, ui);
     }
+    if ui.main == crate::Main::Plugin {
+        return crate::files::pick_right(fb, "plug-in", &[("tap a pad", "puts that instrument on the selected track")], &ui.plug_note);
+    }
     let t = theme();
     let accent = track_color(ui.track);
     let Some(c) = cartridge else {

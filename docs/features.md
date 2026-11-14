@@ -140,6 +140,15 @@ The buttons and their implementation status are in [buttons.md](buttons.md). Thi
 | F-C08 | On the real MK3: the SETTINGS button reaches the app and its LED lights, the 4D encoder changes the theme on both screens, the choice survives a restart, and `-t` overrides it | **manual review**, with `OP8_LOG_EVENTS=1` | R |
 | F-C09 | The theme changes the pad and group LEDs, not only the screens: track B's pad and group key take that theme's colour from `track_led_colors`, and the three themes do not light the pads alike | `crates/op8/tests/settings.rs` | ✓ |
 
+## I · Instruments (`tests/plugin.rs`)
+
+| ID | Behaviour | How it is verified | Status |
+| :-- | :-- | :-- | :-- |
+| F-I01 | PLUG-IN shows the sixteen places on both screens (the factory instruments from the most guttural to the most refined, then eight for installed ones), marks the instrument of the selected track, and a pad puts that instrument on the track and goes back to composing; PLUG-IN again leaves | the instrument of the track | ✓ |
+| F-I02 | An instrument that is not built yet, and an empty place, say so and change nothing | the instrument is unchanged | ✓ |
+| F-I03 | The MIDI out is one bridge that owns the MIDI queue: choosing it moves it from the track that has it | the instruments of both tracks | ✓ |
+| F-I04 | Leaving the drums turns a kit track's lanes back into notes, so the pattern is not lost | the steps of the track | ✓ |
+
 ## F · Files (`tests/files.rs`, `crates/op8-seq`, `crates/op8`)
 
 | ID | Behaviour | How it is verified | Status |

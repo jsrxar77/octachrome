@@ -86,6 +86,19 @@ pub fn track_led_colors(id: op8_gfx::ThemeId) -> [NiColor; TRACKS] {
     }
 }
 
+/// The factory instruments in the order of the PLUG-IN pads (the top two rows), from the most guttural to the
+/// most refined: the name shown, the name the registry knows, and whether it exists yet.
+pub const FACTORY_INSTRUMENTS: [(&str, &str, bool); 8] = [
+    ("drums", "drums", true),
+    ("KickSyn", "KickSyn", true),
+    ("FmBass", "FmBass", true),
+    ("resonator", "resonator", true),
+    ("sampler", "sampler", false),
+    ("granular", "granular", false),
+    ("midi out", "MidiOutBridge", true),
+    ("macro", "macro", true),
+];
+
 /// The notes of a chord, ascending from its root in the octave below middle C (C3 = 48).
 fn chord_notes(c: Chord) -> Vec<u8> {
     (0..12u8)
@@ -146,6 +159,7 @@ impl Controller {
             ControlEvent::Button { button, pressed } => self.button(button, pressed, h),
             // In settings the pads and knobs do nothing; the 4D encoder picks the theme.
             ControlEvent::Pad { pad, event } if self.ui.main == Main::File => self.file_pad(pad, event, h),
+            ControlEvent::Pad { pad, event } if self.ui.main == Main::Plugin => self.plugin_pad(pad, event, h),
             ControlEvent::Pad { .. } | ControlEvent::Knob { .. } if self.ui.main != Main::Instrument => {}
             ControlEvent::Encoder { delta } if self.ui.main == Main::Settings => {
                 self.step_theme(delta)
@@ -250,6 +264,10 @@ impl Controller {
                 self.set_main(to, h);
             }
             Button::Rec if self.ui.main == Main::Instrument => self.ui.rec = !self.ui.rec,
+            Button::PlugIn => {
+                let to = if self.ui.main == Main::Plugin { Main::Instrument } else { Main::Plugin };
+                self.set_main(to, h);
+            }
             Button::File => {
                 let to = if self.ui.main == Main::File { Main::Instrument } else { Main::File };
                 self.set_main(to, h);
@@ -292,6 +310,64 @@ impl Controller {
                 }
             })
             .collect();
+    }
+
+    /// The sixteen places of PLUG-IN and which one the selected track has now.
+    fn refresh_plugs(&mut self, h: &EngineHandle) {
+        self.ui.plugs = (0..16)
+            .map(|i| match FACTORY_INSTRUMENTS.get(i) {
+                Some((name, _, built)) => (name.to_string(), *built),
+                None => (String::new(), false), // the places for installed instruments start empty
+            })
+            .collect();
+        let now = h.slots[self.ui.track].as_ref().and_then(|c| c.lock().ok().map(|c| c.info().name));
+        self.ui.plug_current = now.and_then(|n| FACTORY_INSTRUMENTS.iter().position(|f| f.1 == n));
+    }
+
+    /// PLUG-IN: a pad puts that instrument on the selected track. The MIDI out is one bridge that owns the MIDI
+    /// queue, so choosing it moves the bridge from the track that has it.
+    fn plugin_pad(&mut self, pad: u8, ev: PadEvent, h: &mut EngineHandle) {
+        if !matches!(ev, PadEvent::Press | PadEvent::Strike(_)) || self.pad_down_at[pad as usize].is_some() {
+            if ev == PadEvent::Release {
+                self.pad_down_at[pad as usize] = None;
+            }
+            return;
+        }
+        self.pad_down_at[pad as usize] = Some(0);
+        let slot = Self::pad_to_step(pad) as usize;
+        let track = self.ui.track;
+        let Some(&(label, name, built)) = FACTORY_INSTRUMENTS.get(slot) else {
+            self.ui.plug_note = "empty: installed instruments will go here".into();
+            return;
+        };
+        if !built {
+            self.ui.plug_note = format!("{label} is not built yet");
+            return;
+        }
+        let current = h.slots[track].as_ref().and_then(|c| c.lock().ok().map(|c| c.info().name));
+        if current.as_deref() != Some(name) {
+            if name == "MidiOutBridge" {
+                // move the running bridge here
+                let from = (0..TRACKS).find(|&t| h.slots[t].as_ref().is_some_and(|c| c.lock().is_ok_and(|c| c.info().name == name)));
+                let Some(from) = from else {
+                    self.ui.plug_note = "no MIDI out is running".into();
+                    return;
+                };
+                let bridge = h.slots[from].take();
+                h.send(EngineCommand::LoadCartridge { track: from as u8, cartridge: None });
+                h.slots[track] = bridge.clone();
+                h.send(EngineCommand::LoadCartridge { track: track as u8, cartridge: bridge });
+            } else if let Some(c) = op8_cartridges::create(name) {
+                h.load_cartridge(track, c);
+            }
+            // a drum kit is programmed in lanes: the track follows the instrument
+            if name != "drums" && h.project.tracks[track].kit {
+                h.seq(Command::SetKit { track: track as u8, kit: false });
+            }
+        }
+        self.ui.right_page = 0;
+        self.ui.plug_note = String::new();
+        self.set_main(Main::Instrument, h);
     }
 
     /// FILE: a pad opens the project in its slot; SHIFT + a pad of the player's slots saves into it.
@@ -465,6 +541,10 @@ impl Controller {
         if m == Main::File {
             self.refresh_files();
             self.ui.file_note.clear();
+        }
+        if m == Main::Plugin {
+            self.refresh_plugs(h);
+            self.ui.plug_note.clear();
         }
         self.ui.main = m;
         self.ui.inspect_step = None;
@@ -844,6 +924,16 @@ impl Controller {
                     _ => 1,
                 };
                 out.set_pad(pad, NiColor::White, level);
+            }
+        }
+        if self.ui.main == Main::Plugin {
+            for pad in 0..16u8 {
+                let slot = Self::pad_to_step(pad) as usize;
+                match self.ui.plugs.get(slot) {
+                    Some((_, true)) if self.ui.plug_current == Some(slot) => out.set_pad(pad, NiColor::White, 3),
+                    Some((_, true)) => out.set_pad(pad, NiColor::White, 2),
+                    _ => {}
+                }
             }
         }
         for pad in (0..16u8).filter(|_| composing) {

@@ -11,7 +11,7 @@
   [["step","p","Step grid and polymeter"],["components","p","Step components (hold a pad today)"],["players","n","Arpeggio and chords"],["bar","p","Length and division (knobs 1–2 today)"],["sound","y","Instrument page 1"],["shape","y","Instrument page 2"],["fx","n","The track's effect"],["mod","n","The track's LFO"]]
     .forEach((b, i) => add(String(i + 1), R(153 + 39.1 * i, 40, 34, 12), b[1], b[0] + ": " + b[2]));
   // left block: two columns, six rows
-  [[["CHANNEL","y","Back to composing"],["PLUG-IN","n","Choose the track's instrument"]],
+  [[["CHANNEL","y","Back to composing"],["PLUG-IN","y","Choose the track's instrument: the 16 pads are the 16 places"]],
    [["ARRANGER","n","Scenes and the song"],["MIXER","n","Level and pan of the 8 tracks"]],
    [["BROWSER","n","Presets of the instrument"],["SAMPLING","n","Record a sample"]],
    [["PAGE ◀","n","Previous page of the current mode"],["PAGE ▶","n","Next page of the current mode"]],

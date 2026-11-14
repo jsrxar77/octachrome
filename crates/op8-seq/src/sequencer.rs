@@ -553,6 +553,16 @@ mod tests {
     }
 
     #[test]
+    fn leaving_the_kit_turns_lanes_back_into_notes() {
+        let mut p = Project::default();
+        p.tracks[0].kit = true;
+        p.tracks[0].steps[2] = Step::kit(0b0100_0100); // lanes 2 and 6: the first becomes the note
+        p.apply(&Command::SetKit { track: 0, kit: false });
+        let s = p.tracks[0].steps[2];
+        assert!(!p.tracks[0].kit && s.active && s.lanes == 0 && s.note == 62);
+    }
+
+    #[test]
     fn kit_commands_toggle_lanes_and_convert_notes() {
         let mut p = Project::default();
         p.tracks[0].steps[3] = Step::on(61); // a snare by its pitch class
