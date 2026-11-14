@@ -73,6 +73,8 @@ canvas.lcd {
 .btn:active, .btn.down { transform: translateY(1px); box-shadow: 0 1px 0 #0a0a0b; }
 .btn.lit { color: var(--ink); box-shadow: 0 2px 0 #0a0a0b, inset 0 0 0 1px var(--ink-dim); }
 .btn.on { color: #0b0b0b; background: var(--ink); }
+/* a button that has something to do here: a very faint white (dark = nothing to do, strong = pressed or in focus) */
+.btn.avail { color: rgba(255,255,255,.30); box-shadow: 0 2px 0 #0a0a0b, inset 0 0 0 1px rgba(255,255,255,.07); }
 .btn:focus-visible, .pad:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .groups { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
 .groups .btn { --c: #888; border-bottom: 3px solid color-mix(in srgb, var(--c) 45%, transparent); }
@@ -1430,17 +1432,20 @@ function updateLeds() {
   $("bPlay").classList.toggle("on", S.playing);
   $("bStop").classList.toggle("lit", !S.playing);
   const composing = UI.main === "instrument"; // the pad modes only light while composing
-  $("bStep").classList.toggle("on", composing && UI.mode === "step");
-  $("bChords").classList.toggle("on", composing && UI.mode === "brain");
-  $("bPerform").classList.toggle("on", composing && UI.mode === "punch");
-  $("bPads").classList.toggle("on", composing && UI.mode === "pads");
-  $("bKeys").classList.toggle("on", composing && UI.mode === "keys");
-  $("bChannel").classList.toggle("on", UI.main === "instrument");
-  $("bSettings").classList.toggle("on", UI.main === "settings");
-  $("bShift").classList.toggle("on", UI.shift);
-  $("bMute").classList.toggle("on", UI.mute);
-  $("bErase").classList.toggle("on", UI.erase);
-  $("sb5").classList.toggle("lit", UI.page === 1); $("sb6").classList.toggle("lit", UI.page === 0);
+  // One rule for every button: dark if it does nothing in this context (0), a very faint white if it does something (1),
+  // a strong white while it is pressed or has the focus (2). Same table as crates/op8/src/lights.rs.
+  const slot = SLOTS[UI.track], second = slot && CARTS[slot].params.length > 4, shape = UI.page === 1 && second;
+  const L = {
+    bStep: composing && UI.mode === "step" ? 2 : 1, bChords: composing && UI.mode === "brain" ? 2 : 1, bPerform: composing && UI.mode === "punch" ? 2 : 1,
+    bPads: composing && UI.mode === "pads" ? 2 : 1, bKeys: composing && UI.mode === "keys" ? 2 : 1,
+    bChannel: composing ? 2 : 1, bSettings: composing ? 1 : 2, bShift: UI.shift ? 2 : 1,
+    bMute: composing ? (UI.mute ? 2 : 1) : 0, bErase: composing ? (UI.erase ? 2 : 1) : 0,
+    bStop: S.playing ? 1 : 2, bRestart: 1, jogL: !composing || UI.mode === "keys" ? 1 : 0, jogR: !composing || UI.mode === "keys" ? 1 : 0,
+    sb1: composing ? (UI.mode === "step" && UI.inspect == null ? 2 : 1) : 0, sb2: composing ? (UI.inspect != null ? 2 : 1) : 0,
+    sb5: composing && second ? (shape ? 2 : 1) : 0, sb6: composing ? (shape ? 1 : 2) : 0,
+  };
+  for (const id of ["sb3", "sb4", "sb7", "sb8"]) L[id] = 0;
+  for (const id in L) { const e = $(id); if (!e) continue; e.classList.toggle("avail", L[id] === 1); e.classList.toggle("on", L[id] === 2); e.classList.remove("lit"); }
   knobEls.forEach((k, i) => k.classList.toggle("touched", UI.touch[i]));
   const si = UI.strip == null ? -1 : Math.round(UI.strip * 24);
   stripLeds.forEach((l, i) => l.classList.toggle("on", i === si));

@@ -11,6 +11,7 @@ pub mod bench;
 pub mod audio;
 pub mod controller;
 pub mod demo;
+pub mod lights;
 pub mod midi;
 pub mod script;
 pub mod settings;

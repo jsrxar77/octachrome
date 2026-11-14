@@ -109,6 +109,16 @@ A theme is also how much **light** the machine gives, not only its colours. The 
 
 The values are `Theme.light` in `crates/op8-gfx/src/theme.rs`; the supply's ceiling is the power plan in `crates/op8-hw/src/mk3/power.rs` (F-H07). `guide/themes.html` shows the three on the whole unit. The monochrome theme is still open: its colours and its light are provisional until it is seen on the MK3.
 
+### 2.6 Light of the buttons
+
+Every button follows one rule, the same for all of them (`crates/op8/src/lights.rs`, one table):
+
+- **Dark:** it does nothing in the current context (REC, TAP… until they are built; MUTE and ERASE in settings).
+- **Very faint white:** it does something here. It can be pressed, but it is not in use.
+- **Strong white:** it is pressed or held, or it has the focus: the pad mode in use, CHANNEL while composing and SETTINGS in settings, the page that is open, SHIFT, MUTE or ERASE while held, STOP while stopped and PLAY while playing.
+
+The buttons whose LED has a colour (the groups A–H, PLAY) keep it and follow the same three levels. The faint white is about 10 % of the full brightness, which also keeps the current down ([architecture.md §10](architecture.md)). The eight screen buttons use the same rule through `screen_buttons` (§4). In the twin a faint button has a faint label and a strong one is filled.
+
 ## 3. Typography
 
 The screens are a real 480×272, so the type has to be readable at 11–15 px. It is rendered with anti-aliasing (TrueType).

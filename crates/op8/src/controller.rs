@@ -37,6 +37,8 @@ use op8_ui::{Main, Mode, UiState, COMPONENT_PRESETS};
 use std::sync::atomic::Ordering::Relaxed;
 
 pub const HOLD_MS: u64 = 300;
+/// A button that has something to do is this bright (of 1.0): a very faint white.
+const FAINT_WHITE: f32 = 0.10;
 /// How long a knob of the instrument has to be still before its result is auditioned.
 const AUDITION_PAUSE_MS: u64 = 250;
 /// Knob units (1000 per turn) per discrete step: 25 detents per turn.
@@ -96,6 +98,8 @@ fn chord_notes(c: Chord) -> Vec<u8> {
 #[derive(Default)]
 pub struct Controller {
     pub ui: UiState,
+    /// The buttons that are down right now, for their lights.
+    down: std::collections::HashSet<Button>,
     /// The notes of the chord that a CHORDS pad is sounding, to release them.
     chord_notes: Vec<u8>,
     /// The note each pad is holding in PAD MODE / KEYBOARD, to release it.
@@ -182,6 +186,11 @@ impl Controller {
     }
 
     fn button(&mut self, b: Button, pressed: bool, h: &mut EngineHandle) {
+        if pressed {
+            self.down.insert(b);
+        } else {
+            self.down.remove(&b);
+        }
         match b {
             Button::Shift => {
                 self.held.shift = pressed;
@@ -773,26 +782,16 @@ impl Controller {
             };
             out.set_button_color(Button::Group(t as u8), colors[t], level);
         }
-        out.set_button_color(Button::Play, NiColor::Green, if playing { 3 } else { 1 });
-        out.set_button(Button::Stop, if playing { 0.2 } else { 1.0 });
-        // The pad mode buttons only light while composing.
-        let lit = |on: bool| if composing && on { 1.0 } else { 0.2 };
-        out.set_button(Button::Step, lit(self.ui.mode == Mode::Step));
-        out.set_button(Button::Chords, lit(self.ui.mode == Mode::Brain));
-        out.set_button(Button::Perform, lit(self.ui.mode == Mode::Punch));
-        out.set_button(Button::PadMode, lit(self.ui.mode == Mode::Pads));
-        out.set_button(Button::Keyboard, lit(self.ui.mode == Mode::Keys));
-        out.set_button(Button::ChannelMidi, if composing { 1.0 } else { 0.2 });
-        out.set_button(Button::Settings, if composing { 0.2 } else { 1.0 });
-        out.set_button(Button::Shift, if self.held.shift { 1.0 } else { 0.2 });
-        // The eight screen buttons: lit only if they do something, full if their page is open.
-        for (i, b) in op8_ui::screen_buttons(&self.ui).iter().enumerate() {
-            let level = match b {
-                None => 0.0,
-                Some((_, true)) => 1.0,
-                Some((_, false)) => 0.25,
-            };
-            out.set_button(Button::Screen(i as u8 + 1), level);
+        // Every other button, from one table (see `lights`): dark, faint white, or strong white.
+        let ctx = crate::lights::Context { playing, shift: self.held.shift, mute: self.held.mute, erase: self.held.erase, down: &self.down };
+        for b in crate::lights::all() {
+            let l = crate::lights::light(&self.ui, &ctx, b);
+            if op8_hw::leds::button_is_colour(b) {
+                let colour = if b == Button::Play { NiColor::Green } else { NiColor::White };
+                out.set_button_color(b, colour, match l { crate::lights::Light::Off => 0, crate::lights::Light::Dim => 1, crate::lights::Light::Full => 3 });
+            } else {
+                out.set_button(b, match l { crate::lights::Light::Off => 0.0, crate::lights::Light::Dim => FAINT_WHITE, crate::lights::Light::Full => 1.0 });
+            }
         }
         // Smart Strip shows the filter position.
         if let Some(x) = self.ui.strip {
