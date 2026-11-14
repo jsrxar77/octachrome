@@ -49,6 +49,8 @@ The buttons and their implementation status are in [buttons.md](buttons.md). Thi
 | F-P01 | PERFORM switches to Punch mode | `ui.mode == Punch` | ✓ |
 | F-P02 | A pad in Punch engages the effect while held and turns it off on release | `ui.punch` is `Some` during the press and `None` after | ✓ |
 | F-P03 | There is always a way back to the sequencer: STEP leaves Punch and Brain, and pressing PERFORM or CHORDS again while in that mode goes back to STEP | `ui.mode` after the presses | ✓ |
+| F-P04 | PAD MODE: on a drum kit pads 1–8 play the eight sounds (and are heard with the sequence stopped) and pads 9–16 are free; on any other instrument the pads climb the Brain's scale from its key; pressing the button again goes back to STEP ([buttons.md](buttons.md)) | note count of the track and `pad_note` | ✓ |
+| F-P05 | KEYBOARD: the pads are a chromatic keyboard from C3, the 4D encoder ◀ ▶ moves the octave, a held pad sounds, and in settings the pads do nothing | note count and `pad_note` | ✓ |
 
 ## K · Knobs (`tests/knobs.rs`)
 
@@ -87,6 +89,7 @@ The buttons and their implementation status are in [buttons.md](buttons.md). Thi
 | F-L01 | PLAY lights green when playing and dim when stopped | palette `Green`, level 3 vs 1 | ✓ |
 | F-L02 | The step pads show the track colour: active bright in the track colour, inactive a dim white (F-L07) | level 3 with the colour of `track_led_colors` (glossy) | ✓ |
 | F-L07 | An empty step lights its pad as a dim white (level 1), not a dim colour, so it stays apart from an active pad under any cap | palette `White`, level 1 | ✓ |
+| F-L08 | In PAD MODE and KEYBOARD the pads that play are lit in the track colour, a held pad is white, and on the keyboard every C is brighter | pad LED bytes | ✓ |
 
 ## M · MIDI (`tests/midi.rs`)
 

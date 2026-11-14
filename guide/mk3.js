@@ -22,7 +22,7 @@
   [["VOLUME",131,203,32,"n","Master volume"],["NOTE REPEAT",169,203,34,"n","Repeat the held note"],["SWING",131,221,32,"n","Global swing"],["TEMPO",131,239,32,"n","Tempo"],["LOCK",169,239,34,"n","Snapshot of all the knobs"]]
     .forEach(b => add(b[0], R(b[1], b[2], b[3], 14), b[4], b[5]));
   // pad modes, above the pads
-  [["FIXED VEL",232,31,"n","Fixed velocity"],["PAD MODE",275,31,"n","Pads trigger the 8 tracks"],["KEYBOARD",325,40,"n","Chromatic keyboard"],["CHORDS",373,40,"y","Brain: pads are chord degrees"],["STEP",425,42,"y","Pads are the 16 steps"]]
+  [["FIXED VEL",232,31,"n","Fixed velocity"],["PAD MODE",275,31,"y","The pads play the instrument: a kit's eight sounds, or the scale"],["KEYBOARD",325,40,"y","Chromatic keyboard; the 4D encoder ◀ ▶ moves the octave"],["CHORDS",373,40,"y","Brain: pads are chord degrees"],["STEP",425,42,"y","Pads are the 16 steps"]]
     .forEach(b => add(b[0], R(b[1], 203, b[2], 12), b[3], b[4]));
   // column left of the pads
   [["SCENE",224,"n","16 scenes on the pads"],["PATTERN",245,"n","16 patterns on the pads"],["EVENTS",275,"n","Components of the selected step"],["VARIATION",299,"n","Random variation"],["DUPLICATE",324,"n","Copy a step, pattern or track"],["SELECT",346,"n","Choose without sounding"],["SOLO",369,"n","Isolate a track"],["MUTE",392,"y","Hold + a group to mute the track"]]

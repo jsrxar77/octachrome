@@ -44,9 +44,9 @@ They are the modules of the current mode, like M1–M4 on the OP-XY. Their name 
 | MK3 button | In Maschine | On the OP-XY | In OP-8 | Status |
 | :-- | :-- | :-- | :-- | :-- |
 | STEP | Step sequencer | seq (steps) | Pads = the 16 steps of the track. Holding a pad opens its components | ✓ |
-| KEYBOARD | Chromatic pads | keyboard | Pads = the track's chromatic keyboard. 4D encoder ◀ ▶ = octave (the − and + of the OP-XY) | ○ |
+| KEYBOARD | Chromatic pads | keyboard | Pads = a chromatic keyboard from C3 that plays the track's instrument while a pad is held. 4D encoder ◀ ▶ (or knob 1) = octave (the − and + of the OP-XY). Pressing KEYBOARD again goes back to STEP. Not recorded yet (REC) | ✓ |
 | CHORDS | Chord mode | players (chords) / brain | **Brain**: chord progression. Pads = degrees; holding one = live chord. Pressing CHORDS again goes back to STEP | ✓ |
-| PAD MODE | Pads as sounds | (tracks) | Pads 1–8 trigger the 8 tracks; 9–16 are left for a drum cartridge | ○ |
+| PAD MODE | Pads as sounds | (tracks) | The pads play the track's instrument by hand. On a drum kit pads 1–8 are the eight sounds and pads 9–16 are free; on any other instrument the pads climb the Brain's scale from its key. Pressing PAD MODE again goes back to STEP. Not recorded yet (REC) | ✓ |
 | PERFORM · Shift: choose | Perform FX on the Smart Strip | punch-in fx | **Punch-in FX**: each pad an effect, pressure is the intensity. Pressing PERFORM again goes back to STEP | ✓ |
 | NOTE REPEAT · Shift: arp | Repeat and arpeggiator | players (arp) | Repeat the held note; with Shift, arpeggiator | ○ (today it opens Punch) |
 | FIXED VEL | Fixed velocity | — | Fixed velocity when recording or playing | ○ |

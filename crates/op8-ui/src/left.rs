@@ -42,6 +42,7 @@ pub fn draw_left(fb: &mut FrameBuffer480x272, ui: &UiState, p: &Project, st: &En
         (Mode::Step, Some(step)) => inspector(fb, ui, p, step as usize, accent),
         (Mode::Brain, _) => brain_view(fb, p, st, accent),
         (Mode::Punch, _) => punch_view(fb, ui, accent),
+        (Mode::Pads | Mode::Keys, _) => play_view(fb, ui, p, accent),
         _ => {
             if p.tracks[ui.track].kit {
                 lanes_view(fb, ui, p, st, accent);
@@ -239,6 +240,48 @@ fn lanes_view(fb: &mut FrameBuffer480x272, ui: &UiState, p: &Project, st: &Engin
         }
     }
 }
+
+/// PAD MODE and KEYBOARD: the sixteen pads as they are on the unit (pad 1 bottom-left), each
+/// with the note or sound it plays, lit while it is held; on the left, what the pads are.
+fn play_view(fb: &mut FrameBuffer480x272, ui: &UiState, p: &Project, accent: Rgb565) {
+    let t = theme();
+    let kit = ui.lane.is_some();
+    for pad in 0..16u8 {
+        let (col, row) = ((pad % 4) as i32, 3 - (pad / 4) as i32);
+        let x = (GRID_X + col * (CELL + GAP)) as f32;
+        let y = (GRID_Y + row * (CELL + GAP)) as f32;
+        let cs = CELL as f32;
+        let note = crate::pad_note(ui, p, pad);
+        let down = ui.pads_down[pad as usize];
+        match note {
+            Some(_) if down => fill_round_rect(fb, x, y, cs, cs, 6.0, t.fg),
+            Some(_) => {
+                fill_round_rect(fb, x, y, cs, cs, 6.0, accent.scale(0.30));
+                stroke_round_rect(fb, x, y, cs, cs, 6.0, 1.0, accent.scale(0.6));
+            }
+            None => stroke_round_rect(fb, x, y, cs, cs, 6.0, 1.0, t.faint),
+        }
+        if let Some(n) = note {
+            let label = if kit && ui.mode == Mode::Pads {
+                SOUND_LABELS[(n - op8_seq::step::KIT_BASE_NOTE) as usize % 8].to_string()
+            } else {
+                note_name(n)
+            };
+            text_v(fb, &label, (x + cs / 2.0) as i32, (y + cs / 2.0) as i32, FontSize::Small, if down { t.bg } else { t.fg }, Align::Center, VAlign::Middle);
+        }
+    }
+    // what the pads are, on the left
+    let (title, sub) = match ui.mode {
+        Mode::Keys => (format!("C{}", 3 + ui.octave), "keyboard".to_string()),
+        _ if kit => ("kit".to_string(), "eight sounds".to_string()),
+        _ => (NOTE_NAMES[p.brain.key as usize].to_string(), format!("{} scale", p.brain.scale.name().to_lowercase())),
+    };
+    text_v(fb, &title, 30, 100, FontSize::Huge, accent, Align::Left, VAlign::Middle);
+    text_v(fb, &sub, 30, 150, FontSize::Large, t.dim, Align::Left, VAlign::Middle);
+}
+
+/// Names of the eight drum sounds, as they appear on the pads (the order of the kit's lanes).
+const SOUND_LABELS: [&str; 8] = ["kick", "snare", "c-hat", "o-hat", "tom", "clap", "rim", "crash"];
 
 /// Pad mirror: step 1 top-left, like the hardware pads.
 fn pad_grid(
@@ -780,6 +823,16 @@ pub fn left_footer(ui: &UiState, p: &Project) -> [FooterCell; 4] {
                 p.brain.len.to_string(),
                 Some(p.brain.len as f32 / 8.0),
             ),
+        ],
+        (Mode::Pads | Mode::Keys, _) => [
+            if ui.mode == Mode::Keys {
+                FooterCell::new("octave", format!("C{}", 3 + ui.octave), Some((ui.octave + 2) as f32 / 6.0))
+            } else {
+                FooterCell::empty()
+            },
+            FooterCell::empty(),
+            FooterCell::empty(),
+            FooterCell::new("tempo", format!("{:.1}", p.bpm), Some((p.bpm - 20.0) / 280.0)),
         ],
         (Mode::Punch, _) => [
             FooterCell::new(
