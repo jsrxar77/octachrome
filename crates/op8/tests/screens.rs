@@ -55,12 +55,15 @@ fn f_d04_mode_changes_screen() {
     assert_eq!(b.ui().mode, op8_ui::Mode::Step);
 }
 
-/// Lit pixels in the strip (the top 14 rows) of one 120 px column of a screen.
+/// Centres of the four screen buttons (see `op8_ui::theme::BUTTON_CX`).
+const CX: [usize; 4] = [24, 164, 304, 444];
+
+/// Lit pixels in the strip (the top 18 rows) around one screen button.
 fn strip_lit(b: &Bench, screen: Screen, col: usize) -> usize {
     let fb = b.screen(screen);
     let mut n = 0;
-    for y in 0..14usize {
-        for x in col * 120..(col + 1) * 120 {
+    for y in 0..18usize {
+        for x in CX[col].saturating_sub(60)..(CX[col] + 60).min(480) {
             if fb.pixels()[y * 480 + x] != 0 {
                 n += 1;
             }
@@ -69,7 +72,7 @@ fn strip_lit(b: &Bench, screen: Screen, col: usize) -> usize {
     n
 }
 
-// F-D10: each screen names what its buttons do, in the column of the button; a button with no function shows nothing.
+// F-D10: each screen names what its buttons do, in a capsule centred on the button; a button with no function shows nothing.
 #[test]
 fn f_d10_screens_name_their_buttons() {
     let mut b = Bench::demo();
@@ -81,20 +84,25 @@ fn f_d10_screens_name_their_buttons() {
     // Right: sound, shape; 7 and 8 do nothing.
     assert!(strip_lit(&b, Screen::Right, 0) > 20 && strip_lit(&b, Screen::Right, 1) > 20);
     assert_eq!(strip_lit(&b, Screen::Right, 2) + strip_lit(&b, Screen::Right, 3), 0);
-    // The page that is open is marked: the line under its name moves with it.
-    let line = |b: &Bench, col: usize| {
-        let fb = b.screen(Screen::Right);
-        (col * 120..(col + 1) * 120).filter(|&x| fb.pixels()[13 * 480 + x] != 0).count()
-    };
-    assert!(line(&b, 0) > 0 && line(&b, 1) == 0, "sound is open");
+    // The capsule is centred on its button: its top edge is lit at the centre and only there, not at the sides of the column.
+    let edge = |b: &Bench, col: usize, dx: i32| b.screen(Screen::Right).pixels()[480 + (CX[col] as i32 + dx) as usize];
+    assert_ne!(edge(&b, 1, 0), 0, "the capsule's top edge is at the button's centre");
+    assert_eq!(edge(&b, 1, 55), 0, "and does not run past its text");
+    // The page that is open has the bright outline (fg), the other the faint one.
+    let t = op8_gfx::theme();
+    assert_eq!(edge(&b, 0, 0), t.fg.0, "sound is open");
+    assert_eq!(edge(&b, 1, 0), t.faint.0);
     b.press(Button::Screen(6));
     b.run_ms(100);
-    assert!(line(&b, 1) > 0 && line(&b, 0) == 0, "shape is open");
+    assert_eq!(edge(&b, 1, 0), t.fg.0, "shape is open");
+    assert_eq!(edge(&b, 0, 0), t.faint.0);
     // In settings the buttons do nothing, so nothing is named.
     b.press(Button::Settings);
     b.run_ms(100);
-    for col in 1..3 {
-        assert_eq!(strip_lit(&b, Screen::Left, col) + strip_lit(&b, Screen::Right, col), 0, "column {col}");
+    for screen in [Screen::Left, Screen::Right] {
+        let fb = b.screen(screen);
+        let lit = (0..18usize).flat_map(|y| (120..360usize).map(move |x| (x, y))).filter(|&(x, y)| fb.pixels()[y * 480 + x] != 0).count();
+        assert_eq!(lit, 0, "{screen:?}: no strip in settings");
     }
 }
 

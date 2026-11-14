@@ -20,7 +20,7 @@ The living reference is **OP-8 Twin** (`twin/op8-twin.html`). Every new design i
 8. **Lowercase and no code.** `decay`, `fmbass`, `126ms`. No brackets, underscores, IDs or `0x`.
 9. **One typeface.** Jost, anti-aliased, on the fixed scale of section 3. Never pixelated terminal fonts.
 10. **The track is a dot.** The track colour (A–H) identifies the track on the physical pads and LEDs, and on screen only as a dot, ring or pad fill. It never competes with the encoder colours.
-11. **Buttons above, knobs below.** The top strip of each screen shows what each button above it does; the footer shows what each knob below it does. Always in the same 120 px column as the physical control. Button labels are white or grey, never in a knob colour. A button with no function shows nothing.
+11. **Buttons above, knobs below.** The top strip of each screen shows what each button above it does, in a capsule centred on the button; the footer shows what each knob below it does, in the column of the knob. Button labels are white or grey, never in a knob colour. A button with no function shows nothing.
 12. **Each button means one idea.** What a MK3 button does in OP-8 resembles what its OP-XY equivalent does and what its silkscreen says. Shift gives the secondary function, never a different idea.
 13. **Few parameters.** An instrument shows at most 8 parameters: 4 of sound (button 5) and 4 of shape (button 6). The track's effect and modulation are the same for every instrument (4 + 4). If an engine has more, the cartridge picks the 8 that matter.
 
@@ -149,8 +149,8 @@ The theme is chosen with `op8 run -t glossy|matte|chrome` or `OP8_THEME`.
 
 ```
 ┌────────────────────────────────────────────────┐
-│   step      components                         │  button strip, 14 px
-│ ● name                           ● ● (pages)   │  top bar, 32 px (its items centred at y = 22)
+│ (step)    (components)                         │  button strip, 18 px: capsules
+│ ● name                           ● ● (pages)   │  top bar: items centred at y = 28
 │ +                                            + │
 │               animated drawing                 │  drawing area
 │ +                                            + │
@@ -159,7 +159,7 @@ The theme is chosen with `op8 run -t glossy|matte|chrome` or `OP8_THEME`.
 └────────────────────────────────────────────────┘
 ```
 
-- **Button strip (14 px, y 0..14):** the name of what each of the four buttons above the screen does, `Small`, centred in the same 120 px column as the physical button (rule 11). The open page is `fg` with a 2 px line under it; the others `dim`. A button with no function shows nothing, and in settings the strip is empty. Left today: `step` (button 1: back to the step view) and `components` (2: the inspector). Right today: `sound` (5) and `shape` (6, only for an instrument with a second page). The names of buttons 3, 4, 7 and 8 appear as those buttons are built ([buttons.md](buttons.md)).
+- **Button strip (18 px, y 0..18):** the name of what each of the four buttons above the screen does, `Small`, inside a capsule (16 px high, 9 px of padding each side, `panel` fill) **centred on the physical button**. The buttons sit about 140 px apart, centred at x = 24, 164, 304 and 444 on each screen (`BUTTON_CX` in `crates/op8-ui/src/theme.rs`, measured on the unit; a capsule never leaves the screen). The open page has an `fg` outline and `fg` text, the others a `faint` outline and `dim` text. A button with no function shows nothing, and in settings the strip is empty. The strip sits above the header items, which are centred at y = 28, so the two never overlap. Left today: `step` (button 1: back to the step view) and `components` (2: the inspector). Right today: `sound` (5) and `shape` (6, only for an instrument with a second page). The names of buttons 3, 4, 7 and 8 appear as those buttons are built ([buttons.md](buttons.md)).
 - **Left (fixed): time.** Tempo, the Brain chord, polymeter rings (one per track, the selected one in front), a mirror of the 16 pads. Footer with encoders 1–4. On the mirror an active step is the track colour at 75–100 % (by velocity) and an empty step is a nearly black cell of the track colour (10 %) with a `faint` outline, so on and off are far apart; on the pads an active step is the track colour at the highest level the theme and supply allow and an empty step is a dim white (level 1), so they stay apart even when the levels are capped.
 - **Right: the instrument of the selected track.** Each cartridge draws its animated illustration using colours 5–8 for what those encoders move. Footer with encoders 5–8.
 

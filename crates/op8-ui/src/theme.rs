@@ -19,9 +19,11 @@ pub fn track_color(i: usize) -> Rgb565 {
 pub const TRACK_NAMES: [&str; 8] = ["A", "B", "C", "D", "E", "F", "G", "H"];
 
 /// Height of the strip that names the 4 screen buttons above each screen.
-pub const STRIP_H: i32 = 14;
+pub const STRIP_H: i32 = 18;
+/// Centre of each of the 4 screen buttons, in screen pixels (measured on the unit: about 140 px apart).
+pub const BUTTON_CX: [i32; 4] = [24, 164, 304, 444];
 /// Vertical centre of the header items (name, tempo, chord, track dots), below the strip.
-pub const HEADER_CY: f32 = 22.0;
+pub const HEADER_CY: f32 = 28.0;
 
 pub const FOOTER_Y: i32 = 224;
 pub const FOOTER_COL: i32 = 120;
@@ -182,29 +184,30 @@ pub fn touch_overlay(
 }
 
 /// The strip along the top of a screen: the name of what each of the 4 buttons
-/// above it does (rule 11), in the same 120 px column as the button. A button
-/// with no function shows nothing; the page that is open is `fg` with a line
-/// under it, the others `dim`.
+/// above it does (rule 11), in a capsule centred on the button. A button with no
+/// function shows nothing; the page that is open has an `fg` outline and `fg`
+/// text, the others a `faint` outline and `dim` text.
 pub fn button_strip(fb: &mut FrameBuffer480x272, labels: &[(&str, bool); 4]) {
+    use op8_gfx::{paint::{fill_round_rect, stroke_round_rect}, text_width, FontSize};
     let t = op8_gfx::theme();
     for (i, (name, on)) in labels.iter().enumerate() {
         if name.is_empty() {
             continue;
         }
-        let cx = i as i32 * FOOTER_COL + FOOTER_COL / 2;
-        let end = op8_gfx::text_v(
+        let w = text_width(name, FontSize::Small) + 18.0;
+        let x = (BUTTON_CX[i] as f32 - w / 2.0).clamp(1.0, 479.0 - w);
+        let h = (STRIP_H - 2) as f32;
+        fill_round_rect(fb, x, 1.0, w, h, h / 2.0, t.panel);
+        stroke_round_rect(fb, x, 1.0, w, h, h / 2.0, 1.0, if *on { t.fg } else { t.faint });
+        op8_gfx::text_v(
             fb,
             name,
-            cx,
-            6,
-            op8_gfx::FontSize::Small,
+            (x + w / 2.0) as i32,
+            9,
+            FontSize::Small,
             if *on { t.fg } else { t.dim },
             op8_gfx::Align::Center,
             op8_gfx::VAlign::Middle,
         );
-        let _ = end;
-        if *on {
-            fb.fill_rect(cx - 14, STRIP_H - 2, 28, 2, t.fg);
-        }
     }
 }
