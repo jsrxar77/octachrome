@@ -56,7 +56,7 @@ impl<S: ControlSurface> App<S> {
             last_dump_ms: None,
             log_events: false,
             logged_playing: false,
-            logged_main: (op8_ui::Main::Instrument, op8_gfx::ThemeId::Op1),
+            logged_main: (op8_ui::Main::Instrument, op8_gfx::ThemeId::Glossy),
             settings_path: None,
             no_leds: false,
         }

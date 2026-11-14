@@ -10,13 +10,13 @@ use std::sync::atomic::{AtomicU8, Ordering};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ThemeId {
-    Op1 = 0,
-    Op1Field = 1,
-    OpXy = 2,
+    Glossy = 0,
+    Matte = 1,
+    Chrome = 2,
 }
 
 impl ThemeId {
-    pub const ALL: [ThemeId; 3] = [ThemeId::Op1, ThemeId::Op1Field, ThemeId::OpXy];
+    pub const ALL: [ThemeId; 3] = [ThemeId::Glossy, ThemeId::Matte, ThemeId::Chrome];
     pub fn name(self) -> &'static str {
         theme_of(self).name
     }
@@ -51,7 +51,7 @@ const fn c(hex: u32) -> Rgb565 {
 
 pub const THEMES: [Theme; 3] = [
     Theme {
-        name: "op-1",
+        name: "glossy",
         bg: c(0x000000),
         fg: c(0xF2F4F8),
         dim: c(0x7E8794),
@@ -80,7 +80,7 @@ pub const THEMES: [Theme; 3] = [
         rec: c(0xFF3B30),
     },
     Theme {
-        name: "op-1 field",
+        name: "matte",
         bg: c(0x000000),
         fg: c(0xF4EFE6),
         dim: c(0x8E918F),
@@ -109,7 +109,7 @@ pub const THEMES: [Theme; 3] = [
         rec: c(0xE63946),
     },
     Theme {
-        name: "op-xy",
+        name: "chrome",
         bg: c(0x000000),
         fg: c(0xEEF0F5),
         dim: c(0x80858F),
@@ -139,7 +139,7 @@ pub const THEMES: [Theme; 3] = [
     },
 ];
 
-static CURRENT: AtomicU8 = AtomicU8::new(ThemeId::Op1 as u8);
+static CURRENT: AtomicU8 = AtomicU8::new(ThemeId::Glossy as u8);
 
 pub fn theme_of(id: ThemeId) -> &'static Theme {
     &THEMES[id as usize]

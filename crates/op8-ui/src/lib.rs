@@ -211,6 +211,6 @@ mod tests {
             draw_right(&mut fb, &ui, Some(&c), &[0.5; 8]);
             assert!(fb.pixels().iter().filter(|&&px| px != 0).count() > 2000);
         }
-        op8_gfx::set_theme(op8_gfx::ThemeId::Op1);
+        op8_gfx::set_theme(op8_gfx::ThemeId::Glossy);
     }
 }

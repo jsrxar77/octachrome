@@ -1,6 +1,6 @@
 # OP-8
 
-<p align="center"><img src="guide/brand/op8-mark.svg" width="360" alt="OP-8: eight buttons in rainbow order forming an 8 on its side"></p>
+<p align="center"><img src="guide/brand/op8-mark.svg" width="360" alt="OP-8: eight keys, four and four, in rainbow order, the eighth white"></p>
 
 A standalone groovebox in Rust for the **Raspberry Pi 4/5** (developed and tested on **macOS Apple Silicon**) that uses a **Native Instruments Maschine MK3** as its only control surface: pads, knobs, Smart Strip, LEDs and the two 480×272 screens.
 
@@ -20,7 +20,7 @@ cargo run --release -- run --script my.op8   # the script drives the real app: y
 cargo run --release -- hw-test               # with the real MK3: rainbow on the 16 pads + a test frame on both screens + event log
 cargo run --release                          # play with the MK3 (audio, screens, LEDs, MIDI)
 scripts/run.sh                               # the same in one command: builds, frees the MK3 from NI's services, starts (-h for options)
-cargo run --release -- -t op-xy              # another theme: op-1 (default), op-1-field, op-xy
+cargo run --release -- -t chrome              # another theme: glossy (default), matte, chrome
 ```
 
 On macOS, close NI's services first (`NIHardwareAgent`, `NIHostIntegrationAgent`, `NTKDaemon`): if they hold USB interface 5, OP-8 keeps working but without screens, and says so on the console. On Linux install `deploy/99-maschine-mk3.rules` to avoid needing root.

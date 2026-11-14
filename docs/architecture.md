@@ -23,7 +23,7 @@ These six documents are the only ones in `docs/`. Each fact lives in exactly one
 
 The interactive twin lives outside `docs/`: `twin/op8-twin.html` (HTML/WebAudio). Every UI change is tried there first.
 
-The user guide is `guide/index.html`: one self-contained page (its own Jost fonts, no network), for people who play OP-8. `.github/workflows/pages.yml` publishes it as a GitHub Pages site once Pages is enabled with source "GitHub Actions" (a free plan needs a public repository). Until then: `open guide/index.html`. `guide/brand.html` shows the brand mark ([design.md §2.3](design.md)). `guide/manual.html` lists every button with its status; it is generated from [buttons.md](buttons.md) by `python3 scripts/build-manual.py` (run it after changing the button map).
+The user guide is `guide/index.html`: one self-contained page (its own Jost fonts, no network), for people who play OP-8. `.github/workflows/pages.yml` publishes it as a GitHub Pages site once Pages is enabled with source "GitHub Actions" (a free plan needs a public repository). Until then: `open guide/index.html`. `guide/brand.html` shows the brand mark ([design.md §2.3](design.md)); `guide/mk3.js` holds the geometry of the unit that every picture takes ([design.md §2.4](design.md)). `guide/manual.html` lists every button with its status; it is generated from [buttons.md](buttons.md) by `python3 scripts/build-manual.py` (run it after changing the button map).
 
 ## 1. Central idea
 
@@ -103,7 +103,7 @@ Each instrument implements `InstrumentCartridge`. The mandatory methods are `pro
 
 - Left: time (tempo, chord, polymeter rings, pad mirror, knobs 1–4).
 - Right: the track's instrument (knobs 5–8, pages with buttons 5 and 6).
-- Theme: `op-1` (default), `op-1-field`, `op-xy`. Chosen with `-t` or `OP8_THEME`.
+- Theme: `glossy` (default), `matte`, `chrome`. Chosen with `-t` or `OP8_THEME`.
 - LEDs: 103 slots (62 buttons, 25 of the strip, 16 pads). The pads are in HID order (top-left = 0), but the pad number the user sees is bottom-left first. See `leds.rs`.
 
 ### How the screens reach the MK3
@@ -157,11 +157,13 @@ Cargo runs each crate's tests from the crate's folder, so give `OP8_BENCH_DIR` a
 
 - **Licence MIT or Apache-2.0.** No GPL dependencies are added. Encdr, autotel/maschine-mk3-linux and Deckard are GPL: from the MK3 protocol only the facts were taken, not the code. Surge XT and Vital are GPL and stay out unless Javi decides otherwise.
 - **Mutable Instruments synthesis engines (MIT).** Javi chose to start there. The code can be used, but **without the module names**, because they are trademarks: the Plaits one is called "macro", the Rings one will be called "resonator", and so on. Credit goes in the vendor README.
+- **Eight and eight (2026-11-13).** 8 factory instruments plus 8 places for installed ones, and 8 factory projects plus 8 of the player's own: the 16 pads ([instruments.md §7](instruments.md)). The factory set is proposed and the instruments beyond the first four are still to be built ([roadmap.md](roadmap.md)).
+- **The brand mark and every picture of the unit** follow the MK3's own arrangement of eight and sixteen ([design.md §2.3–2.4](design.md)). The themes are glossy, matte and chrome.
 - **Aesthetic:** the language of the OP-1 and OP-XY (colour tied to each physical control, drawings instead of text, absolute black). We take the ideas, never their graphics or fonts. It must not look like a programming project. Details in [design.md](design.md).
-- **8 knobs, 8 colours.** Knobs 1–4 drive the sequencer and appear on the left screen; 5–8 drive the instrument and appear on the right. Three themes: op-1 (default), op-1 field, op-xy.
+- **8 knobs, 8 colours.** Knobs 1–4 drive the sequencer and appear on the left screen; 5–8 drive the instrument and appear on the right. Three themes: glossy (default), matte, chrome.
 - **Typeface: Jost** (OFL), weights 300 and 400, tuned by eye to resemble the OP-XY's. FlipMono cannot be used: it is actually SF Mono, licensed only for Apple devices.
 - **Instruments:** at most 8 parameters, 4 of sound (button 5) and 4 of shape (button 6). Effects and modulation are per track and the same for all instruments.
-- **Settings are chosen on the machine and kept in a small text file** of `key=value` lines (`crates/op8/src/settings.rs`; today only `theme=op-xy`). Location: `OP8_CONFIG`, else `$XDG_CONFIG_HOME/op8/settings`, else `$HOME/.config/op8/settings`. A missing file, an unknown key or a bad value is ignored (the default is used): a damaged file must never stop the machine from starting. It is written beside itself and renamed, so a power cut leaves the old file or the new one. **At start-up, `-t` / `OP8_THEME` win over the saved theme, which wins over op-1.** Only `op8 run` reads it: `sim` always starts from op-1 so it stays reproducible.
+- **Settings are chosen on the machine and kept in a small text file** of `key=value` lines (`crates/op8/src/settings.rs`; today only `theme=chrome`). Location: `OP8_CONFIG`, else `$XDG_CONFIG_HOME/op8/settings`, else `$HOME/.config/op8/settings`. A missing file, an unknown key or a bad value is ignored (the default is used): a damaged file must never stop the machine from starting. It is written beside itself and renamed, so a power cut leaves the old file or the new one. **At start-up, `-t` / `OP8_THEME` win over the saved theme, which wins over glossy.** Only `op8 run` reads it: `sim` always starts from glossy so it stays reproducible.
 
 **Known limits**
 
@@ -184,12 +186,12 @@ cargo run --release -- sim --script f.op8    # your own script: wav + captures +
 cargo run --release -- run --script f.op8    # the script plays the real MK3
 cargo run --release -- hw-test               # test frame and rainbow, with the real MK3
 cargo run --release -- usb-reset             # reset a stuck MK3 (with op8 closed)
-cargo run --release [-- -t op-xy]            # play
+cargo run --release [-- -t chrome]            # play
 scripts/run.sh [-l] [-s] [-r] [args]         # the easy way to play: builds, frees the MK3, waits for it, starts
 open twin/op8-twin.html                      # the Twin
 ```
 
-`scripts/run.sh` closes a running op8 and NI's background services (`NIHardwareAgent`, `NIHostIntegrationAgent`, `NTKDaemon`, which hold the screens), builds, waits up to 15 s for the MK3 on USB, and starts `op8 run`. Its own options come first: `-l` prints every control event (`OP8_LOG_EVENTS`), `-s` the screen traffic (`OP8_DISPLAY_STATS`), `-r` resets the MK3 on the bus first; anything after them (`-t op-xy`, `--script f.op8`) goes to `op8 run`.
+`scripts/run.sh` closes a running op8 and NI's background services (`NIHardwareAgent`, `NIHostIntegrationAgent`, `NTKDaemon`, which hold the screens), builds, waits up to 15 s for the MK3 on USB, and starts `op8 run`. Its own options come first: `-l` prints every control event (`OP8_LOG_EVENTS`), `-s` the screen traffic (`OP8_DISPLAY_STATS`), `-r` resets the MK3 on the bus first; anything after them (`-t chrome`, `--script f.op8`) goes to `op8 run`.
 
 Environment: `OP8_THEME`, `OP8_CONFIG=<file>` (the settings file), `OP8_BRIGHTNESS` (0–100; by default 50 on a limited supply and 80 on a full one), `OP8_POWER=full|limited` (forces the power plan), `OP8_DISPLAY_STATS=1`, `OP8_DISPLAY_KBPS=<n>`, `OP8_DISPLAY_FPS=<n>` and `OP8_DISPLAY_DELTA=1` (optional screen limits, see §7), the diagnostics `OP8_MIDI=off`, `OP8_NO_LEDS=1` and `OP8_NO_SCREENS=1` (each leaves one part of the MK3 alone, to find what makes it misbehave), `OP8_LOG_EVENTS=1` (prints every control event and every transport change, to tell "the button never arrived" from "it arrived and nothing started"), `OP8_AUDIO_DEVICE=<name>`, `OP8_BUFFER=<frames>`, `OP8_DUMP_DIR=<dir>` (writes `left.png` and `right.png`, up to four times a second), `OP8_BENCH_DIR=<dir>`.
 

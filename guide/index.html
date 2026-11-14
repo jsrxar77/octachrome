@@ -92,7 +92,7 @@ footer a{color:var(--fg)}
 <nav id="nav" aria-label="Sections"></nav>
 
 <section class="hero" id="s0">
-  <svg class="mark" id="heroMark" role="img" aria-label="OP-8 mark: eight coloured buttons in an infinity loop"></svg>
+  <svg class="mark" id="heroMark" role="img" aria-label="OP-8 mark: eight coloured keys, four and four"></svg>
   <h1>OP-8</h1>
   <p class="lead">A groovebox you play with a Maschine MK3.</p>
   <div class="scroll">scroll</div>
@@ -102,7 +102,7 @@ footer a{color:var(--fg)}
   <h2>The surface</h2>
   <p class="lead">Every button, where it is on the unit. Tap one.</p>
   <p class="dim" style="font-size:15px"><span style="color:var(--k2)">●</span> works today &nbsp; <span style="color:var(--k6)">●</span> partly &nbsp; <span style="opacity:.5">●</span> planned</p>
-  <svg class="mk3" viewBox="0 0 1000 700" role="img" aria-label="Maschine MK3 map" id="mk3"></svg>
+  <svg class="mk3" viewBox="0 0 1000 950" role="img" aria-label="Maschine MK3 map" id="mk3"></svg>
   <div class="cap" id="mk3cap" aria-live="polite">&nbsp;</div>
 </section>
 
@@ -163,15 +163,16 @@ footer a{color:var(--fg)}
   <a href="../twin/op8-twin.html">Twin</a>
 </footer>
 
+<script src="mk3.js"></script>
 <script>
 const $ = (s, r = document) => r.querySelector(s);
 const el = (t, a = {}, h = "") => { const e = document.createElement(t); for (const k in a) e.setAttribute(k, a[k]); e.innerHTML = h; return e; };
 const THEMES = {
-  "op-1":       { fg:"#F2F4F8", dim:"#7E8794", faint:"#232831", panel:"#0D1118", rec:"#FF3B30", brand:["#FF2D2D","#FF8A1F","#FFD21F","#00E56A","#0099FF","#4B4BFF","#B15CFF","#F2F4F8"], k:["#0099FF","#00E56A","#F2F4F8","#FF4F00","#8B6CFF","#FFD21F","#2ED3E6","#FF4FA0"] },
-  "op-1 field": { fg:"#F4EFE6", dim:"#8E918F", faint:"#262A30", panel:"#12161D", rec:"#E63946", brand:["#D9534F","#D9822B","#E3C77A","#7FB58A","#3B8EBA","#5F6BB5","#A88BC7","#F4EFE6"], k:["#3B8EBA","#D9822B","#A9AFB8","#F2652A","#7FB58A","#E3C77A","#A88BC7","#D9677A"] },
-  "op-xy":      { fg:"#EEF0F5", dim:"#80858F", faint:"#24262C", panel:"#0F1014", rec:"#FF2244", brand:["#FF3B2F","#FF8A1F","#FFD60A","#00F076","#4C8DFF","#6A5CFF","#B07BFF","#EEF0F5"], k:["#94A8C6","#00F076","#EEF0F5","#FF3844","#FFD60A","#34D3E8","#9D7BFF","#FF8A1F"] },
+  "glossy":       { fg:"#F2F4F8", dim:"#7E8794", faint:"#232831", panel:"#0D1118", rec:"#FF3B30", brand:["#FF2D2D","#FF8A1F","#FFD21F","#00E56A","#0099FF","#4B4BFF","#B15CFF","#F2F4F8"], k:["#0099FF","#00E56A","#F2F4F8","#FF4F00","#8B6CFF","#FFD21F","#2ED3E6","#FF4FA0"] },
+  "matte": { fg:"#F4EFE6", dim:"#8E918F", faint:"#262A30", panel:"#12161D", rec:"#E63946", brand:["#D9534F","#D9822B","#E3C77A","#7FB58A","#3B8EBA","#5F6BB5","#A88BC7","#F4EFE6"], k:["#3B8EBA","#D9822B","#A9AFB8","#F2652A","#7FB58A","#E3C77A","#A88BC7","#D9677A"] },
+  "chrome":      { fg:"#EEF0F5", dim:"#80858F", faint:"#24262C", panel:"#0F1014", rec:"#FF2244", brand:["#FF3B2F","#FF8A1F","#FFD60A","#00F076","#4C8DFF","#6A5CFF","#B07BFF","#EEF0F5"], k:["#94A8C6","#00F076","#EEF0F5","#FF3844","#FFD60A","#34D3E8","#9D7BFF","#FF8A1F"] },
 };
-let theme = "op-1", K = THEMES[theme].k;
+let theme = "glossy", K = THEMES[theme].k;
 function applyTheme(name) {
   theme = name; const t = THEMES[name]; K = t.k;
   const r = document.documentElement.style;
@@ -189,77 +190,40 @@ const io = new IntersectionObserver(es => es.forEach(e => { if (e.isIntersecting
 secs.forEach(s => io.observe(s));
 
 
-/* the brand mark (docs/design.md §2.3): eight buttons along an 8 on its side, rainbow order, the eighth white */
-function markPoints(){return [[461.2,181.7],[315.6,167.6],[204.2,52.3],[58.6,38.4],[58.8,181.7],[204.4,167.6],[315.8,52.3],[461.4,38.4]]}
-function drawMark(svg,colors,run){
-  svg.setAttribute("viewBox","0 0 520 220");
-  svg.innerHTML=`<path d="M492.0 110.0 L491.5 120.5 L489.9 130.7 L487.3 140.7 L483.7 150.2 L479.2 159.2 L473.9 167.4 L468.0 174.9 L461.4 181.6 L454.4 187.4 L447.0 192.3 L439.3 196.3 L431.4 199.5 L423.4 201.8 L415.4 203.4 L407.4 204.2 L399.5 204.3 L391.7 203.8 L384.1 202.7 L376.6 201.0 L369.4 198.9 L362.3 196.4 L355.5 193.5 L348.8 190.2 L342.4 186.7 L336.2 182.9 L330.2 178.8 L324.4 174.6 L318.7 170.2 L313.2 165.6 L307.9 160.9 L302.7 156.1 L297.6 151.2 L292.7 146.2 L287.8 141.1 L283.1 136.0 L278.4 130.9 L273.7 125.7 L269.1 120.5 L264.6 115.2 L260.0 110.0 L255.4 104.8 L250.9 99.5 L246.3 94.3 L241.6 89.1 L236.9 84.0 L232.2 78.9 L227.3 73.8 L222.4 68.8 L217.3 63.9 L212.1 59.1 L206.8 54.4 L201.3 49.8 L195.6 45.4 L189.8 41.2 L183.8 37.1 L177.6 33.3 L171.2 29.8 L164.5 26.5 L157.7 23.6 L150.6 21.1 L143.4 19.0 L135.9 17.3 L128.3 16.2 L120.5 15.7 L112.6 15.8 L104.6 16.6 L96.6 18.2 L88.6 20.5 L80.7 23.7 L73.0 27.7 L65.6 32.6 L58.6 38.4 L52.0 45.1 L46.1 52.6 L40.8 60.8 L36.3 69.8 L32.7 79.3 L30.1 89.3 L28.5 99.5 L28.0 110.0 L28.5 120.5 L30.1 130.7 L32.7 140.7 L36.3 150.2 L40.8 159.2 L46.1 167.4 L52.0 174.9 L58.6 181.6 L65.6 187.4 L73.0 192.3 L80.7 196.3 L88.6 199.5 L96.6 201.8 L104.6 203.4 L112.6 204.2 L120.5 204.3 L128.3 203.8 L135.9 202.7 L143.4 201.0 L150.6 198.9 L157.7 196.4 L164.5 193.5 L171.2 190.2 L177.6 186.7 L183.8 182.9 L189.8 178.8 L195.6 174.6 L201.3 170.2 L206.8 165.6 L212.1 160.9 L217.3 156.1 L222.4 151.2 L227.3 146.2 L232.2 141.1 L236.9 136.0 L241.6 130.9 L246.3 125.7 L250.9 120.5 L255.4 115.2 L260.0 110.0 L264.6 104.8 L269.1 99.5 L273.7 94.3 L278.4 89.1 L283.1 84.0 L287.8 78.9 L292.7 73.8 L297.6 68.8 L302.7 63.9 L307.9 59.1 L313.2 54.4 L318.7 49.8 L324.4 45.4 L330.2 41.2 L336.2 37.1 L342.4 33.3 L348.8 29.8 L355.5 26.5 L362.3 23.6 L369.4 21.1 L376.6 19.0 L384.1 17.3 L391.7 16.2 L399.5 15.7 L407.4 15.8 L415.4 16.6 L423.4 18.2 L431.4 20.5 L439.3 23.7 L447.0 27.7 L454.4 32.6 L461.4 38.4 L468.0 45.1 L473.9 52.6 L479.2 60.8 L483.7 69.8 L487.3 79.3 L489.9 89.3 L491.5 99.5 L492.0 110.0Z" fill="none" stroke="#2A2F3A" stroke-width="7" stroke-linejoin="round"/>`+markPoints().map(([x,y],i)=>`<rect data-i="${i}" x="${(x-21).toFixed(1)}" y="${(y-21).toFixed(1)}" width="42" height="42" rx="10" fill="${colors[i]}"/>`).join("");
+/* the brand mark (docs/design.md §2.3): the unit's own arrangements of eight, rainbow order, the eighth white */
+function drawMark(svg,colors,run,kind){
+  const M=MK3.mark[kind||"keys"];svg.setAttribute("viewBox",M.vb);
+  svg.innerHTML=M.items.map((it,i)=>it[0]==="rect"
+    ?`<rect data-i="${i}" x="${it[1]}" y="${it[2]}" width="${it[3]}" height="${it[4]}" rx="${it[5]}" fill="${colors[i]}"/>`
+    :`<circle data-i="${i}" cx="${it[1]}" cy="${it[2]}" r="${it[3]}" fill="${colors[i]}"/>`).join("");
   if(svg._t)clearInterval(svg._t);
-  if(run&&!matchMedia("(prefers-reduced-motion:reduce)").matches){let n=0;svg._t=setInterval(()=>{svg.querySelectorAll("rect").forEach((r,i)=>r.style.opacity=i===n?1:.55);n=(n+1)%8},300)}
+  if(run&&!matchMedia("(prefers-reduced-motion:reduce)").matches){let n=0;svg._t=setInterval(()=>{svg.querySelectorAll("[data-i]").forEach((r,i)=>r.style.opacity=i===n?1:.55);n=(n+1)%8},300)}
 }
 /* hero */
-/* surface map: the MK3 faceplate, top to bottom as on the unit */
-const SB = (l, y, p, d) => [l, y, p, d];
-const BTN = []; // [label, x, y, w, h, status(y|p|n), what it does]
-const add = (l, x, y, w, h, s, d) => BTN.push([l, x, y, w, h, s, d]);
-// 8 screen buttons above the two screens
-[["step","p","Step grid and polymeter"],["components","p","Step components (hold a pad today)"],["players","n","Arpeggio and chords"],["bar","p","Length and division (knobs 1–2 today)"],["sound","y","Instrument page 1"],["shape","y","Instrument page 2"],["fx","n","The track's effect"],["mod","n","The track's LFO"]]
-  .forEach((b, i) => add(String(i + 1), (i < 4 ? 100 + i * 94 : 490 + (i - 4) * 94), 30, 82, 18, b[1], b[0] + ": " + b[2]));
-// left column
-[["CHANNEL","y","Back to composing"],["PLUG-IN","n","Choose the track's instrument"],["ARRANGER","n","Scenes and the song"],["MIXER","n","Level and pan of the 8 tracks"],["BROWSER","n","Presets of the instrument"],["SAMPLING","n","Record a sample"],["FILE","n","Open and save projects"]]
-  .forEach((b, i) => add(b[0], 24, 60 + i * 27, 62, 22, b[1], b[2]));
-// right column
-[["VOLUME","n","Master volume"],["SWING","n","Global swing"],["TEMPO","n","Tempo"],["AUTO","n","Hold and turn a knob to record automation"],["SETTINGS","p","Both screens become settings: pick the theme with the 4D encoder"]]
-  .forEach((b, i) => add(b[0], 884, 172 + i * 27, 66, 22, b[1], b[2]));
-// groups A–H
-"ABCDEFGH".split("").forEach((g, i) => add(g, 24 + (i % 4) * 66, 312 + Math.floor(i / 4) * 46, 58, 38, "y", "Group " + g + ": choose track " + g + ". Shift joins it to the Brain."));
-// editing + transport block
-const grid = (rows, y0) => rows.forEach((row, r) => row.forEach((b, c) => add(b[0], 24 + c * 66, y0 + r * 32, 58, 26, b[1], b[2])));
-grid([
-  [["PATTERN","n","16 patterns on the pads"],["SCENE","n","16 scenes on the pads"],["EVENTS","n","Components of the selected step"],["VARIATION","n","Random variation"]],
-  [["DUPLICATE","n","Copy a step, pattern or track"],["SELECT","n","Choose without sounding"],["SOLO","n","Isolate a track"],["MUTE","y","Hold + a group to mute the track"]],
-  [["RESTART","y","Back to step 1 and keep playing"],["ERASE","p","Hold + a pad to erase the step"],["TAP","n","Tap tempo"],["FOLLOW","n","Recording quantisation"]],
-  [["PLAY","y","Play / pause"],["REC","n","Record notes and automation"],["STOP","p","Stop (twice to silence: planned)"],["SHIFT","y","Secondary functions"]],
-], 416);
-// pad modes
-[["PAD MODE","n","Pads trigger the 8 tracks"],["KEYBOARD","n","Chromatic keyboard"],["CHORDS","y","Brain: pads are chord degrees"],["STEP","y","Pads are the 16 steps"],
- ["FIXED VEL","n","Fixed velocity"],["NOTE REPEAT","n","Repeat the held note"],["PERFORM","y","Punch-in FX: pressure is the amount"],["LOCK","n","Snapshot of all the knobs"]]
-  .forEach((b, i) => add(b[0], 300 + (i % 4) * 66, 312 + Math.floor(i / 4) * 32, 58, 26, b[1], b[2]));
-[["PITCH","n","Smart Strip bends pitch"],["MOD","n","Smart Strip sends modulation"],["NOTES","n","Smart Strip plays notes"]]
-  .forEach((b, i) => add(b[0], 300 + i * 66, 384, 58, 26, b[1], b[2]));
-
-const SW = { y: "works today", p: "partly", n: "planned" };
-(function () {
-  const svg = $("#mk3");
-  let h = `<rect x="6" y="6" width="988" height="688" rx="30" fill="var(--panel)" stroke="var(--faint)"/>`;
-  // screens with a hint of content
-  [100, 490].forEach((x, s) => {
-    h += `<rect x="${x}" y="54" width="370" height="196" rx="8" fill="#000" stroke="var(--faint)"/>`;
-    if (!s) for (let r = 0; r < 4; r++) for (let c = 0; c < 16; c++) h += `<rect x="${112 + c * 22.5}" y="${70 + r * 22}" width="18" height="16" rx="2" fill="${(r * 5 + c * 3) % 7 < 2 ? "var(--k" + (r * 2 + 1) + ")" : "var(--faint)"}"/>`;
-    else h += `<path d="M502 140 q30 -50 60 0 t60 0 t60 0 t60 0 t60 0 t60 0" fill="none" stroke="var(--k1)" stroke-width="3"/>`;
-  });
-  // knobs under the screens
-  for (let i = 0; i < 8; i++) { const cx = (i < 4 ? 146 + i * 92 : 536 + (i - 4) * 92); h += `<circle cx="${cx}" cy="282" r="19" fill="var(--bg)" stroke="var(--k${i + 1})" stroke-width="3"/><circle cx="${cx}" cy="282" r="3" fill="var(--k${i + 1})"/>`; }
-  // 4D encoder
-  h += `<circle cx="917" cy="112" r="36" fill="var(--bg)" stroke="var(--dim)" stroke-width="2"/><path d="M917 84v10M917 130v10M889 112h10M935 112h10" stroke="var(--dim)" stroke-width="3" stroke-linecap="round"/><circle cx="917" cy="112" r="13" fill="var(--faint)"/>`;
-  // smart strip + pads
-  h += `<rect x="566" y="312" width="26" height="362" rx="13" fill="var(--bg)" stroke="var(--faint)"/>`;
-  for (let r = 0; r < 4; r++) for (let c = 0; c < 4; c++) h += `<rect x="${610 + c * 90}" y="${312 + r * 90}" width="82" height="82" rx="10" fill="var(--faint)"/>`;
-  svg.innerHTML = h;
-  const g = (id, x, y, w, h, label, small) => `<g class="hs" tabindex="0" role="button" aria-label="${label}" data-id="${id}"><rect class="hl" x="${x}" y="${y}" width="${w}" height="${h}" rx="8" pointer-events="all"/></g>`;
-  let hs = "";
-  BTN.forEach((b, i) => {
-    const [l, x, y, w, hh, s] = b;
-    svg.insertAdjacentHTML("beforeend", `<g class="hs" tabindex="0" role="button" aria-label="${l}" data-b="${i}"><rect x="${x}" y="${y}" width="${w}" height="${hh}" rx="6" fill="var(--faint)"/><text x="${x + w / 2}" y="${y + hh / 2 + 3.5}" text-anchor="middle" font-size="${l.length > 7 ? 8.5 : 10}" fill="var(--fg)" style="pointer-events:none">${l}</text><circle cx="${x + w - 5}" cy="${y + 5}" r="2.6" fill="${s === "y" ? "var(--k2)" : s === "p" ? "var(--k6)" : "var(--dim)"}" opacity="${s === "n" ? .5 : 1}"/><rect class="hl" x="${x}" y="${y}" width="${w}" height="${hh}" rx="6" pointer-events="all"/></g>`);
-  });
-  const parts = [["knobs", "8 knobs", "Each knob has the colour of its parameter on screen.", 100, 258, 760, 48], ["screens", "Two screens", "Left: time (steps). Right: sound (the instrument).", 100, 54, 760, 196], ["pads", "16 pads", "Steps, chord degrees or effects, depending on the mode.", 610, 312, 360, 360], ["strip", "Smart Strip", "Master filter today. Pitch, mod and notes later.", 566, 312, 26, 362], ["enc", "4D encoder", "Turn, tilt and push. In settings: ◀ ▶ picks the theme.", 881, 76, 72, 72]];
-  parts.forEach(p => svg.insertAdjacentHTML("beforeend", g(p[0], p[3], p[4], p[5], p[6], p[1])));
-  const show = el => {
-    svg.querySelectorAll(".hs").forEach(x => x.classList.toggle("on", x === el));
-    if (el.dataset.b !== undefined) { const b = BTN[el.dataset.b]; $("#mk3cap").innerHTML = `${b[0]} <span class="dim">· ${SW[b[5]]}</span><small>${b[6]}</small>`; }
-    else { const p = parts.find(p => p[0] === el.dataset.id); $("#mk3cap").innerHTML = `${p[1]}<small>${p[2]}</small>`; }
-  };
-  svg.querySelectorAll(".hs").forEach(el => { el.addEventListener("click", () => show(el)); el.addEventListener("mouseenter", () => show(el)); el.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") show(el); }); });
+/* surface map: the MK3 faceplate from mk3.js, as on the unit */
+const BTN=MK3.BTN,SW={y:"works today",p:"partly",n:"planned"};
+(function(){
+  const svg=$("#mk3");svg.setAttribute("viewBox",`0 0 ${MK3.W} ${MK3.H}`);
+  const [bx,by,bw,bh]=MK3.body;
+  let h=`<rect x="${bx}" y="${by}" width="${bw}" height="${bh}" rx="34" fill="var(--panel)" stroke="var(--faint)"/>`;
+  MK3.screens.forEach((r,s)=>{h+=`<rect x="${r[0]}" y="${r[1]}" width="${r[2]}" height="${r[3]}" rx="6" fill="#000" stroke="var(--faint)"/>`;
+    if(!s){const px=(r[2]-20)/16,py=(r[3]-20)/8;for(let r2=0;r2<8;r2++)for(let c=0;c<16;c++)h+=`<rect x="${r[0]+10+c*px}" y="${r[1]+10+r2*py}" width="${px-4}" height="${py-4}" rx="2" fill="${(r2*5+c*3)%7<2?"var(--k"+(r2+1)+")":"var(--faint)"}"/>`}
+    else{const w=r[2]-20,m=r[1]+r[3]*.42;h+=`<path d="M${r[0]+10} ${m} q${w/8} ${-r[3]*.5} ${w/4} 0 t${w/4} 0 t${w/4} 0 t${w/4} 0" fill="none" stroke="var(--k1)" stroke-width="3.5"/>`}});
+  MK3.knobs.forEach(([cx,cy,r],i)=>h+=`<circle cx="${cx}" cy="${cy}" r="${r}" fill="var(--bg)" stroke="var(--k${i+1})" stroke-width="3"/><circle cx="${cx}" cy="${cy}" r="3" fill="var(--k${i+1})"/>`);
+  const [ex,ey,er]=MK3.encoder;h+=`<circle cx="${ex}" cy="${ey}" r="${er}" fill="var(--bg)" stroke="var(--dim)" stroke-width="2"/><circle cx="${ex}" cy="${ey}" r="${er*.55}" fill="var(--faint)"/>`;
+  const st=MK3.strip;h+=`<rect x="${st[0]}" y="${st[1]}" width="${st[2]}" height="${st[3]}" rx="${st[3]/2}" fill="var(--bg)" stroke="var(--faint)"/>`;
+  MK3.pads.forEach(p=>h+=`<rect x="${p[0]}" y="${p[1]}" width="${p[2]}" height="${p[3]}" rx="8" fill="var(--faint)"/>`);
+  svg.innerHTML=h;
+  BTN.forEach((b,i)=>{const[l,x,y,w,hh,s]=b;
+    svg.insertAdjacentHTML("beforeend",`<g class="hs" tabindex="0" role="button" aria-label="${l}" data-b="${i}"><rect x="${x}" y="${y}" width="${w}" height="${hh}" rx="4" fill="var(--faint)"/><text x="${x+w/2}" y="${y+hh/2+3}" text-anchor="middle" font-size="${l.length>7?7.5:9}" fill="var(--fg)" style="pointer-events:none">${l}</text><circle cx="${x+w-4.5}" cy="${y+4.5}" r="2.4" fill="${s==="y"?"var(--k2)":s==="p"?"var(--k6)":"var(--dim)"}" opacity="${s==="n"?.5:1}"/><rect class="hl" x="${x}" y="${y}" width="${w}" height="${hh}" rx="4" pointer-events="all"/></g>`)});
+  const part=(id,r)=>`<g class="hs" tabindex="0" role="button" aria-label="${id}" data-id="${id}"><rect class="hl" x="${r[0]}" y="${r[1]}" width="${r[2]}" height="${r[3]}" rx="8" pointer-events="all"/></g>`;
+  const kn=MK3.knobs,P=MK3.pads;
+  const parts=[["knobs","8 knobs","Each knob has the colour of its parameter on screen.",[kn[0][0]-30,kn[0][1]-30,kn[7][0]-kn[0][0]+60,60]],["screens","Two screens","Left: time (steps). Right: sound (the instrument).",[MK3.screens[0][0],MK3.screens[0][1],MK3.screens[1][0]+MK3.screens[1][2]-MK3.screens[0][0],MK3.screens[0][3]]],["pads","16 pads","Steps, chord degrees or effects, depending on the mode.",[P[0][0],P[0][1],P[15][0]+P[15][2]-P[0][0],P[15][1]+P[15][3]-P[0][1]]],["strip","Smart Strip","Master filter today. Pitch, mod and notes later.",MK3.strip],["enc","4D encoder","Turn, tilt and push. In settings: ◀ ▶ picks the theme.",[ex-er,ey-er,er*2,er*2]]];
+  parts.forEach(p=>svg.insertAdjacentHTML("beforeend",part(p[0],p[3])));
+  const show=el=>{svg.querySelectorAll(".hs").forEach(x=>x.classList.toggle("on",x===el));
+    if(el.dataset.b!==undefined){const b=BTN[el.dataset.b];$("#mk3cap").innerHTML=`${b[0]} <span class="dim">· ${SW[b[5]]}</span><small>${b[6]}</small>`}
+    else{const p=parts.find(p=>p[0]===el.dataset.id);$("#mk3cap").innerHTML=`${p[1]}<small>${p[2]}</small>`}};
+  svg.querySelectorAll(".hs").forEach(el=>{el.addEventListener("click",()=>show(el));el.addEventListener("mouseenter",()=>show(el));el.addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" ")show(el)})});
   show(svg.querySelector('[data-id="pads"]'));
 })();
 

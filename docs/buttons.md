@@ -4,7 +4,7 @@ Part of the [UX/UI Treatise](design.md). The rules that rule here: each button m
 
 The buttons and the sequencer always do the same and do not grow much further. What grows is the instruments ([instruments.md](instruments.md)).
 
-For each MK3 button: its function in the Maschine software (per the [NI manual](https://docs.native-instruments.com/online-guides/maschine-mk3-manual/en/quick-reference)), its equivalent idea on the OP-XY (per the [TE guide](https://teenage.engineering/guides/op-xy/layout)), and what it does in OP-8. **Status:** ✓ done, ◐ partial, ○ to do (see [roadmap.md](roadmap.md)).
+For each MK3 button: its function in the Maschine software (per the [NI manual](https://docs.native-instruments.com/online-guides/maschine-mk3-manual/en/quick-reference)), its equivalent idea on the OP-XY (per the [TE guide](https://teenage.engineering/guides/chrome/layout)), and what it does in OP-8. **Status:** ✓ done, ◐ partial, ○ to do (see [roadmap.md](roadmap.md)).
 
 ## 1. Main modes (the equivalents of the OP-XY's instrument, auxiliary, arrange and mix)
 
@@ -13,13 +13,13 @@ The left screen always shows time and the right screen always shows sound. A mai
 | MK3 button | In Maschine | On the OP-XY | In OP-8 | Status |
 | :-- | :-- | :-- | :-- | :-- |
 | CHANNEL | Channel properties | instrument | **Instrument**: the default mode, for composing. Sequencer on the left, the track's cartridge on the right. CHANNEL goes back here from settings | ✓ |
-| PLUG-IN | Channel plug-ins | instrument (engine) | Choose the track's cartridge (cartridge list on the right) | ○ |
+| PLUG-IN | Channel plug-ins | instrument (engine) | Choose the track's cartridge (cartridge list on the right). The 16 pads are the 16 places: 1–8 factory, 9–16 installed ([instruments.md §7](instruments.md)) | ○ |
 | MACRO | Macros | auxiliary | **Auxiliary**: Brain, effect sends and inputs/outputs | ○ |
 | ARRANGER | Ideas and song | arrange | **Arrange**: scenes and the song chain | ○ |
 | MIXER | Mix | mix | **Mix**: level and pan of the 8 tracks, master EQ and compressor | ○ |
 | BROWSER | Browser | (presets) | Presets of the track's cartridge | ○ |
 | SAMPLING | Sample editor | sample | Record and trim a sample for a sampler cartridge | ○ |
-| FILE · Shift: save | Files | projects | Projects: open, new, copy. Shift + FILE saves | ○ |
+| FILE · Shift: save | Files | projects | Projects: open, new, copy. The 16 pads are the 16 projects: 1–8 factory, 9–16 yours. Shift + FILE saves | ○ |
 | SETTINGS | Preferences | com | **Settings**: a main mode that takes both screens (see [design.md §4](design.md)). Today it has one setting, the theme; audio, MIDI and brightness come next. Pressing SETTINGS again, CHANNEL, STEP, CHORDS or PERFORM goes back to composing. Inside, the pads, knobs and groups do nothing; PLAY, STOP and RESTART still work | ◐ |
 | AUTO · Shift: lock | Record modulation | record + encoder | Hold AUTO and turn a knob to record automation on the track; with Shift it stays fixed | ○ |
 | PAGE ◀ ▶ | Parameter page | M1–M4 | Previous and next page of the current mode (the same as the screen buttons) | ○ |

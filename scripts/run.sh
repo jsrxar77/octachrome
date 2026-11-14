@@ -5,7 +5,7 @@
 #   scripts/run.sh -l                  # also print every control event (is PLAY arriving?)
 #   scripts/run.sh -s                  # also print how much the screens send each second
 #   scripts/run.sh -r                  # reset the MK3 on the USB bus first (a stuck device)
-#   scripts/run.sh -t op-xy            # anything else goes to `op8 run` (a theme, --script f.op8)
+#   scripts/run.sh -t chrome            # anything else goes to `op8 run` (a theme, --script f.op8)
 #
 # It closes what gets in the way of the MK3 (a previous op8, and NI's background
 # services, which hold the screens), builds, waits for the MK3 to appear on USB,
@@ -15,7 +15,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 log=0 stats=0 reset=0
-# Our options come first; everything after them (-t op-xy, --script f) goes to op8.
+# Our options come first; everything after them (-t chrome, --script f) goes to op8.
 while [ $# -gt 0 ]; do
   case "$1" in
     -l) log=1; shift ;;

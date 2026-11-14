@@ -9,18 +9,18 @@ use std::sync::{Mutex, MutexGuard};
 
 static THEME: Mutex<()> = Mutex::new(());
 
-/// Holds the theme lock and starts from op-1; restores op-1 when dropped.
+/// Holds the theme lock and starts from glossy; restores glossy when dropped.
 struct Fresh(#[allow(dead_code)] MutexGuard<'static, ()>);
 
 fn fresh() -> Fresh {
     let guard = THEME.lock().unwrap_or_else(|e| e.into_inner());
-    op8_gfx::set_theme(ThemeId::Op1);
+    op8_gfx::set_theme(ThemeId::Glossy);
     Fresh(guard)
 }
 
 impl Drop for Fresh {
     fn drop(&mut self) {
-        op8_gfx::set_theme(ThemeId::Op1);
+        op8_gfx::set_theme(ThemeId::Glossy);
     }
 }
 
@@ -75,28 +75,28 @@ fn f_c03_encoder_changes_the_theme() {
     let mut b = Bench::demo();
     let bpm = b.project().bpm;
     b.encoder(3);
-    assert_eq!(theme_id(), ThemeId::Op1, "outside settings the encoder is the tempo");
+    assert_eq!(theme_id(), ThemeId::Glossy, "outside settings the encoder is the tempo");
     assert_ne!(b.project().bpm, bpm);
 
     b.press(Button::Settings);
     b.run_ms(100);
     let mut seen = vec![b.screen_hash(Screen::Right)];
-    for expect in [ThemeId::Op1Field, ThemeId::OpXy, ThemeId::Op1] {
+    for expect in [ThemeId::Matte, ThemeId::Chrome, ThemeId::Glossy] {
         b.encoder(1);
         b.run_ms(100);
         assert_eq!(theme_id(), expect);
         seen.push(b.screen_hash(Screen::Right));
     }
-    assert_eq!(seen[0], seen[3], "back on op-1 the right screen is the same again");
+    assert_eq!(seen[0], seen[3], "back on glossy the right screen is the same again");
     assert!(seen[0] != seen[1] && seen[1] != seen[2], "each theme should look different");
 
     b.encoder(-1);
-    assert_eq!(theme_id(), ThemeId::OpXy, "turning back wraps");
+    assert_eq!(theme_id(), ThemeId::Chrome, "turning back wraps");
     b.press(Button::JogLeft);
-    assert_eq!(theme_id(), ThemeId::Op1Field);
+    assert_eq!(theme_id(), ThemeId::Matte);
     b.press(Button::JogRight);
-    assert_eq!(theme_id(), ThemeId::OpXy);
-    b.capture("f-c03-opxy");
+    assert_eq!(theme_id(), ThemeId::Chrome);
+    b.capture("f-c03-chrome");
 }
 
 // F-C04: STEP, CHORDS and PERFORM leave settings and choose their pad mode.
@@ -151,10 +151,10 @@ fn f_c07_theme_change_is_saved() {
     b.app.settings_path = Some(path.clone());
     b.press(Button::Settings);
     assert!(!path.exists(), "nothing to save before a change");
-    b.encoder(2); // op-1 → op-xy
-    assert_eq!(std::fs::read_to_string(&path).expect("saved"), "theme=op-xy\n");
-    b.encoder(1); // wraps to op-1
-    assert_eq!(std::fs::read_to_string(&path).unwrap(), "theme=op-1\n");
+    b.encoder(2); // glossy → chrome
+    assert_eq!(std::fs::read_to_string(&path).expect("saved"), "theme=chrome\n");
+    b.encoder(1); // wraps to glossy
+    assert_eq!(std::fs::read_to_string(&path).unwrap(), "theme=glossy\n");
 
     // No path: the encoder changes the theme and the disk is not touched.
     let mut b = Bench::demo();

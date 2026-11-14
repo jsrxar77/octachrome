@@ -22,17 +22,18 @@ pub struct Settings {
 impl Default for Settings {
     fn default() -> Self {
         Self {
-            theme: ThemeId::Op1,
+            theme: ThemeId::Glossy,
         }
     }
 }
 
 /// The theme a name stands for; the names `-t` and `OP8_THEME` accept.
 pub fn theme_from_name(name: &str) -> Option<ThemeId> {
+    // The old names (op-1, op-1-field, op-xy) still open files saved before the rename.
     match name.trim() {
-        "op-1" | "op1" => Some(ThemeId::Op1),
-        "op-1-field" | "op-1 field" | "field" => Some(ThemeId::Op1Field),
-        "op-xy" | "opxy" => Some(ThemeId::OpXy),
+        "glossy" | "op-1" | "op1" => Some(ThemeId::Glossy),
+        "matte" | "op-1-field" | "op-1 field" | "field" => Some(ThemeId::Matte),
+        "chrome" | "op-xy" | "opxy" => Some(ThemeId::Chrome),
         _ => None,
     }
 }
@@ -40,9 +41,9 @@ pub fn theme_from_name(name: &str) -> Option<ThemeId> {
 /// The name written to the file: the one `-t` documents.
 pub fn theme_name(id: ThemeId) -> &'static str {
     match id {
-        ThemeId::Op1 => "op-1",
-        ThemeId::Op1Field => "op-1-field",
-        ThemeId::OpXy => "op-xy",
+        ThemeId::Glossy => "glossy",
+        ThemeId::Matte => "matte",
+        ThemeId::Chrome => "chrome",
     }
 }
 
@@ -118,13 +119,13 @@ mod tests {
     #[test]
     fn a_damaged_file_falls_back_to_the_default() {
         let d = Settings::default();
-        for bad in ["", "garbage", "theme", "theme=", "theme=neon", "= =\n\n==", "colour=op-xy"] {
+        for bad in ["", "garbage", "theme", "theme=", "theme=neon", "= =\n\n==", "colour=chrome"] {
             assert_eq!(Settings::parse(bad), d, "{bad:?}");
         }
         // Unknown keys and blank lines around a good one are ignored.
         assert_eq!(
-            Settings::parse("future=1\n\ntheme = op-xy\nother=x\n").theme,
-            ThemeId::OpXy
+            Settings::parse("future=1\n\ntheme = chrome\nother=x\n").theme,
+            ThemeId::Chrome
         );
     }
 
@@ -132,12 +133,13 @@ mod tests {
     #[test]
     fn names_match_the_command_line() {
         for (name, id) in [
-            ("op-1", ThemeId::Op1),
-            ("op1", ThemeId::Op1),
-            ("op-1-field", ThemeId::Op1Field),
-            ("field", ThemeId::Op1Field),
-            ("op-xy", ThemeId::OpXy),
-            ("opxy", ThemeId::OpXy),
+            ("glossy", ThemeId::Glossy),
+            ("matte", ThemeId::Matte),
+            ("chrome", ThemeId::Chrome),
+            // saved before the rename
+            ("op-1", ThemeId::Glossy),
+            ("op-1-field", ThemeId::Matte),
+            ("op-xy", ThemeId::Chrome),
         ] {
             assert_eq!(theme_from_name(name), Some(id), "{name}");
         }
@@ -155,7 +157,7 @@ mod tests {
         let _ = std::fs::remove_dir_all(&dir);
         assert_eq!(Settings::load(&path), Settings::default(), "missing file");
         let s = Settings {
-            theme: ThemeId::OpXy,
+            theme: ThemeId::Chrome,
         };
         s.save(&path).expect("save");
         assert_eq!(Settings::load(&path), s);

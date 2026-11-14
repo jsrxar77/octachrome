@@ -29,12 +29,12 @@ fn main() -> Result<()> {
             .cloned()
     };
     let seconds: Option<f32> = opt("-s", "--seconds").and_then(|s| s.parse().ok());
-    // Screen theme (docs/design.md §2): op-1 (default), op-1-field, op-xy.
+    // Screen theme (docs/design.md §2): glossy (default), matte, chrome.
     let theme = opt("-t", "--theme").or_else(|| std::env::var("OP8_THEME").ok());
     let theme_given = theme.is_some();
     if let Some(name) = theme {
         let id = op8::settings::theme_from_name(&name)
-            .ok_or_else(|| anyhow::anyhow!("unknown theme {name:?} (op-1, op-1-field, op-xy)"))?;
+            .ok_or_else(|| anyhow::anyhow!("unknown theme {name:?} (glossy, matte, chrome)"))?;
         op8_gfx::set_theme(id);
     }
     let script = match opt("--script", "--script") {
@@ -58,7 +58,7 @@ fn main() -> Result<()> {
         "calib" => calib(seconds.unwrap_or(20.0)),
         "usb-reset" => usb_reset(),
         "-h" | "--help" | "help" => {
-            println!("usage: op8 [run | sim [-s SECS] [-o DIR] | hw-test [-s SECS]] [--script FILE] [-t op-1|op-1-field|op-xy]");
+            println!("usage: op8 [run | sim [-s SECS] [-o DIR] | hw-test [-s SECS]] [--script FILE] [-t glossy|matte|chrome]");
             Ok(())
         }
         other => anyhow::bail!("unknown command {other:?} (try --help)"),
@@ -152,7 +152,7 @@ fn run(mut script: Option<Script>, theme_given: bool) -> Result<()> {
     println!("{}", surface.power_note());
     let mut app = App::new(surface, handle);
     // The theme: `-t` / `OP8_THEME` win; otherwise the one saved from the
-    // settings view; otherwise op-1. Later changes are saved to the same file.
+    // settings view; otherwise glossy. Later changes are saved to the same file.
     if let Some(path) = op8::settings::default_path() {
         if !theme_given {
             op8_gfx::set_theme(op8::settings::Settings::load(&path).theme);

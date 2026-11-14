@@ -9,5 +9,6 @@
 - No GPL dependencies and no GPL code (Encdr, autotel/maschine-mk3-linux and Deckard are GPL): the MK3 protocol is implemented separately, from facts only.
 - Instruments are the centre of the product: follow `docs/instruments.md` (at most 8 parameters, a drawing that explains the sound).
 - Mutable Instruments code (STM32, MIT) can be used, but without its module names. Surge XT and Vital are GPL: do not include without a decision from Javi.
-- The brand mark (eight rainbow buttons forming an 8 on its side, in the order red, orange, yellow, green, blue, indigo, violet, white) is defined in `docs/design.md` §2.3, with its colours in each theme (`Theme.brand`). Respect it: always eight, always that order, in every theme.
+- The brand mark is eight buttons in the order red, orange, yellow, green, blue, indigo, violet, white, laid out as the MK3 lays out eight (group keys 4 + 4, or eight knobs in a row): `docs/design.md` §2.3, colours per theme in `Theme.brand`. **Every picture of the unit follows the real front panel** (`guide/mk3.js`, §2.4). Respect both, always.
+- Eight and eight: 8 factory + 8 user instruments, 8 factory + 8 user projects (`docs/instruments.md` §7).
 - Both MK3 screens animate. Never assume either one is still.

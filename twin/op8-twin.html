@@ -126,7 +126,7 @@ canvas.lcd {
     <h1>OP-8 Twin</h1>
     <p>Gemelo de la Maschine MK3 con el motor OP-8: las mismas pantallas de 480×272, los mismos controles y un secuenciador con polimetría, Step Components, Brain y Punch-in FX. Tocá PLAY para escuchar.</p>
     <div class="look">
-      <span>tema</span><button data-look="theme" data-v="op1">op-1</button><button data-look="theme" data-v="field">op-1 field</button><button data-look="theme" data-v="opxy">op-xy</button>
+      <span>tema</span><button data-look="theme" data-v="glossy">glossy</button><button data-look="theme" data-v="matte">matte</button><button data-look="theme" data-v="chrome">chrome</button>
     </div>
   </header>
 
@@ -589,7 +589,7 @@ function setMode(m) {
 }
 // Main modes: CHANNEL composes (sequencer left, instrument right); SETTINGS
 // takes both screens for the machine's settings (theme for now).
-const THEME_IDS = ["op1", "field", "opxy"];
+const THEME_IDS = ["glossy", "matte", "chrome"];
 function setMain(m) { UI.main = m; UI.inspect = null; inspectorPad = null; }
 function themeStep(d) { LOOK.theme = THEME_IDS[((THEME_IDS.indexOf(LOOK.theme) + d) % 3 + 3) % 3]; applyLook(); }
 function groupPress(g) {
@@ -696,13 +696,13 @@ function controllerTick() {
 // Design tokens: see docs/design.md. Three themes, each with four encoder
 // colours: knobs 1–4 drive the sequencer (left screen), 5–8 the instrument (right) and three type families to compare.
 const THEMES = {
-  op1:   { name: "op-1",       bg: "#000", fg: "#F2F4F8", dim: "#7E8794", faint: "#232831", panel: "#0D1118", knobs: ["#0099FF", "#00E56A", "#F2F4F8", "#FF4F00", "#8B6CFF", "#FFD21F", "#2ED3E6", "#FF4FA0"], brand: ["#FF2D2D", "#FF8A1F", "#FFD21F", "#00E56A", "#0099FF", "#4B4BFF", "#B15CFF", "#F2F4F8"], rec: "#FF3B30" },
-  field: { name: "op-1 field", bg: "#000", fg: "#F4EFE6", dim: "#8E918F", faint: "#262A30", panel: "#12161D", knobs: ["#3B8EBA", "#D9822B", "#A9AFB8", "#F2652A", "#7FB58A", "#E3C77A", "#A88BC7", "#D9677A"], brand: ["#D9534F", "#D9822B", "#E3C77A", "#7FB58A", "#3B8EBA", "#5F6BB5", "#A88BC7", "#F4EFE6"], rec: "#E63946" },
-  opxy:  { name: "op-xy",      bg: "#000", fg: "#EEF0F5", dim: "#80858F", faint: "#24262C", panel: "#0F1014", knobs: ["#94A8C6", "#00F076", "#EEF0F5", "#FF3844", "#FFD60A", "#34D3E8", "#9D7BFF", "#FF8A1F"], brand: ["#FF3B2F", "#FF8A1F", "#FFD60A", "#00F076", "#4C8DFF", "#6A5CFF", "#B07BFF", "#EEF0F5"], rec: "#FF2244" },
+  glossy:   { name: "glossy",       bg: "#000", fg: "#F2F4F8", dim: "#7E8794", faint: "#232831", panel: "#0D1118", knobs: ["#0099FF", "#00E56A", "#F2F4F8", "#FF4F00", "#8B6CFF", "#FFD21F", "#2ED3E6", "#FF4FA0"], brand: ["#FF2D2D", "#FF8A1F", "#FFD21F", "#00E56A", "#0099FF", "#4B4BFF", "#B15CFF", "#F2F4F8"], rec: "#FF3B30" },
+  matte: { name: "matte", bg: "#000", fg: "#F4EFE6", dim: "#8E918F", faint: "#262A30", panel: "#12161D", knobs: ["#3B8EBA", "#D9822B", "#A9AFB8", "#F2652A", "#7FB58A", "#E3C77A", "#A88BC7", "#D9677A"], brand: ["#D9534F", "#D9822B", "#E3C77A", "#7FB58A", "#3B8EBA", "#5F6BB5", "#A88BC7", "#F4EFE6"], rec: "#E63946" },
+  chrome:  { name: "chrome",      bg: "#000", fg: "#EEF0F5", dim: "#80858F", faint: "#24262C", panel: "#0F1014", knobs: ["#94A8C6", "#00F076", "#EEF0F5", "#FF3844", "#FFD60A", "#34D3E8", "#9D7BFF", "#FF8A1F"], brand: ["#FF3B2F", "#FF8A1F", "#FFD60A", "#00F076", "#4C8DFF", "#6A5CFF", "#B07BFF", "#EEF0F5"], rec: "#FF2244" },
 };
 let BG, FG, DIM, FAINT, KC, PANEL, REC, FONT;
 const prefs = (() => { try { return JSON.parse(localStorage.getItem("op8-look") || "{}"); } catch { return {}; } })();
-const LOOK = { theme: THEMES[prefs.theme] ? prefs.theme : "op1" };
+const LOOK = { theme: THEMES[prefs.theme] ? prefs.theme : "glossy" };
 function applyLook() {
   const t = THEMES[LOOK.theme];
   BG = t.bg; FG = t.fg; DIM = t.dim; FAINT = t.faint; KC = t.knobs; PANEL = t.panel; REC = t.rec;

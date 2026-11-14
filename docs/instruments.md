@@ -78,3 +78,27 @@ It has to be measured on the real Pi, but the target is: 8 tracks sounding at on
 
 - A DAW or a VST plug-in host: instruments are few parameters and a drawing, not enormous panels.
 - A box of thousands of parameters: if something needs more than 8 knobs, it is two instruments.
+
+## 7. Eight and eight
+
+Everything in OP-8 is built on eight, and the MK3 has sixteen pads. So the library is **8 factory instruments plus 8 places for the ones you install**, and the projects are **8 factory projects plus 8 of your own**. On the pads: pads 1–8 (the top two rows) are what ships, pads 9–16 (the bottom two rows) are yours. Decided by Javi on 2026-11-13.
+
+| | Factory (pads 1–8) | Yours (pads 9–16) |
+| :-- | :-- | :-- |
+| **Instruments** (PLUG-IN) | 8 that always ship and cannot be removed | 8 places for instruments installed as separate packages (stage 2 and 3 of §3) |
+| **Projects** (FILE) | 8 music projects that always ship: a way into the instruments and the sequencer | 8 places for the player's own projects |
+
+The factory eight, as proposed (to be confirmed by Javi; the first four exist):
+
+| # | Instrument | Idea | Status |
+| :-- | :-- | :-- | :-- |
+| 1 | **KickSyn** | Synthetic kick | ✓ |
+| 2 | **FmBass** | Two-operator FM bass | ✓ |
+| 3 | **macro** | 24 engines in one (from Plaits) | ✓ |
+| 4 | **MidiOutBridge** | The track out to an external synth | ✓ |
+| 5 | **resonator** | Strings, bells and tubes (from Rings) | ○ |
+| 6 | **drums** | 8 drum sounds on pads 9–16 of a track | ○ |
+| 7 | **sampler** | Record with SAMPLING and play it | ○ |
+| 8 | **granular** | Granular on a sample (from Clouds / Beads) | ○ |
+
+Rules: the factory eight meet §2 like any other instrument; each factory project shows one thing (an instrument, a rhythm idea, the Brain) and is made only with the factory eight, so it always loads. Removing, replacing or overwriting a factory slot is not possible; a user slot starts empty.

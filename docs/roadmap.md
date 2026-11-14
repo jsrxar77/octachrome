@@ -13,7 +13,7 @@ It comes from the [button map](buttons.md) and from [instruments.md](instruments
 - Test bench, scripts and feature cases that run without hardware ([features.md](features.md)).
 - Main modes: CHANNEL (composing) and SETTINGS (both screens). Settings has one page today, the theme: it is chosen with the 4D encoder and kept in a settings file ([architecture.md §10](architecture.md)). Tried in the Twin first.
 - The audio comes back by itself when the MK3's audio device drops (it used to stay dead, leaving the sequencer frozen).
-- The name is OP-8 and the brand mark is defined: eight rainbow buttons on an 8 on its side, with the colours in each theme ([design.md §2.3](design.md)). Guide and manual in `guide/`.
+- The name is OP-8. The brand mark is defined (eight rainbow buttons, 4 + 4 as the unit's group keys or eight knobs in a row, the eighth white as the octave), the themes are glossy, matte and chrome, and every picture of the unit follows the real front panel ([design.md §2.3–2.4](design.md)). Guide, manual and brand page are in `guide/`.
 - Twin with the same screens, macro on track D and an approximate sound in WebAudio.
 
 ## Hardware status
@@ -27,7 +27,7 @@ Checked on a real MK3 (macOS, Apple Silicon):
 Not yet checked:
 
 - The SETTINGS button, its LED and the 4D encoder in settings (F-C08), and that the audio, screens and PLAY recover after pulling the cable (F-A07).
-- Themes other than op-1 on the real screens.
+- Themes other than glossy on the real screens.
 - The MK3 plugged straight into the Mac (F-H06): what the `power:` line reports there, and whether brightness 80 then holds. The 500 mA threshold between limited and full is provisional until then. NI's optional power supply is the other fix people point to ([architecture.md §13](architecture.md)).
 - The LED palette beyond red and orange, and whether level 3 comes out white-mixed (Deckard issue #154, [architecture.md §13](architecture.md)).
 - CPU load on the Pi 5 (target in [instruments.md §5](instruments.md)).
@@ -59,7 +59,7 @@ Known limits of the setup:
 - Screen buttons 1–4: step, components, players, bar. 5–8: sound, shape, fx, mod.
 - PAGE ◀ ▶, 4D encoder (▲ ▼ ◀ ▶, push, turn).
 - SETTINGS: audio, MIDI and brightness as further pages (the theme page is done). The 4D ▲ ▼ chooses the page once there is more than one, and the right screen then shows its page dots.
-- Open question: the track colours (A–H) are one fixed palette in all three themes, and look loud next to the muted op-1 field. Decide in the Twin whether each theme gets its own.
+- Open question: the track colours (A–H) are one fixed palette in all three themes, and look loud next to the muted matte. Decide in the Twin whether each theme gets its own.
 
 ## 2. Playing and recording
 
@@ -69,6 +69,9 @@ Known limits of the setup:
 - AUTO: automation per knob.
 
 ## 3. Instruments (the centre)
+
+- **Eight and eight.** 8 factory instruments + 8 installed ones ([instruments.md §7](instruments.md)). Factory today: KickSyn, FmBass, macro, MidiOutBridge. To build: resonator, drums, sampler, granular.
+- PLUG-IN shows the 16 places on the 4×4 pads (1–8 factory, 9–16 installed); an empty installed place says so.
 
 - Cartridge registry list and PLUG-IN to choose the cartridge of each track (from `builtin_names()`).
 - Kit of reusable drawings in `op8-gfx` (oscilloscope, envelope, polar waveform).
@@ -83,6 +86,8 @@ Known limits of the setup:
 - NOTE REPEAT and arpeggiator (players, button 3).
 
 ## 5. Structure
+
+- **Eight and eight projects.** 8 factory projects (one idea each, made only with the factory instruments) and 8 for the player; FILE shows them on the 16 pads ([instruments.md §7](instruments.md)). Needs save and load first (§7).
 
 - PATTERN: 16 patterns per track.
 - SCENE and ARRANGER: scenes and song.

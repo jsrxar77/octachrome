@@ -36,7 +36,7 @@ Three themes. The logic is the same in all three; only the palette changes. The 
 
 ### 2.1 Encoder colours
 
-| Encoder | op-1 (default) | op-1 field | op-xy |
+| Encoder | glossy (default) | matte | chrome |
 | :-- | :-- | :-- | :-- |
 | 1 | `#0099FF` blue | `#3B8EBA` steel blue | `#94A8C6` ice silver |
 | 2 | `#00E56A` green | `#D9822B` ochre | `#00F076` signal green |
@@ -51,7 +51,7 @@ The first four follow the encoder order of each reference device (original OP-1:
 
 ### 2.2 Base colours
 
-| Token | op-1 | op-1 field | op-xy | Use |
+| Token | glossy | matte | chrome | Use |
 | :-- | :-- | :-- | :-- | :-- |
 | `bg` | `#000000` | `#000000` | `#000000` | Background |
 | `fg` | `#F2F4F8` | `#F4EFE6` | `#EEF0F5` | Text and main strokes |
@@ -64,9 +64,9 @@ The track colours (A–H) are one fixed palette shared by the three themes (`cra
 
 ### 2.3 Brand mark
 
-The mark of OP-8 is the 8 on its side: an infinity loop made of **eight buttons**, one per colour of the rainbow, the eighth white. It is the only picture that stands for the product (guide, twin, icon, README). Everything in OP-8 is built on eight, and the loop never ends.
+The mark of OP-8 is **eight buttons, one per colour of the rainbow, the eighth white**. Everything in OP-8 is built on eight, and the eighth colour is white because it is the **octave** (*8va*): in music the eighth note is the first one again, higher. The mark is the only picture that stands for the product (guide, twin, icon, README). The themes are named glossy, matte and chrome (they were op-1, op-1 field and op-xy; the old names still open an old settings file).
 
-| Button | op-1 | op-1 field | op-xy |
+| Button | glossy | matte | chrome |
 | :-- | :-- | :-- | :-- |
 | 1 red | `#FF2D2D` | `#D9534F` | `#FF3B2F` |
 | 2 orange | `#FF8A1F` | `#D9822B` | `#FF8A1F` |
@@ -80,11 +80,21 @@ The mark of OP-8 is the 8 on its side: an infinity loop made of **eight buttons*
 Rules of the mark:
 
 - Always eight buttons, always in this order: **red, orange, yellow, green, blue, indigo, violet, white**. The order never changes, in any theme, size or use.
-- Always eight buttons, always in this order, always on absolute black, evenly spaced along the loop. Never fewer, never another colour, never outlined or filled with a gradient.
-- The colours come from the active theme (`Theme.brand` in `crates/op8-gfx/src/theme.rs`). A theme may shift the range and the hue (muted in op-1 field, brighter in op-xy), but it always has **eight** that recall the rainbow: the seven colours of the rainbow in its order (red, orange, yellow, green, blue, indigo, violet), then the theme's own white. A test checks that each button is the colour of its place (F-D09).
-- A thin loop in `faint` runs behind the buttons so the 8 reads at once. The buttons are rounded squares, like the pads. A single button may light in turn, like a playhead; nothing else moves.
+- The eight are laid out **as the MK3 lays out eight** (§2.4): the eight group keys, **four and four** (the main mark), or the **eight knobs in a row** (the long mark). Reading order is left to right, then the second row. Never another arrangement: no loop, no circle, no stairs.
+- Always on absolute black. Never fewer than eight, never another colour, never outlined, never a gradient.
+- The colours come from the active theme (`Theme.brand` in `crates/op8-gfx/src/theme.rs`). A theme may shift the range and the hue (muted in matte, brighter in chrome), but it always has **eight** that recall the rainbow: the seven colours of the rainbow in its order (red, orange, yellow, green, blue, indigo, violet), then the theme's own white. A test checks that each button is the colour of its place (F-D09).
+- The keys keep the proportion of the unit's group keys and rounded corners; the knobs are circles. A single button may light in turn, like a playhead; nothing else moves. In the guide the eight can be played as a major scale, the white being the octave.
 - The wordmark is `OP-8` in Jost Light. The mark can stand alone or above the wordmark; the wordmark never carries the colours.
-- The master file is `guide/brand/op8-mark.svg`.
+- The master files are `guide/brand/op8-mark.svg` (4 + 4) and `guide/brand/op8-mark-knobs.svg` (a row). Their geometry is `MK3.mark` in `guide/mk3.js`.
+
+### 2.4 Pictures of the unit
+
+Every picture of the MK3 (the guide's map, the manual, the brand page, the twin, any future image) **follows the real front panel**, so the picture can be used to find the control in your hands.
+
+- The master geometry is `guide/mk3.js`, scaled from the unit's front view. Drawings take their positions from it; nobody places a button by eye.
+- Top to bottom: the eight screen buttons, the two screens, the eight knobs under them. On the left, six rows of two buttons (CHANNEL to MACRO), the 4D encoder with VOLUME, SWING and TEMPO beside it, then PITCH, MOD, PERFORM, NOTES, the Smart Strip, the group keys A–H as two rows of four, and the transport at the bottom. In the middle, the pad-mode buttons above the pads and SCENE to MUTE in a column to their left. On the right, the 4×4 pads.
+- A group of **eight** is drawn as the eight knobs in a row or as the eight group keys, four and four. A group of **sixteen** is the 4×4 pads. Never another arrangement.
+- The same rule applies to what the player sees in OP-8: the 8 factory and 8 user instruments, and the 8 factory and 8 user projects, are the 16 pads ([instruments.md §7](instruments.md)).
 
 ## 3. Typography
 
@@ -110,7 +120,8 @@ In Rust, Jost (300 and 400, `assets/fonts/`) is embedded with `include_bytes!` a
 | What | File |
 | :-- | :-- |
 | Themes, encoder colours and brand colours | `crates/op8-gfx/src/theme.rs` (`theme()`, `knob(i)`, `Theme.brand`) |
-| Brand mark (master file) and its drawing in the guide | `guide/brand/op8-mark.svg`, `drawMark` in `guide/index.html` and `guide/brand.html` |
+| Brand mark (master files) | `guide/brand/op8-mark.svg`, `guide/brand/op8-mark-knobs.svg` |
+| MK3 front-panel geometry (every picture of the unit) | `guide/mk3.js` |
 | Brand colours in the twin | `THEMES[...].brand` in `twin/op8-twin.html` |
 | Typeface and type scale | `crates/op8-gfx/src/font.rs` |
 | Anti-aliased lines, arcs, circles and boxes | `crates/op8-gfx/src/paint.rs` |
@@ -119,7 +130,7 @@ In Rust, Jost (300 and 400, `assets/fonts/`) is embedded with `include_bytes!` a
 | Right screen (frame) | `crates/op8-ui/src/right.rs` |
 | Drawing of each instrument | `draw_ui` of each cartridge in `crates/op8-cartridges/src/` |
 
-The theme is chosen with `op8 run -t op-1|op-1-field|op-xy` or `OP8_THEME`.
+The theme is chosen with `op8 run -t glossy|matte|chrome` or `OP8_THEME`.
 
 ## 4. Screen structure
 
