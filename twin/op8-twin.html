@@ -954,13 +954,13 @@ function compGlyph(g, c, x, y, col) {
 function inspector(g, accent) {
   const s = P.tracks[UI.track].steps[UI.inspect];
   // big step number + note
-  txt(g, String(UI.inspect + 1), 30, 40, "huge", s.active ? accent : DIM);
-  txt(g, noteName(s.note), 30, 104, "mid", KC[0]);
+  txt(g, String(UI.inspect + 1), 30, 52, "huge", s.active ? accent : DIM);
+  txt(g, SLOTS[UI.track] === "drums" ? DRUM_NAMES[(s.note % 12) % 8] : noteName(s.note), 30, 116, "mid", KC[0]);
   // velocity as a vertical bar, gate as a horizontal bar (knob colours)
-  fill(g, 120, 44, 10, 100, FAINT); fill(g, 120, 44 + 100 * (1 - s.vel / 127), 10, 100 * s.vel / 127, KC[1]);
-  fill(g, 30, 140, 80, 6, FAINT); fill(g, 30, 140, 80 * s.gate / 100, 6, KC[2]);
+  fill(g, 120, 56, 10, 100, FAINT); fill(g, 120, 56 + 100 * (1 - s.vel / 127), 10, 100 * s.vel / 127, KC[1]);
+  fill(g, 30, 152, 80, 6, FAINT); fill(g, 30, 152, 80 * s.gate / 100, 6, KC[2]);
   // component stack
-  const x0 = 160, y0 = 42;
+  const x0 = 160, y0 = 54;
   s.comps.forEach((c, i) => {
     const x = x0 + (i % 3) * 104, y = y0 + Math.floor(i / 3) * 60, sel = i === UI.compCursor;
     rrect(g, x, y, 96, 52, 8, sel ? KC[3] : FAINT, sel ? 2 : 1);
@@ -1032,11 +1032,11 @@ function fxGlyph(g, kind, x, y, w, h, col, amt) {
 const FX_SUB = { 96: "1/4", 48: "1/8", 24: "1/16", 12: "1/32", 16: "1/16T", 6: "1/16", 3: "1/32" };
 function punchView(g, accent) {
   PUNCH.forEach(([name, kind], i) => {
-    const col = i % 4, row = 3 - Math.floor(i / 4), x = 12 + col * 116, y = 36 + row * 46, on = punchState.slot === i;
-    if (on) rrect(g, x, y, 108, 40, 8, mix(accent, 0.35 + 0.65 * punchState.amount)); else rrect(g, x + .5, y + .5, 107, 39, 8, FAINT, 1);
-    fxGlyph(g, typeof kind === "number" ? "loop" : kind, x + 10, y + 8, 40, 24, on ? BG : FG, on ? punchState.amount : 0.5);
-    if (typeof kind === "number") txt(g, (name.startsWith("STUT") ? "s " : "") + FX_SUB[kind], x + 30, y + 20, "s", on ? BG : FG, "center", "middle");
-    txt(g, name.toLowerCase().replace(/ .*/, ""), x + 98, y + 20, "s", on ? BG : DIM, "right", "middle");
+    const col = i % 4, row = 3 - Math.floor(i / 4), x = 12 + col * 116, y = 52 + row * 42, on = punchState.slot === i;
+    if (on) rrect(g, x, y, 108, 36, 8, mix(accent, 0.35 + 0.65 * punchState.amount)); else rrect(g, x + .5, y + .5, 107, 35, 8, FAINT, 1);
+    fxGlyph(g, typeof kind === "number" ? "loop" : kind, x + 10, y + 6, 40, 24, on ? BG : FG, on ? punchState.amount : 0.5);
+    if (typeof kind === "number") txt(g, (name.startsWith("STUT") ? "s " : "") + FX_SUB[kind], x + 30, y + 18, "s", on ? BG : FG, "center", "middle");
+    txt(g, name.toLowerCase().replace(/ .*/, ""), x + 98, y + 18, "s", on ? BG : DIM, "right", "middle");
   });
 }
 function leftFooter() {
@@ -1044,7 +1044,9 @@ function leftFooter() {
   if (UI.mode === "step" && UI.inspect != null) {
     const s = tr.steps[UI.inspect], cur = s.comps[UI.compCursor] || null;
     const pi = Math.max(0, COMPONENT_PRESETS.findIndex(c => sameComp(c, cur)));
-    return [["note", noteName(s.note), s.note / 127], ["velocity", String(s.vel), s.vel / 127], ["gate", s.gate + "%", s.gate / 100],
+    // a drum kit: the note is a choice of sound, so the inspector says which
+    const drum = SLOTS[UI.track] === "drums";
+    return [drum ? ["sound", DRUM_NAMES[(s.note % 12) % 8], s.note / 127] : ["note", noteName(s.note), s.note / 127], ["velocity", String(s.vel), s.vel / 127], ["gate", s.gate + "%", s.gate / 100],
       ["component", UI.compCursor >= s.comps.length ? "+" : compLabel(cur).toLowerCase(), pi / (COMPONENT_PRESETS.length - 1), cur ? (g, cx, cy, c) => compGlyph(g, cur, cx - 17, cy - 11, c) : null]];
   }
   if (UI.mode === "brain") return [["key", NOTE_NAMES[P.brain.key], P.brain.key / 11], ["scale", SCALES[P.brain.scale][0].toLowerCase(), P.brain.scale / 6], ["mode", BRAIN_MODES[P.brain.mode].toLowerCase(), P.brain.mode / 2], ["chords", String(P.brain.len), P.brain.len / 8]];

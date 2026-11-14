@@ -203,6 +203,9 @@ impl InstrumentCartridge for Drums {
             _ => None,
         }
     }
+    fn note_label(&self, note: u8) -> Option<&'static str> {
+        Some(SOUND_NAMES[sound_of(note)])
+    }
     fn all_notes_off(&mut self) {
         for v in &mut self.voices {
             v.strike = false;

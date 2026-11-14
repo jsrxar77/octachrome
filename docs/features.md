@@ -57,6 +57,7 @@ The buttons and their implementation status are in [buttons.md](buttons.md). Thi
 | F-K02 | With page 6 open, knobs 5–8 change parameters 5–8 | `right_page == 1`; `param(track, 4)` changes | ✓ |
 | F-K03 | Touching a knob shows the large overlay on the right screen | `knob_touch[i]` true; the screen hash changes | ✓ |
 | F-K04 | Each instrument exposes at most 8 parameters | `parameters().len() <= 8` for all cartridges (`builtin_names`) | ✓ |
+| F-K09 | On a drum track the step inspector says which sound the note plays (`sound`, not `note`), and the note knob changes it; a plain-pitch instrument still shows the note ([instruments.md §7](instruments.md)) | `ui.step_sound` | ✓ |
 
 ## D · Screens (`tests/screens.rs`)
 

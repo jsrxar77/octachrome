@@ -103,3 +103,7 @@ The factory eight, confirmed by Javi on 2026-11-14 (the first four exist). The e
 | 8 | **granular** | Granular on a sample (from Clouds / Beads) | ○ |
 
 Rules: the factory eight meet §2 like any other instrument; each factory project shows one thing (an instrument, a rhythm idea, the Brain) and is made only with the factory eight, so it always loads. Removing, replacing or overwriting a factory slot is not possible; a user slot starts empty.
+
+### How the sound of a drum step is chosen
+
+The pitch class of a step's note picks the drum sound (see the table under *Already done*). To choose it: hold the step's pad (or press screen button 2, `components`, which opens the inspector on step 1); the first knob of the left screen is `sound` on a drum track (`note` on any other) and turning it moves through the sounds one note at a time: C kick, C# snare, D closed hat, D# open hat, E tom, F clap, F# rim, G crash. The footer shows the name, not the note. The knobs on the right (and `sound` on page 2) edit the *chosen* sound's own tune, decay, tone, snap, body, level and pan. Still to come: the chromatic KEYBOARD and PAD MODE, which will play the eight sounds straight from the pads ([buttons.md](buttons.md)).

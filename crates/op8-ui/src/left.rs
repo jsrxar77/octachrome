@@ -375,7 +375,7 @@ fn inspector(fb: &mut FrameBuffer480x272, ui: &UiState, p: &Project, step: usize
         fb,
         &(step + 1).to_string(),
         30,
-        66,
+        78,
         FontSize::Huge,
         if s.active { accent } else { t.dim },
         Align::Left,
@@ -383,22 +383,22 @@ fn inspector(fb: &mut FrameBuffer480x272, ui: &UiState, p: &Project, step: usize
     );
     text_v(
         fb,
-        &note_name(s.note),
+        &ui.step_sound.map_or_else(|| note_name(s.note), |n| n.to_string()),
         30,
-        116,
+        128,
         FontSize::Large,
         knob(0),
         Align::Left,
         VAlign::Middle,
     );
     // velocity: vertical bar (knob 2); gate: horizontal bar (knob 3)
-    fb.fill_rect(120, 44, 10, 100, t.faint);
+    fb.fill_rect(120, 56, 10, 100, t.faint);
     let vh = (100.0 * s.velocity as f32 / 127.0) as i32;
-    fb.fill_rect(120, 144 - vh, 10, vh, knob(1));
-    fb.fill_rect(30, 140, 80, 6, t.faint);
-    fb.fill_rect(30, 140, (80.0 * s.gate as f32 / 100.0) as i32, 6, knob(2));
+    fb.fill_rect(120, 156 - vh, 10, vh, knob(1));
+    fb.fill_rect(30, 152, 80, 6, t.faint);
+    fb.fill_rect(30, 152, (80.0 * s.gate as f32 / 100.0) as i32, 6, knob(2));
     // component stack (knob 4)
-    let (x0, y0) = (160.0, 42.0);
+    let (x0, y0) = (160.0, 54.0);
     let comps = s.components.as_slice();
     for (i, &c) in comps.iter().enumerate() {
         let (x, y) = (x0 + (i % 3) as f32 * 104.0, y0 + (i / 3) as f32 * 60.0);
@@ -615,13 +615,13 @@ fn punch_view(fb: &mut FrameBuffer480x272, ui: &UiState, accent: Rgb565) {
     for (i, &(fx, name)) in PUNCH_SLOTS.iter().enumerate() {
         // pads laid out like the hardware: pad 0 bottom-left
         let (col, row) = ((i % 4) as f32, (3 - i / 4) as f32);
-        let (x, y) = (12.0 + col * 116.0, 36.0 + row * 46.0);
+        let (x, y) = (12.0 + col * 116.0, 52.0 + row * 42.0);
         let on = ui.punch.map(|(s, _)| s) == Some(i);
         let amt = ui.punch.map_or(0.0, |(_, v)| v);
         if on {
-            fill_round_rect(fb, x, y, 108.0, 40.0, 8.0, accent.scale(0.35 + 0.65 * amt));
+            fill_round_rect(fb, x, y, 108.0, 36.0, 8.0, accent.scale(0.35 + 0.65 * amt));
         } else {
-            stroke_round_rect(fb, x, y, 108.0, 40.0, 8.0, 1.0, t.faint);
+            stroke_round_rect(fb, x, y, 108.0, 36.0, 8.0, 1.0, t.faint);
         }
         let ink = if on { t.bg } else { t.fg };
         let mut words = name.split(' ');
@@ -633,7 +633,7 @@ fn punch_view(fb: &mut FrameBuffer480x272, ui: &UiState, accent: Rgb565) {
             fb,
             fx,
             x + 10.0,
-            y + 8.0,
+            y + 6.0,
             gw,
             24.0,
             ink,
@@ -644,7 +644,7 @@ fn punch_view(fb: &mut FrameBuffer480x272, ui: &UiState, accent: Rgb565) {
                 fb,
                 sub,
                 x as i32 + 38,
-                y as i32 + 20,
+                y as i32 + 18,
                 FontSize::Small,
                 ink,
                 Align::Left,
@@ -655,7 +655,7 @@ fn punch_view(fb: &mut FrameBuffer480x272, ui: &UiState, accent: Rgb565) {
             fb,
             &head,
             x as i32 + 98,
-            y as i32 + 20,
+            y as i32 + 18,
             FontSize::Small,
             if on { t.bg } else { t.dim },
             Align::Right,
@@ -679,7 +679,11 @@ pub fn left_footer(ui: &UiState, p: &Project) -> [FooterCell; 4] {
                 .unwrap_or(StepComponent::None);
             let adding = ui.comp_cursor >= st.components.len();
             [
-                FooterCell::new("note", note_name(st.note), Some(st.note as f32 / 127.0)),
+                match ui.step_sound {
+                    // a drum kit: the note is a choice of sound, so say which
+                    Some(name) => FooterCell::new("sound", name, Some(st.note as f32 / 127.0)),
+                    None => FooterCell::new("note", note_name(st.note), Some(st.note as f32 / 127.0)),
+                },
                 FooterCell::new(
                     "velocity",
                     st.velocity.to_string(),

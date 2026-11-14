@@ -54,3 +54,22 @@ fn f_k04_at_most_eight_parameters() {
         assert!(n <= 8, "{name} exposes {n} parameters");
     }
 }
+
+// F-K09: on a drum track the step inspector says which sound the note plays, and the note knob chooses it.
+#[test]
+fn f_k09_inspector_names_the_drum_sound() {
+    let mut b = Bench::demo();
+    b.press(Button::Group(4)); // track E: drums
+    b.press(Button::Screen(2)); // components: opens the inspector on step 1
+    b.run_ms(100);
+    let before = b.ui().step_sound.expect("a drum track names the sound");
+    b.knob(0, 40); // one detent up: the next note, the next sound
+    b.run_ms(100);
+    let after = b.ui().step_sound.expect("still named");
+    assert_ne!(before, after, "{before} -> {after}");
+    // a track whose instrument is a plain pitch names nothing
+    b.press(Button::Group(1));
+    b.press(Button::Screen(2));
+    b.run_ms(100);
+    assert_eq!(b.ui().step_sound, None);
+}

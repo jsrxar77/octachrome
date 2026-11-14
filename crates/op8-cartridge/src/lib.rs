@@ -186,6 +186,12 @@ pub trait InstrumentCartridge: Send + Sync {
         None
     }
 
+    /// What a note plays on this instrument, if the note chooses a sound (a drum
+    /// kit): its name, for the step inspector. `None` for a plain pitch.
+    fn note_label(&self, _note: u8) -> Option<&'static str> {
+        None
+    }
+
     /// Silence every voice immediately (transport stop, panic).
     fn all_notes_off(&mut self) {}
 }

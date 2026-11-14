@@ -526,6 +526,13 @@ impl Controller {
         } else {
             self.ui.has_second = false;
         }
+        self.ui.step_sound = match (self.ui.inspect_step, h.slots[self.ui.track].as_ref()) {
+            (Some(step), Some(c)) => {
+                let note = h.project.tracks[self.ui.track].steps[step as usize].note;
+                c.try_lock().ok().and_then(|c| c.note_label(note))
+            }
+            _ => None,
+        };
         if self.ui.mode == Mode::Step && self.inspector_pad.is_none() {
             if let Some((pad, _)) = self
                 .pad_down_at
