@@ -21,7 +21,7 @@ pub fn draw_right(
         return crate::settings::draw_right(fb);
     }
     let t = theme();
-    let accent = TRACK_COLORS[ui.track];
+    let accent = track_color(ui.track);
     let Some(c) = cartridge else {
         fb.clear(t.bg);
         fill_circle(fb, 16.0, 15.0, 6.0, accent);

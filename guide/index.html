@@ -27,6 +27,7 @@ button{font:inherit;color:inherit;background:var(--panel);border:1px solid var(-
 button:hover{border-color:var(--dim)}
 button.on{border-color:var(--acc);color:var(--acc)}
 button:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--acc);outline-offset:3px}
+.top{position:fixed;top:14px;left:18px;z-index:6;font-size:15px;color:var(--dim)}.top a{color:var(--dim);text-decoration:none}.top a:hover,.top b{color:var(--fg)}.top b{font-weight:400}
 nav{position:fixed;right:14px;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:12px;z-index:5}
 nav a{width:10px;height:10px;border-radius:50%;background:var(--faint);display:block;transition:.2s}
 nav a.on{background:var(--acc);transform:scale(1.4)}
@@ -89,6 +90,7 @@ footer a{color:var(--fg)}
 </head>
 <body>
 
+<div class="top"><b>Guide</b> · <a href="brand.html">Brand</a> · <a href="manual.html">Manual</a></div>
 <nav id="nav" aria-label="Sections"></nav>
 
 <section class="hero" id="s0">
@@ -139,7 +141,9 @@ footer a{color:var(--fg)}
 <section id="s4b">
   <h2>Three themes</h2>
   <p class="lead">Bright, soft, monochrome.</p>
-  <iframe src="themes.html" title="Themes" loading="lazy" style="width:min(1000px,96vw);height:min(1020px,150vw);border:0;background:#000"></iframe>
+  <svg id="themeMk" role="img" aria-label="The MK3 in the chosen theme" style="width:min(1000px,96vw);height:auto;display:block;margin:auto"></svg>
+  <div class="cap" id="themeCap"></div>
+  <div class="row" id="themeTabs2"></div>
 </section>
 
 <section id="s5">
@@ -162,7 +166,6 @@ footer a{color:var(--fg)}
 
 <footer>
   <a href="manual.html">Manual</a> ·
-  <a href="themes.html">Themes</a> ·
   <a href="brand.html">Brand</a> ·
   <a href="../docs/architecture.md">Architecture</a> ·
   <a href="../docs/buttons.md">Buttons</a> ·
@@ -172,24 +175,21 @@ footer a{color:var(--fg)}
 </footer>
 
 <script src="mk3.js"></script>
+<script src="themes.js"></script>
 <script>
 const $ = (s, r = document) => r.querySelector(s);
 const el = (t, a = {}, h = "") => { const e = document.createElement(t); for (const k in a) e.setAttribute(k, a[k]); e.innerHTML = h; return e; };
-const THEMES = {
-  "glossy":       { fg:"#F2F4F8", dim:"#7E8794", faint:"#232831", panel:"#0D1118", rec:"#FF3B30", brand:["#FF2D2D","#FF8A1F","#FFD21F","#00E56A","#0099FF","#4B4BFF","#B15CFF","#F2F4F8"], k:["#0099FF","#00E56A","#F2F4F8","#FF4F00","#8B6CFF","#FFD21F","#2ED3E6","#FF4FA0"] },
-  "matte": { fg:"#F4EFE6", dim:"#8E918F", faint:"#262A30", panel:"#12161D", rec:"#E63946", brand:["#D9534F","#D9822B","#E3C77A","#7FB58A","#3B8EBA","#5F6BB5","#A88BC7","#F4EFE6"], k:["#3B8EBA","#D9822B","#A9AFB8","#F2652A","#7FB58A","#E3C77A","#A88BC7","#D9677A"] },
-  "chrome":      { fg:"#EEF0F5", dim:"#80858F", faint:"#24262C", panel:"#0F1014", rec:"#FF2244", brand:["#D633FF","#A442FF","#8652FF","#7361FF","#707AFF","#809DFF","#8FBCFF","#EEF0F5"], k:["#D633FF","#A442FF","#8652FF","#7361FF","#707AFF","#809DFF","#8FBCFF","#EEF0F5"] },
-};
-let theme = "glossy", K = THEMES[theme].k;
+const THEMES = {};
+OP8.ORDER.forEach(n => { const t = OP8.THEMES[n]; THEMES[n] = { ...t, k: t.knobs }; });
+let theme = OP8.cur, K = THEMES[theme].k;
 function applyTheme(name) {
   theme = name; const t = THEMES[name]; K = t.k;
   const r = document.documentElement.style;
   r.setProperty("--fg", t.fg); r.setProperty("--dim", t.dim); r.setProperty("--faint", t.faint); r.setProperty("--panel", t.panel); r.setProperty("--rec", t.rec);
   K.forEach((c, i) => r.setProperty("--k" + (i + 1), c));
   drawMark($("#heroMark"),t.brand,true);
-  document.querySelectorAll("#themeTabs button").forEach(b => b.classList.toggle("on", b.dataset.t === name));
-  try { localStorage.setItem("op8-guide-theme", name); } catch (e) {}
 }
+OP8.on(applyTheme);
 
 /* nav dots */
 const secs = [...document.querySelectorAll("section")];
@@ -321,8 +321,7 @@ function frame(ms) {
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
-const tt = $("#themeTabs");
-Object.keys(THEMES).forEach(n => { const b = el("button", { "data-t": n }, n); b.onclick = () => applyTheme(n); tt.append(b); });
+OP8.tabs($("#themeTabs"));
 
 /* instruments */
 const INST = [
@@ -344,8 +343,8 @@ requestAnimationFrame(drawCards);
 /* copy */
 $("#copy").onclick = async e => { try { await navigator.clipboard.writeText("op8"); e.target.textContent = "Copied"; } catch (x) { e.target.textContent = "Select it"; } setTimeout(() => e.target.textContent = "Copy", 1400); };
 
-try { const s = localStorage.getItem("op8-guide-theme"); if (THEMES[s]) theme = s; } catch (e) {}
-applyTheme(theme);
+OP8.tabs($("#themeTabs2"));OP8.mount($("#themeMk"), $("#themeCap"));
+applyTheme(OP8.cur);
 </script>
 </body>
 </html>

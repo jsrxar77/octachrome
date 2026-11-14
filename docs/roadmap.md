@@ -29,7 +29,7 @@ Not yet checked:
 - The SETTINGS button, its LED and the 4D encoder in settings (F-C08), and that the audio, screens and PLAY recover after pulling the cable (F-A07).
 - Themes other than glossy on the real screens, and how glossy, matte and chrome look and feel with their backlight and LED levels on the unit; chrome's colours and light are provisional.
 - The MK3 plugged straight into the Mac (F-H06): what the `power:` line reports there, and whether brightness 80 then holds. The 500 mA threshold between limited and full is provisional until then. NI's optional power supply is the other fix people point to ([architecture.md §13](architecture.md)).
-- The LED palette beyond red and orange, and whether level 3 comes out white-mixed (Deckard issue #154, [architecture.md §13](architecture.md)).
+- The LED hues the three themes use for the pads and group keys (matte's `LightOrange`, `WarmYellow`, `Mint`, `Plum`, `Fuchsia`; chrome's magenta to blue range), and the LED palette beyond red and orange, and whether level 3 comes out white-mixed (Deckard issue #154, [architecture.md §13](architecture.md)).
 - CPU load on the Pi 5 (target in [instruments.md §5](instruments.md)).
 
 **The MK3 reset itself as soon as the music played (2026-11-13), and the cause is the screens' backlight.** The symptom was `display bulk transfer: unknown error`, then the audio device disappearing and the app reconnecting in a loop. Each run below was 40–50 s with PLAY pressed at 6–8 s, on a MK3 behind a USB 2.0 hub (480 mA):
@@ -59,7 +59,6 @@ Known limits of the setup:
 - Screen buttons 1–4: step, components, players, bar. 5–8: sound, shape, fx, mod.
 - PAGE ◀ ▶, 4D encoder (▲ ▼ ◀ ▶, push, turn).
 - SETTINGS: audio, MIDI and brightness as further pages (the theme page is done). The 4D ▲ ▼ chooses the page once there is more than one, and the right screen then shows its page dots.
-- Open question: the track colours (A–H) are one fixed palette in all three themes, and look loud next to the muted matte. Decide in the Twin whether each theme gets its own.
 
 ## 2. Playing and recording
 

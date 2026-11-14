@@ -42,16 +42,45 @@ const DETENT: i32 = 40;
 /// Knob units for a full 0→1 sweep of a continuous parameter.
 const SWEEP: f32 = 800.0;
 
-pub const TRACK_LED_COLORS: [NiColor; TRACKS] = [
-    NiColor::Red,
-    NiColor::Orange,
-    NiColor::Yellow,
-    NiColor::Green,
-    NiColor::Turquoise,
-    NiColor::Blue,
-    NiColor::Violet,
-    NiColor::Magenta,
-];
+/// The pad and group LED colour of each track A–H in a theme, as entries of the
+/// MK3's palette (16 hues; the order of the palette is still to be checked on
+/// the unit, see `NiColor`). Glossy is the rainbow, matte its softer hues,
+/// chrome one range from magenta to blue, then white.
+pub fn track_led_colors(id: op8_gfx::ThemeId) -> [NiColor; TRACKS] {
+    use op8_gfx::ThemeId::*;
+    match id {
+        Glossy => [
+            NiColor::Red,
+            NiColor::Orange,
+            NiColor::Yellow,
+            NiColor::Green,
+            NiColor::Turquoise,
+            NiColor::Blue,
+            NiColor::Violet,
+            NiColor::Magenta,
+        ],
+        Matte => [
+            NiColor::Red,
+            NiColor::LightOrange,
+            NiColor::WarmYellow,
+            NiColor::Mint,
+            NiColor::Turquoise,
+            NiColor::Blue,
+            NiColor::Plum,
+            NiColor::Fuchsia,
+        ],
+        Chrome => [
+            NiColor::Fuchsia,
+            NiColor::Magenta,
+            NiColor::Purple,
+            NiColor::Violet,
+            NiColor::Plum,
+            NiColor::Blue,
+            NiColor::Cyan,
+            NiColor::White,
+        ],
+    }
+}
 
 #[derive(Default)]
 pub struct Controller {
@@ -501,7 +530,8 @@ impl Controller {
     pub fn leds(&self, h: &EngineHandle, out: &mut LedFrame) {
         out.clear();
         let tr = self.ui.track;
-        let color = TRACK_LED_COLORS[tr];
+        let colors = track_led_colors(op8_gfx::theme_id());
+        let color = colors[tr];
         let playing = h.status.playing.load(Relaxed);
         let track = &h.project.tracks[tr];
         let composing = self.ui.main == Main::Instrument;
@@ -525,7 +555,7 @@ impl Controller {
                 }
                 Mode::Brain => {
                     let lit = self.ui.live_chord_pad == Some(pad);
-                    let hue = NiColor::HUES[(pad as usize % 8) * 2];
+                    let hue = colors[pad as usize % 8];
                     out.set_pad(pad, hue, if lit { 3 } else { 1 });
                 }
                 Mode::Punch => {
@@ -548,7 +578,7 @@ impl Controller {
             } else {
                 1
             };
-            out.set_button_color(Button::Group(t as u8), TRACK_LED_COLORS[t], level);
+            out.set_button_color(Button::Group(t as u8), colors[t], level);
         }
         out.set_button_color(Button::Play, NiColor::Green, if playing { 3 } else { 1 });
         out.set_button(Button::Stop, if playing { 0.2 } else { 1.0 });

@@ -35,7 +35,7 @@ pub fn draw_left(fb: &mut FrameBuffer480x272, ui: &UiState, p: &Project, st: &En
     }
     let t = theme();
     fb.clear(t.bg);
-    let accent = TRACK_COLORS[ui.track];
+    let accent = track_color(ui.track);
     top_bar(fb, ui, p, st, accent);
     match (ui.mode, ui.inspect_step) {
         (Mode::Step, Some(step)) => inspector(fb, ui, p, step as usize, accent),
@@ -113,7 +113,7 @@ fn top_bar(
     #[allow(clippy::needless_range_loop)]
     for i in 0..TRACKS {
         let (x, y) = (338.0 + i as f32 * 18.0, 15.0);
-        let (col, sel, tr) = (TRACK_COLORS[i], i == ui.track, &p.tracks[i]);
+        let (col, sel, tr) = (track_color(i), i == ui.track, &p.tracks[i]);
         let r = if sel { 6.0 } else { 4.0 } + ui.anim.hit[i] * 2.0;
         let fill = if tr.muted {
             t.faint
@@ -142,7 +142,7 @@ fn rings(fb: &mut FrameBuffer480x272, ui: &UiState, p: &Project, st: &EngineStat
             RING_R0 + (7 - i) as f32 * RING_STEP,
             tr.len(),
             i == ui.track,
-            TRACK_COLORS[i],
+            track_color(i),
         );
         ring(
             fb,
@@ -198,7 +198,7 @@ fn rings(fb: &mut FrameBuffer480x272, ui: &UiState, p: &Project, st: &EngineStat
         RING_CX as i32,
         RING_CY as i32,
         FontSize::Large,
-        TRACK_COLORS[ui.track],
+        track_color(ui.track),
         Align::Center,
         VAlign::Middle,
     );
@@ -498,7 +498,7 @@ fn brain_view(fb: &mut FrameBuffer480x272, p: &Project, st: &EngineStatus, accen
     }
     for (i, tr) in p.tracks.iter().enumerate() {
         if tr.brain_link {
-            fill_circle(fb, 30.0 + i as f32 * 14.0, 168.0, 4.0, TRACK_COLORS[i]);
+            fill_circle(fb, 30.0 + i as f32 * 14.0, 168.0, 4.0, track_color(i));
         }
     }
     let label = format!(

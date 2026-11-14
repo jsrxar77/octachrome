@@ -54,6 +54,8 @@ pub struct Theme {
     /// The brand mark: eight buttons in rainbow order, the eighth is white
     /// (the theme's own white). See `docs/design.md` §2.3.
     pub brand: [Rgb565; 8],
+    /// Accent of each track A–H: dots, rings, pad fills (design.md rule 10).
+    pub tracks: [Rgb565; 8],
     /// Only REC, erase and peaks.
     pub rec: Rgb565,
     /// What the theme asks of the screens' backlight and the LEDs.
@@ -92,6 +94,16 @@ pub const THEMES: [Theme; 3] = [
             c(0xB15CFF),
             c(0xF2F4F8),
         ],
+        tracks: [
+            c(0xff3b30),
+            c(0xff9500),
+            c(0xffd60a),
+            c(0x34c759),
+            c(0x30d5c8),
+            c(0x0a84ff),
+            c(0xbf5af2),
+            c(0xff2d92),
+        ],
         rec: c(0xFF3B30),
         light: Light { backlight: 1.0, led_level: 3, mono: 1.0 },
     },
@@ -122,6 +134,16 @@ pub const THEMES: [Theme; 3] = [
             c(0xA88BC7),
             c(0xF4EFE6),
         ],
+        tracks: [
+            c(0xd9534f),
+            c(0xd9822b),
+            c(0xe3c77a),
+            c(0x7fb58a),
+            c(0x6fb3b8),
+            c(0x3b8eba),
+            c(0xa88bc7),
+            c(0xd9677a),
+        ],
         rec: c(0xE63946),
         light: Light { backlight: 0.6, led_level: 2, mono: 0.7 },
     },
@@ -151,6 +173,16 @@ pub const THEMES: [Theme; 3] = [
             c(0x809DFF),
             c(0x8FBCFF),
             c(0xEEF0F5),
+        ],
+        tracks: [
+            c(0xe83dff),
+            c(0xd633ff),
+            c(0xa442ff),
+            c(0x8652ff),
+            c(0x7361ff),
+            c(0x5c8dff),
+            c(0x8fbcff),
+            c(0xeef0f5),
         ],
         rec: c(0xFF2244),
         light: Light { backlight: 0.8, led_level: 3, mono: 0.85 },
@@ -198,6 +230,11 @@ mod brand_tests {
     #[test]
     fn f_d09_each_theme_has_eight_brand_colours_ending_in_white() {
         for t in THEMES.iter() {
+            for i in 0..8 {
+                for j in i + 1..8 {
+                    assert_ne!(t.tracks[i], t.tracks[j], "{}: tracks {i} and {j} differ", t.name);
+                }
+            }
             assert_eq!(t.brand[7], t.fg, "{}: the eighth brand button is the theme's white", t.name);
             let hues: Vec<f32> = t.brand[..7].iter().map(|&c| hue(c)).collect();
             if t.name == "chrome" {

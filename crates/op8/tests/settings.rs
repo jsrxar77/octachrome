@@ -162,3 +162,32 @@ fn f_c07_theme_change_is_saved() {
     b.encoder(1);
     assert!(b.app.settings_path.is_none());
 }
+
+// F-C09: the theme changes the pad and group LEDs, not only the screens.
+#[test]
+fn f_c09_theme_changes_the_pad_and_group_leds() {
+    let _t = fresh();
+    let mut b = Bench::demo();
+    b.press(Button::Group(0));
+    let pad_colour = |b: &Bench| {
+        let on = (0..16u8)
+            .find(|&p| {
+                let step = op8::Controller::pad_to_step(p) as usize;
+                step < 16 && b.project().tracks[0].steps[step].active
+            })
+            .expect("an active step");
+        b.leds().pad(on) >> 2
+    };
+    let mut seen = Vec::new();
+    for id in ThemeId::ALL {
+        op8_gfx::set_theme(id);
+        b.tick();
+        let want = op8::controller::track_led_colors(id)[0] as u8;
+        assert_eq!(pad_colour(&b), want, "{id:?}: the pad takes the theme's track colour");
+        let group = button_slot(Button::Group(0)).unwrap();
+        assert_eq!(b.leds().slots[group] >> 2, want, "{id:?}: so does the group key");
+        seen.push(want);
+    }
+    assert!(seen[0] != seen[1] || seen[1] != seen[2], "the three themes do not light the pads alike");
+    assert_ne!(op8::controller::track_led_colors(ThemeId::Chrome), op8::controller::track_led_colors(ThemeId::Glossy));
+}

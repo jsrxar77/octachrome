@@ -10,18 +10,11 @@ use op8_gfx::{
 };
 use op8_seq::StepComponent;
 
-/// Accent per group A–H (matched to the pad LED palette in the app). Used
-/// only to identify the track: dots, rings, pad fills (design.md rule 10).
-pub const TRACK_COLORS: [Rgb565; 8] = [
-    Rgb565::from_hex(0xff3b30), // A red
-    Rgb565::from_hex(0xff9500), // B orange
-    Rgb565::from_hex(0xffd60a), // C yellow
-    Rgb565::from_hex(0x34c759), // D green
-    Rgb565::from_hex(0x30d5c8), // E turquoise
-    Rgb565::from_hex(0x0a84ff), // F blue
-    Rgb565::from_hex(0xbf5af2), // G violet
-    Rgb565::from_hex(0xff2d92), // H magenta
-];
+/// Accent of group A–H in the active theme (matched to the pad LEDs in the
+/// app). Used only to identify the track: dots, rings, pad fills (design.md rule 10).
+pub fn track_color(i: usize) -> Rgb565 {
+    op8_gfx::theme().tracks[i]
+}
 
 pub const TRACK_NAMES: [&str; 8] = ["A", "B", "C", "D", "E", "F", "G", "H"];
 

@@ -60,7 +60,7 @@ The first four follow the encoder order of each reference device (original OP-1:
 | `panel` | `#0D1118` | `#12161D` | `#0F1014` | Surface of keys and capsules |
 | `rec` | `#FF3B30` | `#E63946` | `#FF2244` | Only REC, erase and peaks |
 
-The track colours (A–H) are one fixed palette shared by the three themes (`crates/op8-ui/src/theme.rs`, `TRACK_COLORS`); they match the pad LED palette. Whether they should follow the theme is an open question in [roadmap.md](roadmap.md).
+The track colours (A–H) are part of each theme (`Theme.tracks` in `crates/op8-gfx/src/theme.rs`; `track_color(i)` in `op8-ui`). The pad and group LEDs take the same colours from the MK3's palette (`track_led_colors` in `crates/op8/src/controller.rs`): glossy is the rainbow, matte its softer hues, chrome one range from magenta to blue, then white. The palette order is still to be checked on the unit.
 
 ### 2.3 Brand mark
 

@@ -31,7 +31,7 @@ button:hover{border-color:var(--dim)}
 .eights b{display:block;font-size:44px;font-weight:300}
 .eights span{color:var(--dim);font-size:15px}
 </style></head><body>
-<p><a href="index.html">← Guide</a></p>
+<p><a href="index.html">Guide</a> · <b style="font-weight:400;color:#F2F4F8">Brand</b> · <a href="manual.html">Manual</a></p>
 
 <section>
   <h2>OP-8 → OP-∞</h2>
@@ -89,6 +89,7 @@ button:hover{border-color:var(--dim)}
 </section>
 
 <script src="mk3.js"></script>
+<script src="themes.js"></script>
 <script>
 const g=document.getElementById("g");
 document.getElementById("flip").onclick=()=>{g.classList.remove("sp");g.classList.toggle("inf")};
@@ -106,15 +107,15 @@ function drawMark(svg,colors,run,kind,onKey){
   if(run&&!matchMedia("(prefers-reduced-motion:reduce)").matches){let n=0;svg._t=setInterval(()=>{svg.querySelectorAll("[data-i]").forEach((r,i)=>r.style.opacity=i===n?1:.55);n=(n+1)%8},300)}
   if(onKey)svg.querySelectorAll("[data-i]").forEach(r=>{r.style.cursor="pointer";r.onclick=()=>onKey(+r.dataset.i)});
 }
-const T={"glossy":["#FF2D2D","#FF8A1F","#FFD21F","#00E56A","#0099FF","#4B4BFF","#B15CFF","#F2F4F8"],"matte":["#D9534F","#D9822B","#E3C77A","#7FB58A","#3B8EBA","#5F6BB5","#A88BC7","#F4EFE6"],"chrome":["#D633FF","#A442FF","#8652FF","#7361FF","#707AFF","#809DFF","#8FBCFF","#EEF0F5"]};
-let cur="glossy",ac;
+const T={};OP8.ORDER.forEach(n=>T[n]=OP8.THEMES[n].brand);
+let cur=OP8.cur,ac;
 const SCALE=[0,2,4,5,7,9,11,12];   // C major: the eighth is the first note, an octave up
 function note(i){ac=ac||new (window.AudioContext||window.webkitAudioContext)();if(ac.state==="suspended")ac.resume();
   const o=ac.createOscillator(),g=ac.createGain(),t=ac.currentTime;o.type="triangle";o.frequency.value=261.63*Math.pow(2,SCALE[i]/12);
   g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(.35,t+.01);g.gain.exponentialRampToValueAtTime(.0001,t+.5);o.connect(g).connect(ac.destination);o.start(t);o.stop(t+.55);
   const r=document.querySelector('#mko [data-i="'+i+'"]');if(r){r.style.opacity=1;setTimeout(()=>r.style.opacity=.9,160)}}
 function draw(){drawMark(document.getElementById("mk"),T[cur],true,"keys");drawMark(document.getElementById("mkn"),T[cur],true,"knobs");drawMark(document.getElementById("mko"),T[cur],false,"keys",note)}
-Object.keys(T).forEach(n=>{const b=document.createElement("button");b.textContent=n;b.onclick=()=>{cur=n;draw()};document.getElementById("th").append(b)});
+OP8.tabs(document.getElementById("th"));
 document.getElementById("scale").onclick=()=>{for(let i=0;i<8;i++)setTimeout(()=>note(i),i*260)};
 draw();
 
@@ -138,7 +139,7 @@ function drawAlts(){
     if(!matchMedia("(prefers-reduced-motion:reduce)").matches)setInterval(()=>{ks.forEach((r,i)=>r.style.opacity=i===k?1:.55);k=(k+1)%8},300);
   });
 }
-Object.keys(T).forEach(n=>{const b=document.createElement("button");b.textContent=n;b.onclick=()=>{cur=n;draw();drawAlts()};document.getElementById("th2").append(b)});
+OP8.tabs(document.getElementById("th2"));OP8.on(n=>{cur=n;draw();drawAlts()});
 drawAlts();
 
 </script></body></html>

@@ -368,7 +368,7 @@ fn hw_test(seconds: f32) -> Result<()> {
         for g in 0..8u8 {
             leds.set_button_color(
                 op8_hw::Button::Group(g),
-                op8::controller::TRACK_LED_COLORS[g as usize],
+                op8::controller::track_led_colors(op8_gfx::theme_id())[g as usize],
                 3,
             );
         }

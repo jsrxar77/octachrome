@@ -5,7 +5,7 @@
 //! colours, in the active theme. The theme applies live, so the screens are
 //! their own preview. A control that does nothing here shows nothing (rule 11).
 
-use crate::theme::{dial, TRACK_COLORS};
+use crate::theme::{dial, track_color};
 use op8_engine::EngineStatus;
 use op8_gfx::{
     knob,
@@ -80,8 +80,8 @@ pub fn draw_right(fb: &mut FrameBuffer480x272) {
         let (cx, cy) = (60.0 + (i % 4) as f32 * 120.0, 96.0 + (i / 4) as f32 * 66.0);
         dial(fb, cx, cy, 20.0, v, knob(i));
     }
-    // The track colours, which do not change with the theme.
-    for (i, c) in TRACK_COLORS.iter().enumerate() {
-        fill_circle(fb, 240.0 + (i as f32 - 3.5) * 40.0, 224.0, 8.0, *c);
+    // The track colours of this theme.
+    for i in 0..8 {
+        fill_circle(fb, 240.0 + (i as f32 - 3.5) * 40.0, 224.0, 8.0, track_color(i));
     }
 }

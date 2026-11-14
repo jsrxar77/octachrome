@@ -696,9 +696,9 @@ function controllerTick() {
 // Design tokens: see docs/design.md. Three themes, each with four encoder
 // colours: knobs 1–4 drive the sequencer (left screen), 5–8 the instrument (right) and three type families to compare.
 const THEMES = {
-  glossy:   { name: "glossy",       bg: "#000", fg: "#F2F4F8", dim: "#7E8794", faint: "#232831", panel: "#0D1118", knobs: ["#0099FF", "#00E56A", "#F2F4F8", "#FF4F00", "#8B6CFF", "#FFD21F", "#2ED3E6", "#FF4FA0"], brand: ["#FF2D2D", "#FF8A1F", "#FFD21F", "#00E56A", "#0099FF", "#4B4BFF", "#B15CFF", "#F2F4F8"], rec: "#FF3B30", light: { backlight: 1, led: 3 } },
-  matte: { name: "matte", bg: "#000", fg: "#F4EFE6", dim: "#8E918F", faint: "#262A30", panel: "#12161D", knobs: ["#3B8EBA", "#D9822B", "#A9AFB8", "#F2652A", "#7FB58A", "#E3C77A", "#A88BC7", "#D9677A"], brand: ["#D9534F", "#D9822B", "#E3C77A", "#7FB58A", "#3B8EBA", "#5F6BB5", "#A88BC7", "#F4EFE6"], rec: "#E63946", light: { backlight: 0.6, led: 2 } },
-  chrome:  { name: "chrome",      bg: "#000", fg: "#EEF0F5", dim: "#80858F", faint: "#24262C", panel: "#0F1014", knobs: ["#D633FF", "#A442FF", "#8652FF", "#7361FF", "#707AFF", "#809DFF", "#8FBCFF", "#EEF0F5"], brand: ["#D633FF", "#A442FF", "#8652FF", "#7361FF", "#707AFF", "#809DFF", "#8FBCFF", "#EEF0F5"], rec: "#FF2244", light: { backlight: 0.8, led: 3 } },
+  glossy:   { name: "glossy",       bg: "#000", fg: "#F2F4F8", dim: "#7E8794", faint: "#232831", panel: "#0D1118", knobs: ["#0099FF", "#00E56A", "#F2F4F8", "#FF4F00", "#8B6CFF", "#FFD21F", "#2ED3E6", "#FF4FA0"], brand: ["#FF2D2D", "#FF8A1F", "#FFD21F", "#00E56A", "#0099FF", "#4B4BFF", "#B15CFF", "#F2F4F8"], tracks: ["#ff3b30", "#ff9500", "#ffd60a", "#34c759", "#30d5c8", "#0a84ff", "#bf5af2", "#ff2d92"], rec: "#FF3B30", light: { backlight: 1, led: 3 } },
+  matte: { name: "matte", bg: "#000", fg: "#F4EFE6", dim: "#8E918F", faint: "#262A30", panel: "#12161D", knobs: ["#3B8EBA", "#D9822B", "#A9AFB8", "#F2652A", "#7FB58A", "#E3C77A", "#A88BC7", "#D9677A"], brand: ["#D9534F", "#D9822B", "#E3C77A", "#7FB58A", "#3B8EBA", "#5F6BB5", "#A88BC7", "#F4EFE6"], tracks: ["#d9534f", "#d9822b", "#e3c77a", "#7fb58a", "#6fb3b8", "#3b8eba", "#a88bc7", "#d9677a"], rec: "#E63946", light: { backlight: 0.6, led: 2 } },
+  chrome:  { name: "chrome",      bg: "#000", fg: "#EEF0F5", dim: "#80858F", faint: "#24262C", panel: "#0F1014", knobs: ["#D633FF", "#A442FF", "#8652FF", "#7361FF", "#707AFF", "#809DFF", "#8FBCFF", "#EEF0F5"], brand: ["#D633FF", "#A442FF", "#8652FF", "#7361FF", "#707AFF", "#809DFF", "#8FBCFF", "#EEF0F5"], tracks: ["#e83dff", "#d633ff", "#a442ff", "#8652ff", "#7361ff", "#5c8dff", "#8fbcff", "#eef0f5"], rec: "#FF2244", light: { backlight: 0.8, led: 3 } },
 };
 let BG, FG, DIM, FAINT, KC, PANEL, REC, FONT;
 const prefs = (() => { try { return JSON.parse(localStorage.getItem("op8-look") || "{}"); } catch { return {}; } })();
@@ -706,6 +706,7 @@ const LOOK = { theme: THEMES[prefs.theme] ? prefs.theme : "glossy" };
 function applyLook() {
   const t = THEMES[LOOK.theme];
   BG = t.bg; FG = t.fg; DIM = t.dim; FAINT = t.faint; KC = t.knobs; PANEL = t.panel; REC = t.rec;
+  TRACK_COLORS.splice(0, 8, ...t.tracks); // the track accents follow the theme, as the pad LEDs do
   // One family (Jost), tuned toward the OP-XY screen: light weights, small
   // labels with open tracking, big numbers in the lightest weight.
   FONT = { s: '400 11px "Jost", sans-serif', m: '400 15px "Jost", sans-serif', l: '400 20px "Jost", sans-serif',

@@ -76,7 +76,7 @@ The buttons and their implementation status are in [buttons.md](buttons.md). Thi
 | ID | What must happen | How it is verified | Status |
 |---|---|---|---|
 | F-L01 | PLAY lights green when playing and dim when stopped | palette `Green`, level 3 vs 1 | ✓ |
-| F-L02 | The step pads show the track colour: active bright, inactive dim | levels 3 and 1 with the colour of `TRACK_LED_COLORS` | ✓ |
+| F-L02 | The step pads show the track colour: active bright, inactive dim | levels 3 and 1 with the colour of `track_led_colors` (glossy) | ✓ |
 
 ## M · MIDI (`tests/midi.rs`)
 
@@ -117,6 +117,7 @@ The buttons and their implementation status are in [buttons.md](buttons.md). Thi
 | F-C06 | The settings file: every theme survives a round trip, a damaged file falls back to the default, names match the command line, saving creates the folder | unit tests in `crates/op8/src/settings.rs` | ✓ |
 | F-C07 | A theme change is saved to the settings file, and only when a path is set (never in the simulator or the bench) | the file's content after each change | ✓ |
 | F-C08 | On the real MK3: the SETTINGS button reaches the app and its LED lights, the 4D encoder changes the theme on both screens, the choice survives a restart, and `-t` overrides it | **manual review**, with `OP8_LOG_EVENTS=1` | R |
+| F-C09 | The theme changes the pad and group LEDs, not only the screens: track A's pad and group key take that theme's colour from `track_led_colors`, and the three themes do not light the pads alike | `crates/op8/tests/settings.rs` | ✓ |
 
 ## H · Hardware link (`crates/op8-hw`, `crates/op8`)
 
