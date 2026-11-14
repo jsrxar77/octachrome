@@ -84,9 +84,20 @@ pub fn track_led_colors(id: op8_gfx::ThemeId) -> [NiColor; TRACKS] {
     }
 }
 
+/// The notes of a chord, ascending from its root in the octave below middle C (C3 = 48).
+fn chord_notes(c: Chord) -> Vec<u8> {
+    (0..12u8)
+        .filter(|i| c.contains((c.root + i) % 12))
+        .map(|i| 48 + c.root + i)
+        .filter(|&n| n <= 127)
+        .collect()
+}
+
 #[derive(Default)]
 pub struct Controller {
     pub ui: UiState,
+    /// The notes of the chord that a CHORDS pad is sounding, to release them.
+    chord_notes: Vec<u8>,
     /// The note each pad is holding in PAD MODE / KEYBOARD, to release it.
     held_notes: [Option<u8>; 16],
     /// A note to audition once the knob that asked for it has been still for a moment.
@@ -193,7 +204,7 @@ impl Controller {
                         muted: !h.project.tracks[t].muted,
                     });
                 } else {
-                    if matches!(self.ui.mode, Mode::Pads | Mode::Keys) {
+                    if matches!(self.ui.mode, Mode::Pads | Mode::Keys | Mode::Brain) {
                         // held notes belong to the track they were played on
                         self.release_pads(h);
                     }
@@ -280,6 +291,7 @@ impl Controller {
         if self.ui.mode == Mode::Brain && self.ui.live_chord_pad.take().is_some() {
             h.seq(Command::SetLiveChord(None));
         }
+        self.release_chord(h);
         for pad in 0..16 {
             if let Some(note) = self.held_notes[pad].take() {
                 h.send(EngineCommand::LiveNote { track: self.ui.track as u8, note, velocity: 0.0, on: false });
@@ -413,15 +425,35 @@ impl Controller {
         match ev {
             PadEvent::Press | PadEvent::Strike(_) => {
                 if self.ui.live_chord_pad != Some(pad) {
+                    self.release_chord(h);
                     self.ui.live_chord_pad = Some(pad);
                     h.seq(Command::SetLiveChord(Some(chord)));
+                    // The chord itself sounds on the selected track's instrument, as long as the pad is
+                    // held (a drum kit has no chords: its sounds are not notes).
+                    if self.ui.lane.is_none() {
+                        let velocity = if let PadEvent::Strike(v) = ev { v.clamp(0.1, 1.0) } else { 0.8 };
+                        let track = self.ui.track as u8;
+                        self.chord_notes = chord_notes(chord);
+                        for &note in &self.chord_notes {
+                            h.send(EngineCommand::LiveNote { track, note, velocity, on: true });
+                        }
+                    }
                 }
             }
             PadEvent::Release if self.ui.live_chord_pad == Some(pad) => {
                 self.ui.live_chord_pad = None;
                 h.seq(Command::SetLiveChord(None));
+                self.release_chord(h);
             }
             _ => {}
+        }
+    }
+
+    /// Let go of the notes of the chord that is sounding.
+    fn release_chord(&mut self, h: &mut EngineHandle) {
+        let track = self.ui.track as u8;
+        for note in self.chord_notes.drain(..) {
+            h.send(EngineCommand::LiveNote { track, note, velocity: 0.0, on: false });
         }
     }
 

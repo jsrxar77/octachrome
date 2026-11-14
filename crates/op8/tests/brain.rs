@@ -50,3 +50,37 @@ fn f_b04_knob1_steps_key() {
     b.knob(0, -40 * 2);
     assert_eq!(b.project().brain.key, (k0 + 11) % 12, "wrap below zero");
 }
+
+// F-B07: a CHORDS pad sounds the chord on the selected track's instrument while it is held (and still sets the live
+// chord for the tracks linked to the Brain); a drum kit has no chords, so it stays silent.
+#[test]
+fn f_b07_a_chord_pad_sounds_the_chord() {
+    use op8_hw::Button;
+    use std::sync::atomic::Ordering::Relaxed;
+    let mut b = Bench::demo();
+    b.press(Button::Group(2)); // FmBass
+    b.press(Button::Chords);
+    let played = |b: &Bench, t: usize| b.status().note_count[t].load(Relaxed);
+    let before = played(&b, 2);
+    b.strike(0); // I, a triad: three notes
+    b.run_ms(200);
+    assert_eq!(played(&b, 2) - before, 3, "the three notes of the triad");
+    assert!(b.peak(0, 300) > 0.01, "and it is heard with the sequence stopped");
+    assert!(b.project().brain.live.is_some(), "the live chord is still set for the linked tracks");
+    b.release(0);
+    assert!(b.project().brain.live.is_none());
+    // a seventh chord has four notes
+    let before = played(&b, 2);
+    b.strike(8);
+    b.run_ms(50);
+    b.release(8);
+    assert_eq!(played(&b, 2) - before, 4);
+    // the drum kit: no sound, but the live chord is still set
+    b.press(Button::Group(0));
+    let before = played(&b, 0);
+    b.strike(0);
+    b.run_ms(50);
+    assert!(b.project().brain.live.is_some());
+    b.release(0);
+    assert_eq!(played(&b, 0), before, "a kit does not play chords");
+}
