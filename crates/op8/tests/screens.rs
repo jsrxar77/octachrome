@@ -78,12 +78,11 @@ fn f_d10_screens_name_their_buttons() {
     let mut b = Bench::demo();
     b.press(Button::Group(5)); // track F: macro, with two parameter pages
     b.run_ms(100);
-    // Left: step, components; 3 and 4 do nothing.
-    assert!(strip_lit(&b, Screen::Left, 0) > 20 && strip_lit(&b, Screen::Left, 1) > 20);
-    assert_eq!(strip_lit(&b, Screen::Left, 2) + strip_lit(&b, Screen::Left, 3), 0);
-    // Right: sound, shape; 7 and 8 do nothing.
-    assert!(strip_lit(&b, Screen::Right, 0) > 20 && strip_lit(&b, Screen::Right, 1) > 20);
-    assert_eq!(strip_lit(&b, Screen::Right, 2) + strip_lit(&b, Screen::Right, 3), 0);
+    // Left: step, components, players, bar. Right: shape, sound, fx, mod.
+    for col in 0..4 {
+        assert!(strip_lit(&b, Screen::Left, col) > 20, "left button {}", col + 1);
+        assert!(strip_lit(&b, Screen::Right, col) > 20, "right button {}", col + 5);
+    }
     // The capsule is centred on its button: its top edge is lit at the centre and only there, not at the sides of the column.
     let edge = |b: &Bench, col: usize, dx: i32| b.screen(Screen::Right).pixels()[480 + (CX[col] as i32 + dx) as usize];
     assert_ne!(edge(&b, 1, 0), 0, "the capsule's top edge is at the button's centre");
@@ -96,6 +95,12 @@ fn f_d10_screens_name_their_buttons() {
     b.run_ms(100);
     assert_eq!(edge(&b, 0, 0), t.fg.0, "shape (button 5) is open");
     assert_eq!(edge(&b, 1, 0), t.faint.0);
+    // An instrument with one page has no shape button: that capsule is empty (the sampler-like case is the MIDI out).
+    b.press(Button::Screen(5));
+    b.press(Button::Group(4)); // track E: the MIDI out has no second page
+    b.run_ms(100);
+    assert_eq!(strip_lit(&b, Screen::Right, 0), 0, "no shape button on an instrument without a second page");
+    assert!(strip_lit(&b, Screen::Right, 2) > 20 && strip_lit(&b, Screen::Right, 3) > 20, "but fx and mod are there");
     // In settings the buttons do nothing, so nothing is named.
     b.press(Button::Settings);
     b.run_ms(100);

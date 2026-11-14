@@ -30,10 +30,10 @@ use op8_hw::{
     Button, ControlEvent, NiColor, PadEvent,
 };
 use op8_seq::{
-    BrainMode, Chord, ChordKind, Command, Division, Scale, Step, StepComponent, MAX_COMPONENTS,
-    TRACKS,
+    BrainMode, Chord, ChordKind, ChordType, Command, Division, FxKind, LfoShape, PlayMode, Scale, Step,
+    StepComponent, TrackFx, LFO_TARGETS, MAX_COMPONENTS, TRACKS,
 };
-use op8_ui::{Main, Mode, UiState, COMPONENT_PRESETS};
+use op8_ui::{LeftPage, Main, Mode, UiState, COMPONENT_PRESETS};
 use std::sync::atomic::Ordering::Relaxed;
 
 pub const HOLD_MS: u64 = 300;
@@ -135,6 +135,8 @@ pub struct Controller {
     /// The pad whose hold opened the inspector (its release must not toggle).
     inspector_pad: Option<u8>,
     knob_accum: [i32; 8],
+    /// What is left over of a turn of a knob that moves a 0..=255 value in whole steps.
+    knob_frac: [f32; 8],
     last_note_count: [u32; TRACKS],
     held: Held,
     punch_base: f32,
@@ -314,6 +316,10 @@ impl Controller {
             Button::JogRight if self.ui.main == Main::Settings => self.step_theme(1),
             // Screen buttons: 1 = step view, 2 = components of the first step, 5 = shape, 6 = sound.
             Button::Screen(1) if self.ui.main == Main::Instrument => self.set_mode(Mode::Step, h),
+            Button::Screen(3) if self.ui.main == Main::Instrument => self.open_left(LeftPage::Players, h),
+            Button::Screen(4) if self.ui.main == Main::Instrument => self.open_left(LeftPage::Bar, h),
+            Button::Screen(7) if self.ui.main == Main::Instrument => self.ui.right_page = 2,
+            Button::Screen(8) if self.ui.main == Main::Instrument => self.ui.right_page = 3,
             Button::Screen(2) if self.ui.main == Main::Instrument => {
                 self.set_mode(Mode::Step, h);
                 self.ui.inspect_step = Some(0);
@@ -522,8 +528,10 @@ impl Controller {
         let t = self.ui.track;
         let len = h.project.tracks[t].len();
         let mut step = h.status.playhead[t].load(Relaxed) as usize % len;
-        if h.status.phase[t].load(Relaxed) >= 128 {
-            step = (step + 1) % len; // late in the step: it belongs to the next one
+        // nearest: late in the step it belongs to the next one; down: the step sounding; up: the next
+        let late = h.status.phase[t].load(Relaxed) >= 128;
+        if self.ui.quantize == 2 || (self.ui.quantize == 0 && late) {
+            step = (step + 1) % len;
         }
         let track = t as u8;
         let mut v = h.project.tracks[t].steps[step];
@@ -585,10 +593,23 @@ impl Controller {
         self.set_mode(to, h);
     }
 
+    /// Screen buttons 3 and 4: the step view, on that page of the left screen; the same button again goes back to the steps.
+    fn open_left(&mut self, page: LeftPage, h: &mut EngineHandle) {
+        let open = self.ui.main == Main::Instrument
+            && self.ui.mode == Mode::Step
+            && self.ui.inspect_step.is_none()
+            && self.ui.left_page == page;
+        self.set_mode(Mode::Step, h);
+        if !open {
+            self.ui.left_page = page;
+        }
+    }
+
     /// A pad mode button: choose the pad mode, and go back to composing.
     fn set_mode(&mut self, m: Mode, h: &mut EngineHandle) {
         self.release_pads(h);
         self.ui.main = Main::Instrument;
+        self.ui.left_page = LeftPage::Steps;
         self.ui.mode = m;
         self.ui.inspect_step = None;
         self.inspector_pad = None;
@@ -747,6 +768,116 @@ impl Controller {
         }
     }
 
+    /// Turn a knob that moves a 0..=255 value: whole steps, with the remainder kept for the next turn.
+    fn nudge_u8(&mut self, k: usize, cur: u8, delta: i32) -> u8 {
+        self.knob_frac[k] += delta as f32 * 255.0 / SWEEP;
+        let whole = self.knob_frac[k].trunc();
+        self.knob_frac[k] -= whole;
+        (cur as f32 + whole).clamp(0.0, 255.0) as u8
+    }
+
+    /// The knobs a new effect starts from (knob positions that sound right at once).
+    fn fx_defaults(kind: FxKind) -> TrackFx {
+        let (a, b, c) = match kind {
+            FxKind::Off => (128, 110, 90),
+            FxKind::Delay => (178, 110, 100),
+            FxKind::Reverb => (150, 150, 90),
+            FxKind::Chorus => (70, 140, 128),
+            FxKind::Filter => (80, 60, 255),
+            FxKind::Drive => (100, 170, 200),
+        };
+        TrackFx { kind, a, b, c }
+    }
+
+    /// Button 7, knobs 5–8: the effect of the track.
+    fn fx_knob(&mut self, k: usize, delta: i32, h: &mut EngineHandle) {
+        let track = self.ui.track as u8;
+        let mut fx = h.project.tracks[self.ui.track].fx;
+        if k == 4 {
+            let n = self.detents(k, delta);
+            if n == 0 {
+                return;
+            }
+            let i = FxKind::ALL.iter().position(|x| *x == fx.kind).unwrap_or(0) as i32;
+            let kind = FxKind::ALL[(i + n).clamp(0, FxKind::ALL.len() as i32 - 1) as usize];
+            if kind != fx.kind {
+                fx = Self::fx_defaults(kind);
+            }
+        } else if fx.kind == FxKind::Off {
+            return;
+        } else {
+            match k {
+                5 => fx.a = self.nudge_u8(k, fx.a, delta),
+                6 => fx.b = self.nudge_u8(k, fx.b, delta),
+                _ => fx.c = self.nudge_u8(k, fx.c, delta),
+            }
+        }
+        h.seq(Command::SetFx { track, fx });
+    }
+
+    /// Button 8, knobs 5–8: the LFO of the track.
+    fn lfo_knob(&mut self, k: usize, delta: i32, h: &mut EngineHandle) {
+        let track = self.ui.track as u8;
+        let mut lfo = h.project.tracks[self.ui.track].lfo;
+        match k {
+            4 => {
+                let n = self.detents(k, delta);
+                let i = LfoShape::ALL.iter().position(|x| *x == lfo.shape).unwrap_or(0) as i32;
+                lfo.shape = LfoShape::ALL[(i + n).clamp(0, LfoShape::ALL.len() as i32 - 1) as usize];
+            }
+            5 => lfo.rate = self.nudge_u8(k, lfo.rate, delta),
+            6 => lfo.depth = self.nudge_u8(k, lfo.depth, delta),
+            _ => {
+                let n = self.detents(k, delta);
+                lfo.target = (lfo.target as i32 + n).clamp(0, LFO_TARGETS as i32 - 1) as u8;
+            }
+        }
+        h.seq(Command::SetLfo { track, lfo });
+    }
+
+    /// Buttons 3 and 4, knobs 1–4: the players, or the bar.
+    fn page_knob(&mut self, k: usize, delta: i32, h: &mut EngineHandle) {
+        let track = self.ui.track as u8;
+        let t = h.project.tracks[self.ui.track];
+        let n = self.detents(k, delta);
+        if n == 0 {
+            return;
+        }
+        match self.ui.left_page {
+            LeftPage::Players if !t.kit => {
+                let mut pl = t.players;
+                match k {
+                    0 => {
+                        let i = PlayMode::ALL.iter().position(|x| *x == pl.mode).unwrap_or(0) as i32;
+                        pl.mode = PlayMode::ALL[(i + n).clamp(0, PlayMode::ALL.len() as i32 - 1) as usize];
+                    }
+                    1 => {
+                        let i = ChordType::ALL.iter().position(|x| *x == pl.chord).unwrap_or(0) as i32;
+                        pl.chord = ChordType::ALL[(i + n).clamp(0, ChordType::ALL.len() as i32 - 1) as usize];
+                    }
+                    2 => pl.speed = (pl.speed as i32 + n).clamp(0, 4) as u8,
+                    _ => pl.octaves = (pl.octaves as i32 + n).clamp(1, 3) as u8,
+                }
+                h.seq(Command::SetPlayers { track, players: pl });
+            }
+            LeftPage::Bar => match k {
+                0 => {
+                    h.seq(Command::SetLength { track, length: (t.length as i32 + n).clamp(1, 16) as u8 });
+                }
+                1 => {
+                    let i = Division::ALL.iter().position(|d| *d == t.division).unwrap_or(2) as i32;
+                    let division = Division::ALL[(i + n).clamp(0, Division::ALL.len() as i32 - 1) as usize];
+                    h.seq(Command::SetDivision { track, division });
+                }
+                2 => {
+                    h.seq(Command::ShiftTrack { track, by: n.clamp(-8, 8) as i8 });
+                }
+                _ => self.ui.quantize = (self.ui.quantize as i32 + n).clamp(0, 2) as usize,
+            },
+            _ => {}
+        }
+    }
+
     /// Turn raw knob delta into whole detents, keeping the remainder.
     fn detents(&mut self, k: usize, delta: i32) -> i32 {
         self.knob_accum[k] += delta;
@@ -757,8 +888,13 @@ impl Controller {
 
     fn knob(&mut self, k: usize, delta: i32, h: &mut EngineHandle, now_ms: u64) {
         if k >= 4 {
-            let index = self.ui.right_page * 4 + (k - 4);
-            h.nudge_param(self.ui.track, index, delta as f32 / SWEEP);
+            match op8_ui::right_page(&self.ui) {
+                2 => self.fx_knob(k, delta, h),
+                3 => self.lfo_knob(k, delta, h),
+                page => {
+                    h.nudge_param(self.ui.track, page * 4 + (k - 4), delta as f32 / SWEEP);
+                }
+            }
             // Hear what the knob did, once, when it has been still for a moment (see `tick`).
             self.last_knob_ms = Some(now_ms);
             self.audition_due = Some(now_ms + AUDITION_PAUSE_MS);
@@ -831,6 +967,9 @@ impl Controller {
                 };
                 return;
             }
+        }
+        if self.ui.mode == Mode::Step && self.ui.left_page != LeftPage::Steps {
+            return self.page_knob(k, delta, h);
         }
         match (self.ui.mode, k) {
             (Mode::Brain, 0) => {
@@ -920,6 +1059,25 @@ impl Controller {
     pub fn tick(&mut self, h: &mut EngineHandle, now_ms: u64) {
         self.ui.master = h.master;
         self.ui.metronome = h.metronome;
+        {
+            let t = &h.project.tracks[self.ui.track];
+            (self.ui.players, self.ui.track_fx, self.ui.lfo, self.ui.kit) = (t.players, t.fx, t.lfo, t.kit);
+            if t.lfo.target != 1 {
+                // the name of the knob the LFO moves, from the instrument (the last name is kept if the audio thread holds it)
+                let i = t.lfo.param();
+                if let Some(c) = h.slots[self.ui.track].as_ref().and_then(|c| c.try_lock().ok()) {
+                    self.ui.lfo_target = match i {
+                        None => "nothing".into(),
+                        Some(i) if i < 4 => c.parameters()[i].name.to_lowercase(),
+                        Some(i) => c.secondary_parameters().map_or(format!("knob {}", i + 1), |s| s[i - 4].name.to_lowercase()),
+                    };
+                } else if i.is_none() {
+                    self.ui.lfo_target = "nothing".into();
+                }
+            } else {
+                self.ui.lfo_target = "volume".into();
+            }
+        }
         // Does this track's instrument have a second page? (If the audio thread holds the lock this frame, keep the last answer.)
         if let Some(c) = h.slots[self.ui.track].as_ref() {
             if let Ok(c) = c.try_lock() {
@@ -954,6 +1112,7 @@ impl Controller {
                 .find(|(_, t)| now_ms.saturating_sub(*t) >= HOLD_MS)
             {
                 self.inspector_pad = Some(pad);
+                self.ui.left_page = LeftPage::Steps;
                 self.ui.inspect_step = Some(Self::pad_to_step(pad));
                 self.ui.comp_cursor = 0;
             }

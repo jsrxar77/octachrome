@@ -1,6 +1,7 @@
 use crate::{
     fx::{FxRack, PunchFx},
     status::EngineStatus,
+    track_fx::TrackFxProc,
 };
 use op8_cartridge::{InstrumentCartridge, MAX_BLOCK, SAMPLE_RATE};
 use op8_seq::{BlockEvents, Command, Project, Sequencer, TRACKS};
@@ -75,8 +76,47 @@ struct Audition {
     left: i32,
 }
 
+/// The state of the LFO of one track.
+#[derive(Clone, Copy)]
+struct LfoState {
+    phase: f32,
+    /// The value a Random LFO holds, -1..=1.
+    held: f32,
+    rng: u32,
+    /// The knob it moved last block, so that it can be put back when the LFO moves elsewhere or stops.
+    driving: Option<usize>,
+    /// What it last wrote to that knob.
+    written: f32,
+}
+
+impl Default for LfoState {
+    fn default() -> Self {
+        Self { phase: 0.0, held: 0.0, rng: 0x1234_5679, driving: None, written: -1.0 }
+    }
+}
+
+impl LfoState {
+    /// Move on by `samples`; the LFO's value now, -1..=1.
+    fn advance(&mut self, lfo: &op8_seq::Lfo, samples: usize) -> f32 {
+        let before = self.phase;
+        self.phase = (self.phase + lfo.hz() * samples as f32 / SAMPLE_RATE).fract();
+        if self.phase < before {
+            self.rng ^= self.rng << 13;
+            self.rng ^= self.rng >> 17;
+            self.rng ^= self.rng << 5;
+            self.held = (self.rng as f32 / u32::MAX as f32) * 2.0 - 1.0;
+        }
+        match lfo.shape {
+            op8_seq::LfoShape::Random => self.held,
+            s => s.at(self.phase),
+        }
+    }
+}
+
 /// Lives on the audio thread.
 pub struct Engine {
+    track_fx: Vec<TrackFxProc>,
+    lfo: [LfoState; TRACKS],
     master: f32,
     metronome: bool,
     /// The click that is sounding: samples left, its phase and its frequency.
@@ -131,6 +171,8 @@ impl Engine {
             }
         }
         let engine = Engine {
+            track_fx: (0..TRACKS).map(|_| TrackFxProc::new()).collect(),
+            lfo: Default::default(),
             master: 1.0,
             metronome: false,
             click_left: 0,
@@ -288,6 +330,30 @@ impl Engine {
                     .unwrap_or(self.base_params[t][p.index as usize % PARAMS_PER_SLOT]);
                 c.set_parameter(p.index as usize, v);
             }
+            // The LFO moves a knob of the instrument (or the volume) around where the player left it.
+            let lfo = self.seq.project.tracks[t].lfo;
+            let mut vol_scale = 1.0;
+            let state = &mut self.lfo[t];
+            let value = if lfo.is_on() { state.advance(&lfo, n) } else { 0.0 };
+            let want = if lfo.is_on() { lfo.param() } else { None };
+            if state.driving != want {
+                if let Some(old) = state.driving {
+                    c.set_parameter(old, self.base_params[t][old]);
+                }
+                state.driving = want;
+                state.written = -1.0;
+            }
+            if let Some(i) = want {
+                let v = (self.base_params[t][i] + value * lfo.depth_f() * 0.5).clamp(0.0, 1.0);
+                if (v - state.written).abs() > 1e-4 {
+                    c.set_parameter(i, v);
+                    state.written = v;
+                }
+            }
+            if lfo.is_on() && lfo.moves_volume() {
+                // a tremolo: it dips from full volume, never above it
+                vol_scale = 1.0 - lfo.depth_f() * (0.5 - 0.5 * value);
+            }
             // Notes played by hand come first in this block, in the order they were played.
             for i in 0..self.live[t].as_slice().len() {
                 let ev = self.live[t].as_slice()[i];
@@ -318,7 +384,8 @@ impl Engine {
             let (l, r) = (&mut self.track_l[..n], &mut self.track_r[..n]);
             c.process(l, r, evs);
             drop(c);
-            let vol = self.volumes[t];
+            self.track_fx[t].process(&self.seq.project.tracks[t].fx, l, r);
+            let vol = self.volumes[t] * vol_scale;
             let mut peak = self.peaks[t] * 0.9;
             for i in 0..n {
                 let (a, b) = (l[i] * vol, r[i] * vol);
@@ -630,5 +697,85 @@ mod tests {
         let before = h.param(0, 1);
         h.nudge_param(0, 1, 0.1);
         assert!((h.param(0, 1) - before - 0.1).abs() < 1e-6);
+    }
+
+    /// A cartridge that only records what its knobs were set to.
+    struct Probe {
+        seen: Arc<Mutex<Vec<(usize, f32)>>>,
+    }
+    static PROBE_PARAMS: [op8_cartridge::ParamDescriptor; 4] = [
+        op8_cartridge::ParamDescriptor::new("a", 0.5, op8_cartridge::ParamUnit::Percent),
+        op8_cartridge::ParamDescriptor::new("b", 0.5, op8_cartridge::ParamUnit::Percent),
+        op8_cartridge::ParamDescriptor::new("c", 0.5, op8_cartridge::ParamUnit::Percent),
+        op8_cartridge::ParamDescriptor::new("d", 0.5, op8_cartridge::ParamUnit::Percent),
+    ];
+    impl InstrumentCartridge for Probe {
+        fn info(&self) -> op8_cartridge::InstrumentInfo {
+            op8_cartridge::InstrumentInfo::new("probe", "test")
+        }
+        fn process(&mut self, l: &mut [f32], r: &mut [f32], _: &[op8_cartridge::NoteEvent]) {
+            l.fill(0.0);
+            r.fill(0.0);
+        }
+        fn parameters(&self) -> &[op8_cartridge::ParamDescriptor; 4] {
+            &PROBE_PARAMS
+        }
+        fn set_parameter(&mut self, index: usize, v: f32) {
+            self.seen.lock().unwrap().push((index, v));
+        }
+        fn draw_ui(&self, _: &mut op8_cartridge::FrameBuffer480x272, _: op8_cartridge::Rgb565) {}
+        fn save_state(&self) -> Vec<u8> {
+            vec![]
+        }
+        fn load_state(&mut self, _: &[u8]) {}
+    }
+
+    // F-A15: an LFO swings a knob of the instrument around where the player left it, and puts it back when it is turned off.
+    #[test]
+    fn an_lfo_swings_a_knob_and_puts_it_back() {
+        let seen = Arc::new(Mutex::new(Vec::new()));
+        let mut slots: [Option<SharedCartridge>; TRACKS] = Default::default();
+        slots[0] = shared(Probe { seen: seen.clone() });
+        let (mut e, mut h) = Engine::new(Project::default(), slots);
+        h.seq(Command::SetLfo {
+            track: 0,
+            lfo: op8_seq::Lfo { shape: op8_seq::LfoShape::Sine, rate: 200, depth: 255, target: 3 }, // knob 2
+        });
+        render(&mut e, 48_000);
+        let writes: Vec<f32> = seen.lock().unwrap().iter().filter(|(i, _)| *i == 1).map(|(_, v)| *v).collect();
+        let (lo, hi) = writes.iter().fold((1.0f32, 0.0f32), |(lo, hi), &v| (lo.min(v), hi.max(v)));
+        assert!(lo < 0.15 && hi > 0.85, "full depth swings the knob across its range: {lo}..{hi}");
+        assert!(seen.lock().unwrap().iter().all(|(i, _)| *i == 1), "and touches no other knob");
+        // off: the knob goes back to where the player left it
+        h.seq(Command::SetLfo { track: 0, lfo: op8_seq::Lfo { target: 0, ..Default::default() } });
+        render(&mut e, 1_024);
+        assert_eq!(seen.lock().unwrap().last().copied(), Some((1, 0.5)));
+        let n = seen.lock().unwrap().len();
+        render(&mut e, 4_800);
+        assert_eq!(seen.lock().unwrap().len(), n, "and nothing is written any more");
+    }
+
+    // F-A15: an LFO on the volume dips the track from full volume and never raises it.
+    #[test]
+    fn an_lfo_on_the_volume_is_a_tremolo() {
+        let (mut e, mut h) = rig();
+        for s in 0..16 {
+            h.seq(Command::SetStep { track: 0, step: s, value: Step::on(36) });
+        }
+        h.send(EngineCommand::Play);
+        let plain = render(&mut e, 96_000);
+        let plain_peak = plain.iter().fold(0.0f32, |m, x| m.max(x.abs()));
+        let (mut e, mut h) = rig();
+        for s in 0..16 {
+            h.seq(Command::SetStep { track: 0, step: s, value: Step::on(36) });
+        }
+        h.seq(Command::SetLfo { track: 0, lfo: op8_seq::Lfo { shape: op8_seq::LfoShape::Sine, rate: 120, depth: 255, target: 1 } });
+        h.send(EngineCommand::Play);
+        let out = render(&mut e, 96_000);
+        let peak = out.iter().fold(0.0f32, |m, x| m.max(x.abs()));
+        assert!(peak <= plain_peak * 1.001, "never louder: {peak} vs {plain_peak}");
+        let windows: Vec<f32> = out.chunks(6_000).map(|w| w.iter().fold(0.0f32, |m, x| m.max(x.abs()))).collect();
+        let (lo, hi) = windows.iter().fold((9.0f32, 0.0f32), |(lo, hi), &v| (lo.min(v), hi.max(v)));
+        assert!(lo < hi * 0.4, "the level rises and falls: {lo}..{hi}");
     }
 }

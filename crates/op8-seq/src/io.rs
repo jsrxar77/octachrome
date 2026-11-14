@@ -5,11 +5,13 @@
 use crate::{
     brain::{Brain, BrainMode, ChordKind, ChordSlot, Scale, MAX_PROGRESSION},
     project::{Division, Project, Track},
+    rack::{ChordType, FxKind, Lfo, LfoShape, PlayMode, Players, TrackFx, LFO_TARGETS},
     step::{Step, StepComponent},
     MAX_STEPS, TRACKS,
 };
 
-pub const VERSION: u8 = 1;
+/// Version 2 adds the players, the effect and the LFO of each track; a version 1 file still opens (those are then off).
+pub const VERSION: u8 = 2;
 
 struct W(Vec<u8>);
 impl W {
@@ -139,6 +141,18 @@ pub fn encode(p: &Project) -> Vec<u8> {
         w.u8(t.length);
         w.u8(Division::ALL.iter().position(|d| *d == t.division).unwrap_or(2) as u8);
         w.u8(t.brain_link as u8 | (t.muted as u8) << 1 | (t.kit as u8) << 2);
+        w.u8(PlayMode::ALL.iter().position(|m| *m == t.players.mode).unwrap_or(0) as u8);
+        w.u8(ChordType::ALL.iter().position(|c| *c == t.players.chord).unwrap_or(0) as u8);
+        w.u8(t.players.speed);
+        w.u8(t.players.octaves);
+        w.u8(FxKind::ALL.iter().position(|k| *k == t.fx.kind).unwrap_or(0) as u8);
+        w.u8(t.fx.a);
+        w.u8(t.fx.b);
+        w.u8(t.fx.c);
+        w.u8(LfoShape::ALL.iter().position(|k| *k == t.lfo.shape).unwrap_or(0) as u8);
+        w.u8(t.lfo.rate);
+        w.u8(t.lfo.depth);
+        w.u8(t.lfo.target);
         for s in &t.steps {
             w.u8(s.active as u8);
             w.u8(s.note);
@@ -157,7 +171,8 @@ pub fn encode(p: &Project) -> Vec<u8> {
 /// A project from bytes, or `None` if they are not a project of a version this build knows.
 pub fn decode(data: &[u8]) -> Option<Project> {
     let mut r = R(data);
-    if r.u8()? != VERSION {
+    let version = r.u8()?;
+    if version != 1 && version != VERSION {
         return None;
     }
     let mut p = Project::default();
@@ -192,6 +207,21 @@ pub fn decode(data: &[u8]) -> Option<Project> {
         tr.division = *Division::ALL.get(r.u8()? as usize)?;
         let flags = r.u8()?;
         (tr.brain_link, tr.muted, tr.kit) = (flags & 1 != 0, flags & 2 != 0, flags & 4 != 0);
+        if version >= 2 {
+            tr.players = Players {
+                mode: *PlayMode::ALL.get(r.u8()? as usize)?,
+                chord: *ChordType::ALL.get(r.u8()? as usize)?,
+                speed: r.u8()?.min(4),
+                octaves: r.u8()?.clamp(1, 3),
+            };
+            tr.fx = TrackFx { kind: *FxKind::ALL.get(r.u8()? as usize)?, a: r.u8()?, b: r.u8()?, c: r.u8()? };
+            tr.lfo = Lfo {
+                shape: *LfoShape::ALL.get(r.u8()? as usize)?,
+                rate: r.u8()?,
+                depth: r.u8()?,
+                target: r.u8()?.min(LFO_TARGETS - 1),
+            };
+        }
         for s in tr.steps.iter_mut() {
             let mut st = Step::default();
             st.active = r.u8()? != 0;
@@ -232,6 +262,9 @@ mod tests {
             .with(StepComponent::Velocity(-20))
             .with(StepComponent::ParamLock { index: 5, value: 200 });
         p.tracks[5].steps[0] = Step::on(61).with(StepComponent::Octave(-1));
+        p.tracks[1].players = Players { mode: PlayMode::UpDown, chord: ChordType::MinorSeventh, speed: 3, octaves: 2 };
+        p.tracks[1].fx = TrackFx { kind: FxKind::Delay, a: 10, b: 200, c: 77 };
+        p.tracks[1].lfo = Lfo { shape: LfoShape::Saw, rate: 33, depth: 250, target: 4 };
         let bytes = encode(&p);
         let q = decode(&bytes).expect("decodes");
         assert_eq!(q, p);
@@ -239,9 +272,29 @@ mod tests {
 
     // F-F01
     #[test]
+    fn a_version_1_file_still_opens_with_the_extras_off() {
+        let mut p = Project::default();
+        p.bpm = 101.0;
+        p.tracks[3].steps[2] = Step::on(50);
+        let v2 = encode(&p);
+        // no components in this project, so each track is 3 header bytes, 12 extras and 16 steps of 6 bytes
+        let head = v2.len() - TRACKS * (3 + 12 + MAX_STEPS * 6);
+        let mut v1 = v2[..head].to_vec();
+        v1[0] = 1;
+        for t in 0..TRACKS {
+            let at = head + t * (3 + 12 + MAX_STEPS * 6);
+            v1.extend_from_slice(&v2[at..at + 3]);
+            v1.extend_from_slice(&v2[at + 15..at + 15 + MAX_STEPS * 6]);
+        }
+        assert_eq!(decode(&v1).expect("a version 1 file opens"), p);
+    }
+
+    // F-F01
+    #[test]
     fn garbage_and_other_versions_are_refused() {
         assert!(decode(&[]).is_none());
         assert!(decode(&[VERSION + 1, 0, 0]).is_none());
+        assert!(decode(&[0, 0, 0]).is_none());
         let bytes = encode(&Project::default());
         assert!(decode(&bytes[..bytes.len() - 3]).is_none(), "a truncated file is refused");
         let mut bad = bytes.clone();

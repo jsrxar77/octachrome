@@ -3,8 +3,8 @@
 //! lockstep by applying the same [`Command`]s.
 
 use crate::{
-    brain::Brain, step::Step, step::StepComponent, BrainMode, Chord, ChordSlot, Scale, MAX_STEPS,
-    PPQN, TRACKS,
+    brain::Brain, rack::{Lfo, Players, TrackFx}, step::Step, step::StepComponent, BrainMode, Chord,
+    ChordSlot, Scale, MAX_STEPS, PPQN, TRACKS,
 };
 
 /// How long one step is.
@@ -58,6 +58,12 @@ pub struct Track {
     pub muted: bool,
     /// A drum track: eight lanes, one per sound, several of which can sound in one step.
     pub kit: bool,
+    /// An arpeggio or a chord over the note of each step.
+    pub players: Players,
+    /// The track's own effect.
+    pub fx: TrackFx,
+    /// The track's LFO.
+    pub lfo: Lfo,
 }
 
 impl Default for Track {
@@ -69,6 +75,9 @@ impl Default for Track {
             brain_link: false,
             muted: false,
             kit: false,
+            players: Players::default(),
+            fx: TrackFx::default(),
+            lfo: Lfo::default(),
         }
     }
 }
@@ -175,6 +184,23 @@ pub enum Command {
     SetDivision {
         track: u8,
         division: Division,
+    },
+    /// Turn the steps of the track round inside its length: positive moves them later, negative earlier.
+    ShiftTrack {
+        track: u8,
+        by: i8,
+    },
+    SetPlayers {
+        track: u8,
+        players: Players,
+    },
+    SetFx {
+        track: u8,
+        fx: TrackFx,
+    },
+    SetLfo {
+        track: u8,
+        lfo: Lfo,
     },
     SetBrainLink {
         track: u8,
@@ -309,6 +335,28 @@ impl Project {
             SetDivision { track, division } => {
                 if let Some(t) = self.tracks.get_mut(track as usize) {
                     t.division = division;
+                }
+            }
+            ShiftTrack { track, by } => {
+                if let Some(t) = self.tracks.get_mut(track as usize) {
+                    let len = t.len();
+                    let by = (by as i32).rem_euclid(len as i32) as usize;
+                    t.steps[..len].rotate_right(by);
+                }
+            }
+            SetPlayers { track, players } => {
+                if let Some(t) = self.tracks.get_mut(track as usize) {
+                    t.players = players;
+                }
+            }
+            SetFx { track, fx } => {
+                if let Some(t) = self.tracks.get_mut(track as usize) {
+                    t.fx = fx;
+                }
+            }
+            SetLfo { track, lfo } => {
+                if let Some(t) = self.tracks.get_mut(track as usize) {
+                    t.lfo = Lfo { target: lfo.target.min(crate::rack::LFO_TARGETS - 1), ..lfo };
                 }
             }
             SetBrainLink { track, linked } => {

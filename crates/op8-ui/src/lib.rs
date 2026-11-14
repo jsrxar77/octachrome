@@ -18,12 +18,14 @@
 mod anim;
 mod files;
 mod left;
+mod pages;
 mod right;
 mod settings;
 mod theme;
 
 pub use anim::{animate, Anim};
 pub use left::{comp_glyph, draw_left, left_footer};
+pub use pages::{fx_footer, lfo_footer};
 pub use right::draw_right;
 pub use theme::*;
 
@@ -43,6 +45,20 @@ pub enum Main {
     /// Instruments (PLUG-IN): the sixteen pads choose the instrument of the selected track, both screens.
     Plugin,
 }
+
+/// What the left screen shows when the step view is open: the steps, or one of the two pages of buttons 3 and 4.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum LeftPage {
+    #[default]
+    Steps,
+    /// Button 3: the arpeggio or chord over each note.
+    Players,
+    /// Button 4: the length, division and shift of the track, and how REC rounds.
+    Bar,
+}
+
+/// How REC rounds what is played by hand to a step (knob 4 of the bar page).
+pub const QUANTIZE: [&str; 3] = ["nearest", "down", "up"];
 
 /// What the 4D encoder is turning while its button is held.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -87,8 +103,20 @@ pub struct UiState {
     /// Which component slot knob 4 edits in the inspector (len = "add new").
     pub comp_cursor: usize,
     pub knob_touch: [bool; 8],
-    /// Right screen parameter page: 0 = main, 1 = secondary.
+    /// Right screen page: 0 = sound, 1 = shape (the second page of the instrument), 2 = fx, 3 = mod.
     pub right_page: usize,
+    /// The left screen page (buttons 1–4).
+    pub left_page: LeftPage,
+    /// How REC rounds to a step: an index into [`QUANTIZE`].
+    pub quantize: usize,
+    /// The selected track's players, effect and LFO, copied from the project every frame for the screens.
+    pub players: op8_seq::Players,
+    pub track_fx: op8_seq::TrackFx,
+    pub lfo: op8_seq::Lfo,
+    /// What the LFO moves, in words (the name of the instrument's knob, or "volume").
+    pub lfo_target: String,
+    /// The selected track is a drum kit (its players are off).
+    pub kit: bool,
     /// Whether the selected track's instrument has a second page (the `shape` button).
     pub has_second: bool,
     /// The sixteen project slots shown in FILE, in reading order (top-left first): the name and
@@ -158,15 +186,30 @@ pub fn screen_buttons(ui: &UiState) -> [Option<(&'static str, bool)>; 8] {
     if ui.main != Main::Instrument {
         return b; // in settings the buttons do nothing
     }
-    b[0] = Some(("step", ui.mode == Mode::Step && ui.inspect_step.is_none()));
+    let steps = ui.mode == Mode::Step && ui.inspect_step.is_none();
+    b[0] = Some(("step", steps && ui.left_page == LeftPage::Steps));
     b[1] = Some(("components", ui.inspect_step.is_some()));
-    // Button 5 is `shape` (the second page, if the instrument has one) and 6 is `sound` (the first).
-    let shape = ui.right_page == 1 && ui.has_second;
+    b[2] = Some(("players", steps && ui.left_page == LeftPage::Players));
+    b[3] = Some(("bar", steps && ui.left_page == LeftPage::Bar));
+    // Button 5 is `shape` (the second page, if the instrument has one), 6 is `sound` (the first),
+    // 7 the track's effect and 8 its LFO.
+    let page = right_page(ui);
     if ui.has_second {
-        b[4] = Some(("shape", shape));
+        b[4] = Some(("shape", page == 1));
     }
-    b[5] = Some(("sound", !shape));
+    b[5] = Some(("sound", page == 0));
+    b[6] = Some(("fx", page == 2));
+    b[7] = Some(("mod", page == 3));
     b
+}
+
+/// The page of the right screen that is really showing: the shape page only exists when the instrument has one.
+pub fn right_page(ui: &UiState) -> usize {
+    if ui.right_page == 1 && !ui.has_second {
+        0
+    } else {
+        ui.right_page.min(3)
+    }
 }
 
 /// The labels of the four buttons above one screen (`0` = left, `1` = right), as the strip draws them.

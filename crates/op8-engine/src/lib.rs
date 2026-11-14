@@ -17,6 +17,7 @@
 mod engine;
 pub mod fx;
 mod status;
+mod track_fx;
 
 pub use engine::{Engine, EngineCommand, EngineHandle, SharedCartridge};
 pub use fx::{PunchFx, PUNCH_SLOTS};

@@ -337,16 +337,40 @@ impl Sequencer {
             } else {
                 step_samples * r.gate_steps as f64
             };
-            for k in 0..r.ratchet.max(1) {
-                let on = (start + k as f64 * sub).floor() as u64;
-                let off = on + (gate.floor() as u64).max(1);
-                if track.kit {
-                    // a drum kit: one note per lane that is on in this step
-                    for lane in (0..8u8).filter(|l| step.lanes & (1 << l) != 0) {
-                        self.schedule_note(tr as u8, crate::step::KIT_BASE_NOTE + lane, r.velocity, on, off);
+            let players = track.players;
+            if track.kit || players.mode == crate::PlayMode::Off {
+                for k in 0..r.ratchet.max(1) {
+                    let on = (start + k as f64 * sub).floor() as u64;
+                    let off = on + (gate.floor() as u64).max(1);
+                    if track.kit {
+                        // a drum kit: one note per lane that is on in this step
+                        for lane in (0..8u8).filter(|l| step.lanes & (1 << l) != 0) {
+                            self.schedule_note(tr as u8, crate::step::KIT_BASE_NOTE + lane, r.velocity, on, off);
+                        }
+                    } else {
+                        self.schedule_note(tr as u8, note, r.velocity, on, off);
+                    }
+                }
+            } else {
+                // the players: a chord on the note, or an arpeggio over it
+                let mut notes = [0u8; crate::rack::MAX_PLAYED];
+                let n = players.chord_notes(note, &mut notes);
+                if players.mode == crate::PlayMode::Chord {
+                    let strum = step_samples * players.speed as f64 / 32.0;
+                    for (i, &nt) in notes[..n].iter().enumerate() {
+                        let on = (start + i as f64 * strum).floor() as u64;
+                        let off = on + (gate.floor() as u64).max(1);
+                        self.schedule_note(tr as u8, nt, r.velocity, on, off);
                     }
                 } else {
-                    self.schedule_note(tr as u8, note, r.velocity, on, off);
+                    let count = players.arp_count();
+                    let each = step_samples / count as f64;
+                    let hold = (each * (r.gate_steps as f64).min(1.0).max(0.1)).floor() as u64;
+                    for k in 0..count {
+                        let idx = players.arp_index(step_global * count as u64 + k as u64, n, &mut self.rng[tr]);
+                        let on = (start + k as f64 * each).floor() as u64;
+                        self.schedule_note(tr as u8, notes[idx], r.velocity, on, on + hold.max(1));
+                    }
                 }
             }
         }
@@ -700,5 +724,83 @@ mod tests {
             muted: false,
         });
         assert!(!ons(&run(&mut seq, 48_000, 64), 0).is_empty());
+    }
+
+    fn notes_of(log: &[(u64, usize, NoteEvent)], track: usize) -> Vec<(u64, u8)> {
+        log.iter()
+            .filter(|(_, tr, e)| *tr == track && e.kind == NoteKind::On)
+            .map(|(t, _, e)| (*t, e.note))
+            .collect()
+    }
+
+    // F-S13: a chord player sounds the whole chord on the note of the step, together or strummed.
+    #[test]
+    fn a_chord_player_sounds_the_chord() {
+        use crate::{ChordType, PlayMode, Players};
+        let mut p = Project::default();
+        p.tracks[0].steps[0] = Step::on(60);
+        p.tracks[0].players = Players { mode: PlayMode::Chord, chord: ChordType::Minor, speed: 0, octaves: 1 };
+        let mut seq = Sequencer::new(p, SR);
+        seq.play();
+        let log = run(&mut seq, 3_000, 64);
+        assert_eq!(notes_of(&log, 0), [(0, 60), (0, 63), (0, 67)]);
+        // strummed: the notes follow one another inside the step
+        p.tracks[0].players.speed = 4;
+        let mut seq = Sequencer::new(p, SR);
+        seq.play();
+        let log = run(&mut seq, 6_000, 64);
+        let n = notes_of(&log, 0);
+        assert_eq!(n.iter().map(|x| x.1).collect::<Vec<_>>(), [60, 63, 67]);
+        assert!(n[0].0 < n[1].0 && n[1].0 < n[2].0 && n[2].0 < 6_000, "{n:?}");
+    }
+
+    // F-S13: an arpeggio plays the chord one note after another, in the step's own time, and keeps going round across steps.
+    #[test]
+    fn an_arpeggio_player_runs_through_the_chord() {
+        use crate::{PlayMode, Players};
+        let mut p = Project::default();
+        p.tracks[0].steps[0] = Step::on(60);
+        p.tracks[0].steps[1] = Step::on(60);
+        p.tracks[0].players = Players { mode: PlayMode::Up, speed: 1, ..Default::default() }; // three notes per step
+        let mut seq = Sequencer::new(p, SR);
+        seq.play();
+        let log = run(&mut seq, 12_000, 64);
+        let n = notes_of(&log, 0);
+        assert_eq!(n.iter().map(|x| x.1).collect::<Vec<_>>(), [60, 64, 67, 60, 64, 67]);
+        assert_eq!(n[1].0 - n[0].0, 2_000, "three notes share a 6000-sample step");
+        // down
+        p.tracks[0].players.mode = PlayMode::Down;
+        let mut seq = Sequencer::new(p, SR);
+        seq.play();
+        let n = notes_of(&run(&mut seq, 5_000, 64), 0);
+        assert_eq!(n.iter().map(|x| x.1).collect::<Vec<_>>(), [67, 64, 60]);
+    }
+
+    // F-S13: the players leave a drum kit alone.
+    #[test]
+    fn players_do_not_touch_a_kit() {
+        use crate::{PlayMode, Players};
+        let mut p = Project::default();
+        p.tracks[0].kit = true;
+        p.tracks[0].steps[0] = Step::kit(0b11);
+        p.tracks[0].players = Players { mode: PlayMode::Chord, ..Default::default() };
+        let mut seq = Sequencer::new(p, SR);
+        seq.play();
+        let n = notes_of(&run(&mut seq, 1_000, 64), 0);
+        assert_eq!(n.iter().map(|x| x.1).collect::<Vec<_>>(), [60, 61]);
+    }
+
+    // F-S12: shifting a track turns its steps round inside its length.
+    #[test]
+    fn shifting_a_track_turns_it_round() {
+        let mut p = Project::default();
+        p.tracks[0].length = 4;
+        p.tracks[0].steps[0] = Step::on(36);
+        p.tracks[0].steps[9] = Step::on(40); // outside the length: stays
+        p.apply(&crate::Command::ShiftTrack { track: 0, by: 1 });
+        assert!(p.tracks[0].steps[1].active && !p.tracks[0].steps[0].active);
+        p.apply(&crate::Command::ShiftTrack { track: 0, by: -2 });
+        assert!(p.tracks[0].steps[3].active, "wraps round the end");
+        assert!(p.tracks[0].steps[9].active);
     }
 }
