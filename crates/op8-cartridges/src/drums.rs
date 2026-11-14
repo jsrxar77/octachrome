@@ -18,7 +18,8 @@ use op8_plaits::{seed_noise, MacroPatch, MacroVoice};
 const CHUNK: usize = 12;
 /// ~100 ms of quiet before a voice sleeps.
 const SLEEP_CHUNKS: u32 = 400;
-const QUIET: f32 = 2.0e-4;
+/// Below this (−60 dB) a drum voice has died away and sleeps: a cymbal's last tail is inaudible.
+const QUIET: f32 = 1.0e-3;
 pub const SOUNDS: usize = 8;
 /// Values kept per sound: tune, decay, tone, snap, body, level, pan.
 const VALS: usize = 7;
@@ -37,7 +38,7 @@ const KINDS: [Kind; SOUNDS] = [
     Kind { engine: 21, base: 36.0, defaults: [0.5, 0.45, 0.5, 0.5, 0.5, 0.75, 0.5] },
     Kind { engine: 22, base: 52.0, defaults: [0.5, 0.40, 0.5, 0.55, 0.5, 0.6, 0.5] },
     Kind { engine: 23, base: 72.0, defaults: [0.5, 0.15, 0.55, 0.5, 0.5, 0.4, 0.35] },
-    Kind { engine: 23, base: 72.0, defaults: [0.5, 0.55, 0.55, 0.5, 0.5, 0.4, 0.35] },
+    Kind { engine: 23, base: 72.0, defaults: [0.5, 0.45, 0.55, 0.5, 0.5, 0.4, 0.35] },
     Kind { engine: 21, base: 48.0, defaults: [0.5, 0.40, 0.5, 0.4, 0.5, 0.6, 0.65] },
     Kind { engine: 17, base: 72.0, defaults: [0.5, 0.30, 0.6, 0.5, 0.5, 0.5, 0.5] },
     Kind { engine: 20, base: 84.0, defaults: [0.5, 0.12, 0.6, 0.5, 0.5, 0.5, 0.45] },

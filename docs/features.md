@@ -17,7 +17,7 @@ The buttons and their implementation status are in [buttons.md](buttons.md). Thi
 | F-T01 | PLAY starts the sequencer and the audio, and PLAY again pauses it | `status.playing` changes; there is signal after PLAY and silence after the pause | ✓ |
 | F-T02 | STOP stops the sequencer; the audio falls to silence | `playing == false` and `silent` in the last stretch | ✓ |
 | F-T03 | RESTART goes back to step 1 and keeps playing | the playhead of track A is 0 after RESTART | ✓ |
-| F-T04 | Tracks of different length drift apart (polymeter) and the playhead never exceeds its length | track B (length 7): playhead always in 0..=6 and reaches 6 | ✓ |
+| F-T04 | Tracks of different length drift apart (polymeter) and the playhead never exceeds its length | track C (length 7): playhead always in 0..=6 and reaches 6 | ✓ |
 
 ## S · Sequencer (`tests/sequencer.rs`)
 
@@ -30,7 +30,7 @@ The buttons and their implementation status are in [buttons.md](buttons.md). Thi
 | F-S05 | Tapping a group A–H selects the track; its LED is brighter than the others | `ui.track` and the group LED level | ✓ |
 | F-S06 | Knob 1 in STEP changes the track length | `tracks[t].length` goes up and down, limited to 1–16 | ✓ |
 | F-S07 | MUTE + group mutes the track | `tracks[t].muted` toggles | ✓ |
-| F-S08 | A muted track emits no notes | track C (MIDI) muted: no new notes after the mute | ✓ |
+| F-S08 | A muted track emits no notes | track D (MIDI) muted: no new notes after the mute | ✓ |
 | F-S09 | A drum-kit track has eight lanes: a step plays one note per lane that is on (several sounds in one step), `SetKit` turns a track into a kit (existing notes become lanes by pitch class) and `ToggleLane` switches one lane ([instruments.md §7](instruments.md)) | `op8-seq` unit tests | ✓ |
 
 ## B · Brain (`tests/brain.rs`)
@@ -132,7 +132,7 @@ The buttons and their implementation status are in [buttons.md](buttons.md). Thi
 | F-C06 | The settings file: every theme survives a round trip, a damaged file falls back to the default, names match the command line, saving creates the folder | unit tests in `crates/op8/src/settings.rs` | ✓ |
 | F-C07 | A theme change is saved to the settings file, and only when a path is set (never in the simulator or the bench) | the file's content after each change | ✓ |
 | F-C08 | On the real MK3: the SETTINGS button reaches the app and its LED lights, the 4D encoder changes the theme on both screens, the choice survives a restart, and `-t` overrides it | **manual review**, with `OP8_LOG_EVENTS=1` | R |
-| F-C09 | The theme changes the pad and group LEDs, not only the screens: track A's pad and group key take that theme's colour from `track_led_colors`, and the three themes do not light the pads alike | `crates/op8/tests/settings.rs` | ✓ |
+| F-C09 | The theme changes the pad and group LEDs, not only the screens: track B's pad and group key take that theme's colour from `track_led_colors`, and the three themes do not light the pads alike | `crates/op8/tests/settings.rs` | ✓ |
 
 ## H · Hardware link (`crates/op8-hw`, `crates/op8`)
 

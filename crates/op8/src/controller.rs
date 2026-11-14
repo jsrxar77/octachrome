@@ -90,7 +90,7 @@ pub struct Controller {
     /// A note to audition once the knob that asked for it has been still for a moment.
     audition_due: Option<u64>,
     /// When a knob of the instrument last moved.
-    last_knob_ms: u64,
+    last_knob_ms: Option<u64>,
     /// The note the instrument's `sound` knob had at the last frame, to notice when it changes.
     last_paint: Option<u8>,
     pad_down_at: [Option<u64>; 16],
@@ -425,7 +425,7 @@ impl Controller {
             let index = self.ui.right_page * 4 + (k - 4);
             h.nudge_param(self.ui.track, index, delta as f32 / SWEEP);
             // Hear what the knob did, once, when it has been still for a moment (see `tick`).
-            self.last_knob_ms = now_ms;
+            self.last_knob_ms = Some(now_ms);
             self.audition_due = Some(now_ms + AUDITION_PAUSE_MS);
             return;
         }
@@ -589,7 +589,7 @@ impl Controller {
         // The `sound` knob chose another sound: hear it once, at once. Anything else a knob
         // did is heard once, when it has been still for a moment.
         let paint = self.paint_note(h);
-        let recent = now_ms.saturating_sub(self.last_knob_ms) < 500;
+        let recent = self.last_knob_ms.is_some_and(|t| now_ms.saturating_sub(t) < 500);
         if paint != self.last_paint {
             if let (Some(n), true) = (paint, recent) {
                 h.send(EngineCommand::Audition { track: self.ui.track as u8, note: n, velocity: 0.9 });

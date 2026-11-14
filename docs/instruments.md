@@ -89,18 +89,18 @@ Everything in OP-8 is built on eight, and the MK3 has sixteen pads. So the libra
 | **Instruments** (PLUG-IN) | 8 that always ship and cannot be removed | 8 places for instruments installed as separate packages (stage 2 and 3 of §3) |
 | **Projects** (FILE) | 8 music projects that always ship: a way into the instruments and the sequencer | 8 places for the player's own projects |
 
-The factory eight, confirmed by Javi on 2026-11-14 (the first four exist). The eighth is **MIDI out**, because the MK3 will eventually also take input: MIDI out and sound in. The order of work is drums, resonator, sampler, granular.
+The factory eight, confirmed by Javi on 2026-11-14 (the first three and the last two exist). **They are ordered from the most guttural to the most refined, drums first and the leads last**; that order is the order of the factory slots, of the tracks in the demo (A to E) and of the list the player will browse. The MIDI out has its place because the MK3 will eventually also take input: MIDI out and sound in. The order of work is drums (done), resonator, sampler, granular.
 
 | # | Instrument | Idea | Status |
 | :-- | :-- | :-- | :-- |
-| 1 | **KickSyn** | Synthetic kick | ✓ |
-| 2 | **FmBass** | Two-operator FM bass | ✓ |
-| 3 | **macro** | 24 engines in one (from Plaits) | ✓ |
-| 4 | **MidiOutBridge** | The track out to an external synth (later also sound in) | ✓ |
-| 5 | **resonator** | Strings, bells and tubes (from Rings) | ○ |
-| 6 | **drums** | Eight percussion sounds on one track, chosen by pitch | ✓ |
-| 7 | **sampler** | Record with SAMPLING and play it | ○ |
-| 8 | **granular** | Granular on a sample (from Clouds / Beads) | ○ |
+| 1 | **drums** | Eight percussion sounds on one track, in eight lanes | ✓ |
+| 2 | **KickSyn** | Synthetic kick | ✓ |
+| 3 | **FmBass** | Two-operator FM bass | ✓ |
+| 4 | **resonator** | Strings, bells and tubes (from Rings) | ○ |
+| 5 | **sampler** | Record with SAMPLING and play it | ○ |
+| 6 | **granular** | Granular on a sample (from Clouds / Beads) | ○ |
+| 7 | **MidiOutBridge** | The track out to an external synth (later also sound in) | ✓ |
+| 8 | **macro** | 24 engines in one (from Plaits): the leads | ✓ |
 
 Rules: the factory eight meet §2 like any other instrument; each factory project shows one thing (an instrument, a rhythm idea, the Brain) and is made only with the factory eight, so it always loads. Removing, replacing or overwriting a factory slot is not possible; a user slot starts empty.
 

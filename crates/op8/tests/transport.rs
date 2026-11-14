@@ -51,12 +51,12 @@ fn f_t03_restart_returns_to_step_one() {
 #[test]
 fn f_t04_polymeter_stays_in_length() {
     let mut b = Bench::demo();
-    assert_eq!(b.project().tracks[1].length, 7, "precondition");
+    assert_eq!(b.project().tracks[2].length, 7, "precondition");
     b.press(Button::Play);
     let (mut max, mut seen_others) = (0u8, std::collections::BTreeSet::new());
     for _ in 0..(4 * 60) {
         b.tick();
-        let p = b.status().playhead[1].load(Relaxed);
+        let p = b.status().playhead[2].load(Relaxed);
         max = max.max(p);
         seen_others.insert(p);
     }

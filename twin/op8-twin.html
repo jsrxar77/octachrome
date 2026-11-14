@@ -323,24 +323,23 @@ function demoProject() {
   const p = { tracks, bpm: 122, swing: 0.54, seed: 0x35EED,
     brain: { key: 0, scale: 0, mode: 1, len: 4, live: null,
       prog: [0,5,3,4,0,0,0,0].map(d => ({ degree: d, kind: "triad", length: 16 })) } };
-  for (const s of [0,4,8,12]) tracks[0].steps[s] = newStep(true, 36);
-  tracks[0].steps[14] = { ...newStep(true, 36), comps: [C("chance",50), C("vel",-40)] };
-  const b = tracks[1]; b.length = 7; b.link = true;
+  for (const s of [0,4,8,12]) tracks[1].steps[s] = newStep(true, 36);
+  tracks[1].steps[14] = { ...newStep(true, 36), comps: [C("chance",50), C("vel",-40)] };
+  const b = tracks[2]; b.length = 7; b.link = true;
   b.steps[0] = newStep(true, 36);
   b.steps[2] = { ...newStep(true, 48), comps: [C("ratchet",2)] };
   b.steps[3] = newStep(true, 43);
   b.steps[5] = { ...newStep(true, 40), comps: [C("every",[2,2]), C("oct",1)] };
-  const a = tracks[2]; a.length = 5; a.link = true;
+  const a = tracks[3]; a.length = 5; a.link = true;
   a.steps[0] = newStep(true, 60); a.steps[1] = newStep(true, 64);
   a.steps[2] = { ...newStep(true, 67), comps: [C("rand",5)] };
   a.steps[4] = { ...newStep(true, 72), comps: [C("chance",60)] };
-  const m = tracks[3]; m.link = true;
+  const m = tracks[4]; m.link = true;
   m.steps[0] = newStep(true, 60); m.steps[6] = newStep(true, 67);
   m.steps[10] = { ...newStep(true, 64), comps: [C("oct",1)] };
   // drums: a backbeat on a kit track; each lane is a sound (0 kick, 1 snare, 2 closed hat, 3 open hat, 4 tom, 5 clap, 6 rim, 7 crash)
-  const d = tracks[4]; d.kit = true;
-  for (const s of [0, 8]) d.steps[s] = kitStep(1);
-  for (const s of [4, 12]) d.steps[s] = kitStep(2);
+  const d = tracks[0]; d.kit = true;
+    for (const s of [4, 12]) d.steps[s] = kitStep(2);
   for (const s of [2, 6, 10]) d.steps[s] = kitStep(4);
   d.steps[14] = kitStep(8); d.steps[7] = { ...kitStep(64), comps: [C("chance",60)] };
   return p;
@@ -372,7 +371,8 @@ const CARTS = {
   midi: { name: "MIDIOUTBRIDGE", cat: "MIDI",
     params: [["CHANNEL",0,v=>"CH "+(Math.min(15,Math.floor(v*16))+1)],["TRANSP",.5,v=>{const s=Math.round(-24+48*v);return (s>0?"+":"")+s+"st";}],["VEL",1,v=>Math.round(v*100)+"%"],["CC74",.5,v=>Math.round(v*100)+"%"]] },
 };
-const SLOTS = ["kick", "fm", "midi", "macro", "drums", null, null, null];
+// the instruments run from the most guttural to the most refined: drums, kick, bass, MIDI out, then the leads (macro)
+const SLOTS = ["drums", "kick", "fm", "midi", "macro", null, null, null];
 const PARAMS = SLOTS.map(s => s ? CARTS[s].params.map(p => p[1]) : null);
 // the knobs edit the chosen drum sound: keep its values in step with PARAMS
 function drumsSync(t, i) {
@@ -380,7 +380,7 @@ function drumsSync(t, i) {
   if (i === 7) { DRUMS.vals[DRUMS.sel].forEach((_, j) => DRUMS.vals[DRUMS.sel][j] = p[j]); DRUMS.sel = Math.min(7, Math.floor(p[7] * 8)); DRUMS.vals[DRUMS.sel].forEach((v, j) => p[j] = v); }
   else DRUMS.vals[DRUMS.sel][i] = p[i];
 }
-if (SLOTS[4] === "drums") PARAMS[4][7] = .5 / 8;
+if (SLOTS[0] === "drums") PARAMS[0][7] = .5 / 8;
 const recentMidi = [];
 
 let actx = null, master = null, trackOut = [], analysers = [], fx = {};

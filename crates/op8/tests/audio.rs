@@ -60,7 +60,7 @@ fn f_a11_choices_are_auditioned() {
     use op8_hw::Button;
     // a knob turn on the drum track
     let mut b = Bench::demo();
-    b.press(Button::Group(4));
+    b.press(Button::Group(0));
     b.run_ms(300);
     let quiet = b.peak(0, 300);
     b.press(Button::Screen(5));
@@ -69,7 +69,7 @@ fn f_a11_choices_are_auditioned() {
     assert!(b.peak(300, 700) > quiet + 0.01, "turning `sound` plays the sound: {} vs {}", b.peak(300, 700), quiet);
     // a tap on a step
     let mut b = Bench::demo();
-    b.press(Button::Group(4));
+    b.press(Button::Group(0));
     b.run_ms(100);
     b.tap(0);
     b.run_ms(300);
@@ -83,10 +83,10 @@ fn f_a12_auditions_do_not_repeat() {
     use op8_hw::Button;
     use std::sync::atomic::Ordering::Relaxed;
     let mut b = Bench::demo();
-    b.press(Button::Group(4)); // the drums
+    b.press(Button::Group(0)); // the drums
     b.press(Button::Screen(5)); // shape: the page with `sound` and body, level, pan
     b.run_ms(300);
-    let played = |b: &Bench| b.status().note_count[4].load(Relaxed);
+    let played = |b: &Bench| b.status().note_count[0].load(Relaxed);
     let before = played(&b);
     // turn `sound` through three sounds, one detent at a time: one note each, no more
     for _ in 0..3 {
