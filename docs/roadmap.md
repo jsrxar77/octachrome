@@ -13,6 +13,7 @@ It comes from the [button map](buttons.md) and from [instruments.md](instruments
 - Test bench, scripts and feature cases that run without hardware ([features.md](features.md)).
 - Main modes: CHANNEL (composing) and SETTINGS (both screens). Settings has one page today, the theme: it is chosen with the 4D encoder and kept in a settings file ([architecture.md §10](architecture.md)). Tried in the Twin first.
 - The audio comes back by itself when the MK3's audio device drops (it used to stay dead, leaving the sequencer frozen).
+- The name is OP-8 and the brand mark is defined: eight rainbow buttons on an 8 on its side, with the colours in each theme ([design.md §2.3](design.md)). Guide and manual in `guide/`.
 - Twin with the same screens, macro on track D and an approximate sound in WebAudio.
 
 ## Hardware status

@@ -38,6 +38,9 @@ pub struct Theme {
     pub panel: Rgb565,
     /// Encoder colours, knob 1..=8.
     pub knobs: [Rgb565; 8],
+    /// The brand mark: eight buttons in rainbow order, the eighth is white
+    /// (the theme's own white). See `docs/design.md` §2.3.
+    pub brand: [Rgb565; 8],
     /// Only REC, erase and peaks.
     pub rec: Rgb565,
 }
@@ -64,6 +67,16 @@ pub const THEMES: [Theme; 3] = [
             c(0x2ED3E6),
             c(0xFF4FA0),
         ],
+        brand: [
+            c(0xFF2D2D),
+            c(0xFF8A1F),
+            c(0xFFD21F),
+            c(0x00E56A),
+            c(0x2ED3E6),
+            c(0x0099FF),
+            c(0x8B6CFF),
+            c(0xF2F4F8),
+        ],
         rec: c(0xFF3B30),
     },
     Theme {
@@ -83,6 +96,16 @@ pub const THEMES: [Theme; 3] = [
             c(0xA88BC7),
             c(0xD9677A),
         ],
+        brand: [
+            c(0xD9534F),
+            c(0xD9822B),
+            c(0xE3C77A),
+            c(0x7FB58A),
+            c(0x6FB3B8),
+            c(0x3B8EBA),
+            c(0xA88BC7),
+            c(0xF4EFE6),
+        ],
         rec: c(0xE63946),
     },
     Theme {
@@ -101,6 +124,16 @@ pub const THEMES: [Theme; 3] = [
             c(0x34D3E8),
             c(0x9D7BFF),
             c(0xFF8A1F),
+        ],
+        brand: [
+            c(0xFF3B2F),
+            c(0xFF8A1F),
+            c(0xFFD60A),
+            c(0x00F076),
+            c(0x34D3E8),
+            c(0x4C8DFF),
+            c(0x9D7BFF),
+            c(0xEEF0F5),
         ],
         rec: c(0xFF2244),
     },
@@ -128,4 +161,33 @@ pub fn set_theme(id: ThemeId) {
 /// Colour of encoder `i` (0-based: 0..=3 sequencer, 4..=7 instrument).
 pub fn knob(i: usize) -> Rgb565 {
     theme().knobs[i % 8]
+}
+
+#[cfg(test)]
+mod brand_tests {
+    use super::*;
+
+    fn hue(c: Rgb565) -> f32 {
+        let (r, g, b) = c.to_rgb888();
+        let (r, g, b) = (r as f32, g as f32, b as f32);
+        let (mx, mn) = (r.max(g).max(b), r.min(g).min(b));
+        let d = mx - mn;
+        let h = if mx == r { ((g - b) / d).rem_euclid(6.0) } else if mx == g { (b - r) / d + 2.0 } else { (r - g) / d + 4.0 };
+        h * 60.0
+    }
+
+    // F-D09
+    #[test]
+    fn f_d09_each_theme_has_eight_brand_colours_in_rainbow_order_ending_in_white() {
+        for t in THEMES.iter() {
+            assert_eq!(t.brand[7], t.fg, "{}: the eighth brand button is the theme's white", t.name);
+            // Whatever the theme's range, the first seven run through the hues red to violet.
+            let hues: Vec<f32> = t.brand[..7].iter().map(|&c| hue(c)).collect();
+            assert!(hues[0] < 15.0, "{}: starts at red, got {}", t.name, hues[0]);
+            for w in hues.windows(2) {
+                assert!(w[1] > w[0] + 10.0, "{}: hues rise along the rainbow: {:?}", t.name, hues);
+            }
+            assert!(hues[6] > 240.0, "{}: ends in violet: {:?}", t.name, hues);
+        }
+    }
 }

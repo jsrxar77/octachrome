@@ -23,7 +23,7 @@ These six documents are the only ones in `docs/`. Each fact lives in exactly one
 
 The interactive twin lives outside `docs/`: `twin/op8-twin.html` (HTML/WebAudio). Every UI change is tried there first.
 
-The user guide is `guide/index.html`: one self-contained page (its own Jost fonts, no network), for people who play OP-8. `.github/workflows/pages.yml` publishes it as a GitHub Pages site once Pages is enabled with source "GitHub Actions" (a free plan needs a public repository). Until then: `open guide/index.html`. `guide/manual.html` lists every button with its status; it is generated from [buttons.md](buttons.md) by `python3 scripts/build-manual.py` (run it after changing the button map).
+The user guide is `guide/index.html`: one self-contained page (its own Jost fonts, no network), for people who play OP-8. `.github/workflows/pages.yml` publishes it as a GitHub Pages site once Pages is enabled with source "GitHub Actions" (a free plan needs a public repository). Until then: `open guide/index.html`. `guide/brand.html` shows the brand mark ([design.md §2.3](design.md)). `guide/manual.html` lists every button with its status; it is generated from [buttons.md](buttons.md) by `python3 scripts/build-manual.py` (run it after changing the button map).
 
 ## 1. Central idea
 

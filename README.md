@@ -1,5 +1,7 @@
 # OP-8
 
+<p align="center"><img src="guide/brand/op8-mark.svg" width="360" alt="OP-8: eight buttons in rainbow order forming an 8 on its side"></p>
+
 A standalone groovebox in Rust for the **Raspberry Pi 4/5** (developed and tested on **macOS Apple Silicon**) that uses a **Native Instruments Maschine MK3** as its only control surface: pads, knobs, Smart Strip, LEDs and the two 480×272 screens.
 
 The sequencer is inspired by the OP-XY: per-track polymeter, stackable *Step Components*, a harmony track (*Brain*) and *Punch-in FX*. Instruments are **cartridges** that implement a single trait and know nothing about the sequencer or the hardware.

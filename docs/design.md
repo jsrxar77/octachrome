@@ -62,6 +62,29 @@ The first four follow the encoder order of each reference device (original OP-1:
 
 The track colours (A–H) are one fixed palette shared by the three themes (`crates/op8-ui/src/theme.rs`, `TRACK_COLORS`); they match the pad LED palette. Whether they should follow the theme is an open question in [roadmap.md](roadmap.md).
 
+### 2.3 Brand mark
+
+The mark of OP-8 is the 8 on its side: an infinity loop made of **eight buttons**, one per colour of the rainbow, the eighth white. It is the only picture that stands for the product (guide, twin, icon, README). Everything in OP-8 is built on eight, and the loop never ends.
+
+| Button | op-1 | op-1 field | op-xy |
+| :-- | :-- | :-- | :-- |
+| 1 red | `#FF2D2D` | `#D9534F` | `#FF3B2F` |
+| 2 orange | `#FF8A1F` | `#D9822B` | `#FF8A1F` |
+| 3 yellow | `#FFD21F` | `#E3C77A` | `#FFD60A` |
+| 4 green | `#00E56A` | `#7FB58A` | `#00F076` |
+| 5 cyan | `#2ED3E6` | `#6FB3B8` | `#34D3E8` |
+| 6 blue | `#0099FF` | `#3B8EBA` | `#4C8DFF` |
+| 7 violet | `#8B6CFF` | `#A88BC7` | `#9D7BFF` |
+| 8 white | `#F2F4F8` | `#F4EFE6` | `#EEF0F5` |
+
+Rules of the mark:
+
+- Always eight buttons, always in this order, always on absolute black, evenly spaced along the loop. Never fewer, never another colour, never outlined or filled with a gradient.
+- The colours come from the active theme (`Theme.brand` in `crates/op8-gfx/src/theme.rs`). A theme may shift the range and the hue (muted in op-1 field, brighter in op-xy), but it always has **eight** that recall the rainbow: seven hues running from red to violet, then the theme's own white. A test checks the order (F-D09).
+- A thin loop in `faint` runs behind the buttons so the 8 reads at once. The buttons are rounded squares, like the pads. A single button may light in turn, like a playhead; nothing else moves.
+- The wordmark is `OP-8` in Jost Light. The mark can stand alone or above the wordmark; the wordmark never carries the colours.
+- The master file is `guide/brand/op8-mark.svg`.
+
 ## 3. Typography
 
 The screens are a real 480×272, so the type has to be readable at 11–15 px. It is rendered with anti-aliasing (TrueType).
@@ -85,7 +108,9 @@ In Rust, Jost (300 and 400, `assets/fonts/`) is embedded with `include_bytes!` a
 
 | What | File |
 | :-- | :-- |
-| Themes and encoder colours | `crates/op8-gfx/src/theme.rs` (`theme()`, `knob(i)`) |
+| Themes, encoder colours and brand colours | `crates/op8-gfx/src/theme.rs` (`theme()`, `knob(i)`, `Theme.brand`) |
+| Brand mark (master file) and its drawing in the guide | `guide/brand/op8-mark.svg`, `drawMark` in `guide/index.html` and `guide/brand.html` |
+| Brand colours in the twin | `THEMES[...].brand` in `twin/op8-twin.html` |
 | Typeface and type scale | `crates/op8-gfx/src/font.rs` |
 | Anti-aliased lines, arcs, circles and boxes | `crates/op8-gfx/src/paint.rs` |
 | Dial footer and touch overlay | `crates/op8-ui/src/theme.rs` |
