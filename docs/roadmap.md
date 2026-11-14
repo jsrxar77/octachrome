@@ -72,7 +72,7 @@ Known limits of the setup:
 
 ## 3. Instruments (the centre)
 
-- **Eight and eight.** 8 factory instruments + 8 installed ones ([instruments.md §7](instruments.md)). Factory today: drums, KickSyn, FmBass, resonator, MidiOutBridge, macro, ordered from the most guttural to the most refined (leads last). To build, in this order: sampler, granular.
+- **Eight and eight.** 8 factory instruments + 8 installed ones ([instruments.md §7](instruments.md)). Factory today: drums, KickSyn, FmBass, resonator, MidiOutBridge, macro, ordered from the most guttural to the most refined (leads last). The sampler plays sounds (stage 1 done); to build, in this order: the sampler's recording and BROWSER, granular.
 - Done: PLUG-IN shows the 16 places on the pads (the factory eight on top, eight places for installed ones below) and puts the chosen instrument on the selected track.
 
 - Kit of reusable drawings in `op8-gfx` (oscilloscope, envelope, polar waveform).
@@ -98,7 +98,7 @@ Known limits of the setup:
 ## 6. Mix and samples
 
 - MIXER: level, pan, EQ and master compressor.
-- SAMPLING and a sampler cartridge.
+- Done: the sampler cartridge (eight sounds that come with it, the player's WAV files from `~/.config/op8/samples/`). To do: SAMPLING (record from the MK3's input and trim) and BROWSER (choose sounds and presets).
 - Smart Strip with PITCH, MOD and NOTES.
 
 ## 7. Engine and quality

@@ -2,7 +2,7 @@
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>OP-8 · Manual</title>
 <link rel="icon" href="brand/op8-mark.svg" type="image/svg+xml">
-<meta name="description" content="The OP-8 manual: how the machine works, fourteen recipes you can follow from the first minute, and every button.">
+<meta name="description" content="The OP-8 manual: how the machine works, fifteen recipes you can follow from the first minute, and every button.">
 <style>
 @font-face{font-family:Jost;font-weight:300;src:url(fonts/Jost-Light.ttf)}
 @font-face{font-family:Jost;font-weight:400;src:url(fonts/Jost-Regular.ttf)}
@@ -65,7 +65,7 @@ h2.ref small{font-size:14px;color:var(--dim)}
 </style></head><body>
 <p class="dim"><a href="index.html">Guide</a> · <a href="brand.html">Brand</a> · Manual</p>
 <h1>Manual</h1>
-<p class="dim" style="font-size:22px;max-width:40ch;margin-top:14px">How OP-8 works, from the first minute. Fourteen recipes you can follow with the unit in front of you, and then every button.</p>
+<p class="dim" style="font-size:22px;max-width:40ch;margin-top:14px">How OP-8 works, from the first minute. Fifteen recipes you can follow with the unit in front of you, and then every button.</p>
 
 <nav class="toc" aria-label="Contents">
   <a href="#welcome">What it is</a><a href="#unit">The unit</a><a href="#first">First ten minutes</a><a href="#recipes">Recipes</a><a href="#ideas">The ideas behind it</a><a href="#instruments">Instruments</a><a href="#reference">Every button</a><a href="#help">If something is odd</a><a href="#notyet">Not yet</a>
@@ -297,7 +297,7 @@ h2.ref small{font-size:14px;color:var(--dim)}
   <p class="goal">Put a different instrument on a track.</p>
   <ol class="steps">
     <li><div>Press group <kbd>G</kbd> (empty).</div></li>
-    <li><div>Press <kbd>PLUG-IN</kbd>. Both screens show sixteen places. The top two rows are the eight instruments that come with OP-8, from the most guttural to the most refined: <b>drums</b>, <b>KickSyn</b>, <b>FmBass</b>, <b>resonator</b> on the first row; <b>sampler</b>, <b>granular</b> (not built yet, they say so), <b>midi out</b>, <b>macro</b> on the second. The two bottom rows are places for instruments you will install later. The instrument this track has is outlined.</div></li>
+    <li><div>Press <kbd>PLUG-IN</kbd>. Both screens show sixteen places. The top two rows are the eight instruments that come with OP-8, from the most guttural to the most refined: <b>drums</b>, <b>KickSyn</b>, <b>FmBass</b>, <b>resonator</b> on the first row; <b>sampler</b>, <b>granular</b> (not built yet, it says so), <b>midi out</b>, <b>macro</b> on the second. The two bottom rows are places for instruments you will install later. The instrument this track has is outlined.</div></li>
     <li><div>Tap the fourth pad, the <b>resonator</b>. It goes on track G, and the screens go back to composing.</div></li>
     <li><div>Press <kbd>5</kbd> (<kbd>shape</kbd>) and <kbd>6</kbd> (<kbd>sound</kbd>) to move between the instrument's two pages of four knobs.</div></li>
   </ol>
@@ -343,6 +343,22 @@ h2.ref small{font-size:14px;color:var(--dim)}
   <figure><div class="pair"><img src="img/r14-settings-left.png" alt="Settings: the three themes."><img src="img/r14-matte-left.png" alt="The left screen once the matte theme is chosen."></div><figcaption>The three themes, and the same left screen after choosing <b>matte</b>. While settings is open the pads and knobs do nothing; <kbd>PLAY</kbd>, <kbd>STOP</kbd> and <kbd>RESTART</kbd> still do.</figcaption></figure>
 </div>
 
+<div class="recipe" id="r15">
+  <h3>15 <span>PLAY A RECORDED SOUND</span></h3>
+  <p class="goal">Use the sampler: pick a sound, cut the part you want, and play it on the keyboard.</p>
+  <ol class="steps">
+    <li><div>Press group <kbd>G</kbd> (empty), then <kbd>PLUG-IN</kbd>, and tap the <b>fifth</b> pad (the first of the second row), the sampler. It goes on track G.</div></li>
+    <li><div>The right screen draws the <b>wave</b> of the sound. Turn <b>knob 5, sample</b>, one click: the next sound (the bell), and you hear it. In order: pluck, bell, pad, voice, thump, sweep, glass, glitch, and then <b>user 1</b> to <b>user 8</b>, which are your own files (see below).</div></li>
+    <li><div><b>Knob 6, start</b>, moves the yellow mark: the sound begins later. <b>Knob 7, length</b>, moves the blue mark: it stops sooner. Only the part between the marks is lit and only that part plays. <b>Knob 8, tune</b>, moves it up or down by up to an octave.</div></li>
+    <li><div>Press <kbd>5</kbd> (<kbd>shape</kbd>) for the second page: <b>attack</b> (how slowly it fades in), <b>release</b> (how long the fade at the end is), <b>loop</b> and <b>level</b>. Turn <b>knob 7, loop</b>, to <b>loop</b>: the lit part now repeats for as long as you hold a key, and fades when you let go.</div></li>
+    <li><div>Press <kbd>KEYBOARD</kbd> and play. The sound plays at its own pitch on C4, which on the default octave is the top-left pad (the bottom-left pad is C3, an octave lower), and it rises and falls with the pad. Up to eight keys at once.</div></li>
+  </ol>
+  <figure><div class="pair"><img src="img/r15-bell-right.png" alt="The sampler with the bell chosen."><img src="img/r15-shape-right.png" alt="The second page of the sampler."></div><figcaption>Left: the wave of the bell with its two marks. Right: the second page, with the loop on and the marks turned into rings.</figcaption></figure>
+  <h4>Your own sounds</h4>
+  <p>Put WAV files (any sample rate, 8, 16, 24 or 32 bit, mono or stereo, up to ten seconds) in <code>~/.config/op8/samples/</code> <b>before starting OP-8</b>. The first eight, in the order of their names, are <b>user 1</b> to <b>user 8</b>. Files that are not sounds are skipped. A user place with nothing in it is silent and the screen draws an empty line.</p>
+  <p class="next"><b>Try next:</b> put the sampler on a track, tap a few steps, and give each step a different <b>transpose</b> component (recipe 5): one sound, a melody. Or a short <b>glitch</b> with the length knob turned down: a percussive tick.</p>
+</div>
+
 <h2 id="ideas">The ideas behind it</h2>
 <p class="sub">Short, so you can keep them in your head.</p>
 
@@ -369,7 +385,7 @@ h2.ref small{font-size:14px;color:var(--dim)}
   <tr><td>KickSyn</td><td>A synthetic kick drum.</td><td>tune · decay · punch · drive / click · p.decay · vel · level</td></tr>
   <tr><td>FmBass</td><td>A two-operator FM bass: round, growling, metallic.</td><td>ratio · index · decay · release / glide · sub · sustain · level</td></tr>
   <tr><td>resonator</td><td>A plucked string or a struck bell. Four notes ring at once.</td><td>type · structure · bright · damping / decay · color · spread · level</td></tr>
-  <tr><td>sampler</td><td colspan="2" class="dim">Coming: record a sound and play it. Its place is already in PLUG-IN.</td></tr>
+  <tr><td>sampler</td><td>Plays recorded sounds. Eight come with it (pluck, bell, pad, voice, thump, sweep, glass, glitch) and eight places are for your own WAV files: drop them in <code>~/.config/op8/samples/</code> before starting OP-8 and they appear as user 1, 2… in the order of their names. A note plays the sound at its own pitch for C4 and higher or lower for other notes. One shot plays through; loop repeats the part between <b>start</b> and <b>length</b> while the note is held.</td><td>sample · start · length · tune / attack · release · loop · level</td></tr>
   <tr><td>granular</td><td colspan="2" class="dim">Coming: clouds of tiny grains from a sample.</td></tr>
   <tr><td>midi out</td><td>Sends the track's notes out of the MK3's MIDI socket to an outside synth. The track does not make a sound of its own.</td><td>channel · transpose · velocity · cc74</td></tr>
   <tr><td>macro</td><td>Twenty-four engines in one: analogue waves, FM, wavetables, chords, voices, strings, drums. One note at a time.</td><td>engine · harmonics · timbre · morph / decay · color · variant · level</td></tr>
@@ -399,7 +415,7 @@ h2.ref small{font-size:14px;color:var(--dim)}
 <ul>
   <li><b>Undo.</b> Save with <kbd>FILE</kbd> before something bold.</li>
   <li><b>Patterns, scenes and a song.</b> A project is one pattern for now. <kbd>PATTERN</kbd>, <kbd>SCENE</kbd> and <kbd>ARRANGER</kbd> are planned.</li>
-  <li><b>The sampler and the granular instrument.</b> Their places are reserved. <kbd>SAMPLING</kbd> and <kbd>BROWSER</kbd> come with them.</li>
+  <li><b>Recording samples.</b> The sampler plays the sounds that come with it and your WAV files, but it cannot record yet (<kbd>SAMPLING</kbd>), and <kbd>BROWSER</kbd> is planned. The granular instrument is not built yet.</li>
   <li><b>The mixer.</b> Level and pan per track and a master compressor are planned (<kbd>MIXER</kbd>). Today the track levels are the instruments' own <b>level</b> knobs.</li>
   <li><b>Recording chords and knob movements.</b> <kbd>REC</kbd> writes notes and drum hits. Automation (<kbd>AUTO</kbd>) and a count-in are planned. The LFO of button <kbd>8</kbd> already moves knobs by itself.</li>
   <li><b>Naming and deleting projects</b>, and presets for instruments.</li>

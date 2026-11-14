@@ -95,7 +95,7 @@ pub const FACTORY_INSTRUMENTS: [(&str, &str, bool); 8] = [
     ("KickSyn", "KickSyn", true),
     ("FmBass", "FmBass", true),
     ("resonator", "resonator", true),
-    ("sampler", "sampler", false),
+    ("sampler", "sampler", true),
     ("granular", "granular", false),
     ("midi out", "MidiOutBridge", true),
     ("macro", "macro", true),
