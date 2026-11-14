@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>OP-8 · Themes</title>
+<link rel="icon" href="brand/op8-mark.svg" type="image/svg+xml">
+<style>
+@font-face{font-family:Jost;font-weight:300;src:url(fonts/Jost-Light.ttf)}
+@font-face{font-family:Jost;font-weight:400;src:url(fonts/Jost-Regular.ttf)}
+:root{color-scheme:dark}*{box-sizing:border-box;margin:0}
+body{background:#000;color:#F2F4F8;font:300 18px/1.45 Jost,system-ui,sans-serif;padding:28px 16px 70px;text-align:center;-webkit-font-smoothing:antialiased}
+a{color:#7E8794}h1{font-weight:300;font-size:clamp(40px,8vw,72px);letter-spacing:.03em;margin:8px 0 4px}
+.sub{color:#7E8794;max-width:46ch;margin:0 auto 22px}
+.tabs{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin:18px 0}
+button{font:inherit;color:inherit;background:#0D1118;border:1px solid #232831;border-radius:999px;padding:8px 22px;cursor:pointer}
+button.on{border-color:#F2F4F8}
+svg{width:min(980px,96vw);height:auto;display:block;margin:auto}
+.cap{max-width:52ch;margin:10px auto 0;font-size:20px}.cap small{display:block;color:#7E8794;font-size:15px;margin-top:6px}
+.facts{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;margin-top:22px;color:#7E8794;font-size:15px}
+.facts div{background:#0D1118;border:1px solid #232831;border-radius:14px;padding:10px 16px}.facts b{color:#F2F4F8;font-weight:400;display:block;font-size:20px}
+</style></head><body>
+<p><a href="index.html">← Guide</a> · <a href="brand.html">Brand</a></p>
+<h1>Three themes</h1>
+<p class="sub">The whole machine in each one: the screens, the knobs and the pad LEDs. Tap a knob.</p>
+<div class="tabs" id="tabs"></div>
+<svg id="mk" role="img" aria-label="MK3 in the chosen theme"></svg>
+<div class="cap" id="cap"></div>
+<div class="facts">
+  <div><b>16 hues × 3 levels</b>colour LEDs: pads and group keys</div>
+  <div><b>1 colour</b>every other button: brightness only</div>
+  <div><b>65 536</b>colours on each screen</div>
+</div>
+<script src="mk3.js"></script>
+<script>
+const RB=["#FF2D2D","#FF8A1F","#FFD21F","#00E56A","#0099FF","#4B4BFF","#B15CFF","#F2F4F8"];
+const hsl=(h,s,l)=>`hsl(${(h%360+360)%360} ${s}% ${l}%)`;
+const spec=h=>hsl(h,100,62);                    // one point on the spectrum (hue in degrees)
+const TH={
+ glossy:{panel:"#0D1118",key:"#232831",knob:["#0099FF","#00E56A","#F2F4F8","#FF4F00","#8B6CFF","#FFD21F","#2ED3E6","#FF4FA0"],
+  cap:"Glossy · very bright",note:"Full saturation, pad LEDs at the top level, every control in its own colour. The loudest, the most OP-1."},
+ matte:{panel:"#12161D",key:"#262A30",knob:["#3B8EBA","#D9822B","#A9AFB8","#F2652A","#7FB58A","#E3C77A","#A88BC7","#D9677A"],
+  cap:"Matte · soft",note:"Chalky, desaturated colours; the LEDs sit at the middle level. Calm to look at for hours, and kinder to the 480 mA."},
+ chrome:{panel:"#0F1014",key:"#24262C",knob:Array(8).fill("#C9CED8"),
+  cap:"Chrome · monochrome that breaks into colour",note:"Everything is silver on black, until something moves: the playhead leaves a trail of the spectrum, a knob you touch blooms into its colour and settles back. Colour is light, not paint."}
+};
+let cur="glossy",bloom=Array(8).fill(-9),t0=performance.now();
+const svg=document.getElementById("mk");svg.setAttribute("viewBox",`0 0 ${MK3.W} ${MK3.H}`);
+const NS="http://www.w3.org/2000/svg",mk=(n,a,p)=>{const e=document.createElementNS(NS,n);for(const k in a)e.setAttribute(k,a[k]);(p||svg).append(e);return e};
+const [bx,by,bw,bh]=MK3.body,body=mk("rect",{x:bx,y:by,width:bw,height:bh,rx:34,stroke:"#232831"});
+const scr=MK3.screens.map(r=>mk("rect",{x:r[0],y:r[1],width:r[2],height:r[3],rx:6,fill:"#000",stroke:"#232831"}));
+const L=MK3.screens[0],cells=[];
+const px=(L[2]-20)/16,py=(L[3]-20)/8;
+for(let r=0;r<8;r++)for(let c=0;c<16;c++)cells.push(mk("rect",{x:L[0]+10+c*px,y:L[1]+10+r*py,width:px-4,height:py-4,rx:2}));
+const Rr=MK3.screens[1],segs=[];for(let i=0;i<32;i++)segs.push(mk("line",{"stroke-width":4,"stroke-linecap":"round"}));
+const knobs=MK3.knobs.map(([cx,cy,r])=>{const g=mk("circle",{cx,cy,r,fill:"#000","stroke-width":3.5,style:"cursor:pointer"});const d=mk("circle",{cx,cy,r:3});return{g,d,cx,cy}});
+knobs.forEach((k,i)=>k.g.onclick=()=>bloom[i]=(performance.now()-t0)/1000);
+const [ex,ey,er]=MK3.encoder;mk("circle",{cx:ex,cy:ey,r:er,fill:"#000",stroke:"#7E8794","stroke-width":2});mk("circle",{cx:ex,cy:ey,r:er*.55,fill:"#232831"});
+const st=MK3.strip;mk("rect",{x:st[0],y:st[1],width:st[2],height:st[3],rx:st[3]/2,fill:"#000",stroke:"#232831"});
+const btn=MK3.BTN.map(b=>({r:mk("rect",{x:b[1],y:b[2],width:b[3],height:b[4],rx:4}),b}));
+btn.forEach(({b})=>{const w=b[0];mk("text",{x:b[1]+b[3]/2,y:b[2]+b[4]/2+3,"text-anchor":"middle","font-size":w.length>7?7.5:9,fill:"#C9CED8",style:"pointer-events:none"}).textContent=w});
+const pads=MK3.pads.map(p=>mk("rect",{x:p[0],y:p[1],width:p[2],height:p[3],rx:8}));
+const ACTIVE=[0,3,4,7,8,10,12,15];
+function frame(ms){
+  const t=(ms-t0)/1000,T=TH[cur],step=Math.floor(t*8)%16,col=i=>i%16;
+  body.setAttribute("fill",T.panel);
+  // auto-bloom in chrome: one knob every 1.6 s
+  const auto=Math.floor(t/1.6)%8;if(cur==="chrome"&&(t%1.6)<.05)bloom[auto]=t;
+  btn.forEach(({r,b},i)=>r.setAttribute("fill",T.key));
+  // left screen: the grid; the playhead column
+  cells.forEach((c,i)=>{const r=Math.floor(i/16),cc=i%16,on=((r*5+cc*3)%7<2),head=cc===step;
+    let f=T.key;
+    if(cur==="glossy")f=on?RB[r]:"#232831";
+    else if(cur==="matte")f=on?T.knob[r]:"#2A2E35";
+    else f=on?"#9AA0AB":"#1E2026";
+    if(head){f=cur==="chrome"?spec(cc*22+t*60):"#F2F4F8"}
+    else if(cur==="chrome"&&((step-cc+16)%16)<=3&&on)f=spec(cc*22+t*60);
+    c.setAttribute("fill",f)});
+  // right screen: a wave; chrome carries a spectral glint along it
+  segs.forEach((s,i)=>{const n=32,x0=Rr[0]+10+(Rr[2]-20)*i/n,x1=Rr[0]+10+(Rr[2]-20)*(i+1)/n,y=x=>Rr[1]+Rr[3]*.45+Math.sin((x-Rr[0])/22+t*2.5)*Rr[3]*.3;
+    s.setAttribute("x1",x0);s.setAttribute("y1",y(x0));s.setAttribute("x2",x1);s.setAttribute("y2",y(x1));
+    const d=((i/n*3-t*.8)%1+1)%1;
+    s.setAttribute("stroke",cur==="glossy"?T.knob[0]:cur==="matte"?T.knob[0]:(d<.22?spec(200+d*900):"#B6BBC6"))});
+  // knobs
+  knobs.forEach((k,i)=>{const b=Math.max(0,1-(t-bloom[i])/1.1);let c=T.knob[i];
+    if(cur==="chrome"&&b>0){c=spec(i*45-10);}
+    k.g.setAttribute("stroke",c);k.d.setAttribute("fill",c);k.g.style.filter=cur==="chrome"&&b>0?`drop-shadow(0 0 ${8*b}px ${c})`:"none"});
+  // pad LEDs
+  pads.forEach((p,i)=>{const r=Math.floor(i/4),c=i%4,idx=i,on=ACTIVE.includes(idx),head=idx===step,dist=(step-idx+16)%16;
+    let f="#1A1D23";
+    if(cur==="glossy")f=head?"#FFFFFF":on?RB[(idx*3)%8]:"#1A1D23";
+    else if(cur==="matte")f=head?"#EFE9DD":on?T.knob[(idx*3)%8]:"#1E2127";
+    else{f=on?"#7C828E":"#1A1D23";if(head)f=spec(idx*24+t*90);else if(dist<=3)f=spec(idx*24+t*90);}
+    p.setAttribute("fill",f);
+    p.style.opacity=cur==="chrome"&&!head&&dist>0&&dist<=3?(1-dist*.28):1;
+    p.style.filter=(cur==="glossy"&&head)||(cur==="chrome"&&dist<=3)?`drop-shadow(0 0 ${cur==="chrome"?10-dist*2:8}px ${f})`:"none"});
+  requestAnimationFrame(frame)}
+const tabs=document.getElementById("tabs"),cap=document.getElementById("cap");
+function set(n){cur=n;[...tabs.children].forEach(b=>b.classList.toggle("on",b.dataset.n===n));cap.innerHTML=`${TH[n].cap}<small>${TH[n].note}</small>`}
+Object.keys(TH).forEach(n=>{const b=document.createElement("button");b.textContent=n;b.dataset.n=n;b.onclick=()=>set(n);tabs.append(b)});
+set("glossy");requestAnimationFrame(frame);
+</script></body></html>
