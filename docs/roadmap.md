@@ -11,6 +11,7 @@ It comes from the [button map](buttons.md) and from [instruments.md](instruments
 - Visual language: 8 knob colours, three themes, Jost, drawings per instrument, touch overlay.
 - Buttons ✓: STEP, CHORDS (Brain), PERFORM (Punch-in), groups A–H, MUTE, ERASE + pad, PLAY, STOP, RESTART, SHIFT, screen 5–6. The rest is in [buttons.md](buttons.md).
 - The step grid shows active and empty steps far apart (screen and pad LEDs), and the screens name their buttons in a strip along the top.
+- The light of every button follows one rule (dark, a very faint white, a strong white when pressed or in focus; [design.md §2.6](design.md)).
 - PAD MODE and KEYBOARD: the pads play the instrument by hand (a drum kit's eight sounds, the Brain's scale, or a chromatic keyboard), without recording.
 - Test bench, scripts and feature cases that run without hardware ([features.md](features.md)).
 - Main modes: CHANNEL (composing) and SETTINGS (both screens). Settings has one page today, the theme: it is chosen with the 4D encoder and kept in a settings file ([architecture.md §10](architecture.md)). Tried in the Twin first.

@@ -91,6 +91,7 @@ The buttons and their implementation status are in [buttons.md](buttons.md). Thi
 | F-L02 | The step pads show the track colour: active bright in the track colour, inactive a dim white (F-L07) | level 3 with the colour of `track_led_colors` (glossy) | ✓ |
 | F-L07 | An empty step lights its pad as a dim white (level 1), not a dim colour, so it stays apart from an active pad under any cap | palette `White`, level 1 | ✓ |
 | F-L08 | In PAD MODE and KEYBOARD the pads that play are lit in the track colour, a held pad is white, and on the keyboard every C is brighter | pad LED bytes | ✓ |
+| F-L09 | Every button follows one rule: dark if it does nothing in the context, a very faint white if it does something, a strong white while it is pressed or has the focus (the mode in use, CHANNEL or SETTINGS, SHIFT held…); in settings MUTE, ERASE and the screen buttons are dark and the transport still works ([design.md §2.6](design.md)) | LED slots of the buttons | ✓ |
 
 ## M · MIDI (`tests/midi.rs`)
 

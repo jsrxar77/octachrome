@@ -1,0 +1,87 @@
+//! The light of every button, in one table (docs/design.md §2.6).
+//!
+//! A button that does nothing in the current context is dark. One that does something is a very
+//! faint white. One that is pressed, held, or that has the focus (the mode that is active, the page
+//! that is open) is a strong white. The buttons whose LED has a colour (the groups, PLAY) keep it,
+//! with the same three states.
+
+use op8_hw::Button;
+use op8_ui::{screen_buttons, Main, Mode, UiState};
+use std::collections::HashSet;
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Light {
+    /// Nothing to do here.
+    Off,
+    /// Something to do here: a very faint white.
+    Dim,
+    /// Pressed, held, or focused: a strong white.
+    Full,
+}
+
+/// What the lights depend on besides the screen state.
+pub struct Context<'a> {
+    pub playing: bool,
+    pub shift: bool,
+    pub mute: bool,
+    pub erase: bool,
+    /// Buttons physically down right now.
+    pub down: &'a HashSet<Button>,
+}
+
+/// Every button that can have a function. Buttons not listed here have none yet, and stay dark.
+pub fn all() -> Vec<Button> {
+    use Button::*;
+    let mut v = vec![
+        Shift, Step, Chords, Perform, PadMode, Keyboard, NoteRepeat, ChannelMidi, Settings, Mute, Erase, Play, Stop, Restart, JogLeft,
+        JogRight,
+    ];
+    v.extend((1..=8).map(Screen));
+    v
+}
+
+/// The light of `b` now. (Groups A–H are lit by track, with their own rule, in `Controller::leds`.)
+pub fn light(ui: &UiState, c: &Context, b: Button) -> Light {
+    use Button::*;
+    let composing = ui.main == Main::Instrument;
+    let state = |on: bool| if on { Light::Full } else { Light::Dim };
+    let l = match b {
+        Shift => state(c.shift),
+        Play => state(c.playing),
+        // STOP has the focus while stopped, PLAY while playing
+        Stop => state(!c.playing),
+        Restart => Light::Dim,
+        // Going back to composing, or into settings
+        ChannelMidi => state(composing),
+        Settings => state(!composing),
+        // The pad-mode buttons all work from settings too (they go back to composing).
+        Step => state(composing && ui.mode == Mode::Step),
+        Chords => state(composing && ui.mode == Mode::Brain),
+        Perform | NoteRepeat => state(composing && ui.mode == Mode::Punch),
+        PadMode => state(composing && ui.mode == Mode::Pads),
+        Keyboard => state(composing && ui.mode == Mode::Keys),
+        // Only while composing: nothing happens in settings
+        Mute => if composing { state(c.mute) } else { Light::Off },
+        Erase => if composing { state(c.erase) } else { Light::Off },
+        // The 4D encoder's sides: the theme in settings, the octave on the keyboard
+        JogLeft | JogRight => {
+            if !composing || ui.mode == Mode::Keys {
+                Light::Dim
+            } else {
+                Light::Off
+            }
+        }
+        Screen(n) => match screen_buttons(ui).get(n as usize - 1).copied().flatten() {
+            None => Light::Off,
+            Some((_, true)) => Light::Full,
+            Some((_, false)) => Light::Dim,
+        },
+        _ => Light::Off,
+    };
+    // Whatever is physically held has the focus, if it has a function at all.
+    if l != Light::Off && c.down.contains(&b) {
+        Light::Full
+    } else {
+        l
+    }
+}
