@@ -41,10 +41,11 @@ button:hover{border-color:var(--dim)}
 </section>
 
 <section>
-  <h2>The mark</h2>
-  <svg class="mark" id="mark" role="img" aria-label="Eight buttons in an infinity loop"></svg>
+  <h2>Mark: four ways to turn the screw</h2>
+  <p style="color:var(--dim);margin-bottom:22px">Same eight buttons, same order: red, orange, yellow, green, blue, indigo, violet, white.</p>
+  <div class="opts" id="marks"></div>
   <div class="row" id="th"></div>
-  <p style="color:var(--dim);margin-top:16px">Eight buttons, rainbow order, the eighth white. Each theme keeps the eight, in its own range.</p>
+  <p style="color:var(--dim);margin-top:16px;font-size:15px">The infinity layout is out. Pick one and it becomes the mark in <code>design.md</code> §2.3.</p>
 </section>
 
 <section>
@@ -88,6 +89,33 @@ function drawMark(svg,colors,run){
   if(run&&!matchMedia("(prefers-reduced-motion:reduce)").matches){let n=0;svg._t=setInterval(()=>{svg.querySelectorAll("rect").forEach((r,i)=>r.style.opacity=i===n?1:.55);n=(n+1)%8},300)}
 }
 const T={"op-1":["#FF2D2D", "#FF8A1F", "#FFD21F", "#00E56A", "#0099FF", "#4B4BFF", "#B15CFF", "#F2F4F8"],"op-1 field":["#D9534F", "#D9822B", "#E3C77A", "#7FB58A", "#3B8EBA", "#5F6BB5", "#A88BC7", "#F4EFE6"],"op-xy":["#FF3B2F", "#FF8A1F", "#FFD60A", "#00F076", "#4C8DFF", "#6A5CFF", "#B07BFF", "#EEF0F5"]};
-const mk=document.getElementById("mark");
-Object.keys(T).forEach((n,i)=>{const b=document.createElement("button");b.textContent=n;b.onclick=()=>drawMark(mk,T[n],true);document.getElementById("th").append(b);if(!i)drawMark(mk,T[n],true)});
+const LAY={
+ "A · Dial":{note:"Eight around a circle, like a knob. The white closes the turn.",
+   pts:()=>Array.from({length:8},(_,i)=>{const a=-Math.PI/2+i*Math.PI/4;return[100+66*Math.cos(a),100+66*Math.sin(a)]}),w:36,vb:"0 0 200 200",ring:true},
+ "B · Pad ring":{note:"A 3×3 pad grid with the middle left out. Eight pads, one hole.",
+   pts:()=>[[0,0],[1,0],[2,0],[2,1],[2,2],[1,2],[0,2],[0,1]].map(([c,r])=>[34+c*66,34+r*66]),w:56,vb:"0 0 200 200"},
+ "C · Staircase":{note:"Eight steps going up, each button taller. The white is the top.",
+   pts:()=>Array.from({length:8},(_,i)=>[22+i*22,176-(i*9+14)/2]),w:18,vb:"0 0 200 200",bars:true},
+ "D · Two fours":{note:"Two stacked squares of four pads: an 8 made of 4 + 4. Each square turns clockwise.",
+   pts:()=>{const cx=[81,119],ty=[30,68],by=[124,162],o=[[0,0],[1,0],[1,1],[0,1]];return[...o.map(([c,r])=>[cx[c],ty[r]]),...o.map(([c,r])=>[cx[c],by[r]])]},w:34,vb:"0 0 200 200"}
+};
+let cur="op-1";
+function draw(){
+  const box=document.getElementById("marks");box.innerHTML="";
+  Object.entries(LAY).forEach(([n,L])=>{
+    const P=L.pts(),h=L.w,col=T[cur];
+    let g="";
+    if(L.ring)g+=`<circle cx="100" cy="100" r="66" fill="none" stroke="#2A2F3A" stroke-width="5"/>`;
+    P.forEach(([x,y],i)=>{
+      if(L.bars){const bh=14+i*9;g+=`<rect class="k" data-i="${i}" x="${x-9}" y="${176-bh}" width="18" height="${bh}" rx="5" fill="${col[i]}"/>`}
+      else g+=`<rect class="k" data-i="${i}" x="${x-h/2}" y="${y-h/2}" width="${h}" height="${h}" rx="${h*.24}" fill="${col[i]}"/>`});
+    const d=document.createElement("div");d.className="opt";
+    d.innerHTML=`<svg viewBox="${L.vb}" style="width:200px;height:200px">${g}</svg><p><b style="color:var(--fg);font-weight:400">${n}</b><br>${L.note}</p>`;
+    box.append(d);
+    const ks=d.querySelectorAll(".k");let k=0;
+    if(!matchMedia("(prefers-reduced-motion:reduce)").matches)d._t=setInterval(()=>{ks.forEach((r,i)=>r.style.opacity=i===k?1:.55);k=(k+1)%8},300);
+  });
+}
+Object.keys(T).forEach(n=>{const b=document.createElement("button");b.textContent=n;b.onclick=()=>{cur=n;draw()};document.getElementById("th").append(b)});
+draw();
 </script></body></html>
