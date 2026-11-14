@@ -2,6 +2,7 @@
 //! `op8-cartridge` contract — none of them know the sequencer or the MK3
 //! exist.
 
+pub mod drums;
 pub mod dsp;
 pub mod fm_bass;
 pub mod kick_syn;
@@ -9,6 +10,7 @@ pub mod macro_osc;
 pub mod midi_out;
 pub mod ui;
 
+pub use drums::Drums;
 pub use fm_bass::FmBass;
 pub use kick_syn::KickSyn;
 pub use macro_osc::MacroOsc;
@@ -18,7 +20,7 @@ use op8_cartridge::InstrumentCartridge;
 
 /// Every built-in cartridge, by name, for the slot browser.
 pub fn builtin_names() -> &'static [&'static str] {
-    &["KickSyn", "FmBass", "macro"]
+    &["KickSyn", "FmBass", "macro", "drums"]
 }
 
 /// Construct a built-in audio cartridge by name. (MidiOutBridge is created
@@ -28,6 +30,7 @@ pub fn create(name: &str) -> Option<Box<dyn InstrumentCartridge>> {
         "KickSyn" => Some(Box::new(KickSyn::new())),
         "FmBass" => Some(Box::new(FmBass::new())),
         "macro" => Some(Box::new(MacroOsc::new())),
+        "drums" => Some(Box::new(Drums::new())),
         _ => None,
     }
 }

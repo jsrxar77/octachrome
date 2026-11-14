@@ -61,3 +61,8 @@ int op8_macro_active_engine(const void* p) {
 }
 
 }
+
+// The percussion and noise engines draw on a shared random generator. Seeding it
+// makes a run repeatable (the test bench relies on that).
+#include "stmlib/utils/random.h"
+extern "C" void op8_macro_seed(unsigned int seed) { stmlib::Random::Seed(seed); }

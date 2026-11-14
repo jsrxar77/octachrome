@@ -46,6 +46,7 @@ In three stages, from the simplest to the most open:
 | **KickSyn** | Synthetic kick: tone, decay, punch, saturation | A drum head seen from above |
 | **FmBass** | Two-operator FM bass | A planet and moon in orbit, the envelope as a mountain |
 | **MidiOutBridge** | Sends the track out the MK3's DIN MIDI to an external synth | A DIN connector and notes leaving through the cable |
+| **drums** | Eight percussion sounds on one track, chosen by the pitch of the note: C kick, C# snare, D closed hat, D# open hat, E tom, F clap, F# rim, G crash (the notes above G wrap round). The knobs edit the sound picked with the `sound` knob and each sound keeps its own values. Sound: `tune`, `decay`, `tone`, `snap`. Shape: `body`, `level`, `pan`, `sound`. Built on the percussion engines of the Plaits code (MIT) | The eight sounds as a 4 × 2 grid of keys, each with a small picture that flashes when it plays; the chosen one large, with the four colours of knobs 5–8 showing tune (height), decay (size), tone (rings) and snap (spikes) |
 | **macro** | 24 engines in one (virtual analogue, FM, wavetable, chords, voice, strings, percussion), from the Plaits code (MIT, `crates/op8-plaits`). Sound: `engine`, `harmonics`, `timbre`, `morph`. Shape: `decay`, `color`, `variant`, `level` | A ring of 24 engines, a polar waveform that beats with the level, and a timbre × morph field |
 
 macro is monophonic and uses gate semantics (the 6-operator FM engines need the held gate). It goes to sleep and gives exact zeros when it is not sounding.
@@ -67,7 +68,7 @@ Legal note on Mutable Instruments: the code of the STM32 modules (Plaits, Braids
 
 1. ~~**macro**~~ (from Plaits): done.
 2. **resonator** (from Rings): strings and bells.
-3. **drums**: a drum instrument with 8 sounds on pads 9–16 (PAD MODE).
+3. ~~**drums**~~: done (eight sounds chosen by the pitch of the note).
 4. **sampler**: record with SAMPLING and play with the keyboard.
 
 ## 5. Budget on the Raspberry Pi 5
@@ -97,7 +98,7 @@ The factory eight, confirmed by Javi on 2026-11-14 (the first four exist). The e
 | 3 | **macro** | 24 engines in one (from Plaits) | ✓ |
 | 4 | **MidiOutBridge** | The track out to an external synth (later also sound in) | ✓ |
 | 5 | **resonator** | Strings, bells and tubes (from Rings) | ○ |
-| 6 | **drums** | 8 drum sounds on pads 9–16 of a track | ○ |
+| 6 | **drums** | Eight percussion sounds on one track, chosen by pitch | ✓ |
 | 7 | **sampler** | Record with SAMPLING and play it | ○ |
 | 8 | **granular** | Granular on a sample (from Clouds / Beads) | ○ |
 

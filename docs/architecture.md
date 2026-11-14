@@ -56,7 +56,7 @@ Communication between the control thread and the audio thread is **lock-free** (
 | `op8-seq` | Deterministic sequencer: 96 PPQN, polymeter, Step Components, Brain, `Command` | cartridge |
 | `op8-engine` | Audio thread: sequencer, 8 slots, mix, Punch-in FX, Smart Strip filter, `EngineStatus`. Lock-free with `rtrb` | seq, cartridge |
 | `op8-plaits` | The macro oscillator from Plaits in C++, vendored **unchanged** (`vendor/`, eurorack f4cfa76 and stmlib d18def8), built with `cc` (`build.rs`, `-DTEST -include cstdio`) behind a C shim (`src/shim.cc`). 24 engines | – |
-| `op8-cartridges` | KickSyn, FmBass, MidiOutBridge and **macro** (`macro_osc.rs`). The list is in `builtin_names()` / `create()` of `lib.rs`, which also holds the contract tests every instrument must pass | cartridge, plaits |
+| `op8-cartridges` | KickSyn, FmBass, MidiOutBridge, **macro** (`macro_osc.rs`) and **drums** (`drums.rs`). The list is in `builtin_names()` / `create()` of `lib.rs`, which also holds the contract tests every instrument must pass | cartridge, plaits |
 | `op8-hw` | `ControlSurface`, `ControlEvent`, `Button`, `LedFrame`, `MockSurface`, the MK3 protocol as pure functions, USB transport (feature `mk3`: hidapi or hidraw, plus nusb) | gfx |
 | `op8-ui` | Left and right screen layouts, `UiState`, `Mode`, footer and touch overlay, animation | gfx, seq, engine |
 | `op8` | Binary and library: `App`, `Controller`, `demo`, `script`, `bench`, `settings`, cpal audio (with its keeper), MIDI, `sim`, `hw-test`, `usb-reset` | everything |

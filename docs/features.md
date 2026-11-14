@@ -103,6 +103,9 @@ The buttons and their implementation status are in [buttons.md](buttons.md). Thi
 | F-A05 | The same script gives exactly the same audio | two runs of the demo produce identical samples | ✓ |
 | F-A06 | The audio stream comes back by itself when its device fails. The sequencer's clock runs in the audio callback, so without this PLAY lights up and nothing moves | `Keeper` in `crates/op8/src/audio.rs`: restarts after a failure, retries about once a second while the device is missing, reports one failure once, and resumes when the device returns | ✓ |
 | F-A07 | On the real MK3, pulling the USB cable and plugging it back: screens, audio and PLAY recover without restarting the app | **manual review**, with `OP8_LOG_EVENTS=1` | R |
+| F-A08 | drums: each of the eight sounds makes sound on its own note, and the note picks the sound by its pitch class (C kick, C# snare, D closed hat, D# open hat, E tom, F clap, F# rim, G crash; above G they wrap round); only the struck sound wakes ([instruments.md §7](instruments.md)) | `op8-cartridges` unit tests (`drums.rs`) | ✓ |
+| F-A09 | drums: the knobs edit the chosen sound (the `sound` knob), and each sound keeps its own values, also through save and load | `op8-cartridges` unit tests | ✓ |
+| F-A10 | drums: silent without notes, and all eight at once stay within full scale | `op8-cartridges` unit tests | ✓ |
 
 ## G · Scripts (`tests/script.rs`)
 

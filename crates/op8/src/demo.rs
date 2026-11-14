@@ -2,7 +2,7 @@
 //! `op8 run` on first boot and by `op8 sim`.
 
 use op8_cartridge::InstrumentCartridge;
-use op8_cartridges::{FmBass, KickSyn, MacroOsc, MidiMessage, MidiOutBridge};
+use op8_cartridges::{Drums, FmBass, KickSyn, MacroOsc, MidiMessage, MidiOutBridge};
 use op8_engine::{Engine, EngineHandle, SharedCartridge};
 use op8_seq::{Project, Step, StepComponent, TRACKS};
 use std::sync::{Arc, Mutex};
@@ -13,7 +13,7 @@ fn shared(c: impl InstrumentCartridge + 'static) -> Option<SharedCartridge> {
     )))
 }
 
-/// A: KickSyn, B: FmBass, C: MidiOutBridge, D: macro; E–H empty.
+/// A: KickSyn, B: FmBass, C: MidiOutBridge, D: macro, E: drums; F–H empty.
 pub fn slots() -> (
     [Option<SharedCartridge>; TRACKS],
     rtrb::Consumer<MidiMessage>,
@@ -24,6 +24,7 @@ pub fn slots() -> (
     s[1] = shared(FmBass::new());
     s[2] = shared(bridge);
     s[3] = shared(MacroOsc::new());
+    s[4] = shared(Drums::new());
     (s, midi_rx)
 }
 
@@ -65,6 +66,18 @@ pub fn project() -> Project {
     synth.steps[0] = Step::on(60);
     synth.steps[6] = Step::on(67);
     synth.steps[10] = Step::on(64).with(StepComponent::Octave(1));
+    // drums: a backbeat. The note picks the sound by pitch class:
+    // 49 = C# snare, 50 = D closed hat, 51 = D# open hat, 54 = F# rim.
+    let kit = &mut p.tracks[4];
+    kit.length = 16;
+    for s in [4, 12] {
+        kit.steps[s] = Step::on(49);
+    }
+    for s in [2, 6, 10] {
+        kit.steps[s] = Step::on(50);
+    }
+    kit.steps[14] = Step::on(51);
+    kit.steps[7] = Step::on(54).with(StepComponent::Chance(60));
     p
 }
 

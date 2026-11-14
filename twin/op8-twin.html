@@ -336,6 +336,11 @@ function demoProject() {
   const m = tracks[3]; m.link = true;
   m.steps[0] = newStep(true, 60); m.steps[6] = newStep(true, 67);
   m.steps[10] = { ...newStep(true, 64), comps: [C("oct",1)] };
+  // drums: a backbeat; the pitch class of the note picks the sound (49 snare, 50 closed hat, 51 open hat, 54 rim)
+  const d = tracks[4];
+  for (const s of [4, 12]) d.steps[s] = newStep(true, 49);
+  for (const s of [2, 6, 10]) d.steps[s] = newStep(true, 50);
+  d.steps[14] = newStep(true, 51); d.steps[7] = { ...newStep(true, 54), comps: [C("chance",60)] };
   return p;
 }
 const P = demoProject();
@@ -345,6 +350,10 @@ const expMap = (v, a, b) => a * Math.pow(b / a, v);
 // macro: same 24 engine names as crates/op8-plaits (ENGINE_NAMES).
 const MACRO_ENGINES = ["va filter","phase dist","fm 6op a","fm 6op b","fm 6op c","terrain","string mach","chiptune","va","waveshape","fm","grain","additive","wavetable","chords","speech","swarm","noise","particle","string","modal","kick","snare","hihat"];
 const macroEngine = v => Math.min(23, Math.floor(v * 24));
+// drums: eight sounds on one track, chosen by the pitch class of the note (crates/op8-cartridges/src/drums.rs).
+const DRUM_NAMES = ["kick","snare","c-hat","o-hat","tom","clap","rim","crash"];
+const DRUM_DEFAULTS = [[.5,.45,.5,.5,.5,.75,.5],[.5,.4,.5,.55,.5,.6,.5],[.5,.15,.55,.5,.5,.4,.35],[.5,.55,.55,.5,.5,.4,.35],[.5,.4,.5,.4,.5,.6,.65],[.5,.3,.6,.5,.5,.5,.5],[.5,.12,.6,.5,.5,.5,.45],[.5,.9,.7,.5,.5,.4,.6]];
+const DRUMS = { vals: DRUM_DEFAULTS.map(v => v.slice()), sel: 0, hit: Array(8).fill(0) };
 const CARTS = {
   kick: { name: "KICKSYN", cat: "DRUM",
     params: [["TUNE",.4,v=>expMap(v,30,120).toFixed(0)+"Hz"],["DECAY",.45,v=>expMap(v,60,2000).toFixed(0)+"ms"],["PUNCH",.6,v=>Math.round(v*100)+"%"],["DRIVE",.25,v=>Math.round(v*100)+"%"],
@@ -355,11 +364,21 @@ const CARTS = {
   macro: { name: "MACRO", cat: "SYNTH",
     params: [["ENGINE",8.5/24,v=>MACRO_ENGINES[macroEngine(v)]],["HARMONICS",.5,v=>Math.round(v*100)+"%"],["TIMBRE",.5,v=>Math.round(v*100)+"%"],["MORPH",.5,v=>Math.round(v*100)+"%"],
              ["DECAY",.5,v=>Math.round(v*100)+"%"],["COLOR",.5,v=>Math.round(v*100)+"%"],["VARIANT",0,v=>Math.round(v*100)+"%"],["LEVEL",.8,v=>Math.round(v*100)+"%"]] },
+  drums: { name: "DRUMS", cat: "DRUM",
+    params: [["TUNE",.5,v=>{const s=Math.round(-12+24*v);return (s>0?"+":"")+s+"st";}],["DECAY",.45,v=>Math.round(v*100)+"%"],["TONE",.5,v=>Math.round(v*100)+"%"],["SNAP",.5,v=>Math.round(v*100)+"%"],
+             ["BODY",.5,v=>Math.round(v*100)+"%"],["LEVEL",.6,v=>Math.round(v*100)+"%"],["PAN",.5,v=>Math.round(v*100)+"%"],["SOUND",.5/8,v=>DRUM_NAMES[Math.min(7,Math.floor(v*8))]]] },
   midi: { name: "MIDIOUTBRIDGE", cat: "MIDI",
     params: [["CHANNEL",0,v=>"CH "+(Math.min(15,Math.floor(v*16))+1)],["TRANSP",.5,v=>{const s=Math.round(-24+48*v);return (s>0?"+":"")+s+"st";}],["VEL",1,v=>Math.round(v*100)+"%"],["CC74",.5,v=>Math.round(v*100)+"%"]] },
 };
-const SLOTS = ["kick", "fm", "midi", "macro", null, null, null, null];
+const SLOTS = ["kick", "fm", "midi", "macro", "drums", null, null, null];
 const PARAMS = SLOTS.map(s => s ? CARTS[s].params.map(p => p[1]) : null);
+// the knobs edit the chosen drum sound: keep its values in step with PARAMS
+function drumsSync(t, i) {
+  const p = PARAMS[t];
+  if (i === 7) { DRUMS.vals[DRUMS.sel].forEach((_, j) => DRUMS.vals[DRUMS.sel][j] = p[j]); DRUMS.sel = Math.min(7, Math.floor(p[7] * 8)); DRUMS.vals[DRUMS.sel].forEach((v, j) => p[j] = v); }
+  else DRUMS.vals[DRUMS.sel][i] = p[i];
+}
+if (SLOTS[4] === "drums") PARAMS[4][7] = .5 / 8;
 const recentMidi = [];
 
 let actx = null, master = null, trackOut = [], analysers = [], fx = {};
@@ -417,6 +436,23 @@ function playKick(t, time, note, vel) {
     ng.gain.setValueAtTime(p[4] * 0.5 * v, time); ng.gain.setTargetAtTime(0, time, 0.004);
     n.connect(ng).connect(out); n.start(time); n.stop(time + 0.05);
   }
+}
+function playDrums(t, time, note, vel) {
+  const out = trackOut[t], k = (note % 12) % 8, v = DRUMS.vals[k], lvl = vel * v[5] * 0.7;
+  const dec = 0.04 + v[1] * (k === 7 ? 1.6 : k === 3 ? 0.7 : 0.45), semis = (v[0] - 0.5) * 24;
+  DRUMS.hit[k] = 1;
+  const pan = actx.createStereoPanner ? actx.createStereoPanner() : null; if (pan) { pan.pan.value = (v[6] - 0.5) * 2; pan.connect(out); }
+  const dest = pan || out, g = actx.createGain(); g.connect(dest);
+  g.gain.setValueAtTime(lvl, time); g.gain.setTargetAtTime(0, time, dec / 5);
+  const end = time + dec + 0.1, noise = (hp, lp) => { const n = actx.createBufferSource(); n.buffer = fx.noise; n.loop = true; const f1 = actx.createBiquadFilter(); f1.type = "highpass"; f1.frequency.value = hp; const f2 = actx.createBiquadFilter(); f2.type = "lowpass"; f2.frequency.value = lp; n.connect(f1).connect(f2).connect(g); n.start(time); n.stop(end); };
+  const osc = (f0, f1, type = "sine") => { const o = actx.createOscillator(); o.type = type; o.frequency.setValueAtTime(f0, time); o.frequency.exponentialRampToValueAtTime(Math.max(20, f1), time + 0.08); o.connect(g); o.start(time); o.stop(end); };
+  const f = Math.pow(2, semis / 12);
+  if (k === 0) osc(150 * f * (1 + v[3]), 48 * f);
+  else if (k === 4) osc(260 * f * (1 + v[3] * .5), 110 * f);
+  else if (k === 1) { osc(220 * f, 170 * f, "triangle"); noise(1500 + v[2] * 3000, 9000); }
+  else if (k === 2 || k === 3 || k === 7) noise((5000 + v[2] * 3000) * f, 16000);
+  else if (k === 5) { noise(900 * f, 5000); }
+  else osc(900 * f, 700 * f, "square");
 }
 function playFm(t, time, note, vel, dur) {
   const p = PARAMS[t], out = trackOut[t];
@@ -517,6 +553,7 @@ function onTick(time) {
       if (SLOTS[t] === "kick") playKick(t, at, note, r.vel);
       else if (SLOTS[t] === "fm") playFm(t, at, note, r.vel, Math.max(0.02, gate));
       else if (SLOTS[t] === "macro") playMacro(t, at, note, r.vel, Math.max(0.02, gate));
+      else if (SLOTS[t] === "drums") playDrums(t, at, note, r.vel);
       else playMidiPreview(t, at, note, r.vel, Math.max(0.02, gate));
     }
     const delayMs = Math.max(0, (start - actx.currentTime) * 1000);
@@ -637,7 +674,7 @@ function knob(k, delta) {
   if (k >= 4) {
     const t = UI.track; if (!PARAMS[t]) return;
     const i = UI.page * 4 + (k - 4); if (i >= PARAMS[t].length) return;
-    PARAMS[t][i] = clamp(PARAMS[t][i] + delta / SWEEP, 0, 1); return;
+    PARAMS[t][i] = clamp(PARAMS[t][i] + delta / SWEEP, 0, 1); if (SLOTS[t] === "drums") drumsSync(t, i); return;
   }
   const tr = P.tracks[UI.track];
   if (UI.mode === "step" && UI.inspect != null) {
@@ -1034,12 +1071,42 @@ function drawRight(g) {
   if (slot === "kick") kickArt(g, t, p);
   else if (slot === "fm") fmArt(g, t, p);
   else if (slot === "macro") macroArt(g, t, p);
+  else if (slot === "drums") drumsArt(g, t, p);
   else midiArt(g, t, p, accent);
   crosshairs(g, 14, 50, 452, 168, DIM);
   const base = UI.page === 1 && pages > 1 ? 4 : 0;
   const cells = [0, 1, 2, 3].map(i => { const d = cart.params[base + i]; return d ? [d[0], d[2](p[base + i]), p[base + i]] : ["", "", 0]; });
   footer(g, cells, 4);
   touchOverlay(g, cells, 4);
+}
+// drums: the eight sounds as a 4 x 2 grid of keys (like the eight group keys), each with a small
+// picture that flashes when it plays; the chosen one is drawn large, where knobs 5-8 show tune
+// (height), decay (size), tone (rings) and snap (spikes).
+function drumGlyph(g, i, cx, cy, s, c, hit) {
+  s *= 1 + hit * 0.25;
+  if (i === 0) dot(g, cx, cy, s * 0.8, c);
+  else if (i === 1) { ring(g, cx, cy, s * 0.8, c, 1.5); for (let k = -1; k <= 1; k++) line(g, cx - s * .5, cy + k * s * .3, cx + s * .5, cy + k * s * .3, c, 1.2); }
+  else if (i === 2) { line(g, cx - s * .8, cy, cx + s * .8, cy, c, 2); line(g, cx - s * .5, cy - s * .35, cx + s * .5, cy - s * .35, c, 1.2); }
+  else if (i === 3) { line(g, cx - s * .8, cy + s * .25, cx + s * .8, cy + s * .25, c, 2); line(g, cx - s * .8, cy - s * .35, cx + s * .8, cy - s * .35, c, 2); }
+  else if (i === 4) { ring(g, cx, cy, s * 0.8, c, 1.5); dot(g, cx, cy, s * .35, c); }
+  else if (i === 5) { for (let k = -1; k <= 1; k++) dot(g, cx + k * s * .5, cy + k * k * s * .25, s * .17, c); }
+  else if (i === 6) line(g, cx - s * .6, cy + s * .5, cx + s * .6, cy - s * .5, c, 2.5);
+  else for (let k = 0; k < 6; k++) { const a = k / 6 * Math.PI * 2; line(g, cx + Math.cos(a) * s * .25, cy + Math.sin(a) * s * .25, cx + Math.cos(a) * s * .85, cy + Math.sin(a) * s * .85, c, 1.5); }
+}
+function drumsArt(g, t, p) {
+  for (let i = 0; i < 8; i++) {
+    DRUMS.hit[i] *= 0.97;
+    const x = 24 + (i % 4) * 60, y = 76 + Math.floor(i / 4) * 60, sel = i === DRUMS.sel, h = DRUMS.hit[i];
+    rrect(g, x, y, 52, 52, 8, mix(PANEL, 1 - h * 0.35)); rrect(g, x + 0.5, y + 0.5, 51, 51, 8, sel ? FG : FAINT, sel ? 2 : 1);
+    drumGlyph(g, i, x + 26, y + 26, 14, sel ? FG : DIM, h);
+  }
+  const v = DRUMS.vals[DRUMS.sel], cx = 372, cy = 124, hit = DRUMS.hit[DRUMS.sel], size = 22 + v[1] * 46 + hit * 6, lift = (0.5 - v[0]) * 60;
+  ring(g, cx, cy, 78, FAINT, 1);
+  for (let r = 0; r <= Math.round(v[2] * 3); r++) ring(g, cx, cy + lift, size + 8 + r * 7, KC[6], 1);
+  const n = Math.round(2 + v[3] * 10);
+  for (let s = 0; s < n; s++) { const a = s / n * Math.PI * 2, r0 = size + 6, r1 = size + 14 + v[3] * 14; line(g, cx + Math.cos(a) * r0, cy + lift + Math.sin(a) * r0, cx + Math.cos(a) * r1, cy + lift + Math.sin(a) * r1, KC[7], 1.5); }
+  drumGlyph(g, DRUMS.sel, cx, cy + lift, size * 0.7, FG, hit);
+  line(g, cx - 90, cy + lift, cx - 76, cy + lift, KC[4], 2);
 }
 // KickSyn: a drum head seen from above. Tune sets its size, decay how long it
 // ripples, punch the pitch-drop rings, drive bends the edge.
