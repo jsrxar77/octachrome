@@ -186,6 +186,13 @@ pub trait InstrumentCartridge: Send + Sync {
         None
     }
 
+    /// The note of the sound chosen with a knob, for an instrument that is a kit of
+    /// sounds (drums): `KIT_BASE_NOTE` plus the lane. A track on such an instrument is
+    /// programmed in lanes, and this is what the knobs audition.
+    fn paint_note(&self) -> Option<u8> {
+        None
+    }
+
     /// Silence every voice immediately (transport stop, panic).
     fn all_notes_off(&mut self) {}
 }

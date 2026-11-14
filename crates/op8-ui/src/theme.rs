@@ -106,21 +106,27 @@ pub fn draw_footer(fb: &mut FrameBuffer480x272, cells: &[FooterCell; 4], base: u
                 }
             }
         }
+        // Larger type, shrinking one step at a time only if a long text would run into the
+        // next column: values 20 → 15 → 11 px, names 14 → 11 px.
+        let avail = (FOOTER_COL - 44 - 4) as f32;
+        let fit = |text: &str, sizes: &[FontSize]| {
+            *sizes.iter().find(|&&z| op8_gfx::text_width(text, z) <= avail).unwrap_or(sizes.last().unwrap())
+        };
         text(
             fb,
             &c.value,
-            x + 48,
-            233,
-            FontSize::Medium,
+            x + 44,
+            228,
+            fit(&c.value, &[FontSize::Value, FontSize::Medium, FontSize::Small]),
             t.fg,
             Align::Left,
         );
         text(
             fb,
             &c.label,
-            x + 48,
-            253,
-            FontSize::Small,
+            x + 44,
+            252,
+            fit(&c.label, &[FontSize::Label, FontSize::Small]),
             col.scale(0.85),
             Align::Left,
         );

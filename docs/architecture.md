@@ -56,7 +56,7 @@ Communication between the control thread and the audio thread is **lock-free** (
 | `op8-seq` | Deterministic sequencer: 96 PPQN, polymeter, Step Components, Brain, `Command` | cartridge |
 | `op8-engine` | Audio thread: sequencer, 8 slots, mix, Punch-in FX, Smart Strip filter, `EngineStatus`. Lock-free with `rtrb` | seq, cartridge |
 | `op8-plaits` | The macro oscillator from Plaits in C++, vendored **unchanged** (`vendor/`, eurorack f4cfa76 and stmlib d18def8), built with `cc` (`build.rs`, `-DTEST -include cstdio`) behind a C shim (`src/shim.cc`). 24 engines | – |
-| `op8-cartridges` | KickSyn, FmBass, MidiOutBridge and **macro** (`macro_osc.rs`). The list is in `builtin_names()` / `create()` of `lib.rs`, which also holds the contract tests every instrument must pass | cartridge, plaits |
+| `op8-cartridges` | KickSyn, FmBass, MidiOutBridge, **macro** (`macro_osc.rs`) and **drums** (`drums.rs`). The list is in `builtin_names()` / `create()` of `lib.rs`, which also holds the contract tests every instrument must pass | cartridge, plaits |
 | `op8-hw` | `ControlSurface`, `ControlEvent`, `Button`, `LedFrame`, `MockSurface`, the MK3 protocol as pure functions, USB transport (feature `mk3`: hidapi or hidraw, plus nusb) | gfx |
 | `op8-ui` | Left and right screen layouts, `UiState`, `Mode`, footer and touch overlay, animation | gfx, seq, engine |
 | `op8` | Binary and library: `App`, `Controller`, `demo`, `script`, `bench`, `settings`, cpal audio (with its keeper), MIDI, `sim`, `hw-test`, `usb-reset` | everything |
@@ -157,12 +157,12 @@ Cargo runs each crate's tests from the crate's folder, so give `OP8_BENCH_DIR` a
 
 - **Licence MIT or Apache-2.0.** No GPL dependencies are added. Encdr, autotel/maschine-mk3-linux and Deckard are GPL: from the MK3 protocol only the facts were taken, not the code. Surge XT and Vital are GPL and stay out unless Javi decides otherwise.
 - **Mutable Instruments synthesis engines (MIT).** Javi chose to start there. The code can be used, but **without the module names**, because they are trademarks: the Plaits one is called "macro", the Rings one will be called "resonator", and so on. Credit goes in the vendor README.
-- **Eight and eight (2026-11-13).** 8 factory instruments plus 8 places for installed ones, and 8 factory projects plus 8 of the player's own: the 16 pads ([instruments.md §7](instruments.md)). The factory set is proposed and the instruments beyond the first four are still to be built ([roadmap.md](roadmap.md)).
+- **Eight and eight (2026-11-13).** 8 factory instruments plus 8 places for installed ones, and 8 factory projects plus 8 of the player's own: the 16 pads ([instruments.md §7](instruments.md)). The factory set is confirmed (KickSyn, FmBass, macro, MIDI out, drums, resonator, sampler, granular; the first four exist) and the rest are still to be built, in that order ([roadmap.md](roadmap.md)).
 - **The brand mark and every picture of the unit** follow the MK3's own arrangement of eight and sixteen ([design.md §2.3–2.4](design.md)). The themes are glossy, matte and chrome.
 - **Aesthetic:** the language of the OP-1 and OP-XY (colour tied to each physical control, drawings instead of text, absolute black). We take the ideas, never their graphics or fonts. It must not look like a programming project. Details in [design.md](design.md).
 - **8 knobs, 8 colours.** Knobs 1–4 drive the sequencer and appear on the left screen; 5–8 drive the instrument and appear on the right. Three themes: glossy (default), matte, chrome.
 - **Typeface: Jost** (OFL), weights 300 and 400, tuned by eye to resemble the OP-XY's. FlipMono cannot be used: it is actually SF Mono, licensed only for Apple devices.
-- **Instruments:** at most 8 parameters, 4 of sound (button 5) and 4 of shape (button 6). Effects and modulation are per track and the same for all instruments.
+- **Instruments:** at most 8 parameters, 4 of shape (button 5) and 4 of sound (button 6). Effects and modulation are per track and the same for all instruments.
 - **Settings are chosen on the machine and kept in a small text file** of `key=value` lines (`crates/op8/src/settings.rs`; today only `theme=chrome`). Location: `OP8_CONFIG`, else `$XDG_CONFIG_HOME/op8/settings`, else `$HOME/.config/op8/settings`. A missing file, an unknown key or a bad value is ignored (the default is used): a damaged file must never stop the machine from starting. It is written beside itself and renamed, so a power cut leaves the old file or the new one. **At start-up, `-t` / `OP8_THEME` win over the saved theme, which wins over glossy.** Only `op8 run` reads it: `sim` always starts from glossy so it stays reproducible.
 
 **Known limits**

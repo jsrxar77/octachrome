@@ -67,7 +67,13 @@ pub struct Step {
     /// Gate as % of the step, 1..=100.
     pub gate: u8,
     pub components: Components,
+    /// Drum lanes switched on in this step (bit n = sound n), for a track with `kit` set.
+    /// A kit step plays one note per lane, `KIT_BASE_NOTE + lane`; its `active` is `lanes != 0`.
+    pub lanes: u8,
 }
+
+/// The note of lane 0 on a kit track; lane n is this plus n (its pitch class picks the sound).
+pub const KIT_BASE_NOTE: u8 = 60;
 
 impl Default for Step {
     fn default() -> Self {
@@ -77,6 +83,7 @@ impl Default for Step {
             velocity: 100,
             gate: 50,
             components: Components::new(),
+            lanes: 0,
         }
     }
 }
@@ -86,6 +93,14 @@ impl Step {
         Self {
             active: true,
             note,
+            ..Self::default()
+        }
+    }
+    /// A kit step with these lanes on (bit n = sound n).
+    pub fn kit(lanes: u8) -> Self {
+        Self {
+            active: lanes != 0,
+            lanes,
             ..Self::default()
         }
     }

@@ -55,7 +55,7 @@ class Random {
   }
 
  private:
-  static uint32_t rng_state_;
+  static thread_local uint32_t rng_state_;  // OP-8: thread_local (see vendor/README.md)
 
   DISALLOW_COPY_AND_ASSIGN(Random);
 };

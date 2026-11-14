@@ -43,7 +43,11 @@ pub fn draw_left(fb: &mut FrameBuffer480x272, ui: &UiState, p: &Project, st: &En
         (Mode::Brain, _) => brain_view(fb, p, st, accent),
         (Mode::Punch, _) => punch_view(fb, ui, accent),
         _ => {
-            rings(fb, ui, p, st);
+            if p.tracks[ui.track].kit {
+                lanes_view(fb, ui, p, st, accent);
+            } else {
+                rings(fb, ui, p, st);
+            }
             pad_grid(fb, ui, p, st, accent);
         }
     }
@@ -206,6 +210,36 @@ fn rings(fb: &mut FrameBuffer480x272, ui: &UiState, p: &Project, st: &EngineStat
     );
 }
 
+/// A drum kit track: eight lanes (one per sound) by sixteen steps, the lane chosen on the
+/// right lit, and the playhead column marked. Several lanes can be on in one step.
+fn lanes_view(fb: &mut FrameBuffer480x272, ui: &UiState, p: &Project, st: &EngineStatus, accent: Rgb565) {
+    let t = theme();
+    let tr = &p.tracks[ui.track];
+    let ph = st.playhead[ui.track].load(Relaxed) as usize;
+    let playing = st.playing.load(Relaxed);
+    let (x0, y0, px, py) = (14.0, 56.0, 14.5, 20.5);
+    for lane in 0..8usize {
+        let chosen = ui.lane == Some(lane);
+        let y = y0 + lane as f32 * py;
+        if chosen {
+            fill_round_rect(fb, x0 - 4.0, y - 2.0, 16.0 * px + 6.0, py - 1.0, 4.0, t.panel);
+        }
+        for s in 0..tr.len().min(MAX_STEPS) {
+            let x = x0 + s as f32 * px;
+            let on = tr.steps[s].lanes & (1 << lane) != 0;
+            let col = if on {
+                accent.scale(if chosen { 1.0 } else { 0.6 })
+            } else {
+                t.faint
+            };
+            fill_round_rect(fb, x, y, px - 3.0, py - 5.0, 2.0, col);
+            if playing && s == ph {
+                stroke_round_rect(fb, x - 1.0, y - 1.0, px - 1.0, py - 3.0, 3.0, 1.0, t.fg);
+            }
+        }
+    }
+}
+
 /// Pad mirror: step 1 top-left, like the hardware pads.
 fn pad_grid(
     fb: &mut FrameBuffer480x272,
@@ -228,7 +262,12 @@ fn pad_grid(
         }
         let step = &tr.steps[s];
         let is_ph = playing && s == ph;
-        if step.active {
+        // on a kit the pads are the steps of the lane chosen on the right
+        let lit = match (tr.kit, ui.lane) {
+            (true, Some(l)) => step.lanes & (1 << l) != 0,
+            _ => step.active,
+        };
+        if lit {
             let k = if is_ph {
                 1.0
             } else {
@@ -375,30 +414,33 @@ fn inspector(fb: &mut FrameBuffer480x272, ui: &UiState, p: &Project, step: usize
         fb,
         &(step + 1).to_string(),
         30,
-        66,
+        78,
         FontSize::Huge,
         if s.active { accent } else { t.dim },
         Align::Left,
         VAlign::Middle,
     );
-    text_v(
-        fb,
-        &note_name(s.note),
-        30,
-        116,
-        FontSize::Large,
-        knob(0),
-        Align::Left,
-        VAlign::Middle,
-    );
+    // a kit step has no note: its sounds are lanes (see `lanes_view`)
+    if !p.tracks[ui.track].kit {
+        text_v(
+            fb,
+            &note_name(s.note),
+            30,
+            128,
+            FontSize::Large,
+            knob(0),
+            Align::Left,
+            VAlign::Middle,
+        );
+    }
     // velocity: vertical bar (knob 2); gate: horizontal bar (knob 3)
-    fb.fill_rect(120, 44, 10, 100, t.faint);
+    fb.fill_rect(120, 56, 10, 100, t.faint);
     let vh = (100.0 * s.velocity as f32 / 127.0) as i32;
-    fb.fill_rect(120, 144 - vh, 10, vh, knob(1));
-    fb.fill_rect(30, 140, 80, 6, t.faint);
-    fb.fill_rect(30, 140, (80.0 * s.gate as f32 / 100.0) as i32, 6, knob(2));
+    fb.fill_rect(120, 156 - vh, 10, vh, knob(1));
+    fb.fill_rect(30, 152, 80, 6, t.faint);
+    fb.fill_rect(30, 152, (80.0 * s.gate as f32 / 100.0) as i32, 6, knob(2));
     // component stack (knob 4)
-    let (x0, y0) = (160.0, 42.0);
+    let (x0, y0) = (160.0, 54.0);
     let comps = s.components.as_slice();
     for (i, &c) in comps.iter().enumerate() {
         let (x, y) = (x0 + (i % 3) as f32 * 104.0, y0 + (i / 3) as f32 * 60.0);
@@ -615,13 +657,13 @@ fn punch_view(fb: &mut FrameBuffer480x272, ui: &UiState, accent: Rgb565) {
     for (i, &(fx, name)) in PUNCH_SLOTS.iter().enumerate() {
         // pads laid out like the hardware: pad 0 bottom-left
         let (col, row) = ((i % 4) as f32, (3 - i / 4) as f32);
-        let (x, y) = (12.0 + col * 116.0, 36.0 + row * 46.0);
+        let (x, y) = (12.0 + col * 116.0, 52.0 + row * 42.0);
         let on = ui.punch.map(|(s, _)| s) == Some(i);
         let amt = ui.punch.map_or(0.0, |(_, v)| v);
         if on {
-            fill_round_rect(fb, x, y, 108.0, 40.0, 8.0, accent.scale(0.35 + 0.65 * amt));
+            fill_round_rect(fb, x, y, 108.0, 36.0, 8.0, accent.scale(0.35 + 0.65 * amt));
         } else {
-            stroke_round_rect(fb, x, y, 108.0, 40.0, 8.0, 1.0, t.faint);
+            stroke_round_rect(fb, x, y, 108.0, 36.0, 8.0, 1.0, t.faint);
         }
         let ink = if on { t.bg } else { t.fg };
         let mut words = name.split(' ');
@@ -633,7 +675,7 @@ fn punch_view(fb: &mut FrameBuffer480x272, ui: &UiState, accent: Rgb565) {
             fb,
             fx,
             x + 10.0,
-            y + 8.0,
+            y + 6.0,
             gw,
             24.0,
             ink,
@@ -644,7 +686,7 @@ fn punch_view(fb: &mut FrameBuffer480x272, ui: &UiState, accent: Rgb565) {
                 fb,
                 sub,
                 x as i32 + 38,
-                y as i32 + 20,
+                y as i32 + 18,
                 FontSize::Small,
                 ink,
                 Align::Left,
@@ -655,7 +697,7 @@ fn punch_view(fb: &mut FrameBuffer480x272, ui: &UiState, accent: Rgb565) {
             fb,
             &head,
             x as i32 + 98,
-            y as i32 + 20,
+            y as i32 + 18,
             FontSize::Small,
             if on { t.bg } else { t.dim },
             Align::Right,
@@ -679,7 +721,12 @@ pub fn left_footer(ui: &UiState, p: &Project) -> [FooterCell; 4] {
                 .unwrap_or(StepComponent::None);
             let adding = ui.comp_cursor >= st.components.len();
             [
-                FooterCell::new("note", note_name(st.note), Some(st.note as f32 / 127.0)),
+                if t.kit {
+                    // a kit step has no note; nothing here (rule 11)
+                    FooterCell::empty()
+                } else {
+                    FooterCell::new("note", note_name(st.note), Some(st.note as f32 / 127.0))
+                },
                 FooterCell::new(
                     "velocity",
                     st.velocity.to_string(),

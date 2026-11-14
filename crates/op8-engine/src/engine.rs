@@ -33,6 +33,13 @@ pub enum EngineCommand {
     PunchIntensity(f32),
     /// Smart Strip: -1..0 low-pass sweep, 0 off, 0..1 high-pass sweep.
     MasterFilter(f32),
+    /// Play a note on a track's instrument right now, outside the sequence, to
+    /// hear what a choice sounds like. It is released after a fraction of a second.
+    Audition {
+        track: u8,
+        note: u8,
+        velocity: f32,
+    },
     /// Put a cartridge in a slot. The old one comes back through the
     /// handle's garbage queue so it is never freed on the audio thread.
     LoadCartridge {
@@ -41,8 +48,22 @@ pub enum EngineCommand {
     },
 }
 
+/// How long an auditioned note is held before it is released.
+const AUDITION_SAMPLES: i32 = (SAMPLE_RATE * 0.25) as i32;
+
+/// A note being auditioned on a track.
+#[derive(Clone, Copy)]
+struct Audition {
+    note: u8,
+    velocity: f32,
+    started: bool,
+    /// Samples left before the release.
+    left: i32,
+}
+
 /// Lives on the audio thread.
 pub struct Engine {
+    audition: [Option<Audition>; TRACKS],
     seq: Sequencer,
     slots: [Option<SharedCartridge>; TRACKS],
     rx: rtrb::Consumer<EngineCommand>,
@@ -85,6 +106,7 @@ impl Engine {
             }
         }
         let engine = Engine {
+            audition: [None; TRACKS],
             seq: Sequencer::new(project, SAMPLE_RATE),
             slots: slots.clone(),
             rx,
@@ -141,6 +163,11 @@ impl Engine {
                         if let Ok(mut c) = c.lock() {
                             c.set_parameter(index as usize, value);
                         }
+                    }
+                }
+                EngineCommand::Audition { track, note, velocity } => {
+                    if let Some(a) = self.audition.get_mut(track as usize) {
+                        *a = Some(Audition { note, velocity: velocity.clamp(0.0, 1.0), started: false, left: AUDITION_SAMPLES });
                     }
                 }
                 EngineCommand::SetVolume { track, volume } => {
@@ -211,6 +238,21 @@ impl Engine {
                     .value
                     .unwrap_or(self.base_params[t][p.index as usize % PARAMS_PER_SLOT]);
                 c.set_parameter(p.index as usize, v);
+            }
+            // An auditioned note joins the sequence's events for this block (sorted by offset).
+            if let Some(a) = &mut self.audition[t] {
+                if !a.started {
+                    a.started = true;
+                    self.events.notes[t].insert(0, op8_cartridge::NoteEvent::on(0, a.note, a.velocity));
+                }
+                if a.left <= n as i32 {
+                    let off = op8_cartridge::NoteEvent::off(a.left.max(0) as u32, a.note);
+                    let at = self.events.notes[t].as_slice().iter().position(|e| e.sample_offset > off.sample_offset).unwrap_or(self.events.notes[t].as_slice().len());
+                    self.events.notes[t].insert(at, off);
+                    self.audition[t] = None;
+                } else {
+                    a.left -= n as i32;
+                }
             }
             let evs = self.events.notes[t].as_slice();
             self.note_counts[t] = self.note_counts[t].wrapping_add(

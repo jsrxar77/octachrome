@@ -52,3 +52,56 @@ fn f_a05_same_script_same_audio() {
     let (a, c) = (run(), run());
     assert!(a.0 == c.0 && a.1 == c.1, "two runs differ");
 }
+
+// F-A11: choosing a sound can be heard at once, without playing the sequence: turning a knob of the instrument
+// (or `sound`) and tapping a step all play it.
+#[test]
+fn f_a11_choices_are_auditioned() {
+    use op8_hw::Button;
+    // a knob turn on the drum track
+    let mut b = Bench::demo();
+    b.press(Button::Group(0));
+    b.run_ms(300);
+    let quiet = b.peak(0, 300);
+    b.press(Button::Screen(5));
+    b.knob(7, 120);
+    b.run_ms(400);
+    assert!(b.peak(300, 700) > quiet + 0.01, "turning `sound` plays the sound: {} vs {}", b.peak(300, 700), quiet);
+    // a tap on a step
+    let mut b = Bench::demo();
+    b.press(Button::Group(0));
+    b.run_ms(100);
+    b.tap(0);
+    b.run_ms(300);
+    assert!(b.peak(100, 700) > 0.01, "tapping a step plays its sound");
+}
+
+// F-A12: a choice is auditioned once, not over and over: the `sound` knob plays each new sound once, and a continuous
+// knob plays once, when it has been still for a moment.
+#[test]
+fn f_a12_auditions_do_not_repeat() {
+    use op8_hw::Button;
+    use std::sync::atomic::Ordering::Relaxed;
+    let mut b = Bench::demo();
+    b.press(Button::Group(0)); // the drums
+    b.press(Button::Screen(5)); // shape: the page with `sound` and body, level, pan
+    b.run_ms(300);
+    let played = |b: &Bench| b.status().note_count[0].load(Relaxed);
+    let before = played(&b);
+    // turn `sound` through three sounds, one detent at a time: one note each, no more
+    for _ in 0..3 {
+        b.knob(7, 100); // 100/800 of the range: a bit more than one sound (1/8) per turn
+        b.run_ms(60);
+    }
+    b.run_ms(400);
+    let after_sound = played(&b);
+    assert!(after_sound - before >= 1 && after_sound - before <= 3, "{} notes for three sounds", after_sound - before);
+    // a continuous knob turned for a while plays nothing while it moves, and once after
+    for _ in 0..20 {
+        b.knob(5, 10);
+        b.run_ms(20);
+    }
+    assert_eq!(played(&b), after_sound, "silent while the knob is moving");
+    b.run_ms(500);
+    assert_eq!(played(&b), after_sound + 1, "one note once it stops");
+}

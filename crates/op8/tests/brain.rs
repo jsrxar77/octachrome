@@ -28,15 +28,15 @@ fn f_b02_hold_plays_live_chord() {
 #[test]
 fn f_b03_shift_group_toggles_brain_link() {
     let mut b = Bench::demo();
-    let before = b.project().tracks[1].brain_link;
+    let before = b.project().tracks[2].brain_link;
     b.button_down(Button::Shift);
-    b.press(Button::Group(1));
+    b.press(Button::Group(2));
     b.button_up(Button::Shift);
-    assert_eq!(b.project().tracks[1].brain_link, !before);
+    assert_eq!(b.project().tracks[2].brain_link, !before);
     b.button_down(Button::Shift);
-    b.press(Button::Group(1));
+    b.press(Button::Group(2));
     b.button_up(Button::Shift);
-    assert_eq!(b.project().tracks[1].brain_link, before);
+    assert_eq!(b.project().tracks[2].brain_link, before);
 }
 
 // F-B04: encoder 1 in Brain steps the key by one semitone, wrapping 11 → 0 → 11.

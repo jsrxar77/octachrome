@@ -11,7 +11,7 @@ An instrument is a piece of code that fulfils the `InstrumentCartridge` contract
 | Part | What it is | Limit |
 | :-- | :-- | :-- |
 | **Sound** | Receives notes, returns stereo audio at 48 kHz | Must fit the CPU budget of the Pi (section 5) |
-| **Parameters** | 4 of sound (button 5, knobs 5–8) and, if needed, 4 of shape (button 6) | **At most 8.** If the engine has more, the instrument picks the 8 that matter |
+| **Parameters** | 4 of sound (button 6, knobs 5–8) and, if needed, 4 of shape (button 5) | **At most 8.** If the engine has more, the instrument picks the 8 that matter |
 | **Drawing** | An animated graphic that shows what the sound does, in the central area of the right screen | Uses the colours of knobs 5–8 for what those knobs move |
 | **State** | Save and load its values (presets and parameter locks) | A list of numbers, versioned |
 
@@ -46,6 +46,7 @@ In three stages, from the simplest to the most open:
 | **KickSyn** | Synthetic kick: tone, decay, punch, saturation | A drum head seen from above |
 | **FmBass** | Two-operator FM bass | A planet and moon in orbit, the envelope as a mountain |
 | **MidiOutBridge** | Sends the track out the MK3's DIN MIDI to an external synth | A DIN connector and notes leaving through the cable |
+| **drums** | Eight percussion sounds on one track, chosen by the pitch of the note: C kick, C# snare, D closed hat, D# open hat, E tom, F clap, F# rim, G crash (the notes above G wrap round). The knobs edit the sound picked with the `sound` knob and each sound keeps its own values. Sound: `tune`, `decay`, `tone`, `snap`. Shape: `body`, `level`, `pan`, `sound`. Built on the percussion engines of the Plaits code (MIT) | The eight sounds as a 4 × 2 grid of keys, each with a small picture that flashes when it plays; the chosen one large, with the four colours of knobs 5–8 showing tune (height), decay (size), tone (rings) and snap (spikes) |
 | **macro** | 24 engines in one (virtual analogue, FM, wavetable, chords, voice, strings, percussion), from the Plaits code (MIT, `crates/op8-plaits`). Sound: `engine`, `harmonics`, `timbre`, `morph`. Shape: `decay`, `color`, `variant`, `level` | A ring of 24 engines, a polar waveform that beats with the level, and a timbre × morph field |
 
 macro is monophonic and uses gate semantics (the 6-operator FM engines need the held gate). It goes to sleep and gives exact zeros when it is not sounding.
@@ -67,7 +68,7 @@ Legal note on Mutable Instruments: the code of the STM32 modules (Plaits, Braids
 
 1. ~~**macro**~~ (from Plaits): done.
 2. **resonator** (from Rings): strings and bells.
-3. **drums**: a drum instrument with 8 sounds on pads 9–16 (PAD MODE).
+3. ~~**drums**~~: done (eight sounds chosen by the pitch of the note).
 4. **sampler**: record with SAMPLING and play with the keyboard.
 
 ## 5. Budget on the Raspberry Pi 5
@@ -88,17 +89,28 @@ Everything in OP-8 is built on eight, and the MK3 has sixteen pads. So the libra
 | **Instruments** (PLUG-IN) | 8 that always ship and cannot be removed | 8 places for instruments installed as separate packages (stage 2 and 3 of §3) |
 | **Projects** (FILE) | 8 music projects that always ship: a way into the instruments and the sequencer | 8 places for the player's own projects |
 
-The factory eight, as proposed (to be confirmed by Javi; the first four exist):
+The factory eight, confirmed by Javi on 2026-11-14 (the first three and the last two exist). **They are ordered from the most guttural to the most refined, drums first and the leads last**; that order is the order of the factory slots, of the tracks in the demo (A to E) and of the list the player will browse. The MIDI out has its place because the MK3 will eventually also take input: MIDI out and sound in. The order of work is drums (done), resonator, sampler, granular.
 
 | # | Instrument | Idea | Status |
 | :-- | :-- | :-- | :-- |
-| 1 | **KickSyn** | Synthetic kick | ✓ |
-| 2 | **FmBass** | Two-operator FM bass | ✓ |
-| 3 | **macro** | 24 engines in one (from Plaits) | ✓ |
-| 4 | **MidiOutBridge** | The track out to an external synth | ✓ |
-| 5 | **resonator** | Strings, bells and tubes (from Rings) | ○ |
-| 6 | **drums** | 8 drum sounds on pads 9–16 of a track | ○ |
-| 7 | **sampler** | Record with SAMPLING and play it | ○ |
-| 8 | **granular** | Granular on a sample (from Clouds / Beads) | ○ |
+| 1 | **drums** | Eight percussion sounds on one track, in eight lanes | ✓ |
+| 2 | **KickSyn** | Synthetic kick | ✓ |
+| 3 | **FmBass** | Two-operator FM bass | ✓ |
+| 4 | **resonator** | Strings, bells and tubes (from Rings) | ○ |
+| 5 | **sampler** | Record with SAMPLING and play it | ○ |
+| 6 | **granular** | Granular on a sample (from Clouds / Beads) | ○ |
+| 7 | **MidiOutBridge** | The track out to an external synth (later also sound in) | ✓ |
+| 8 | **macro** | 24 engines in one (from Plaits): the leads | ✓ |
 
 Rules: the factory eight meet §2 like any other instrument; each factory project shows one thing (an instrument, a rhythm idea, the Brain) and is made only with the factory eight, so it always loads. Removing, replacing or overwriting a factory slot is not possible; a user slot starts empty.
+
+### How drums are programmed: eight lanes
+
+A drum track is a **kit** with eight lanes, one per sound, and a step can have several lanes on at once (a kick and a hat together). It is not a melody: a step has no note, its sounds are lanes.
+
+- **Right screen (the sound):** screen button 5 (`shape`) opens the second page, whose last knob, `sound`, chooses the sound; you hear it as you turn. The other knobs edit that sound (tune, decay, tone, snap, body, level, pan) and also play it.
+- **Left screen (the sequencer):** the eight lanes by sixteen steps, the chosen lane lit and the playhead marked. The sixteen pads are the steps of the chosen lane: **tap a pad** and that sound is on that step (it plays); tap again and it is off. The other lanes of the step stay as they are.
+- **Components** (ratchet, chance, every…), velocity and gate are per step and apply to all its lanes; they are in the step inspector on the left (hold a pad, or screen button 2). A kit step has no `note` knob.
+- Lane n plays note 60 + n; its pitch class is what picks the sound (C kick, C# snare, D closed hat, D# open hat, E tom, F clap, F# rim, G crash). A track becomes a kit the first time you tap a pad on a track whose instrument is drums.
+
+Still to come: the chromatic KEYBOARD and PAD MODE, which will play the eight sounds straight from the pads ([buttons.md](buttons.md)).

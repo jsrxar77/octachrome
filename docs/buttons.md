@@ -34,8 +34,8 @@ They are the modules of the current mode, like M1–M4 on the OP-XY. Their name 
 | 2 | components: step inspector | step components | ◐ (opens the inspector on step 1; holding a pad still opens it on that step) |
 | 3 | players: arpeggio and chords over the track | players | ○ |
 | 4 | bar: length, division and quantisation | bar | ◐ (today on knobs 1–2) |
-| 5 | sound: page 1 of the cartridge | M1 | ✓ |
-| 6 | shape: page 2 of the cartridge (envelopes) | M2 | ✓ |
+| 5 | shape: page 2 of the cartridge (envelopes) | M2 | ✓ |
+| 6 | sound: page 1 of the cartridge | M1 | ✓ |
 | 7 | fx: the track's effect | M3 | ○ |
 | 8 | mod: the track's LFO | M4 | ○ |
 

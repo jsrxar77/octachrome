@@ -20,18 +20,18 @@ fn f_l01_play_led_follows_transport() {
 #[test]
 fn f_l02_step_pads_show_track_colour() {
     let mut b = Bench::demo();
-    b.press(Button::Group(0)); // track A: red
+    b.press(Button::Group(1)); // track B (KickSyn): orange
     let on_pad = (0..16u8).find(|&p| {
         let step = op8::Controller::pad_to_step(p) as usize;
-        step < 16 && b.project().tracks[0].steps[step].active
+        step < 16 && b.project().tracks[1].steps[step].active
     });
     let off_pad = (0..16u8).find(|&p| {
         let step = op8::Controller::pad_to_step(p) as usize;
-        step < 16 && !b.project().tracks[0].steps[step].active
+        step < 16 && !b.project().tracks[1].steps[step].active
     });
     let (on, off) = (on_pad.unwrap(), off_pad.unwrap());
     assert_eq!(b.leds().pad(on) & 3, 3, "active pad {on} should be bright");
-    assert_eq!(b.leds().pad(on) >> 2, NiColor::Red as u8, "active pad should be the track colour");
+    assert_eq!(b.leds().pad(on) >> 2, NiColor::Orange as u8, "active pad should be the track colour");
     assert_eq!(b.leds().pad(off) & 3, 1, "inactive pad {off} should be dim");
 }
 
@@ -39,11 +39,11 @@ fn f_l02_step_pads_show_track_colour() {
 #[test]
 fn f_l07_empty_steps_are_dim_white() {
     let mut b = Bench::demo();
-    b.press(Button::Group(0));
+    b.press(Button::Group(1));
     let off_pad = (0..16u8)
         .find(|&p| {
             let step = op8::Controller::pad_to_step(p) as usize;
-            step < 16 && !b.project().tracks[0].steps[step].active
+            step < 16 && !b.project().tracks[1].steps[step].active
         })
         .expect("an empty step");
     assert_eq!(b.leds().pad(off_pad) >> 2, NiColor::White as u8);

@@ -1,6 +1,6 @@
 # Vendored DSP code
 
-Unmodified copies of the files the OP-8 "macro" instrument needs:
+Copies of the files the OP-8 "macro" and "drums" instruments need, unmodified except for one change: the random generator state in `stmlib/utils/random.{h,cc}` is `thread_local` (it was a plain static), so that a run on one thread is repeatable whatever other threads do (the test bench renders audio on the test thread):
 
 | Directory | Origin | Commit | Licence |
 | :-- | :-- | :-- | :-- |

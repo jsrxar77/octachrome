@@ -121,15 +121,15 @@ fn f_c04_pad_mode_buttons_leave_settings() {
 fn f_c05_only_navigation_and_transport_work_in_settings() {
     let _t = fresh();
     let mut b = Bench::demo();
-    b.press(Button::Group(1));
-    let (step, param, track) = (b.project().tracks[1].steps[3].active, b.param(1, 1), b.ui().track);
+    b.press(Button::Group(2));
+    let (step, param, track) = (b.project().tracks[2].steps[3].active, b.param(2, 1), b.ui().track);
     b.press(Button::Settings);
 
     b.tap(15); // would toggle step 4
     b.knob(5, 300);
-    b.press(Button::Group(4));
-    assert_eq!(b.project().tracks[1].steps[3].active, step, "a pad changed a step");
-    assert_eq!(b.param(1, 1), param, "a knob moved a parameter");
+    b.press(Button::Group(0));
+    assert_eq!(b.project().tracks[2].steps[3].active, step, "a pad changed a step");
+    assert_eq!(b.param(2, 1), param, "a knob moved a parameter");
     assert_eq!(b.ui().track, track, "a group selected a track");
 
     b.press(Button::Play);
@@ -168,12 +168,12 @@ fn f_c07_theme_change_is_saved() {
 fn f_c09_theme_changes_the_pad_and_group_leds() {
     let _t = fresh();
     let mut b = Bench::demo();
-    b.press(Button::Group(0));
+    b.press(Button::Group(1));
     let pad_colour = |b: &Bench| {
         let on = (0..16u8)
             .find(|&p| {
                 let step = op8::Controller::pad_to_step(p) as usize;
-                step < 16 && b.project().tracks[0].steps[step].active
+                step < 16 && b.project().tracks[1].steps[step].active
             })
             .expect("an active step");
         b.leds().pad(on) >> 2
@@ -182,9 +182,9 @@ fn f_c09_theme_changes_the_pad_and_group_leds() {
     for id in ThemeId::ALL {
         op8_gfx::set_theme(id);
         b.tick();
-        let want = op8::controller::track_led_colors(id)[0] as u8;
+        let want = op8::controller::track_led_colors(id)[1] as u8;
         assert_eq!(pad_colour(&b), want, "{id:?}: the pad takes the theme's track colour");
-        let group = button_slot(Button::Group(0)).unwrap();
+        let group = button_slot(Button::Group(1)).unwrap();
         assert_eq!(b.leds().slots[group] >> 2, want, "{id:?}: so does the group key");
         seen.push(want);
     }
@@ -197,12 +197,12 @@ fn f_c09_theme_changes_the_pad_and_group_leds() {
 fn f_c09_choosing_a_theme_in_settings_recolours_the_pads() {
     let _t = fresh();
     let mut b = Bench::demo();
-    b.press(Button::Group(0));
+    b.press(Button::Group(1));
     let pad = |b: &Bench| {
         let on = (0..16u8)
             .find(|&p| {
                 let step = op8::Controller::pad_to_step(p) as usize;
-                step < 16 && b.project().tracks[0].steps[step].active
+                step < 16 && b.project().tracks[1].steps[step].active
             })
             .expect("an active step");
         b.leds().pad(on) >> 2
@@ -216,5 +216,5 @@ fn f_c09_choosing_a_theme_in_settings_recolours_the_pads() {
     b.tick();
     assert_eq!(theme_id(), ThemeId::Chrome);
     assert_ne!(pad(&b), glossy, "the pads wear the chosen theme once composing again");
-    assert_eq!(pad(&b), op8::controller::track_led_colors(ThemeId::Chrome)[0] as u8);
+    assert_eq!(pad(&b), op8::controller::track_led_colors(ThemeId::Chrome)[1] as u8);
 }

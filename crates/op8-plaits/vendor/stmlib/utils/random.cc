@@ -31,6 +31,6 @@
 namespace stmlib {
 
 /* static */
-uint32_t Random::rng_state_ = 0x21;
+thread_local uint32_t Random::rng_state_ = 0x21;  // OP-8: thread_local
 
 }  // namespace stmlib

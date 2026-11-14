@@ -37,6 +37,8 @@ use op8_ui::{Main, Mode, UiState, COMPONENT_PRESETS};
 use std::sync::atomic::Ordering::Relaxed;
 
 pub const HOLD_MS: u64 = 300;
+/// How long a knob of the instrument has to be still before its result is auditioned.
+const AUDITION_PAUSE_MS: u64 = 250;
 /// Knob units (1000 per turn) per discrete step: 25 detents per turn.
 const DETENT: i32 = 40;
 /// Knob units for a full 0→1 sweep of a continuous parameter.
@@ -85,6 +87,12 @@ pub fn track_led_colors(id: op8_gfx::ThemeId) -> [NiColor; TRACKS] {
 #[derive(Default)]
 pub struct Controller {
     pub ui: UiState,
+    /// A note to audition once the knob that asked for it has been still for a moment.
+    audition_due: Option<u64>,
+    /// When a knob of the instrument last moved.
+    last_knob_ms: Option<u64>,
+    /// The note the instrument's `sound` knob had at the last frame, to notice when it changes.
+    last_paint: Option<u8>,
     pad_down_at: [Option<u64>; 16],
     /// The pad whose hold opened the inspector (its release must not toggle).
     inspector_pad: Option<u8>,
@@ -127,7 +135,7 @@ impl Controller {
                 Mode::Brain => self.brain_pad(pad, event, h),
                 Mode::Punch => self.punch_pad(pad, event, h),
             },
-            ControlEvent::Knob { index, delta } => self.knob(index as usize, delta, h),
+            ControlEvent::Knob { index, delta } => self.knob(index as usize, delta, h, now_ms),
             ControlEvent::KnobTouch { index, touched } => {
                 if let Some(t) = self.ui.knob_touch.get_mut(index as usize) {
                     *t = touched;
@@ -212,17 +220,44 @@ impl Controller {
             Button::ChannelMidi => self.set_main(Main::Instrument, h),
             Button::JogLeft if self.ui.main == Main::Settings => self.step_theme(-1),
             Button::JogRight if self.ui.main == Main::Settings => self.step_theme(1),
-            // Screen buttons: 1 = step view, 2 = components of the first step, 5 = sound, 6 = shape.
+            // Screen buttons: 1 = step view, 2 = components of the first step, 5 = shape, 6 = sound.
             Button::Screen(1) if self.ui.main == Main::Instrument => self.set_mode(Mode::Step, h),
             Button::Screen(2) if self.ui.main == Main::Instrument => {
                 self.set_mode(Mode::Step, h);
                 self.ui.inspect_step = Some(0);
                 self.ui.comp_cursor = 0;
             }
-            Button::Screen(5) if self.ui.main == Main::Instrument => self.ui.right_page = 0,
-            Button::Screen(6) if self.ui.main == Main::Instrument => self.ui.right_page = 1,
+            Button::Screen(5) if self.ui.main == Main::Instrument => self.ui.right_page = 1,
+            Button::Screen(6) if self.ui.main == Main::Instrument => self.ui.right_page = 0,
             _ => {}
         }
+    }
+
+    /// Whether this step shows as on: on a kit, whether the chosen lane is on in it.
+    fn lane_on(&self, kit: bool, step: &Step) -> bool {
+        match (kit, self.ui.lane) {
+            (true, Some(l)) => step.lanes & (1 << l) != 0,
+            _ => step.active,
+        }
+    }
+
+    /// The note a tap on a step places on this track's instrument, if it chooses a sound by a knob.
+    fn paint_note(&self, h: &EngineHandle) -> Option<u8> {
+        let c = h.slots[self.ui.track].as_ref()?;
+        let c = c.try_lock().ok()?;
+        c.paint_note()
+    }
+
+    /// The note to play when a knob is turned: the chosen sound, else the track's first step, else a C.
+    fn audition_note(&self, h: &EngineHandle) -> u8 {
+        self.paint_note(h).unwrap_or_else(|| {
+            h.project.tracks[self.ui.track].steps.iter().find(|s| s.active).map_or(48, |s| s.note)
+        })
+    }
+
+    /// Play a note on the selected track now.
+    fn audition(&mut self, h: &mut EngineHandle, note: u8, velocity: f32) {
+        h.send(EngineCommand::Audition { track: self.ui.track as u8, note, velocity });
     }
 
     /// Let go of whatever a pad is holding: an engaged effect, a live chord.
@@ -298,7 +333,24 @@ impl Controller {
                     self.inspector_pad = None;
                     self.ui.inspect_step = None;
                 } else if was_down && !self.held.erase && self.inspector_pad.is_none() {
-                    h.seq(Command::ToggleStep { track, step });
+                    match self.paint_note(h) {
+                        // A kit (drums): the pads are the steps of the lane chosen on the right.
+                        // A tap puts that sound on the step, or takes it off, leaving the other lanes.
+                        Some(n) => {
+                            let lane = (n - op8_seq::step::KIT_BASE_NOTE) % 8;
+                            if !h.project.tracks[self.ui.track].kit {
+                                h.seq(Command::SetKit { track, kit: true });
+                            }
+                            h.seq(Command::ToggleLane { track, step, lane });
+                            let s = h.project.tracks[self.ui.track].steps[step as usize];
+                            if s.lanes & (1 << lane) != 0 {
+                                self.audition(h, n, s.velocity as f32 / 127.0);
+                            }
+                        }
+                        None => {
+                            h.seq(Command::ToggleStep { track, step });
+                        }
+                    }
                 }
             }
             PadEvent::Pressure(_) => {}
@@ -368,10 +420,13 @@ impl Controller {
         n
     }
 
-    fn knob(&mut self, k: usize, delta: i32, h: &mut EngineHandle) {
+    fn knob(&mut self, k: usize, delta: i32, h: &mut EngineHandle, now_ms: u64) {
         if k >= 4 {
             let index = self.ui.right_page * 4 + (k - 4);
             h.nudge_param(self.ui.track, index, delta as f32 / SWEEP);
+            // Hear what the knob did, once, when it has been still for a moment (see `tick`).
+            self.last_knob_ms = Some(now_ms);
+            self.audition_due = Some(now_ms + AUDITION_PAUSE_MS);
             return;
         }
         let track = self.ui.track as u8;
@@ -384,11 +439,15 @@ impl Controller {
                     return;
                 }
                 match k {
-                    0 => h.seq(Command::SetStepNote {
-                        track,
-                        step,
-                        note: (s.note as i32 + n).clamp(0, 127) as u8,
-                    }),
+                    // a drum kit has no note on its steps (the sound is a lane): this knob does nothing
+                    0 if t.kit => false,
+                    0 => {
+                        let note = (s.note as i32 + n).clamp(0, 127) as u8;
+                        h.seq(Command::SetStepNote { track, step, note });
+                        // Hear the note (on a drum track, the sound) as it changes.
+                        self.audition(h, note, s.velocity as f32 / 127.0);
+                        true
+                    }
                     1 => h.seq(Command::SetStepVelocity {
                         track,
                         step,
@@ -517,7 +576,7 @@ impl Controller {
 
     /// Once per UI frame: promote long holds to the inspector, age the
     /// activity LEDs.
-    pub fn tick(&mut self, h: &EngineHandle, now_ms: u64) {
+    pub fn tick(&mut self, h: &mut EngineHandle, now_ms: u64) {
         // Does this track's instrument have a second page? (If the audio thread holds the lock this frame, keep the last answer.)
         if let Some(c) = h.slots[self.ui.track].as_ref() {
             if let Ok(c) = c.try_lock() {
@@ -525,6 +584,23 @@ impl Controller {
             }
         } else {
             self.ui.has_second = false;
+        }
+        self.ui.lane = self.paint_note(h).map(|n| (n - op8_seq::step::KIT_BASE_NOTE) as usize % 8);
+        // The `sound` knob chose another sound: hear it once, at once. Anything else a knob
+        // did is heard once, when it has been still for a moment.
+        let paint = self.paint_note(h);
+        let recent = self.last_knob_ms.is_some_and(|t| now_ms.saturating_sub(t) < 500);
+        if paint != self.last_paint {
+            if let (Some(n), true) = (paint, recent) {
+                h.send(EngineCommand::Audition { track: self.ui.track as u8, note: n, velocity: 0.9 });
+                self.audition_due = None;
+            }
+            self.last_paint = paint;
+        }
+        if self.audition_due.is_some_and(|d| now_ms >= d) {
+            self.audition_due = None;
+            let note = self.audition_note(h);
+            h.send(EngineCommand::Audition { track: self.ui.track as u8, note, velocity: 0.9 });
         }
         if self.ui.mode == Mode::Step && self.inspector_pad.is_none() {
             if let Some((pad, _)) = self
@@ -570,7 +646,7 @@ impl Controller {
                         out.set_pad(pad, NiColor::White, 2);
                     } else if s >= track.len() {
                         out.set_pad(pad, NiColor::Off, 0);
-                    } else if track.steps[s].active {
+                    } else if self.lane_on(track.kit, &track.steps[s]) {
                         out.set_pad(pad, color, 3);
                     } else {
                         // Off is a dim white, not a dim colour: it stays apart from

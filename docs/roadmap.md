@@ -5,7 +5,7 @@ It comes from the [button map](buttons.md) and from [instruments.md](instruments
 ## Done
 
 - Engine, sequencer with polymeter, Step Components, Brain and Punch-in FX.
-- Cartridges KickSyn, FmBass, MidiOutBridge and **macro** (24 engines, from the Plaits code, MIT). macro has `engine`/`harmonics`/`timbre`/`morph` on page 1 and `decay`/`color`/`variant`/`level` on page 2.
+- Cartridges KickSyn, FmBass, MidiOutBridge, **macro** and **drums** (eight percussion sounds picked by the pitch of the note) (24 engines, from the Plaits code, MIT). macro has `engine`/`harmonics`/`timbre`/`morph` on page 1 and `decay`/`color`/`variant`/`level` on page 2.
 - MK3 driver (pads, knobs, buttons, LEDs, screens), `hw-test`, and deployment on the Pi 5 with systemd.
 - Screens on the real MK3: full-width row bands with compression, sent from a thread of their own, with a full refresh every 500 ms (see [architecture.md §7](architecture.md)).
 - Visual language: 8 knob colours, three themes, Jost, drawings per instrument, touch overlay.
@@ -15,7 +15,7 @@ It comes from the [button map](buttons.md) and from [instruments.md](instruments
 - Main modes: CHANNEL (composing) and SETTINGS (both screens). Settings has one page today, the theme: it is chosen with the 4D encoder and kept in a settings file ([architecture.md §10](architecture.md)). Tried in the Twin first.
 - The audio comes back by itself when the MK3's audio device drops (it used to stay dead, leaving the sequencer frozen).
 - The name is OP-8. The brand mark is defined (eight rainbow buttons, 4 + 4 as the unit's group keys or eight knobs in a row, the eighth white as the octave), the themes are glossy (bright), matte (soft) and chrome (one monochrome range) with their own backlight and LED levels, and every picture of the unit follows the real front panel ([design.md §2.3–2.4](design.md)). Guide, manual and brand page are in `guide/`.
-- Twin with the same screens, macro on track D and an approximate sound in WebAudio.
+- Twin with the same screens, macro on track E and an approximate sound in WebAudio.
 
 ## Hardware status
 
@@ -69,7 +69,7 @@ Known limits of the setup:
 
 ## 3. Instruments (the centre)
 
-- **Eight and eight.** 8 factory instruments + 8 installed ones ([instruments.md §7](instruments.md)). Factory today: KickSyn, FmBass, macro, MidiOutBridge. To build: resonator, drums, sampler, granular.
+- **Eight and eight.** 8 factory instruments + 8 installed ones ([instruments.md §7](instruments.md)). Factory today: drums, KickSyn, FmBass, MidiOutBridge, macro, ordered from the most guttural to the most refined (leads last). To build, in this order: resonator, sampler, granular.
 - PLUG-IN shows the 16 places on the 4×4 pads (1–8 factory, 9–16 installed); an empty installed place says so.
 
 - Cartridge registry list and PLUG-IN to choose the cartridge of each track (from `builtin_names()`).

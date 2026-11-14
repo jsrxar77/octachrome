@@ -17,7 +17,7 @@ The buttons and their implementation status are in [buttons.md](buttons.md). Thi
 | F-T01 | PLAY starts the sequencer and the audio, and PLAY again pauses it | `status.playing` changes; there is signal after PLAY and silence after the pause | ✓ |
 | F-T02 | STOP stops the sequencer; the audio falls to silence | `playing == false` and `silent` in the last stretch | ✓ |
 | F-T03 | RESTART goes back to step 1 and keeps playing | the playhead of track A is 0 after RESTART | ✓ |
-| F-T04 | Tracks of different length drift apart (polymeter) and the playhead never exceeds its length | track B (length 7): playhead always in 0..=6 and reaches 6 | ✓ |
+| F-T04 | Tracks of different length drift apart (polymeter) and the playhead never exceeds its length | track C (length 7): playhead always in 0..=6 and reaches 6 | ✓ |
 
 ## S · Sequencer (`tests/sequencer.rs`)
 
@@ -30,7 +30,8 @@ The buttons and their implementation status are in [buttons.md](buttons.md). Thi
 | F-S05 | Tapping a group A–H selects the track; its LED is brighter than the others | `ui.track` and the group LED level | ✓ |
 | F-S06 | Knob 1 in STEP changes the track length | `tracks[t].length` goes up and down, limited to 1–16 | ✓ |
 | F-S07 | MUTE + group mutes the track | `tracks[t].muted` toggles | ✓ |
-| F-S08 | A muted track emits no notes | track C (MIDI) muted: no new notes after the mute | ✓ |
+| F-S08 | A muted track emits no notes | track D (MIDI) muted: no new notes after the mute | ✓ |
+| F-S09 | A drum-kit track has eight lanes: a step plays one note per lane that is on (several sounds in one step), `SetKit` turns a track into a kit (existing notes become lanes by pitch class) and `ToggleLane` switches one lane ([instruments.md §7](instruments.md)) | `op8-seq` unit tests | ✓ |
 
 ## B · Brain (`tests/brain.rs`)
 
@@ -57,6 +58,8 @@ The buttons and their implementation status are in [buttons.md](buttons.md). Thi
 | F-K02 | With page 6 open, knobs 5–8 change parameters 5–8 | `right_page == 1`; `param(track, 4)` changes | ✓ |
 | F-K03 | Touching a knob shows the large overlay on the right screen | `knob_touch[i]` true; the screen hash changes | ✓ |
 | F-K04 | Each instrument exposes at most 8 parameters | `parameters().len() <= 8` for all cartridges (`builtin_names`) | ✓ |
+| F-K09 | A kit step has no note: on a drum track the first knob of the step inspector does nothing and its cell is empty; a plain-pitch track keeps its note knob ([instruments.md §7](instruments.md)) | the step is unchanged after the knob | ✓ |
+| F-K10 | On a drum kit the pads are the steps of the lane chosen on the right (`sound`): a tap switches that lane on or off in the step and leaves the other lanes as they are, so several sounds can share a step | `steps[..].lanes` after the taps | ✓ |
 
 ## D · Screens (`tests/screens.rs`)
 
@@ -70,7 +73,7 @@ The buttons and their implementation status are in [buttons.md](buttons.md). Thi
 | F-D06 | A flat screen takes a few bytes and noise is not inflated | `flat_screens_are_tiny_and_noise_is_not_inflated`: 32 bytes for a black screen; the same as raw for noise | ✓ |
 | F-D08 | The optional delta sending (`OP8_DISPLAY_DELTA=1`): a few changed pixels cost a small transfer, the screen ends up showing the new frame, and a pair is sent even if only one of its pixels changed | `a_small_change_costs_a_small_transfer_and_still_round_trips` and `changed_pairs_are_sent_even_when_only_one_pixel_differs` in `crates/op8-hw` | ✓ (not looked at on the real screens) |
 | F-D09 | Each theme defines the eight brand colours and ends in its white; glossy and matte follow the rainbow order (red, orange, yellow, green, blue, indigo, violet), chrome is one range drifting one way ([design.md §2.3](design.md)) | `op8-gfx` unit test | ✓ |
-| F-D10 | Each screen names what its buttons do, in a capsule centred on the button: `step`, `components` (left) and `sound`, `shape` (right); a button with no function shows nothing; the open page is underlined; in settings the strip is empty ([design.md §4](design.md)) | pixels of the top 18 rows around each button; the open page has the `fg` outline | ✓ |
+| F-D10 | Each screen names what its buttons do, in a capsule centred on the button: `step`, `components` (left) and `shape`, `sound` (right, in that order); a button with no function shows nothing; the open page is underlined; in settings the strip is empty ([design.md §4](design.md)) | pixels of the top 18 rows around each button; the open page has the `fg` outline | ✓ |
 | F-D11 | On the step grid an active step and an empty one are far apart in brightness (the active at least 5 times brighter) | pixel luminance of both cells | ✓ |
 | F-D12 | Screen button 1 goes back to the step view and 2 opens the components; both, and 5 and 6, do nothing in settings | `ui.mode` and `ui.inspect_step` | ✓ |
 | F-D13 | The text in a capsule is centred in it by its ink, within a pixel horizontally and 2.5 px vertically ([design.md §3](design.md)) | pixels of the strip | ✓ |
@@ -103,6 +106,11 @@ The buttons and their implementation status are in [buttons.md](buttons.md). Thi
 | F-A05 | The same script gives exactly the same audio | two runs of the demo produce identical samples | ✓ |
 | F-A06 | The audio stream comes back by itself when its device fails. The sequencer's clock runs in the audio callback, so without this PLAY lights up and nothing moves | `Keeper` in `crates/op8/src/audio.rs`: restarts after a failure, retries about once a second while the device is missing, reports one failure once, and resumes when the device returns | ✓ |
 | F-A07 | On the real MK3, pulling the USB cable and plugging it back: screens, audio and PLAY recover without restarting the app | **manual review**, with `OP8_LOG_EVENTS=1` | R |
+| F-A08 | drums: each of the eight sounds makes sound on its own note, and the note picks the sound by its pitch class (C kick, C# snare, D closed hat, D# open hat, E tom, F clap, F# rim, G crash; above G they wrap round); only the struck sound wakes ([instruments.md §7](instruments.md)) | `op8-cartridges` unit tests (`drums.rs`) | ✓ |
+| F-A09 | drums: the knobs edit the chosen sound (the `sound` knob), and each sound keeps its own values, also through save and load | `op8-cartridges` unit tests | ✓ |
+| F-A10 | drums: silent without notes, and all eight at once stay within full scale | `op8-cartridges` unit tests | ✓ |
+| F-A11 | A choice is heard at once, without playing the sequence: turning a knob of the selected instrument or `sound`, turning the note of a step, and tapping a drum step all play the note (`EngineCommand::Audition`) | peak of the track's audio with the sequence stopped | ✓ |
+| F-A12 | A choice is auditioned once, not over and over: the `sound` knob plays each new sound once, and a continuous knob plays nothing while it moves and one note when it has been still for 250 ms | note count of the track | ✓ |
 
 ## G · Scripts (`tests/script.rs`)
 
@@ -124,7 +132,7 @@ The buttons and their implementation status are in [buttons.md](buttons.md). Thi
 | F-C06 | The settings file: every theme survives a round trip, a damaged file falls back to the default, names match the command line, saving creates the folder | unit tests in `crates/op8/src/settings.rs` | ✓ |
 | F-C07 | A theme change is saved to the settings file, and only when a path is set (never in the simulator or the bench) | the file's content after each change | ✓ |
 | F-C08 | On the real MK3: the SETTINGS button reaches the app and its LED lights, the 4D encoder changes the theme on both screens, the choice survives a restart, and `-t` overrides it | **manual review**, with `OP8_LOG_EVENTS=1` | R |
-| F-C09 | The theme changes the pad and group LEDs, not only the screens: track A's pad and group key take that theme's colour from `track_led_colors`, and the three themes do not light the pads alike | `crates/op8/tests/settings.rs` | ✓ |
+| F-C09 | The theme changes the pad and group LEDs, not only the screens: track B's pad and group key take that theme's colour from `track_led_colors`, and the three themes do not light the pads alike | `crates/op8/tests/settings.rs` | ✓ |
 
 ## H · Hardware link (`crates/op8-hw`, `crates/op8`)
 

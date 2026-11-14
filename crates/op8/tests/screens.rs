@@ -76,7 +76,7 @@ fn strip_lit(b: &Bench, screen: Screen, col: usize) -> usize {
 #[test]
 fn f_d10_screens_name_their_buttons() {
     let mut b = Bench::demo();
-    b.press(Button::Group(3)); // track D: macro, with two parameter pages
+    b.press(Button::Group(4)); // track E: macro, with two parameter pages
     b.run_ms(100);
     // Left: step, components; 3 and 4 do nothing.
     assert!(strip_lit(&b, Screen::Left, 0) > 20 && strip_lit(&b, Screen::Left, 1) > 20);
@@ -90,12 +90,12 @@ fn f_d10_screens_name_their_buttons() {
     assert_eq!(edge(&b, 1, 55), 0, "and does not run past its text");
     // The page that is open has the bright outline (fg), the other the faint one.
     let t = op8_gfx::theme();
-    assert_eq!(edge(&b, 0, 0), t.fg.0, "sound is open");
-    assert_eq!(edge(&b, 1, 0), t.faint.0);
-    b.press(Button::Screen(6));
-    b.run_ms(100);
-    assert_eq!(edge(&b, 1, 0), t.fg.0, "shape is open");
+    assert_eq!(edge(&b, 1, 0), t.fg.0, "sound (button 6) is open");
     assert_eq!(edge(&b, 0, 0), t.faint.0);
+    b.press(Button::Screen(5));
+    b.run_ms(100);
+    assert_eq!(edge(&b, 0, 0), t.fg.0, "shape (button 5) is open");
+    assert_eq!(edge(&b, 1, 0), t.faint.0);
     // In settings the buttons do nothing, so nothing is named.
     b.press(Button::Settings);
     b.run_ms(100);
@@ -110,7 +110,7 @@ fn f_d10_screens_name_their_buttons() {
 #[test]
 fn f_d11_active_and_empty_steps_are_far_apart() {
     let mut b = Bench::demo();
-    b.press(Button::Group(0));
+    b.press(Button::Group(1));
     b.run_ms(100);
     let lum = |b: &Bench, step: usize| {
         let (x, y) = (262 + (step % 4) * 42 + 18, 50 + (step / 4) * 42 + 18);
@@ -118,7 +118,7 @@ fn f_d11_active_and_empty_steps_are_far_apart() {
         let (r, g, bl) = ((p >> 11) & 31, (p >> 5) & 63, p & 31);
         (r as u32 * 8 + g as u32 * 4 + bl as u32 * 8) as f32
     };
-    let steps: Vec<_> = (0..16).map(|s| (s, b.project().tracks[0].steps[s].active)).collect();
+    let steps: Vec<_> = (0..16).map(|s| (s, b.project().tracks[1].steps[s].active)).collect();
     let on = steps.iter().find(|s| s.1).expect("an active step").0;
     let off = steps.iter().find(|s| !s.1).expect("an empty step").0;
     assert!(lum(&b, on) > 5.0 * lum(&b, off).max(1.0), "active {} vs empty {}", lum(&b, on), lum(&b, off));
@@ -128,7 +128,7 @@ fn f_d11_active_and_empty_steps_are_far_apart() {
 #[test]
 fn f_d13_capsule_text_is_centred() {
     let mut b = Bench::demo();
-    b.press(Button::Group(3));
+    b.press(Button::Group(4));
     b.run_ms(200);
     for (screen, cols) in [(Screen::Left, [0usize, 1]), (Screen::Right, [0, 1])] {
         let fb = b.screen(screen);
@@ -157,23 +157,23 @@ fn f_d14_screen_button_leds_match_the_labels() {
     use op8_hw::leds::button_slot;
     let led = |b: &Bench, n: u8| b.leds().slots[button_slot(Button::Screen(n)).unwrap()];
     let mut b = Bench::demo();
-    b.press(Button::Group(3)); // track D: macro, two pages
+    b.press(Button::Group(4)); // track E: macro, two pages
     b.tick();
     let labels = |b: &Bench| op8_ui::screen_buttons(b.ui());
     let all = labels(&b);
-    assert!(all[0].is_some() && all[1].is_some() && all[4].is_some() && all[5].is_some(), "step, components, sound, shape");
+    assert!(all[0].is_some() && all[1].is_some() && all[4].is_some() && all[5].is_some(), "step, components, shape, sound");
     for n in 1..=8u8 {
         assert_eq!(led(&b, n) > 0, all[n as usize - 1].is_some(), "button {n}: lit exactly when it has a label");
     }
-    assert!(led(&b, 5) > led(&b, 6) && led(&b, 1) > led(&b, 2), "the open page is brighter than the other");
-    b.press(Button::Screen(6));
+    assert!(led(&b, 6) > led(&b, 5) && led(&b, 1) > led(&b, 2), "the open page is brighter than the other");
+    b.press(Button::Screen(5));
     b.tick();
-    assert!(led(&b, 6) > led(&b, 5), "shape is open now");
-    // A track whose instrument has one page (track C, the MIDI bridge) has no `shape`: no label, and the button is dark.
-    b.press(Button::Group(2));
+    assert!(led(&b, 5) > led(&b, 6), "shape (button 5) is open now");
+    // A track whose instrument has one page (track D, the MIDI bridge) has no `shape`: no label, and the button is dark.
+    b.press(Button::Group(3));
     b.tick();
-    assert_eq!(led(&b, 6), 0, "no second page, no light");
-    assert!(led(&b, 5) > 0);
+    assert_eq!(led(&b, 5), 0, "no second page, no light");
+    assert!(led(&b, 6) > 0);
     // In settings nothing is named and nothing is lit.
     b.press(Button::Settings);
     b.tick();

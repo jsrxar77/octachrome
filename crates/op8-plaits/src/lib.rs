@@ -30,6 +30,13 @@ extern "C" {
         size: usize,
     );
     fn op8_macro_active_engine(p: *const c_void) -> i32;
+    fn op8_macro_seed(seed: u32);
+}
+
+/// Seed the random generator the noise and percussion engines share, so that a
+/// run is repeatable. The generator is per thread: this seeds the calling thread's.
+pub fn seed_noise(seed: u32) {
+    unsafe { op8_macro_seed(seed) }
 }
 
 /// Number of synthesis engines.

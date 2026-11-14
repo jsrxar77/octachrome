@@ -81,7 +81,7 @@ With `sim` no hardware is needed: it writes `out.wav`, the captures and a table 
 | `op8-seq` | deterministic sequencer: steps, components, Brain, clock, command model | cartridge (only `NoteEvent`) |
 | `op8-engine` | audio engine: sequencer + 8 slots + mix + Punch-in FX + command queue | seq, cartridge |
 | `op8-plaits` | the macro oscillator from Plaits (C++, MIT, unchanged) behind a Rust interface; 24 engines | – |
-| `op8-cartridges` | **KickSyn**, **FmBass**, **MidiOutBridge**, **macro** | cartridge, plaits |
+| `op8-cartridges` | **KickSyn**, **FmBass**, **MidiOutBridge**, **macro**, **drums** | cartridge, plaits |
 | `op8-hw` | `ControlSurface` trait, `MockSurface`, MK3 protocol (pure functions) and USB transport (feature `mk3`) | gfx |
 | `op8-ui` | layouts of the left and right screens | gfx, seq, engine |
 | `op8` | binary: controller, frame loop, cpal audio, MIDI output, simulator, `hw-test`, test bench | everything |
@@ -101,6 +101,7 @@ The sequencer and the cartridges **do not depend on any driver**. Hardware enter
 
 The trait has six mandatory methods and **optional methods with a default implementation** (`secondary_parameters`, `parameter_value`, `all_notes_off`), so a cartridge that implements only the mandatory ones compiles anyway.
 
+* **drums**: eight percussion sounds on one track, chosen by the pitch of the note (C kick, C# snare, D closed hat, D# open hat, E tom, F clap, F# rim, G crash). Demo track A.
 * **KickSyn**: a sine with a pitch sweep, a noise click and drive. The screen shows amplitude and pitch envelopes and an oscilloscope.
 * **FmBass**: 2-operator FM, monophonic with last-note priority, glide and a sub-oscillator. The screen shows the MOD→CAR topology, ADSR and an oscilloscope.
 * **macro**: 24 synthesis engines (analogue, FM, wavetable, chords, voice, strings, modal, percussion) from Mutable Instruments' Plaits code (MIT). Four sound knobs (engine, harmonics, timbre, morph) and four shape knobs (decay, color, variant, level).
