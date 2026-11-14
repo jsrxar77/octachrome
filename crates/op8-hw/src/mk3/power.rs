@@ -104,10 +104,21 @@ pub fn choose() -> (Plan, String) {
 }
 
 impl Plan {
+    /// What the theme gets out of this supply: glossy asks for all of it, matte
+    /// for less, and no theme ever gets more than the supply allows.
+    pub fn with_look(&self, look: op8_gfx::Light) -> Plan {
+        Plan {
+            limited: self.limited,
+            brightness: ((self.brightness as f32 * look.backlight.clamp(0.0, 1.0)).round() as u8).max(10),
+            colour_level_max: self.colour_level_max.min(look.led_level.clamp(1, 3)),
+            mono_scale: self.mono_scale * look.mono.clamp(0.0, 1.0),
+        }
+    }
+
     /// The frame to write: colour LEDs capped at `colour_level_max`, the rest
     /// scaled by `mono_scale` (a lit LED never rounds down to off).
     pub fn limit(&self, frame: &LedFrame) -> LedFrame {
-        if !self.limited {
+        if self.colour_level_max >= 3 && self.mono_scale >= 1.0 {
             return *frame;
         }
         let mut colour = [false; LED_SLOTS];
@@ -189,6 +200,29 @@ mod tests {
         assert!(!plan_for(Some(500)).limited);
         assert!(!plan_for(Some(900)).limited);
         assert!(LIMITED.brightness < FULL.brightness);
+    }
+
+    // F-H07
+    #[test]
+    fn the_theme_asks_for_light_within_what_the_supply_allows() {
+        use op8_gfx::{theme_of, ThemeId};
+        for base in [LIMITED, FULL] {
+            let g = base.with_look(theme_of(ThemeId::Glossy).light);
+            let c = base.with_look(theme_of(ThemeId::Chrome).light);
+            let m = base.with_look(theme_of(ThemeId::Matte).light);
+            assert_eq!(g.brightness, base.brightness, "glossy takes all the supply allows");
+            assert!(g.brightness >= c.brightness && c.brightness > m.brightness, "glossy > chrome > matte");
+            assert!(m.colour_level_max < g.colour_level_max.max(base.colour_level_max).min(3) || base.limited);
+            assert!(m.mono_scale < g.mono_scale, "matte is softer on the other LEDs");
+            for p in [g, c, m] {
+                assert!(p.brightness <= base.brightness && p.colour_level_max <= base.colour_level_max && p.mono_scale <= base.mono_scale);
+            }
+        }
+        // glossy on a full supply leaves the LEDs untouched; matte caps them
+        let mut f = LedFrame::default();
+        f.set_pad(0, NiColor::Red, 3);
+        assert_eq!(FULL.with_look(theme_of(ThemeId::Glossy).light).limit(&f).pad(0) & 3, 3);
+        assert_eq!(FULL.with_look(theme_of(ThemeId::Matte).light).limit(&f).pad(0) & 3, 2);
     }
 
     // F-H05 (docs/features.md)

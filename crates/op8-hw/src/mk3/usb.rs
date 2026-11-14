@@ -28,6 +28,8 @@ pub struct Mk3Surface {
     read_buf: [u8; 128],
     /// What the host's supply allows: backlight and LED limits (see `power.rs`).
     power: power::Plan,
+    /// What the supply allows before the theme asks for less.
+    base_power: power::Plan,
     power_note: String,
 }
 
@@ -51,6 +53,7 @@ impl Mk3Surface {
             last_leds: None,
             read_buf: [0; 128],
             power,
+            base_power: power,
             power_note,
         };
         Ok((s, display_err))
@@ -59,6 +62,18 @@ impl Mk3Surface {
     /// The limits for the supply the host gives this MK3.
     pub fn power_plan(&self) -> power::Plan {
         self.power
+    }
+
+    /// Apply a theme's look: backlight and LED levels as a share of what the
+    /// supply allows. `OP8_BRIGHTNESS` still wins for the backlight.
+    pub fn set_look(&mut self, look: op8_gfx::Light) -> HwResult<()> {
+        self.power = self.base_power.with_look(look);
+        let brightness = std::env::var("OP8_BRIGHTNESS")
+            .ok()
+            .and_then(|v| v.parse::<u8>().ok())
+            .unwrap_or(self.power.brightness);
+        self.last_leds = None; // rewrite the LEDs under the new limits
+        self.set_brightness(brightness)
     }
 
     /// One line saying what was detected and what it means.

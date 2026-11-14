@@ -68,7 +68,7 @@ The buttons and their implementation status are in [buttons.md](buttons.md). Thi
 | F-D05 | The sending to the MK3 is exact: what is encoded is what the reference reader reconstructs, for any band of rows | `bands_round_trip` in `crates/op8-hw` (bands of 1 row, full screen and the middle; it does not write outside the band) | ✓ |
 | F-D06 | A flat screen takes a few bytes and noise is not inflated | `flat_screens_are_tiny_and_noise_is_not_inflated`: 32 bytes for a black screen; the same as raw for noise | ✓ |
 | F-D08 | The optional delta sending (`OP8_DISPLAY_DELTA=1`): a few changed pixels cost a small transfer, the screen ends up showing the new frame, and a pair is sent even if only one of its pixels changed | `a_small_change_costs_a_small_transfer_and_still_round_trips` and `changed_pairs_are_sent_even_when_only_one_pixel_differs` in `crates/op8-hw` | ✓ (not looked at on the real screens) |
-| F-D09 | Each theme defines the eight brand colours (fixed order: red, orange, yellow, green, blue, indigo, violet, white; each button is checked against the hue of its place) ([design.md §2.3](design.md)) | `op8-gfx` unit test | ✓ |
+| F-D09 | Each theme defines the eight brand colours and ends in its white; glossy and matte follow the rainbow order (red, orange, yellow, green, blue, indigo, violet), chrome is one range drifting one way ([design.md §2.3](design.md)) | `op8-gfx` unit test | ✓ |
 | F-D07 | On the real MK3, the two animated screens look complete and in step | **manual review** with photo and video; `OP8_DISPLAY_STATS=1` gives the figures | R |
 
 ## L · LEDs (`tests/leds.rs`)
@@ -127,6 +127,7 @@ The buttons and their implementation status are in [buttons.md](buttons.md). Thi
 | F-H04 | The app reads the current the host grants the MK3 and picks a plan: below 500 mA limited (screens 50), from 500 mA full (screens 80), unknown counts as limited. It reads the MK3's own entry and never another device's | `parse_ioreg` and `plan_for` tests in `crates/op8-hw/src/mk3/power.rs`, against the shape of the real `ioreg` output | ✓ (the 500 mA threshold is provisional, see F-H06) |
 | F-H05 | On a limited supply the LEDs are capped before they are written: colour LEDs (pads, groups, PLAY…) at level 2 keeping their colour, the others at 60 % but never rounded down to off; unlit LEDs stay unlit; a full supply changes nothing | `Plan::limit` tests in `crates/op8-hw/src/mk3/power.rs` | ✓ |
 | F-H06 | With the MK3 plugged straight into the Mac: `power:` shows what the host grants, and the plan it picks holds five minutes of PLAY without a reset. If it picks full, brightness 80 must hold | **manual review**, `scripts/run.sh -l`; adjust `FULL_POWER_MA` from the value seen | R |
+| F-H07 | The theme asks for light within what the supply allows: glossy takes all the backlight the plan gives, chrome less, matte least; matte caps the pad LEDs at level 2; no theme gets more than the plan ([design.md §2.5](design.md)) | `op8-hw` unit test (`power.rs`) | ✓ |
 | F-H03 | On the real MK3, five minutes of playing, turning knobs and changing modes and themes with no reset and no reconnect | **manual review**: `OP8_LOG_EVENTS=1` and `OP8_DISPLAY_STATS=1`; the log has no `reconnecting` line | R |
 
 ## Manual review (cannot be automated)

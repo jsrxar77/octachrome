@@ -25,6 +25,19 @@ impl ThemeId {
     }
 }
 
+/// How much light the theme asks of the hardware, as shares of what the
+/// supply allows (see `op8-hw` `power.rs`): the theme never gets more than the
+/// supply gives, only less.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Light {
+    /// Share of the allowed screen backlight, 0.0..=1.0.
+    pub backlight: f32,
+    /// Highest level the pad and group LEDs may be asked for, 1..=3.
+    pub led_level: u8,
+    /// Share applied to the single-colour LEDs and the strip.
+    pub mono: f32,
+}
+
 #[derive(Clone, Copy, Debug)]
 pub struct Theme {
     pub name: &'static str,
@@ -43,6 +56,8 @@ pub struct Theme {
     pub brand: [Rgb565; 8],
     /// Only REC, erase and peaks.
     pub rec: Rgb565,
+    /// What the theme asks of the screens' backlight and the LEDs.
+    pub light: Light,
 }
 
 const fn c(hex: u32) -> Rgb565 {
@@ -78,6 +93,7 @@ pub const THEMES: [Theme; 3] = [
             c(0xF2F4F8),
         ],
         rec: c(0xFF3B30),
+        light: Light { backlight: 1.0, led_level: 3, mono: 1.0 },
     },
     Theme {
         name: "matte",
@@ -107,6 +123,7 @@ pub const THEMES: [Theme; 3] = [
             c(0xF4EFE6),
         ],
         rec: c(0xE63946),
+        light: Light { backlight: 0.6, led_level: 2, mono: 0.7 },
     },
     Theme {
         name: "chrome",
@@ -116,26 +133,27 @@ pub const THEMES: [Theme; 3] = [
         faint: c(0x24262C),
         panel: c(0x0F1014),
         knobs: [
-            c(0x94A8C6),
-            c(0x00F076),
+            c(0xD633FF),
+            c(0xA442FF),
+            c(0x8652FF),
+            c(0x7361FF),
+            c(0x707AFF),
+            c(0x809DFF),
+            c(0x8FBCFF),
             c(0xEEF0F5),
-            c(0xFF3844),
-            c(0xFFD60A),
-            c(0x34D3E8),
-            c(0x9D7BFF),
-            c(0xFF8A1F),
         ],
         brand: [
-            c(0xFF3B2F),
-            c(0xFF8A1F),
-            c(0xFFD60A),
-            c(0x00F076),
-            c(0x4C8DFF),
-            c(0x6A5CFF),
-            c(0xB07BFF),
+            c(0xD633FF),
+            c(0xA442FF),
+            c(0x8652FF),
+            c(0x7361FF),
+            c(0x707AFF),
+            c(0x809DFF),
+            c(0x8FBCFF),
             c(0xEEF0F5),
         ],
         rec: c(0xFF2244),
+        light: Light { backlight: 0.8, led_level: 3, mono: 0.85 },
     },
 ];
 
@@ -178,10 +196,19 @@ mod brand_tests {
 
     // F-D09
     #[test]
-    fn f_d09_each_theme_has_eight_brand_colours_in_fixed_rainbow_order_ending_in_white() {
+    fn f_d09_each_theme_has_eight_brand_colours_ending_in_white() {
         for t in THEMES.iter() {
             assert_eq!(t.brand[7], t.fg, "{}: the eighth brand button is the theme's white", t.name);
-            // The order is fixed: red, orange, yellow, green, blue, indigo, violet, then white.
+            let hues: Vec<f32> = t.brand[..7].iter().map(|&c| hue(c)).collect();
+            if t.name == "chrome" {
+                // The monochrome theme: one range (violet drifting to blue), strong to soft.
+                for w in hues.windows(2) {
+                    assert!(w[1] < w[0] - 3.0, "chrome: the range drifts one way: {:?}", hues);
+                }
+                assert!(hues.iter().all(|&h| h > 200.0 && h < 300.0), "chrome stays in its range: {:?}", hues);
+                continue;
+            }
+            // The others: the order is fixed, red, orange, yellow, green, blue, indigo, violet, then white.
             // A theme may change the range and the hue a little, never the order.
             const BANDS: [(&str, f32, f32); 7] = [
                 ("red", -1.0, 15.0),

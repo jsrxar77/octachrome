@@ -167,7 +167,14 @@ fn run(mut script: Option<Script>, theme_given: bool) -> Result<()> {
     }
     let mut pacer = Pacer::new(60);
     let mut backoff = op8::backoff::Backoff::new();
+    // The theme's light (backlight, LED levels), applied again whenever the
+    // theme or the surface changes.
+    let mut lit: Option<op8_gfx::ThemeId> = None;
     loop {
+        if lit != Some(op8_gfx::theme_id()) {
+            let _ = app.surface.set_look(op8_gfx::theme().light);
+            lit = Some(op8_gfx::theme_id());
+        }
         #[cfg(feature = "audio")]
         if let Some(line) = audio.keep_alive() {
             println!("[{:.1}s] {line}", pacer.seconds());
@@ -203,6 +210,7 @@ fn run(mut script: Option<Script>, theme_given: bool) -> Result<()> {
                     if s.has_screens() {
                         app.surface = s;
                         app.invalidate();
+                        lit = None;
                         println!("[{:.1}s] MK3: back", pacer.seconds());
                         break;
                     }

@@ -32,20 +32,20 @@ What each MK3 button does is in its own document: **[buttons.md](buttons.md)**. 
 
 ## 2. Colour
 
-Three themes. The logic is the same in all three; only the palette changes. The hex values are ours, not measured from the devices.
+Three themes, three characters: **glossy** is strong and bright, **matte** is softer and chalky, and **chrome** is monochrome: one range (violet drifting to blue, strong to soft) with white last. Every theme has exactly **eight** colours, always in an order that recalls the rainbow, and they are chosen for what the MK3's LEDs can show: 16 hues in 3 levels on the pads and group keys, one colour on every other button. The logic is the same in all three; only the palette changes. The hex values are ours, not measured from the devices.
 
 ### 2.1 Encoder colours
 
 | Encoder | glossy (default) | matte | chrome |
 | :-- | :-- | :-- | :-- |
-| 1 | `#0099FF` blue | `#3B8EBA` steel blue | `#94A8C6` ice silver |
-| 2 | `#00E56A` green | `#D9822B` ochre | `#00F076` signal green |
-| 3 | `#F2F4F8` white | `#A9AFB8` grey | `#EEF0F5` platinum |
-| 4 | `#FF4F00` orange | `#F2652A` orange | `#FF3844` red |
-| 5 | `#8B6CFF` violet | `#7FB58A` sage | `#FFD60A` yellow |
-| 6 | `#FFD21F` yellow | `#E3C77A` sand | `#34D3E8` cyan |
-| 7 | `#2ED3E6` cyan | `#A88BC7` lilac | `#9D7BFF` violet |
-| 8 | `#FF4FA0` pink | `#D9677A` dusty rose | `#FF8A1F` orange |
+| 1 | `#0099FF` blue | `#3B8EBA` steel blue | `#D633FF` violet-magenta |
+| 2 | `#00E56A` green | `#D9822B` ochre | `#A442FF` violet |
+| 3 | `#F2F4F8` white | `#A9AFB8` grey | `#8652FF` soft violet |
+| 4 | `#FF4F00` orange | `#F2652A` orange | `#7361FF` periwinkle |
+| 5 | `#8B6CFF` violet | `#7FB58A` sage | `#707AFF` cornflower |
+| 6 | `#FFD21F` yellow | `#E3C77A` sand | `#809DFF` sky |
+| 7 | `#2ED3E6` cyan | `#A88BC7` lilac | `#8FBCFF` pale blue |
+| 8 | `#FF4FA0` pink | `#D9677A` dusty rose | `#EEF0F5` white |
 
 The first four follow the encoder order of each reference device (original OP-1: blue, green, white, orange; OP-1 field: blue, ochre, grey, orange). The four instrument colours are chosen so they are not confused with the first four at a glance.
 
@@ -68,21 +68,21 @@ The mark of OP-8 is **eight buttons, one per colour of the rainbow, the eighth w
 
 | Button | glossy | matte | chrome |
 | :-- | :-- | :-- | :-- |
-| 1 red | `#FF2D2D` | `#D9534F` | `#FF3B2F` |
-| 2 orange | `#FF8A1F` | `#D9822B` | `#FF8A1F` |
-| 3 yellow | `#FFD21F` | `#E3C77A` | `#FFD60A` |
-| 4 green | `#00E56A` | `#7FB58A` | `#00F076` |
-| 5 blue | `#0099FF` | `#3B8EBA` | `#4C8DFF` |
-| 6 indigo | `#4B4BFF` | `#5F6BB5` | `#6A5CFF` |
-| 7 violet | `#B15CFF` | `#A88BC7` | `#B07BFF` |
+| 1 red | `#FF2D2D` | `#D9534F` | `#D633FF` |
+| 2 orange | `#FF8A1F` | `#D9822B` | `#A442FF` |
+| 3 yellow | `#FFD21F` | `#E3C77A` | `#8652FF` |
+| 4 green | `#00E56A` | `#7FB58A` | `#7361FF` |
+| 5 blue | `#0099FF` | `#3B8EBA` | `#707AFF` |
+| 6 indigo | `#4B4BFF` | `#5F6BB5` | `#809DFF` |
+| 7 violet | `#B15CFF` | `#A88BC7` | `#8FBCFF` |
 | 8 white | `#F2F4F8` | `#F4EFE6` | `#EEF0F5` |
 
 Rules of the mark:
 
-- Always eight buttons, always in this order: **red, orange, yellow, green, blue, indigo, violet, white**. The order never changes, in any theme, size or use.
+- Always eight buttons, always in a fixed order that recalls the rainbow. In glossy and matte it is **red, orange, yellow, green, blue, indigo, violet, white**. In chrome it is one range, from the strongest violet drifting to blue, then white. The order never changes, in any size or use.
 - The eight are laid out **as the MK3 lays out eight** (§2.4): the eight group keys, **four and four** (the main mark), or the **eight knobs in a row** (the long mark). Reading order is left to right, then the second row. Never another arrangement: no loop, no circle, no stairs.
 - Always on absolute black. Never fewer than eight, never another colour, never outlined, never a gradient.
-- The colours come from the active theme (`Theme.brand` in `crates/op8-gfx/src/theme.rs`). A theme may shift the range and the hue (muted in matte, brighter in chrome), but it always has **eight** that recall the rainbow: the seven colours of the rainbow in its order (red, orange, yellow, green, blue, indigo, violet), then the theme's own white. A test checks that each button is the colour of its place (F-D09).
+- The colours come from the active theme (`Theme.brand` in `crates/op8-gfx/src/theme.rs`). A theme may shift the range (softer in matte), but it always has **eight**: in glossy and matte the seven colours of the rainbow in their order, in chrome seven steps of one range, and in all of them the theme's own white last. A test checks that each button is the colour of its place (F-D09).
 - The keys keep the proportion of the unit's group keys and rounded corners; the knobs are circles. A single button may light in turn, like a playhead; nothing else moves. In the guide the eight can be played as a major scale, the white being the octave.
 - The wordmark is `OP-8` in Jost Light. The mark can stand alone or above the wordmark; the wordmark never carries the colours.
 - The master files are `guide/brand/op8-mark.svg` (4 + 4) and `guide/brand/op8-mark-knobs.svg` (a row). Their geometry is `MK3.mark` in `guide/mk3.js`.
@@ -95,6 +95,18 @@ Every picture of the MK3 (the guide's map, the manual, the brand page, the twin,
 - Top to bottom: the eight screen buttons, the two screens, the eight knobs under them. On the left, six rows of two buttons (CHANNEL to MACRO), the 4D encoder with VOLUME, SWING and TEMPO beside it, then PITCH, MOD, PERFORM, NOTES, the Smart Strip, the group keys A–H as two rows of four, and the transport at the bottom. In the middle, the pad-mode buttons above the pads and SCENE to MUTE in a column to their left. On the right, the 4×4 pads.
 - A group of **eight** is drawn as the eight knobs in a row or as the eight group keys, four and four. A group of **sixteen** is the 4×4 pads. Never another arrangement.
 - The same rule applies to what the player sees in OP-8: the 8 factory and 8 user instruments, and the 8 factory and 8 user projects, are the 16 pads ([instruments.md §7](instruments.md)).
+
+### 2.5 Light
+
+A theme is also how much **light** the machine gives, not only its colours. The theme asks for a share of what the supply allows ([architecture.md §10](architecture.md)), and never for more:
+
+| | Screens' backlight | Pad and group LEDs | Other buttons and strip |
+| :-- | :-- | :-- | :-- |
+| glossy | all that the supply allows | level 3 | full |
+| matte | 60 % | level 2 | 70 % |
+| chrome | 80 % (to be tuned on the unit) | level 3 | 85 % |
+
+The values are `Theme.light` in `crates/op8-gfx/src/theme.rs`; the supply's ceiling is the power plan in `crates/op8-hw/src/mk3/power.rs` (F-H07). `guide/themes.html` shows the three on the whole unit. The monochrome theme is still open: its colours and its light are provisional until it is seen on the MK3.
 
 ## 3. Typography
 
@@ -119,7 +131,7 @@ In Rust, Jost (300 and 400, `assets/fonts/`) is embedded with `include_bytes!` a
 
 | What | File |
 | :-- | :-- |
-| Themes, encoder colours and brand colours | `crates/op8-gfx/src/theme.rs` (`theme()`, `knob(i)`, `Theme.brand`) |
+| Themes, encoder colours, brand colours and light | `crates/op8-gfx/src/theme.rs` (`theme()`, `knob(i)`, `Theme.brand`) |
 | Brand mark (master files) | `guide/brand/op8-mark.svg`, `guide/brand/op8-mark-knobs.svg` |
 | MK3 front-panel geometry (every picture of the unit) | `guide/mk3.js` |
 | Brand colours in the twin | `THEMES[...].brand` in `twin/op8-twin.html` |
