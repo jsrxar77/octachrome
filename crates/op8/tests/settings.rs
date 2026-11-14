@@ -191,3 +191,30 @@ fn f_c09_theme_changes_the_pad_and_group_leds() {
     assert!(seen[0] != seen[1] || seen[1] != seen[2], "the three themes do not light the pads alike");
     assert_ne!(op8::controller::track_led_colors(ThemeId::Chrome), op8::controller::track_led_colors(ThemeId::Glossy));
 }
+
+// F-C09, the way a player gets there: SETTINGS, turn the 4D encoder, back to CHANNEL.
+#[test]
+fn f_c09_choosing_a_theme_in_settings_recolours_the_pads() {
+    let _t = fresh();
+    let mut b = Bench::demo();
+    b.press(Button::Group(0));
+    let pad = |b: &Bench| {
+        let on = (0..16u8)
+            .find(|&p| {
+                let step = op8::Controller::pad_to_step(p) as usize;
+                step < 16 && b.project().tracks[0].steps[step].active
+            })
+            .expect("an active step");
+        b.leds().pad(on) >> 2
+    };
+    b.tick();
+    let glossy = pad(&b);
+    b.press(Button::Settings);
+    b.encoder(1); // matte
+    b.encoder(1); // chrome
+    b.press(Button::ChannelMidi); // back to composing
+    b.tick();
+    assert_eq!(theme_id(), ThemeId::Chrome);
+    assert_ne!(pad(&b), glossy, "the pads wear the chosen theme once composing again");
+    assert_eq!(pad(&b), op8::controller::track_led_colors(ThemeId::Chrome)[0] as u8);
+}
