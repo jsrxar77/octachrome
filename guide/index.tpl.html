@@ -83,7 +83,23 @@ pre span{color:var(--dim)}
 .pw{display:flex;gap:18px;flex-wrap:wrap;justify-content:center}
 .pw div{background:var(--panel);border:1px solid var(--faint);border-radius:16px;padding:14px 20px;min-width:150px}
 .pw big{display:block;font-size:34px;font-weight:400}
-@media (max-width:700px){nav{display:none}}
+/* what it is, what you need, where it stands */
+.shots{display:grid;grid-template-columns:1fr 1fr;gap:10px;width:min(980px,94vw)}
+.shots img{width:100%;height:auto;display:block;border-radius:10px;border:1px solid var(--faint);background:#000}
+.facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:14px;width:min(980px,94vw);text-align:left}
+.fact{background:var(--panel);border:1px solid var(--faint);border-radius:18px;padding:20px 22px}
+.fact h3{font-weight:400;font-size:21px;margin-bottom:6px}
+.fact p{color:var(--dim);font-size:17px;line-height:1.55}
+.fact b{font-weight:400;color:var(--fg)}
+.small{font-size:15px}
+a.btn{display:inline-block;font:inherit;color:var(--fg);background:var(--panel);border:1px solid var(--dim);border-radius:999px;padding:11px 24px;text-decoration:none;transition:.15s}
+a.btn:hover{border-color:var(--acc);color:var(--acc)}a.btn.main{border-color:var(--acc);color:var(--acc)}
+.status{display:flex;flex-wrap:wrap;gap:16px;justify-content:center}
+.status div{background:var(--panel);border:1px solid var(--faint);border-radius:16px;padding:14px 24px;min-width:140px}
+.status big{display:block;font-size:44px;font-weight:300;line-height:1.1}
+.status .y big{color:var(--k5)}.status .p big{color:var(--k6)}
+.card p{color:var(--dim);font-size:15px;line-height:1.45;margin-top:4px}
+@media (max-width:700px){nav{display:none}.shots{grid-template-columns:1fr}}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;scroll-behavior:auto!important}}
 </style>
 </head>
@@ -97,6 +113,40 @@ pre span{color:var(--dim)}
   <h1>OP-8</h1>
   <p class="lead">A groovebox you play with a Maschine MK3.</p>
   <div class="scroll">scroll</div>
+</section>
+
+<section id="what">
+  <h2>What it is</h2>
+  <p class="lead" style="max-width:46ch">A groovebox for people who like to play hardware: eight tracks, steps that drift against each other, a harmony that follows the song, and eight instruments. It runs on a small computer and is played on a Native Instruments Maschine MK3.</p>
+  <div class="shots"><img src="img/r01-start-left.png" width="480" height="272" alt="The left screen of OP-8: the steps of a track, the tempo and the chord."><img src="img/r01-start-right.png" width="480" height="272" alt="The right screen of OP-8: the drum instrument of the selected track, with four knobs."></div>
+  <p class="dim small">The two screens of the MK3 as OP-8 draws them, taken from the real program. The left one is time, the right one is sound.</p>
+  <div class="row"><a class="btn main" href="twin/op8-twin.html">Try it in your browser</a><a class="btn" href="manual.html">Read the manual</a></div>
+</section>
+
+<section id="ideas">
+  <h2>Three things that make it different</h2>
+  <div class="facts">
+    <div class="fact"><h3>Every track has its own length</h3><p>A bar of seven steps against a bar of sixteen drifts apart and comes back together by itself. <b>Nobody has to program the variation.</b></p></div>
+    <div class="fact"><h3>A step is more than a note</h3><p>Hold a pad and make a step repeat, play only sometimes, play every second time or play late. Each track also has its <b>own effect and its own LFO</b>.</p></div>
+    <div class="fact"><h3>A brain that knows chords</h3><p>Tracks connected to the <b>Brain</b> follow a chord progression, so a bass line written in one key plays in tune with the harmony, bar after bar.</p></div>
+  </div>
+</section>
+
+<section id="need">
+  <h2>What you need</h2>
+  <div class="facts">
+    <div class="fact"><h3>A Maschine MK3</h3><p>The only control surface: its pads, knobs, Smart Strip, lights and <b>both screens</b> are used. OP-8 talks to it directly; no other software is needed.</p></div>
+    <div class="fact"><h3>A small computer</h3><p>A <b>Raspberry Pi 5</b> (4 GB, with its official power supply) is the target, and a Pi 4 should do. On a <b>Mac</b> you can run it today, and without any hardware a simulator plays the whole thing.</p></div>
+    <div class="fact"><h3>Speakers or headphones</h3><p>On the MK3's own outputs. Samples you record come in through its input, or from OP-8 itself.</p></div>
+  </div>
+</section>
+
+<section id="status">
+  <h2>Where it stands</h2>
+  <p class="lead" style="max-width:44ch">OP-8 is young. This is what the buttons of the MK3 do today.</p>
+  <div class="status"><div class="y"><big>{{N_Y}}</big><span class="dim">work today</span></div><div class="p"><big>{{N_P}}</big><span class="dim">work in part</span></div><div class="n"><big>{{N_N}}</big><span class="dim">are planned</span></div></div>
+  <p class="dim small" style="max-width:56ch">Of {{N_ALL}} buttons and controls. Everything that works is tested without hardware on every change, and part of it has also been tried on a real MK3; the manual says honestly what is still missing.</p>
+  <div class="row"><a class="btn" href="manual.html#reference">Every button, one by one</a><a class="btn" href="manual.html#notyet">What it does not do yet</a></div>
 </section>
 
 <section id="s1">
@@ -120,7 +170,7 @@ pre span{color:var(--dim)}
 </section>
 
 <section class="modes" id="s3">
-  <h2>Four modes</h2>
+  <h2>The pads change what they are</h2>
   <div class="row" id="modeTabs"></div>
   <div class="pads" id="modePads"></div>
   <div class="cap" id="modeCap"></div>
@@ -139,7 +189,7 @@ pre span{color:var(--dim)}
 
 <section id="s4b">
   <h2>Three themes</h2>
-  <p class="lead">Bright, soft, monochrome.</p>
+  <p class="lead">Soft, bright, monochrome. Matte is where it starts.</p>
   <svg id="themeMk" role="img" aria-label="The MK3 in the chosen theme" style="width:min(1000px,96vw);height:auto;display:block;margin:auto"></svg>
   <div class="cap" id="themeCap"></div>
   <div class="row" id="themeTabs2"></div>
@@ -147,7 +197,7 @@ pre span{color:var(--dim)}
 
 <section id="s5">
   <h2>Instruments</h2>
-  <p class="lead">At most eight knobs. A drawing that shows the sound.</p>
+  <p class="lead">At most eight knobs. A drawing that shows the sound. A MIDI out drives an outside synth, and a granular instrument is coming.</p>
   <div class="cards" id="cards"></div>
 </section>
 
@@ -156,6 +206,7 @@ pre span{color:var(--dim)}
   <pre id="cmd"><span>$</span> op8</pre>
   <div class="row"><button id="copy">Copy</button></div>
   <p class="lead">Builds, frees the MK3 from NI's services, and plays.</p>
+  <div class="row"><a class="btn" href="manual.html#first">Your first ten minutes</a><a class="btn" href="twin/op8-twin.html">No MK3? Try the twin</a></div>
   <div class="pw">
     <div><big>&lt; 500 mA</big><span class="dim">screens 50, LEDs capped</span></div>
     <div><big>≥ 500 mA</big><span class="dim">screens 80, full LEDs</span></div>
@@ -274,9 +325,9 @@ new IntersectionObserver(es => { if (!es[0].isIntersecting && playing) stop(); }
 /* modes */
 const MODES = {
   STEP:    { cap: "Pads are the 16 steps. Hold one to open its components.", pad: i => ["var(--k" + ((i % 8) + 1) + ")", ""] , label: i => i + 1 },
+  KEYBOARD:{ cap: "Pads are a chromatic keyboard that plays the instrument of the track.", pad: i => [[1, 3, 6, 8, 10].includes(i % 12) ? "var(--k3)" : "var(--k6)", ""], label: i => ["C","C♯","D","D♯","E","F","F♯","G","G♯","A","A♯","B","C","C♯","D","D♯"][i] },
   CHORDS:  { cap: "Brain: pads are chord degrees. Hold one to play the chord.", pad: i => [i < 7 ? "var(--k5)" : "var(--faint)", ""], label: i => i < 7 ? ["I","II","III","IV","V","VI","VII"][i] : "" },
   PERFORM: { cap: "Punch-in FX: each pad is an effect. Pressure is the amount.", pad: i => ["var(--k" + ((i % 8) + 1) + ")", ""], label: i => ["⟲","⟳","▮","≈","⇣","⇡","✦","◌","↯","⇄","∿","☰","⚡","◐","◑","◒"][i] },
-  SETTINGS:{ cap: "Both screens become settings. Turn the 4D encoder to pick a theme. CHANNEL goes back.", pad: () => ["var(--faint)", ""], label: () => "" },
 };
 const mt = $("#modeTabs"), mp = $("#modePads");
 for (let i = 0; i < 16; i++) mp.append(el("div", { class: "pad" }));
@@ -317,13 +368,16 @@ OP8.tabs($("#themeTabs"));
 
 /* instruments */
 const INST = [
-  { n: "KickSyn", k: 4, d: (c, t, w, h) => { c.beginPath(); for (let x = 0; x < w; x++) { const u = x / w; const y = h / 2 - Math.sin(u * u * 40 + t * 4) * Math.exp(-u * 3) * h * .4; x ? c.lineTo(x, y) : c.moveTo(x, y); } c.stroke(); } },
-  { n: "FmBass", k: 4, d: (c, t, w, h) => { c.beginPath(); for (let x = 0; x < w; x++) { const u = x / w * 12.56; const y = h / 2 - Math.sin(u + 2.2 * Math.sin(u * 2 + t * 2)) * h * .38; x ? c.lineTo(x, y) : c.moveTo(x, y); } c.stroke(); } },
-  { n: "macro", k: 8, d: (c, t, w, h) => { c.beginPath(); for (let a = 0; a <= 6.3; a += .05) { const r = (h * .3) * (1 + .4 * Math.sin(a * 5 + t * 2)); const x = w / 2 + Math.cos(a) * r * 1.4, y = h / 2 + Math.sin(a) * r; a ? c.lineTo(x, y) : c.moveTo(x, y); } c.closePath(); c.stroke(); } },
+  { n: "KickSyn", k: 8, s: "A synthetic kick drum, from a soft thump to a hard click.", d: (c, t, w, h) => { c.beginPath(); for (let x = 0; x < w; x++) { const u = x / w; const y = h / 2 - Math.sin(u * u * 40 + t * 4) * Math.exp(-u * 3) * h * .4; x ? c.lineTo(x, y) : c.moveTo(x, y); } c.stroke(); } },
+  { n: "FmBass", k: 8, s: "A two-operator FM bass: round, growling, metallic.", d: (c, t, w, h) => { c.beginPath(); for (let x = 0; x < w; x++) { const u = x / w * 12.56; const y = h / 2 - Math.sin(u + 2.2 * Math.sin(u * 2 + t * 2)) * h * .38; x ? c.lineTo(x, y) : c.moveTo(x, y); } c.stroke(); } },
+  { n: "drums", k: 8, s: "Eight percussion sounds on one track, in eight lanes.", d: (c, t, w, h) => { for (let i = 0; i < 8; i++) { const x = 30 + (i % 4) * 92, y = 32 + Math.floor(i / 4) * 58, on = Math.floor(t * 3) % 8 === i; c.beginPath(); c.arc(x, y, on ? 17 : 13, 0, 6.3); on ? c.fill() : c.stroke(); } } },
+  { n: "resonator", k: 8, s: "A plucked string or a struck bell; four notes ring at once.", d: (c, t, w, h) => { for (let i = 0; i < 4; i++) { c.globalAlpha = 1 - ((t * .7 + i * .25) % 1); c.beginPath(); c.arc(w / 2, h / 2, 8 + ((t * .7 + i * .25) % 1) * 56, 0, 6.3); c.stroke(); } c.globalAlpha = 1; } },
+  { n: "sampler", k: 8, s: "Plays sounds that come with it, your own files, and what you record.", d: (c, t, w, h) => { c.beginPath(); for (let x = 0; x < w; x++) { const u = x / w; const y = h / 2 - Math.sin(u * 60) * Math.sin(u * 3.1) * Math.exp(-u * 1.6) * h * .4; x ? c.lineTo(x, y) : c.moveTo(x, y); } c.stroke(); const px = ((t * .25) % 1) * w; c.beginPath(); c.moveTo(px, 8); c.lineTo(px, h - 8); c.stroke(); } },
+  { n: "macro", k: 8, s: "Twenty-four synthesis engines in one, from analogue waves to voices.", d: (c, t, w, h) => { c.beginPath(); for (let a = 0; a <= 6.3; a += .05) { const r = (h * .3) * (1 + .4 * Math.sin(a * 5 + t * 2)); const x = w / 2 + Math.cos(a) * r * 1.4, y = h / 2 + Math.sin(a) * r; a ? c.lineTo(x, y) : c.moveTo(x, y); } c.closePath(); c.stroke(); } },
 ];
 const cards = $("#cards"); const icv = [];
 INST.forEach((it, i) => {
-  const c = el("div", { class: "card" }, `<canvas width="400" height="120"></canvas><h3>${it.n}</h3><div class="knobs">${Array.from({ length: it.k }, (_, j) => `<b style="--c:var(--k${j + 1})"></b>`).join("")}</div>`);
+  const c = el("div", { class: "card" }, `<canvas width="400" height="120"></canvas><h3>${it.n}</h3><p>${it.s || ""}</p><div class="knobs">${Array.from({ length: it.k }, (_, j) => `<b style="--c:var(--k${j + 1})"></b>`).join("")}</div>`);
   cards.append(c); icv.push(c.querySelector("canvas"));
 });
 function drawCards(ms) {

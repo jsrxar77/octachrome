@@ -80,6 +80,10 @@ def render(text, page, data=None):
     text = text.replace("<!--SOCIAL-->", social(text, page)).replace("<!--HEADER-->", header(page)).replace("<!--FOOTER-->", footer())
     if data is not None:
         text = text.replace("__DATA__", json.dumps(data, ensure_ascii=False))
+    rows = data if data is not None else button_rows()
+    for key, n in (("N_Y", sum(r["t"] == "y" for r in rows)), ("N_P", sum(r["t"] == "p" for r in rows)),
+                   ("N_N", sum(r["t"] == "n" for r in rows)), ("N_ALL", len(rows))):
+        text = text.replace("{{" + key + "}}", str(n))
     return text.replace("{{DOCS}}", docs_url).replace("{{REPO}}", repo_url).replace("{{SITE}}", site_url)
 
 # ---- build ------------------------------------------------------------------------------------------------------------
