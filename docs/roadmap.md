@@ -34,7 +34,11 @@ Not yet checked:
 - Themes other than glossy on the real screens, and how glossy, matte and chrome look and feel with their backlight and LED levels on the unit; chrome's colours and light are provisional.
 - The MK3 plugged straight into the Mac (F-H06): what the `power:` line reports there, and whether brightness 80 then holds. The 500 mA threshold between limited and full is provisional until then. NI's optional power supply is the other fix people point to ([architecture.md §13](architecture.md)).
 - The LED hues the three themes use for the pads and group keys (matte's `LightOrange`, `WarmYellow`, `Mint`, `Plum`, `Fuchsia`; chrome's magenta to blue range), and the LED palette beyond red and orange, and whether level 3 comes out white-mixed (Deckard issue #154, [architecture.md §13](architecture.md)).
-- CPU load on the Pi 5 (target in [instruments.md §5](instruments.md)).
+- CPU load on the Pi 5 (target in [instruments.md §5](instruments.md)), and the same on the Pi 4: audio load with eight slots sounding, latency with real-time priority, and the cost of the screens. Until then the hardware below is an estimate, not a measurement (2026-11-15):
+  - **Minimum: Raspberry Pi 4, 2 GB** (Cortex-A72). Should work, but tight; it is the floor only once measured.
+  - **Standard: Raspberry Pi 5, 4 GB** (Cortex-A76), with the official 27 W supply so the USB port can power the MK3. This is the product target.
+  - **Maximum: Pi 5, 8 GB with the active cooler**, or an RK3588 board (Orange Pi 5, Rock 5B), only if much heavier instruments or effects come; the Linux and audio support of RK3588 is worse.
+  - **Discarded: Pi Zero 2 W and Pi 3** (A53 cores too slow, little RAM, weak USB).
 - SAMPLING on the unit: the MK3's input (level, microphone permission on the Mac, the stream reopening), the resample source, and the saved file reaching a playing sampler (F-A18).
 
 **The MK3 reset itself as soon as the music played (2026-11-13), and the cause is the screens' backlight.** The symptom was `display bulk transfer: unknown error`, then the audio device disappearing and the app reconnecting in a loop. Each run below was 40–50 s with PLAY pressed at 6–8 s, on a MK3 behind a USB 2.0 hub (480 mA):
