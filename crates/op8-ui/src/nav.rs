@@ -1,13 +1,14 @@
 //! Navigation with the 4D encoder (docs/design.md §4, "Navigation"). Every view that has things to choose lists them as
-//! [`NavItem`]s; one of them has the **focus**, always, and is drawn with a ring (a frame and a dot at its corner, pulsing
+//! [`NavItem`]s; one of them has the **focus**, always, and is drawn with a ring (a frame, pulsing
 //! gently). The 4D turns the focus along the list, its arrows move it across the screens, pushing it activates the item, and an
 //! item that holds a value can be grabbed (push), turned, and let go (push). The list and the drawing share this one place, so
 //! what can be reached and what is drawn cannot drift apart.
 
-use crate::{Main, UiState};
+use crate::theme::{BUTTON_CX, FOOTER_COL, FOOTER_Y};
+use crate::{Main, Mode, UiState};
 use op8_gfx::{
     knob,
-    paint::{fill_circle, stroke_round_rect},
+    paint::stroke_round_rect,
     theme, FrameBuffer480x272,
 };
 
@@ -19,9 +20,21 @@ pub const GAP: f32 = 6.0;
 /// Items 0..16 of the sixteen-place views are the cells, in reading order (the order of the pads).
 pub const CELLS: usize = 16;
 
-/// Something that can have the focus: on which screen (0 left, 1 right) and its box in that screen's pixels.
+/// What an item is, which is also how the focus remembers it when the view changes: a place of a sixteen-place view or a pad of the
+/// grid (`Cell`, reading order), a screen button (`Strip` 0..8), a track (`Track` 0..8) or a value under a screen (`Value` 0..8: the
+/// knob that edits it).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum NavKind {
+    Cell(u8),
+    Strip(u8),
+    Track(u8),
+    Value(u8),
+}
+
+/// Something that can have the focus: what it is, on which screen (0 left, 1 right) and its box in that screen's pixels.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct NavItem {
+    pub kind: NavKind,
     pub screen: u8,
     pub rect: (f32, f32, f32, f32),
 }
@@ -37,19 +50,72 @@ pub fn value_rect(k: usize) -> (f32, f32, f32, f32) {
     (60.0 + k as f32 * 120.0 - 52.0, 224.0, 104.0, 42.0)
 }
 
-/// What can be reached in the view that is open, in the order the 4D turns through it.
+impl Default for NavKind {
+    fn default() -> Self {
+        NavKind::Track(0)
+    }
+}
+
+/// A screen button's box: the capsule is centred on its physical button.
+pub fn strip_rect(n: usize) -> (f32, f32, f32, f32) {
+    (BUTTON_CX[n % 4] as f32 - 52.0, 1.0, 104.0, 22.0)
+}
+
+/// A track's dot in the header of the left screen.
+pub fn track_rect(t: usize) -> (f32, f32, f32, f32) {
+    (338.0 + t as f32 * 18.0 - 9.0, 29.0, 18.0, 18.0)
+}
+
+/// A pad of the grid that mirrors the pads on the left screen.
+pub fn grid_rect(c: usize) -> (f32, f32, f32, f32) {
+    (262.0 + (c % 4) as f32 * 42.0, 50.0 + (c / 4) as f32 * 42.0, 37.0, 37.0)
+}
+
+/// One of the four values of a footer, under its screen.
+pub fn footer_rect(col: usize) -> (f32, f32, f32, f32) {
+    (col as f32 * FOOTER_COL as f32 + 6.0, FOOTER_Y as f32 + 3.0, FOOTER_COL as f32 - 12.0, 42.0)
+}
+
+/// What can be reached in the view that is open, in the order the 4D turns through it. Composing lists the screen buttons that have a
+/// name, the tracks, the pads of the grid (when the left screen shows it) and the four values of each footer; the step inspector
+/// has its own cursor on the 4D and lists nothing.
 pub fn items(ui: &UiState) -> Vec<NavItem> {
-    let cells = (0..CELLS).map(|i| NavItem { screen: 0, rect: cell_rect(i) });
+    let cell = |i: usize| NavItem { kind: NavKind::Cell(i as u8), screen: 0, rect: cell_rect(i) };
     match ui.main {
-        Main::File | Main::Plugin | Main::Browser => cells.collect(),
-        Main::Sampling => cells.chain((0..4).map(|k| NavItem { screen: 1, rect: value_rect(k) })).collect(),
+        Main::File | Main::Plugin | Main::Browser => (0..CELLS).map(cell).collect(),
+        Main::Sampling => (0..CELLS)
+            .map(cell)
+            .chain((0..4).map(|k| NavItem { kind: NavKind::Value(4 + k as u8), screen: 1, rect: value_rect(k) }))
+            .collect(),
+        Main::Instrument if ui.inspect_step.is_none() => {
+            let buttons = crate::screen_buttons(ui);
+            let strip = |range: std::ops::Range<usize>, screen: u8| {
+                range.filter(|&n| buttons[n].is_some()).map(move |n| NavItem { kind: NavKind::Strip(n as u8), screen, rect: strip_rect(n) }).collect::<Vec<_>>()
+            };
+            let mut v = strip(0..4, 0);
+            v.extend((0..8).map(|t| NavItem { kind: NavKind::Track(t as u8), screen: 0, rect: track_rect(t) }));
+            // the grid is on the left screen unless a page of buttons 3 and 4 covers it
+            if ui.mode != Mode::Step || ui.left_page == crate::LeftPage::Steps {
+                v.extend((0..CELLS).map(|c| NavItem { kind: NavKind::Cell(c as u8), screen: 0, rect: grid_rect(c) }));
+            }
+            v.extend((0..4).map(|k| NavItem { kind: NavKind::Value(k as u8), screen: 0, rect: footer_rect(k) }));
+            v.extend(strip(4..8, 1));
+            v.extend((0..4).map(|k| NavItem { kind: NavKind::Value(4 + k as u8), screen: 1, rect: footer_rect(k) }));
+            v
+        }
         _ => Vec::new(),
     }
 }
 
+/// The position of the focus in the list of the view that is open: where it is remembered, or the first item.
+pub fn index(ui: &UiState) -> usize {
+    items(ui).iter().position(|it| it.kind == ui.focus).unwrap_or(0)
+}
+
 /// The item that has the focus, if the view has any.
 pub fn focused(ui: &UiState) -> Option<NavItem> {
-    items(ui).get(ui.focus).copied()
+    let it = items(ui);
+    it.get(it.iter().position(|i| i.kind == ui.focus).unwrap_or(0)).copied()
 }
 
 /// Turn the focus along the list, wrapping.
@@ -80,15 +146,12 @@ pub fn move_dir(items: &[NavItem], cur: usize, dx: i32, dy: i32) -> usize {
     best.map_or(cur, |(_, i)| i)
 }
 
-/// The ring of the focus: a frame round the item and a dot at its corner, pulsing between two colours; grabbed, it is thicker.
-pub fn draw_ring(fb: &mut FrameBuffer480x272, it: &NavItem, grabbed: bool, phase: f32) {
-    let t = theme();
-    let pulse = 0.5 + 0.5 * (phase * std::f32::consts::TAU).sin();
-    let col = knob(0).lerp(t.fg, pulse);
+/// The ring of the focus: a frame round the item in the colour of knob 1; grabbed, it is white and thicker. It does not move by itself:
+/// a still screen sends nothing to the MK3.
+pub fn draw_ring(fb: &mut FrameBuffer480x272, it: &NavItem, grabbed: bool) {
     let (x, y, w, h) = it.rect;
-    let wd = if grabbed { 3.5 } else { 2.0 };
+    let (col, wd) = if grabbed { (theme().fg, 3.5) } else { (knob(0), 2.5) };
     stroke_round_rect(fb, x - 3.0, y - 3.0, w + 6.0, h + 6.0, 11.0, wd, col);
-    fill_circle(fb, x - 1.0, y - 1.0, if grabbed { 5.5 } else { 4.0 }, col);
 }
 
 #[cfg(test)]
@@ -117,5 +180,22 @@ mod tests {
         let to_the_right = move_dir(&it, 15, 1, 0);
         assert!(to_the_right >= 16, "from the last cell, right goes to the right screen: {to_the_right}");
         assert!(move_dir(&it, 16, -1, 0) < 16, "and back");
+    }
+
+    #[test]
+    fn composing_lists_the_buttons_that_have_a_name_the_tracks_the_pads_and_the_values() {
+        let ui = UiState { main: Main::Instrument, has_second: true, ..Default::default() };
+        let it = items(&ui);
+        let count = |f: fn(&NavKind) -> bool| it.iter().filter(|i| f(&i.kind)).count();
+        assert_eq!(count(|k| matches!(k, NavKind::Strip(_))), 8, "all eight screen buttons");
+        assert_eq!(count(|k| matches!(k, NavKind::Track(_))), 8);
+        assert_eq!(count(|k| matches!(k, NavKind::Cell(_))), 16);
+        assert_eq!(count(|k| matches!(k, NavKind::Value(_))), 8);
+        let one_page = UiState { main: Main::Instrument, has_second: false, ..Default::default() };
+        assert_eq!(items(&one_page).iter().filter(|i| matches!(i.kind, NavKind::Strip(_))).count(), 7, "no shape button without a second page");
+        let open = UiState { main: Main::Instrument, inspect_step: Some(0), ..Default::default() };
+        assert!(items(&open).is_empty(), "the step inspector has its own cursor");
+        let players = UiState { main: Main::Instrument, left_page: crate::LeftPage::Players, ..Default::default() };
+        assert_eq!(items(&players).iter().filter(|i| matches!(i.kind, NavKind::Cell(_))).count(), 0, "a page that covers the grid lists no pads");
     }
 }

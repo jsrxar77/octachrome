@@ -143,7 +143,7 @@ pub fn draw_right(fb: &mut FrameBuffer480x272, ui: &crate::UiState) {
         text_v(fb, v, x, 254, FontSize::Medium, knob(4 + i), Align::Center, VAlign::Middle);
     }
     if let Some(it) = crate::nav::focused(ui).filter(|it| it.screen == 1) {
-        crate::nav::draw_ring(fb, &it, ui.grabbed, ui.nav_phase);
+        crate::nav::draw_ring(fb, &it, ui.grabbed);
     }
 }
 

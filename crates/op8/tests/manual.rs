@@ -485,6 +485,7 @@ fn recipe_17_presets_load_one_keep_your_own() {
 // F-G04
 #[test]
 fn recipe_18_move_without_the_pads() {
+    use op8_ui::NavKind;
     let _one_at_a_time = serial();
     let mut b = Bench::demo();
     b.press(Button::File);
@@ -495,11 +496,15 @@ fn recipe_18_move_without_the_pads() {
     b.encoder(1);
     b.press(Button::JogPush); // the dub
     assert_eq!(b.project().bpm, 70.0);
-    b.press(Button::Sampling);
-    for _ in 0..17 {
+    // composing: a value of the right screen, grabbed
+    for _ in 0..80 {
+        if b.ui().focus == NavKind::Value(5) {
+            break;
+        }
         b.encoder(1);
     }
-    b.press(Button::JogPush); // grab `start`
+    assert_eq!(b.ui().focus, NavKind::Value(5));
+    b.press(Button::JogPush);
     b.encoder(1);
     b.run_ms(60);
     b.capture("r18-values");

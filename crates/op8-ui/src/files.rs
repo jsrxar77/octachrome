@@ -50,7 +50,7 @@ pub fn pick_left(fb: &mut FrameBuffer480x272, ui: &crate::UiState, st: &EngineSt
         text_v(fb, &label, (x + CELL_W / 2.0) as i32, (y + CELL_H / 2.0) as i32, FontSize::Medium, if has { t.fg } else { t.dim }, Align::Center, VAlign::Middle);
     }
     if let Some(it) = crate::nav::focused(ui).filter(|it| it.screen == 0) {
-        crate::nav::draw_ring(fb, &it, ui.grabbed, ui.nav_phase);
+        crate::nav::draw_ring(fb, &it, ui.grabbed);
     }
 }
 
