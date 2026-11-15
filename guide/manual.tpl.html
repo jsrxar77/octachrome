@@ -2,6 +2,8 @@
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>OP-8 · Manual</title>
 <link rel="icon" href="brand/op8-mark.svg" type="image/svg+xml">
+<link rel="stylesheet" href="site.css">
+<!--SOCIAL-->
 <meta name="description" content="The OP-8 manual: how the machine works, seventeen recipes you can follow from the first minute, and every button.">
 <style>
 @font-face{font-family:Jost;font-weight:300;src:url(fonts/Jost-Light.ttf)}
@@ -10,7 +12,7 @@
 :root{color-scheme:dark;--bg:#000;--fg:#F4EFE6;--dim:#8E918F;--faint:#262A30;--panel:#12161D;--g:#7FB58A;--y:#E3C77A;--acc:#3B8EBA;--rec:#E63946;--k1:#3B8EBA;--k2:#D9822B;--k3:#A9AFB8;--k4:#F2652A;--k5:#7FB58A;--k6:#E3C77A;--k7:#A88BC7}
 *{box-sizing:border-box;margin:0}
 html{scroll-behavior:smooth;scroll-padding-top:20px}
-body{background:var(--bg);color:var(--fg);font:300 18px/1.6 Jost,system-ui,sans-serif;padding:40px 20px 100px;max-width:1040px;margin:auto;-webkit-font-smoothing:antialiased}
+body{background:var(--bg);color:var(--fg);font:300 18px/1.6 Jost,system-ui,sans-serif;padding:84px 20px 40px;max-width:1040px;margin:auto;-webkit-font-smoothing:antialiased}
 h1{font-weight:300;font-size:clamp(48px,10vw,96px);letter-spacing:.03em;line-height:1}
 h2{font-weight:400;font-size:clamp(26px,4vw,36px);margin:72px 0 6px;letter-spacing:.01em}
 h2 + .sub{color:var(--dim);margin-bottom:22px}
@@ -67,9 +69,10 @@ input{flex:1;min-width:180px}
 .r small{display:block;color:var(--dim);font-size:14px}
 h2.ref{display:flex;justify-content:space-between;align-items:baseline;font-size:22px;margin:38px 0 10px}
 h2.ref small{font-size:14px;color:var(--dim)}
-@media(max-width:700px){.parts{grid-template-columns:1fr}.pair{grid-template-columns:1fr}.r{grid-template-columns:100px 14px 1fr}ol.steps li{grid-template-columns:30px 1fr}}
+@media(max-width:700px){table,tbody,tr,td{display:block;width:100%}tr:has(th){display:none}td{padding:2px 0;border:0}td:first-child{white-space:normal;padding-top:12px;border-top:1px solid var(--faint)}td:last-child{padding-bottom:6px;color:var(--dim)}code{overflow-wrap:anywhere}.parts{grid-template-columns:1fr}.pair{grid-template-columns:1fr}.r{grid-template-columns:100px 14px 1fr}ol.steps li{grid-template-columns:30px 1fr}}
 </style></head><body>
-<p class="dim"><a href="index.html">Guide</a> · <a href="brand.html">Brand</a> · Manual</p>
+<!--HEADER-->
+<main id="main">
 <h1>Manual</h1>
 <p class="dim" style="font-size:22px;max-width:40ch;margin-top:14px">How OP-8 works, from the first minute. Seventeen recipes you can follow with the unit in front of you, and then every button.</p>
 
@@ -449,7 +452,7 @@ h2.ref small{font-size:14px;color:var(--dim)}
 </table>
 
 <h2 id="reference">Every button</h2>
-<p class="sub">What each button of the MK3 does in OP-8, what it does in Maschine and on the OP-XY, and what is still missing. This list is generated from <a href="../docs/buttons.md">docs/buttons.md</a>, so it is always the truth.</p>
+<p class="sub">What each button of the MK3 does in OP-8, what it does in Maschine and on the OP-XY, and what is still missing. This list is generated from <a href="{{DOCS}}/buttons.md">docs/buttons.md</a>, so it is always the truth.</p>
 <div class="bar" id="bar"></div><div class="legend" id="leg"></div>
 <div class="f" id="tabs"></div><div class="f"><input id="q" placeholder="Search a button or a word"></div>
 <div id="list"></div>
@@ -477,7 +480,7 @@ h2.ref small{font-size:14px;color:var(--dim)}
   <tr><td>I recorded and it is silent</td><td>Look at the level bar while it records. On <b>resample</b> something has to be playing (<kbd>PLAY</kbd>); on <b>input</b> something has to be coming into the MK3, and on a Mac the first time the system may ask permission to use the microphone.</td></tr>
   <tr><td>A pad in <kbd>SAMPLING</kbd> or <kbd>BROWSER</kbd> only shows a message</td><td>Read the line under the wave, or on the right screen: it says what is missing (nothing recorded yet, stop recording first, nothing saved in that place).</td></tr>
   <tr><td>My WAV file does not appear in the sampler</td><td>It has to be in <code>~/.config/op8/samples/</code> <i>before</i> you start OP-8 (files you record are the exception: they arrive at once), be shorter than ten seconds, and be a plain WAV. A file called <code>rec-3.wav</code> is always the third place.</td></tr>
-  <tr><td>The screens flicker or the unit resets</td><td>The MK3 needs power: connect it straight to the computer, not through a hub. See <a href="../docs/roadmap.md">the roadmap</a> for the details.</td></tr>
+  <tr><td>The screens flicker or the unit resets</td><td>The MK3 needs power: connect it straight to the computer, not through a hub. See <a href="{{DOCS}}/roadmap.md">the roadmap</a> for the details.</td></tr>
 </table>
 
 <h2 id="notyet">What OP-8 does not do yet</h2>
@@ -491,10 +494,12 @@ h2.ref small{font-size:14px;color:var(--dim)}
   <li><b>Naming and deleting</b> projects and presets, and presets that come with each instrument (<kbd>BROWSER</kbd> keeps yours).</li>
   <li><b>Solo</b>, <b>duplicate</b>, <b>select</b> and <b>variation</b> buttons.</li>
 </ul>
-<p>The order in which these arrive is in <a href="../docs/roadmap.md">docs/roadmap.md</a>. The reference above says <i>works today</i>, <i>partly</i> or <i>planned</i> for each button.</p>
+<p>The order in which these arrive is in <a href="{{DOCS}}/roadmap.md">docs/roadmap.md</a>. The reference above says <i>works today</i>, <i>partly</i> or <i>planned</i> for each button.</p>
 
-<p style="margin-top:60px;color:var(--dim);font-size:14px">The recipes are <code>crates/op8/tests/manual.rs</code>; the pictures are taken from them by <code>scripts/manual-pictures.sh</code>; the button list is generated from <a href="../docs/buttons.md">docs/buttons.md</a> by <code>scripts/build-manual.py</code>.</p>
+<p style="margin-top:60px;color:var(--dim);font-size:14px">Every recipe above is run by an automated test whenever the project changes, and the pictures are taken from the real screens while it runs. The list of buttons is generated from the project's button map, so it says what the code does today.</p>
 
+</main>
+<!--FOOTER-->
 <script src="mk3.js"></script><script src="themes.js"></script><script src="unit-map.js"></script>
 <script>
 const D=__DATA__;

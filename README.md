@@ -20,12 +20,12 @@ cargo run --release -- run --script my.op8   # the script drives the real app: y
 cargo run --release -- hw-test               # with the real MK3: rainbow on the 16 pads + a test frame on both screens + event log
 cargo run --release                          # play with the MK3 (audio, screens, LEDs, MIDI)
 scripts/run.sh                               # the same in one command: builds, frees the MK3 from NI's services, starts (-h for options)
-cargo run --release -- -t chrome              # another theme: glossy (default), matte, chrome
+cargo run --release -- -t chrome              # another theme: matte (default), glossy, chrome
 ```
 
 On macOS, close NI's services first (`NIHardwareAgent`, `NIHostIntegrationAgent`, `NTKDaemon`): if they hold USB interface 5, OP-8 keeps working but without screens, and says so on the console. On Linux install `deploy/99-maschine-mk3.rules` to avoid needing root.
 
-**User guide:** `open guide/index.html` (interactive, no server; it becomes a site with GitHub Pages, see [architecture.md](docs/architecture.md)).
+**Guide and manual:** `python3 scripts/build-site.py && open site/index.html` (static, no server; it becomes a public site with GitHub Pages, see [architecture.md](docs/architecture.md)).
 
 The interactive twin in HTML (`twin/op8-twin.html`) reproduces the two screens, the pads and the knobs with sound in WebAudio and opens in Safari or Chrome, even on the iPad: just open the file, no server needed.
 

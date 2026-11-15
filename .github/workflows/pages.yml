@@ -1,11 +1,13 @@
 name: Guide
 
-# Publishes guide/ as a GitHub Pages site. Needs Settings > Pages > Source: GitHub Actions
-# (and a public repository, or a plan that includes Pages for private ones).
+# Publishes the site (built by scripts/build-site.py from guide/, twin/ and docs/buttons.md) as a GitHub Pages site.
+# Needs Settings > Pages > Source: GitHub Actions (and a public repository, or a plan that includes Pages for private ones).
+# The address of the repository for the "Source" and docs links comes from the repository variable OP8_REPO_URL
+# (Settings > Secrets and variables > Actions > Variables); until it is set the placeholder in guide/site.json stays.
 on:
   push:
     branches: [main]
-    paths: [guide/**]
+    paths: [guide/**, twin/**, docs/buttons.md, scripts/build-site.py, scripts/check-site.py]
   workflow_dispatch:
 
 permissions:
@@ -26,8 +28,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/configure-pages@v5
+        id: pages
+      - name: Build and check the site
+        env:
+          OP8_SITE_URL: ${{ steps.pages.outputs.base_url }}
+          OP8_REPO_URL: ${{ vars.OP8_REPO_URL }}
+        run: |
+          python3 scripts/build-site.py
+          python3 scripts/check-site.py
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: guide
+          path: site
       - id: deployment
         uses: actions/deploy-pages@v4
