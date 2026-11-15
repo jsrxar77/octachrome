@@ -8,6 +8,7 @@ pub mod fm_bass;
 pub mod kick_syn;
 pub mod macro_osc;
 pub mod midi_out;
+pub mod presets;
 pub mod resonator;
 pub mod sampler;
 pub mod ui;

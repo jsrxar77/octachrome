@@ -401,14 +401,15 @@ impl Controller {
         Some(self.presets_dir.as_ref()?.join(safe).join(format!("user-{}.preset", slot - 7)))
     }
 
-    /// The sixteen presets of the selected track's instrument: none come with it yet, the player's eight are the files.
+    /// The sixteen presets of the selected track's instrument: the top eight come with it (`presets.txt`), the bottom eight are the player's files.
     fn refresh_browser(&mut self, h: &EngineHandle) {
         let name = self.instrument_name(h);
         self.ui.browse_inst = name.clone().unwrap_or_else(|| "empty track".into());
+        let factory = name.as_deref().map(op8_cartridges::presets::factory).unwrap_or_default();
         self.ui.browse = (0..16usize)
             .map(|i| {
                 if i < 8 {
-                    return (String::new(), false);
+                    return factory.get(i).map_or((String::new(), false), |p| (p.0.clone(), true));
                 }
                 let has = name.as_ref().and_then(|n| self.preset_file(n, i)).is_some_and(|p| p.is_file());
                 (format!("user {}", i - 7), has)
@@ -434,7 +435,22 @@ impl Controller {
             return;
         };
         if slot < 8 {
-            self.ui.browse_note = "no presets come with the instrument yet".into();
+            if self.held.shift {
+                self.ui.browse_note = "the presets that come with it stay as they are".into();
+                return;
+            }
+            let Some((preset, knobs)) = op8_cartridges::presets::factory(&name).into_iter().nth(slot) else {
+                self.ui.browse_note = "empty: this instrument has fewer presets".into();
+                return;
+            };
+            for (i, v) in knobs.into_iter().enumerate() {
+                if let Some(value) = v {
+                    h.send(EngineCommand::SetParam { track: track as u8, index: i as u8, value });
+                }
+            }
+            self.ui.browse_note = format!("loaded {preset}");
+            let note = self.audition_note(h);
+            self.audition(h, note, 0.9);
             return;
         }
         let Some(file) = self.preset_file(&name, slot) else {

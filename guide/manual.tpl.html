@@ -406,17 +406,17 @@ h2.ref small{font-size:14px;color:var(--dim)}
 </div>
 
 <div class="recipe" id="r17">
-  <h3>17 <span>KEEP A SOUND AS A PRESET</span></h3>
-  <p class="goal">Save the knobs of an instrument when you like how it sounds, and bring them back later.</p>
+  <h3>17 <span>PRESETS: LOAD ONE, KEEP YOUR OWN</span></h3>
+  <p class="goal">Change the sound of an instrument in one tap, and keep the sounds you make.</p>
   <ol class="steps">
-    <li><div>Press group <kbd>B</kbd> (the kick) and turn the knobs of the right screen until the kick sounds the way you want: <b>knob 5</b> and the three next to it, and the second page (<kbd>6</kbd>) too.</div></li>
-    <li><div>Press <kbd>BROWSER</kbd>. Both screens show sixteen places for the presets <b>of this instrument</b> (the right screen says which one). The top two rows are for presets that come with the instrument: there are none yet, and a tap there says so. The bottom two rows, <b>user 1</b> to <b>user 8</b>, are yours.</div></li>
-    <li><div>Hold <kbd>SHIFT</kbd> and tap a pad of the bottom two rows: every knob of the instrument is saved in that place, and the screen says so. It stays on disk, so it is there next time you start OP-8.</div></li>
-    <li><div>Go back (<kbd>BROWSER</kbd> again), turn the knobs somewhere else, and press <kbd>BROWSER</kbd> once more. A tap on the pad you saved loads it: the knobs return to what you saved and you hear a note with the sound.</div></li>
-    <li><div>Presets belong to their instrument: the ones you save for the kick are not offered on the bass. The sampler's preset also remembers which sound it had chosen and how you cut it.</div></li>
+    <li><div>Press group <kbd>B</kbd> (the kick) and press <kbd>BROWSER</kbd>. Both screens show sixteen places for the presets <b>of this instrument</b>; the right screen says which one. The <b>top two rows</b> are the eight presets that come with it, each with its name (for the kick: deep, punch, boom, tight, click, dirty, soft, hard). The <b>bottom two rows</b>, <b>user 1</b> to <b>user 8</b>, are yours.</div></li>
+    <li><div>Tap a pad of the top two rows. The knobs of the instrument take the preset's values and you hear a note with the new sound; the line on the right says <b>loaded</b> and its name. Press <kbd>BROWSER</kbd> again to go back and play, or tap another preset to compare. Every instrument has its own eight (the list is in <a href="#presets">the instruments</a>).</div></li>
+    <li><div>Make your own: go back (<kbd>BROWSER</kbd>), turn the knobs of both pages (<kbd>5</kbd> and <kbd>6</kbd>) until it sounds right, press <kbd>BROWSER</kbd>, hold <kbd>SHIFT</kbd> and tap a pad of the <b>bottom</b> two rows. Every knob of the instrument is saved in that place. It stays on disk, so it is there next time you start OP-8. The presets that come with the instrument cannot be written over.</div></li>
+    <li><div>Turn the knobs somewhere else, press <kbd>BROWSER</kbd> and tap the pad you saved: the knobs return to what you kept.</div></li>
+    <li><div>Presets belong to their instrument: the ones you save for the kick are not offered on the bass. A preset of the <b>drums</b> shapes the sound that is chosen and leaves the choice alone. A preset of the <b>sampler</b> also remembers which sound it had and how you cut it. The <b>midi out</b> has none: its knobs are channel, transpose, velocity and cc74.</div></li>
   </ol>
-  <figure><div class="pair"><img src="img/r17-empty-left.png" alt="BROWSER with no presets."><img src="img/r17-saved-left.png" alt="BROWSER after saving into user 1."></div><figcaption>Left: the sixteen places of the kick before saving. Right: after saving into <b>user 1</b>, which is now filled.</figcaption></figure>
-  <p class="next"><b>Try next:</b> save two versions of the same bass, a round one and a hard one, and switch between them while the song plays.</p>
+  <figure><div class="pair"><img src="img/r17-factory-left.png" alt="BROWSER on the kick: the eight presets that come with it."><img src="img/r17-saved-left.png" alt="BROWSER after saving into user 1."></div><figcaption>Left: the kick's eight presets in the top two rows. Right: after saving into <b>user 1</b>, which is now filled.</figcaption></figure>
+  <p class="next"><b>Try next:</b> load <b>boom</b> on the kick and <b>sub</b> on the bass, then the same two on <b>tight</b> and <b>pluck</b>: the whole groove changes character without touching a step. Save two versions of a bass line's sound, one round and one hard, and switch between them while the song plays.</p>
 </div>
 
 <h2 id="ideas">The ideas behind it</h2>
@@ -451,6 +451,13 @@ h2.ref small{font-size:14px;color:var(--dim)}
   <tr><td>macro</td><td>Twenty-four engines in one: analogue waves, FM, wavetables, chords, voices, strings, drums. One note at a time.</td><td>engine · harmonics · timbre · morph / decay · color · variant · level</td></tr>
 </table>
 
+<h3 id="presets">The presets that come with them</h3>
+<p>Each instrument has eight, loaded from <kbd>BROWSER</kbd> (recipe 17). They are a first set, to be tuned by ear on the unit.</p>
+<table>
+  <tr><th>Instrument</th><th>The eight presets</th></tr>
+__PRESET_ROWS__
+</table>
+
 <h2 id="reference">Every button</h2>
 <p class="sub">What each button of the MK3 does in OP-8, what it does in Maschine and on the OP-XY, and what is still missing. This list is generated from <a href="{{DOCS}}/buttons.md">docs/buttons.md</a>, so it is always the truth.</p>
 <div class="bar" id="bar"></div><div class="legend" id="leg"></div>
@@ -477,6 +484,7 @@ h2.ref small{font-size:14px;color:var(--dim)}
   <tr><td>Everything is stuck on the settings screens</td><td>Press <kbd>CHANNEL</kbd>. In settings the pads, knobs and groups do nothing on purpose.</td></tr>
   <tr><td>The bass plays the wrong notes after I changed the key</td><td>The track is connected to the Brain, so its notes are moved to the chord that sounds. <kbd>SHIFT</kbd> + the group button disconnects it.</td></tr>
   <tr><td>An effect I put on does not go away</td><td>The track's effect (button <kbd>7</kbd>) stays until you set knob 5 back to <b>off</b>. The <kbd>PERFORM</kbd> effects go as soon as you let go of the pad.</td></tr>
+  <tr><td>A preset of the drums sounds like nothing happened</td><td>It shapes the sound that is chosen on the right screen (the last knob, <b>sound</b>); the other sounds keep their own settings. Choose the sound first, then load the preset.</td></tr>
   <tr><td>I recorded and it is silent</td><td>Look at the level bar while it records. On <b>resample</b> something has to be playing (<kbd>PLAY</kbd>); on <b>input</b> something has to be coming into the MK3, and on a Mac the first time the system may ask permission to use the microphone.</td></tr>
   <tr><td>A pad in <kbd>SAMPLING</kbd> or <kbd>BROWSER</kbd> only shows a message</td><td>Read the line under the wave, or on the right screen: it says what is missing (nothing recorded yet, stop recording first, nothing saved in that place).</td></tr>
   <tr><td>My WAV file does not appear in the sampler</td><td>It has to be in <code>~/.config/op8/samples/</code> <i>before</i> you start OP-8 (files you record are the exception: they arrive at once), be shorter than ten seconds, and be a plain WAV. A file called <code>rec-3.wav</code> is always the third place.</td></tr>
@@ -491,7 +499,7 @@ h2.ref small{font-size:14px;color:var(--dim)}
   <li><b>More of sampling.</b> <kbd>SAMPLING</kbd> records mono, up to ten seconds, and starts when you press <kbd>REC</kbd> (no threshold or count-in yet); the cut cannot be moved while the sound plays. The granular instrument is not built yet.</li>
   <li><b>The mixer.</b> Level and pan per track and a master compressor are planned (<kbd>MIXER</kbd>). Today the track levels are the instruments' own <b>level</b> knobs.</li>
   <li><b>Recording chords and knob movements.</b> <kbd>REC</kbd> writes notes and drum hits. Automation (<kbd>AUTO</kbd>) and a count-in are planned. The LFO of button <kbd>8</kbd> already moves knobs by itself.</li>
-  <li><b>Naming and deleting</b> projects and presets, and presets that come with each instrument (<kbd>BROWSER</kbd> keeps yours).</li>
+  <li><b>Naming and deleting</b> projects and presets. The presets that come with the instruments are a first set and will be tuned on the unit.</li>
   <li><b>Solo</b>, <b>duplicate</b>, <b>select</b> and <b>variation</b> buttons.</li>
 </ul>
 <p>The order in which these arrive is in <a href="{{DOCS}}/roadmap.md">docs/roadmap.md</a>. The reference above says <i>works today</i>, <i>partly</i> or <i>planned</i> for each button.</p>

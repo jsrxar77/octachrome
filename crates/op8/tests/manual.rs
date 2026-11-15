@@ -448,30 +448,35 @@ fn recipe_16_record_your_own_sound() {
 
 // F-G04
 #[test]
-fn recipe_17_keep_a_sound_as_a_preset() {
+fn recipe_17_presets_load_one_keep_your_own() {
     let _one_at_a_time = serial();
     let d = std::env::temp_dir().join(format!("op8-manual-presets-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&d);
     let mut b = Bench::demo();
     b.set_presets_dir(d.clone());
     b.press(Button::Group(1));
-    b.knob(4, 300);
-    let kept = b.param(1, 0);
     b.press(Button::Browser);
     b.run_ms(100);
-    b.capture("r17-empty");
+    b.capture("r17-factory");
+    let from = b.now_ms();
+    b.tap(pad(3)); // boom, the third of the kick's own
+    b.run_ms(400);
+    assert!(b.ui().browse_note.contains("loaded boom"), "{}", b.ui().browse_note);
+    assert!(b.peak_db(from, b.now_ms()) > -40.0, "the preset is heard");
+    let kept = b.param(1, 1);
+    b.press(Button::Browser);
+    b.knob(4, 300);
+    b.press(Button::Browser);
     b.button_down(Button::Shift);
     b.tap(pad(9)); // user 1
     b.button_up(Button::Shift);
     b.run_ms(100);
     b.capture("r17-saved");
-    b.press(Button::Browser);
-    b.knob(4, -500);
-    assert!((b.param(1, 0) - kept).abs() > 0.2);
-    b.press(Button::Browser);
+    assert!(d.join("KickSyn").join("user-1.preset").is_file());
+    b.tap(pad(1)); // deep: another sound
+    assert!((b.param(1, 1) - kept).abs() > 0.1);
     b.tap(pad(9));
-    b.run_ms(300);
-    assert!((b.param(1, 0) - kept).abs() < 0.01, "the knob is back where it was saved");
+    assert!(b.ui().browse_note.contains("loaded user 1"), "{}", b.ui().browse_note);
     b.press(Button::Browser);
     let _ = std::fs::remove_dir_all(&d);
 }

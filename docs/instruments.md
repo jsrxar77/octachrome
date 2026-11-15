@@ -116,3 +116,20 @@ A drum track is a **kit** with eight lanes, one per sound, and a step can have s
 - Lane n plays note 60 + n; its pitch class is what picks the sound (C kick, C# snare, D closed hat, D# open hat, E tom, F clap, F# rim, G crash). A track becomes a kit the first time you tap a pad on a track whose instrument is drums.
 
 Still to come: the chromatic KEYBOARD and PAD MODE, which will play the eight sounds straight from the pads ([buttons.md](buttons.md)).
+
+## 8. Presets that come with the instruments
+
+Each of the six sounding instruments has **eight presets** of its own, shown in the top two rows of BROWSER (the player's eight are the bottom two; see [buttons.md](buttons.md)). A preset is the value of the instrument's eight knobs (a knob it does not name, `-`, stays where it is: the drums' presets leave `sound`, `level` and `pan` alone, so a preset shapes whichever sound is chosen). They live in one text file, `crates/op8-cartridges/presets.txt`, read by the program and the tests and copied into the twin (a test keeps the copy equal).
+
+They were written after the kinds of sound that grooveboxes of this family ship (bass, keys, leads, pads, effects and drum kits; no list of any other maker's factory sounds was copied, and the names are our own). The tests check that every one plays, is not silent or clipped, differs from the other seven, and that the names are true (deep is lower than click, boom rings longer than tight, metal is brighter than sub, gong outlasts muted). **They are a first set to be tuned by ear on the unit**: keep the ones that sound right, change the rest by saving yours in BROWSER and sending them over.
+
+| Instrument | The eight presets |
+| :-- | :-- |
+| KickSyn | deep, punch, boom, tight, click, dirty, soft, hard |
+| FmBass | sub, round, growl, metal, pluck, slide, acid, fat |
+| resonator | nylon, steel, harp, muted, bell, glass, gong, chime |
+| drums | tight, boomy, bright, dull, snappy, loose, lofi, hard (applied to the sound that is chosen) |
+| sampler | pluck, bell, pad, voice, thump, sweep, glass, tick (they choose one of the sounds that come with it and how it is cut) |
+| macro | lead, strings, chip, organ, chords, swarm, pluck, modal (each on its own engine) |
+| midi out | none: its knobs are channel, transpose, velocity and `cc74` |
+
