@@ -9,6 +9,8 @@
 //! Environment:
 //! * `OP8_AUDIO_DEVICE` — substring of the output device name. Default:
 //!   the Maschine MK3's own interface if present, else the system default.
+//! * `OP8_AUDIO_INPUT` — substring of the input device name (SAMPLING). Default: the
+//!   Maschine MK3's own interface if present, else the system default.
 //! * `OP8_BUFFER` — frames per callback, default 128 (try 64 on a Pi 5).
 
 use anyhow::{anyhow, Context, Result};
@@ -268,6 +270,101 @@ where
             None,
         )
         .context("building audio stream")
+}
+
+/// The audio coming in, for SAMPLING: a stream that is opened only when SAMPLING asks for the input (the first
+/// time, the system may ask the player for permission to use the microphone), kept alive like the output, and
+/// that feeds a ring the engine reads.
+pub struct AudioIn {
+    keeper: Keeper<cpal::Stream>,
+    tx: Arc<Mutex<rtrb::Producer<f32>>>,
+    rx: Option<Box<rtrb::Consumer<f32>>>,
+}
+
+impl AudioIn {
+    pub fn new() -> Self {
+        let (tx, rx) = rtrb::RingBuffer::new(48_000);
+        Self { keeper: Keeper::new(), tx: Arc::new(Mutex::new(tx)), rx: Some(Box::new(rx)) }
+    }
+
+    /// The end of the ring that the engine reads (once).
+    pub fn take_consumer(&mut self) -> Option<Box<rtrb::Consumer<f32>>> {
+        self.rx.take()
+    }
+
+    /// Opens the input stream if there is none, and reopens it after a failure.
+    pub fn keep_alive(&mut self) -> Option<String> {
+        let tx = self.tx.clone();
+        let change = self.keeper.tick(Instant::now(), |failed| start_input(tx, failed.clone()))?;
+        Some(match change {
+            Change::Started => "audio input: open".to_string(),
+            Change::Failed(e) => format!("audio input: {e}; trying again"),
+        })
+    }
+}
+
+impl Default for AudioIn {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+fn start_input(tx: Arc<Mutex<rtrb::Producer<f32>>>, failed: Arc<AtomicBool>) -> Result<cpal::Stream> {
+    let host = cpal::default_host();
+    let want = std::env::var("OP8_AUDIO_INPUT").ok();
+    let mut devices: Vec<cpal::Device> = host.input_devices().context("listing audio inputs")?.collect();
+    let pick = |name: &str| devices.iter().position(|d| d.name().is_ok_and(|n| n.contains(name)));
+    let device = match want.as_deref().and_then(pick).or_else(|| pick("Maschine")) {
+        Some(i) => devices.swap_remove(i),
+        None => host.default_input_device().ok_or_else(|| anyhow!("no audio input device"))?,
+    };
+    let default = device.default_input_config().context("querying input config")?;
+    let channels = default.channels();
+    let config = cpal::StreamConfig {
+        channels,
+        sample_rate: cpal::SampleRate(op8_cartridge::SAMPLE_RATE as u32),
+        buffer_size: cpal::BufferSize::Default,
+    };
+    let stream = match default.sample_format() {
+        cpal::SampleFormat::F32 => build_input::<f32>(&device, &config, tx, failed),
+        cpal::SampleFormat::I32 => build_input::<i32>(&device, &config, tx, failed),
+        cpal::SampleFormat::I16 => build_input::<i16>(&device, &config, tx, failed),
+        other => Err(anyhow!("unsupported sample format {other:?}")),
+    }?;
+    stream.play().context("starting input stream")?;
+    Ok(stream)
+}
+
+fn build_input<T>(
+    device: &cpal::Device,
+    config: &cpal::StreamConfig,
+    tx: Arc<Mutex<rtrb::Producer<f32>>>,
+    failed: Arc<AtomicBool>,
+) -> Result<cpal::Stream>
+where
+    T: SizedSample,
+    f32: FromSample<T>,
+{
+    let ch = config.channels as usize;
+    let cb = move |data: &[T], _: &cpal::InputCallbackInfo| {
+        let Ok(mut tx) = tx.try_lock() else { return };
+        for frame in data.chunks(ch) {
+            // every channel mixed to one; if the ring is full the audio is dropped, never waited for
+            let m = frame.iter().map(|&s| <f32 as FromSample<T>>::from_sample_(s)).sum::<f32>() / ch as f32;
+            let _ = tx.push(m);
+        }
+    };
+    device
+        .build_input_stream(
+            config,
+            cb,
+            move |e| {
+                eprintln!("audio input error: {e}");
+                failed.store(true, Relaxed);
+            },
+            None,
+        )
+        .context("building input stream")
 }
 
 #[cfg(test)]

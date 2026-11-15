@@ -151,6 +151,14 @@ fn run(mut script: Option<Script>, theme_given: bool) -> Result<()> {
     println!("control surface: {}", surface.name());
     println!("{}", surface.power_note());
     let mut app = App::new(surface, handle);
+    #[cfg(feature = "audio")]
+    let mut audio_in = {
+        let mut a = op8::audio::AudioIn::new();
+        if let Some(rx) = a.take_consumer() {
+            app.handle.send(op8_engine::EngineCommand::SetInput(rx));
+        }
+        a
+    };
     // The theme: `-t` / `OP8_THEME` win; otherwise the one saved from the
     // settings view; otherwise glossy. Later changes are saved to the same file.
     if let Some(path) = op8::settings::default_path() {
@@ -160,6 +168,7 @@ fn run(mut script: Option<Script>, theme_given: bool) -> Result<()> {
         app.settings_path = Some(path);
     }
     app.ctl.projects_dir = op8::projectfile::default_dir();
+    app.ctl.samples_dir = op8_cartridges::sampler::default_dir();
     app.log_events = std::env::var_os("OP8_LOG_EVENTS").is_some();
     app.no_leds = std::env::var_os("OP8_NO_LEDS").is_some();
     if let Some(dir) = std::env::var_os("OP8_DUMP_DIR") {
@@ -179,6 +188,12 @@ fn run(mut script: Option<Script>, theme_given: bool) -> Result<()> {
         #[cfg(feature = "audio")]
         if let Some(line) = audio.keep_alive() {
             println!("[{:.1}s] {line}", pacer.seconds());
+        }
+        #[cfg(feature = "audio")]
+        if app.ctl.wants_input() {
+            if let Some(line) = audio_in.keep_alive() {
+                println!("[{:.1}s] {line}", pacer.seconds());
+            }
         }
         if let Some(sc) = script.as_mut() {
             for action in sc.due(pacer.now_ms()) {

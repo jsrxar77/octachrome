@@ -20,6 +20,7 @@ mod files;
 mod left;
 mod pages;
 mod right;
+mod sampling;
 mod settings;
 mod theme;
 
@@ -27,6 +28,7 @@ pub use anim::{animate, Anim};
 pub use left::{comp_glyph, draw_left, left_footer};
 pub use pages::{fx_footer, lfo_footer};
 pub use right::draw_right;
+pub use sampling::{peaks_of, SamplingView, COLUMNS as SAMPLING_COLUMNS, SOURCES as SAMPLING_SOURCES};
 pub use theme::*;
 
 use op8_seq::StepComponent;
@@ -44,6 +46,8 @@ pub enum Main {
     File,
     /// Instruments (PLUG-IN): the sixteen pads choose the instrument of the selected track, both screens.
     Plugin,
+    /// Recording a sound (SAMPLING): both screens.
+    Sampling,
 }
 
 /// What the left screen shows when the step view is open: the steps, or one of the two pages of buttons 3 and 4.
@@ -127,6 +131,8 @@ pub struct UiState {
     pub plugs: Vec<(String, bool)>,
     pub plug_current: Option<usize>,
     pub plug_note: String,
+    /// SAMPLING: the take, its part and the knobs.
+    pub smp: SamplingView,
     /// The slot last touched in FILE, and a line saying what happened.
     pub file_last: Option<usize>,
     pub file_note: String,

@@ -61,7 +61,25 @@ pub enum EngineCommand {
         track: u8,
         cartridge: Option<SharedCartridge>,
     },
+    /// SAMPLING: start recording from a source (what was in `take` is overwritten), or stop with `None`.
+    Record(Option<RecSource>),
+    /// The audio that comes in (mono, 48 kHz) for `RecSource::Input`. Boxed: the ring is large.
+    SetInput(Box<rtrb::Consumer<f32>>),
+    /// SAMPLING: play `start..end` of the take (in samples) to hear it; `None` stops it.
+    Preview(Option<(u32, u32)>),
 }
+
+/// Where a recording comes from.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum RecSource {
+    /// The audio interface's input (a line or a microphone).
+    Input,
+    /// What OP-8 itself is playing (the master).
+    Resample,
+}
+
+/// The longest recording: ten seconds, like the longest sample.
+pub const MAX_RECORD: usize = SAMPLE_RATE as usize * 10;
 
 /// How long an auditioned note is held before it is released.
 const AUDITION_SAMPLES: i32 = (SAMPLE_RATE * 0.25) as i32;
@@ -140,6 +158,9 @@ pub struct Engine {
     fx: FxRack,
     peaks: [f32; TRACKS],
     note_counts: [u32; TRACKS],
+    rec: Option<RecSource>,
+    preview: Option<(usize, usize)>,
+    input: Option<rtrb::Consumer<f32>>,
 }
 
 /// Lives on the control/UI thread.
@@ -164,6 +185,7 @@ impl Engine {
         let (tx, rx) = rtrb::RingBuffer::new(1024);
         let (gtx, grx) = rtrb::RingBuffer::new(64);
         let status = Arc::new(EngineStatus::default());
+        status.take.lock().unwrap().resize(MAX_RECORD, 0.0);
         let mut params = [[0.5; PARAMS_PER_SLOT]; TRACKS];
         for (t, slot) in slots.iter().enumerate() {
             if let Some(c) = slot {
@@ -194,6 +216,9 @@ impl Engine {
             fx: FxRack::new(),
             peaks: [0.0; TRACKS],
             note_counts: [0; TRACKS],
+            rec: None,
+            preview: None,
+            input: None,
         };
         let handle = EngineHandle {
             tx,
@@ -278,6 +303,19 @@ impl Engine {
                 },
                 EngineCommand::PunchIntensity(v) => self.fx.set_intensity(v),
                 EngineCommand::MasterFilter(v) => self.fx.strip = v.clamp(-1.0, 1.0),
+                EngineCommand::Record(source) => {
+                    self.rec = source;
+                    if source.is_some() {
+                        self.preview = None;
+                    }
+                    if source.is_some() {
+                        self.status.rec_len.store(0, Relaxed);
+                        self.status.rec_peak.store(0, Relaxed);
+                    }
+                    self.status.recording.store(source.is_some(), Relaxed);
+                }
+                EngineCommand::SetInput(rx) => self.input = Some(*rx),
+                EngineCommand::Preview(r) => self.preview = r.map(|(a, b)| (a as usize, (b as usize).min(MAX_RECORD))),
                 EngineCommand::LoadCartridge { track, cartridge } => {
                     if let Some(slot) = self.slots.get_mut(track as usize) {
                         if let Some(c) = &cartridge {
@@ -421,8 +459,55 @@ impl Engine {
                 self.click_left -= 1;
             }
         }
+        if let Some((mut pos, end)) = self.preview {
+            if let (Ok(take), false) = (self.status.take.try_lock(), self.rec.is_some()) {
+                for k in 0..n {
+                    if pos >= end {
+                        break;
+                    }
+                    out_l[k] += take[pos] * 0.8;
+                    out_r[k] += take[pos] * 0.8;
+                    pos += 1;
+                }
+            }
+            self.preview = (pos < end).then_some((pos, end));
+        }
         for s in out_l.iter_mut().chain(out_r.iter_mut()) {
             *s = soft_clip(*s * self.master);
+        }
+        self.record(out_l, out_r);
+    }
+
+    /// SAMPLING: copy the source into `take` while recording; keep the input drained otherwise.
+    fn record(&mut self, out_l: &[f32], out_r: &[f32]) {
+        let Some(source) = self.rec else {
+            if let Some(rx) = self.input.as_mut() {
+                while rx.pop().is_ok() {}
+            }
+            return;
+        };
+        let st = &self.status;
+        let mut len = st.rec_len.load(Relaxed) as usize;
+        let mut peak = 0.0f32;
+        let Ok(mut take) = st.take.try_lock() else { return };
+        for k in 0..out_l.len() {
+            let s = match source {
+                RecSource::Resample => (out_l[k] + out_r[k]) * 0.5,
+                RecSource::Input => self.input.as_mut().and_then(|rx| rx.pop().ok()).unwrap_or(0.0),
+            };
+            let s = if s.is_finite() { s } else { 0.0 };
+            if len < MAX_RECORD {
+                take[len] = s;
+                len += 1;
+            }
+            peak = peak.max(s.abs());
+        }
+        drop(take);
+        st.rec_len.store(len as u32, Relaxed);
+        st.rec_peak.store(peak.to_bits(), Relaxed);
+        if len >= MAX_RECORD {
+            self.rec = None;
+            st.recording.store(false, Relaxed);
         }
     }
 
@@ -777,5 +862,60 @@ mod tests {
         let windows: Vec<f32> = out.chunks(6_000).map(|w| w.iter().fold(0.0f32, |m, x| m.max(x.abs()))).collect();
         let (lo, hi) = windows.iter().fold((9.0f32, 0.0f32), |(lo, hi), &v| (lo.min(v), hi.max(v)));
         assert!(lo < hi * 0.4, "the level rises and falls: {lo}..{hi}");
+    }
+
+    // F-A17: recording the master takes what plays, from the moment it is asked until it is stopped.
+    #[test]
+    fn it_records_what_plays() {
+        let (mut e, mut h) = rig();
+        h.seq(Command::ToggleStep { track: 0, step: 0 });
+        h.send(EngineCommand::Play);
+        render(&mut e, 128);
+        h.send(EngineCommand::Record(Some(RecSource::Resample)));
+        let out = render(&mut e, 12_000);
+        assert!(h.status.recording.load(Relaxed));
+        let n = h.status.rec_len.load(Relaxed) as usize;
+        assert_eq!(n, 12_000, "one sample for every one that went out");
+        h.send(EngineCommand::Record(None));
+        render(&mut e, 256);
+        assert!(!h.status.recording.load(Relaxed));
+        assert_eq!(h.status.rec_len.load(Relaxed) as usize, n, "stopped means it stops growing");
+        let take = h.status.take.lock().unwrap();
+        // the take is the mono mix of the output (the kick is centred, so left = right)
+        for i in (0..n).step_by(997) {
+            assert!((take[i] - out[i]).abs() < 1e-5, "sample {i}");
+        }
+        assert!(take[..n].iter().any(|x| x.abs() > 0.05), "it heard the kick");
+    }
+
+    // F-A17: recording the input takes what comes in and nothing else.
+    #[test]
+    fn it_records_the_input() {
+        let (mut e, mut h) = rig();
+        let (mut tx, rx) = rtrb::RingBuffer::new(48_000);
+        h.send(EngineCommand::SetInput(Box::new(rx)));
+        render(&mut e, 128);
+        for i in 0..6_000 {
+            tx.push(((i % 100) as f32 / 100.0) - 0.5).unwrap();
+        }
+        h.send(EngineCommand::Record(Some(RecSource::Input)));
+        render(&mut e, 4_096);
+        h.send(EngineCommand::Record(None));
+        render(&mut e, 128);
+        let n = h.status.rec_len.load(Relaxed) as usize;
+        assert_eq!(n, 4_096);
+        let take = h.status.take.lock().unwrap();
+        assert!((take[0] + 0.5).abs() < 1e-6 && (take[50] - 0.0).abs() < 1e-6);
+        assert!(h.status.rec_peak() <= 0.5);
+    }
+
+    // F-A17: ten seconds is the most it keeps, and it stops by itself there.
+    #[test]
+    fn it_stops_at_ten_seconds() {
+        let (mut e, mut h) = rig();
+        h.send(EngineCommand::Record(Some(RecSource::Resample)));
+        render(&mut e, MAX_RECORD + 5_000);
+        assert_eq!(h.status.rec_len.load(Relaxed) as usize, MAX_RECORD);
+        assert!(!h.status.recording.load(Relaxed));
     }
 }

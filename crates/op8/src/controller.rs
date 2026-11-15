@@ -115,6 +115,10 @@ pub struct Controller {
     pub ui: UiState,
     /// Where the player's projects are saved and read, if anywhere (FILE does nothing for the user slots without it).
     pub projects_dir: Option<std::path::PathBuf>,
+    /// Where SAMPLING saves what it records (`rec-1.wav` … `rec-8.wav`), if anywhere.
+    pub samples_dir: Option<std::path::PathBuf>,
+    /// How many samples of the take the drawing of its wave was made from.
+    smp_drawn: usize,
     /// When the last taps of TAP were, to work out a tempo.
     taps: Vec<u64>,
     /// The time of the event being handled (ms).
@@ -169,6 +173,8 @@ impl Controller {
             // In settings the pads and knobs do nothing; the 4D encoder picks the theme.
             ControlEvent::Pad { pad, event } if self.ui.main == Main::File => self.file_pad(pad, event, h),
             ControlEvent::Pad { pad, event } if self.ui.main == Main::Plugin => self.plugin_pad(pad, event, h),
+            ControlEvent::Pad { pad, event } if self.ui.main == Main::Sampling => self.sampling_pad(pad, event, h),
+            ControlEvent::Knob { index, delta } if self.ui.main == Main::Sampling => self.sampling_knob(index as usize, delta, h),
             ControlEvent::Pad { .. } | ControlEvent::Knob { .. } if self.ui.main != Main::Instrument => {}
             ControlEvent::Encoder { delta } if self.ui.main == Main::Settings => {
                 self.step_theme(delta)
@@ -295,6 +301,11 @@ impl Controller {
                 self.set_main(to, h);
             }
             Button::Rec if self.ui.main == Main::Instrument => self.ui.rec = !self.ui.rec,
+            Button::Rec if self.ui.main == Main::Sampling => self.toggle_record(h),
+            Button::Sampling => {
+                let to = if self.ui.main == Main::Sampling { Main::Instrument } else { Main::Sampling };
+                self.set_main(to, h);
+            }
             Button::Tap if self.ui.main == Main::Instrument && self.held.shift => {
                 self.ui.metronome = !self.ui.metronome;
                 h.send(EngineCommand::Metronome(self.ui.metronome));
@@ -354,6 +365,139 @@ impl Controller {
     }
 
     /// The sixteen places of PLUG-IN and which one the selected track has now.
+    /// SAMPLING is open on the audio input: the program opens the input stream only then.
+    pub fn wants_input(&self) -> bool {
+        self.ui.main == Main::Sampling && self.ui.smp.source == 0
+    }
+
+    /// Which of the eight places of the player's own have a recording file.
+    fn refresh_samples(&mut self) {
+        let dir = self.samples_dir.clone();
+        for k in 0..8 {
+            self.ui.smp.saved[k] = dir.as_ref().is_some_and(|d| d.join(op8_cartridges::sampler::recording_file(k)).is_file());
+        }
+    }
+
+    /// REC in SAMPLING: start recording from the chosen source, or stop.
+    fn toggle_record(&mut self, h: &mut EngineHandle) {
+        if self.ui.smp.recording {
+            h.send(EngineCommand::Record(None));
+            self.ui.smp.recording = false;
+            return;
+        }
+        let source = if self.ui.smp.source == 0 { op8_engine::RecSource::Input } else { op8_engine::RecSource::Resample };
+        h.send(EngineCommand::Record(Some(source)));
+        // the take starts again: the part that is kept is all of it
+        let s = &mut self.ui.smp;
+        (s.recording, s.len, s.start, s.end, s.peaks, s.note) = (true, 0, 0.0, 1.0, Vec::new(), String::new());
+        self.smp_drawn = 0;
+    }
+
+    /// Every frame in SAMPLING: what the engine has recorded, how loud it is, and the wave to draw.
+    fn sampling_tick(&mut self, h: &mut EngineHandle, now_ms: u64) {
+        let st = &h.status;
+        let s = &mut self.ui.smp;
+        s.phase = (now_ms % 2000) as f32 / 2000.0;
+        let was = s.recording;
+        s.recording = st.recording.load(Relaxed);
+        s.len = st.rec_len.load(Relaxed) as usize;
+        let peak = st.rec_peak();
+        s.level = if s.recording { peak.max(s.level * 0.9) } else { s.level * 0.9 };
+        if was && !s.recording && s.len > 0 {
+            s.note = if s.len >= op8_engine::MAX_RECORD { "ten seconds: that is all it keeps".into() } else { String::new() };
+        }
+        if s.len != self.smp_drawn {
+            if let Ok(take) = st.take.try_lock() {
+                s.peaks = op8_ui::peaks_of(&take[..s.len.min(take.len())]);
+                self.smp_drawn = s.len;
+            }
+        }
+    }
+
+    /// The knobs under the right screen: source, start, end, fade.
+    fn sampling_knob(&mut self, k: usize, delta: i32, _h: &mut EngineHandle) {
+        if !(4..8).contains(&k) {
+            return;
+        }
+        let d = delta as f32 / SWEEP;
+        let n = if k == 4 { self.detents(k, delta) } else { 0 };
+        let s = &mut self.ui.smp;
+        match k {
+            4 if !s.recording => s.source = (s.source as i32 + n).clamp(0, 1) as u8,
+            5 => s.start = (s.start + d).clamp(0.0, (s.end - 0.01).max(0.0)),
+            6 => s.end = (s.end + d).clamp((s.start + 0.01).min(1.0), 1.0),
+            7 => s.fade = (s.fade + d).clamp(0.0, 1.0),
+            _ => {}
+        }
+    }
+
+    /// The part of the take that is kept, faded at both ends and brought to the same level as every sample.
+    fn kept(&self, h: &EngineHandle) -> Option<Vec<f32>> {
+        let s = &self.ui.smp;
+        let (a, b) = s.window();
+        if b <= a {
+            return None;
+        }
+        let take = h.status.take.try_lock().ok()?;
+        let mut data: Vec<f32> = take[a..b].to_vec();
+        drop(take);
+        let fade = s.fade_samples().max(48).min(data.len() / 2);
+        for i in 0..fade {
+            let g = i as f32 / fade as f32;
+            data[i] *= g;
+            let j = data.len() - 1 - i;
+            data[j] *= g;
+        }
+        let peak = data.iter().fold(0.0f32, |m, x| m.max(x.abs()));
+        if peak > 1e-6 {
+            let g = 0.9 / peak;
+            data.iter_mut().for_each(|x| *x *= g);
+        }
+        Some(data)
+    }
+
+    /// The pads of SAMPLING: the top two rows save the kept part into a place, the bottom two listen to it.
+    fn sampling_pad(&mut self, pad: u8, ev: PadEvent, h: &mut EngineHandle) {
+        if !matches!(ev, PadEvent::Press | PadEvent::Strike(_)) {
+            return;
+        }
+        if self.ui.smp.recording {
+            self.ui.smp.note = "stop recording first (REC)".into();
+            return;
+        }
+        let slot = Self::pad_to_step(pad) as usize;
+        let Some(data) = self.kept(h) else {
+            self.ui.smp.note = "nothing recorded yet (REC)".into();
+            return;
+        };
+        if slot >= 8 {
+            let (a, b) = self.ui.smp.window();
+            h.send(EngineCommand::Preview(Some((a as u32, b as u32))));
+            return;
+        }
+        let Some(dir) = self.samples_dir.clone() else {
+            self.ui.smp.note = "no folder for samples".into();
+            return;
+        };
+        let file = dir.join(op8_cartridges::sampler::recording_file(slot));
+        let tmp = file.with_extension("wav.tmp");
+        let wrote = std::fs::create_dir_all(&dir)
+            .and_then(|_| std::fs::write(&tmp, op8_cartridges::wav::encode_16(&data, op8_cartridge::SAMPLE_RATE as u32)))
+            .and_then(|_| std::fs::rename(&tmp, &file));
+        if let Err(e) = wrote {
+            self.ui.smp.note = format!("could not save: {e}");
+            return;
+        }
+        // every sampler that is playing gets it at once
+        for c in h.slots.iter().flatten() {
+            if let Ok(mut c) = c.lock() {
+                c.load_sample(slot, data.clone());
+            }
+        }
+        self.refresh_samples();
+        self.ui.smp.note = format!("saved in user {}", slot + 1);
+    }
+
     fn refresh_plugs(&mut self, h: &EngineHandle) {
         self.ui.plugs = (0..16)
             .map(|i| match FACTORY_INSTRUMENTS.get(i) {
@@ -628,6 +772,15 @@ impl Controller {
         if m == Main::Plugin {
             self.refresh_plugs(h);
             self.ui.plug_note.clear();
+        }
+        if self.ui.main == Main::Sampling && m != Main::Sampling {
+            // leaving: whatever was recording or playing stops (the take stays for when it comes back)
+            h.send(EngineCommand::Record(None));
+            h.send(EngineCommand::Preview(None));
+        }
+        if m == Main::Sampling {
+            self.refresh_samples();
+            self.ui.smp.note.clear();
         }
         self.ui.main = m;
         self.ui.inspect_step = None;
@@ -1065,6 +1218,9 @@ impl Controller {
     /// activity LEDs.
     pub fn tick(&mut self, h: &mut EngineHandle, now_ms: u64) {
         self.ui.master = h.master;
+        if self.ui.main == Main::Sampling {
+            self.sampling_tick(h, now_ms);
+        }
         self.ui.metronome = h.metronome;
         {
             let t = &h.project.tracks[self.ui.track];
@@ -1154,6 +1310,15 @@ impl Controller {
                     _ => 1,
                 };
                 out.set_pad(pad, NiColor::White, level);
+            }
+        }
+        if self.ui.main == Main::Sampling {
+            for pad in 0..16u8 {
+                let slot = Self::pad_to_step(pad) as usize;
+                let level = if slot < 8 { if self.ui.smp.saved[slot] { 3 } else { 1 } } else if self.ui.smp.len > 0 && !self.ui.smp.recording { 2 } else { 0 };
+                if level > 0 {
+                    out.set_pad(pad, NiColor::White, level);
+                }
             }
         }
         if self.ui.main == Main::Plugin {

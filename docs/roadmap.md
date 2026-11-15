@@ -35,6 +35,7 @@ Not yet checked:
 - The MK3 plugged straight into the Mac (F-H06): what the `power:` line reports there, and whether brightness 80 then holds. The 500 mA threshold between limited and full is provisional until then. NI's optional power supply is the other fix people point to ([architecture.md §13](architecture.md)).
 - The LED hues the three themes use for the pads and group keys (matte's `LightOrange`, `WarmYellow`, `Mint`, `Plum`, `Fuchsia`; chrome's magenta to blue range), and the LED palette beyond red and orange, and whether level 3 comes out white-mixed (Deckard issue #154, [architecture.md §13](architecture.md)).
 - CPU load on the Pi 5 (target in [instruments.md §5](instruments.md)).
+- SAMPLING on the unit: the MK3's input (level, microphone permission on the Mac, the stream reopening), the resample source, and the saved file reaching a playing sampler (F-A18).
 
 **The MK3 reset itself as soon as the music played (2026-11-13), and the cause is the screens' backlight.** The symptom was `display bulk transfer: unknown error`, then the audio device disappearing and the app reconnecting in a loop. Each run below was 40–50 s with PLAY pressed at 6–8 s, on a MK3 behind a USB 2.0 hub (480 mA):
 
@@ -98,7 +99,7 @@ Known limits of the setup:
 ## 6. Mix and samples
 
 - MIXER: level, pan, EQ and master compressor.
-- Done: the sampler cartridge (eight sounds that come with it, the player's WAV files from `~/.config/op8/samples/`). To do: SAMPLING (record from the MK3's input and trim) and BROWSER (choose sounds and presets).
+- Done: the sampler cartridge (eight sounds that come with it, the player's WAV files from `~/.config/op8/samples/`). SAMPLING records what OP-8 plays or the audio input, cuts it and saves it into the sampler (2026-11-15; not yet tried on the unit). To do: BROWSER (choose sounds and presets), moving the cut while it plays, a recording threshold and count-in, and stereo or longer recordings.
 - Smart Strip with PITCH, MOD and NOTES.
 
 ## 7. Engine and quality
