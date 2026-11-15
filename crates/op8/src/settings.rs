@@ -22,7 +22,7 @@ pub struct Settings {
 impl Default for Settings {
     fn default() -> Self {
         Self {
-            theme: ThemeId::Chrome,
+            theme: ThemeId::Matte,
         }
     }
 }
@@ -167,10 +167,10 @@ mod tests {
 
     // F-D17
     #[test]
-    fn chrome_is_the_default_and_comes_first() {
-        assert_eq!(Settings::default().theme, ThemeId::Chrome);
-        assert_eq!(ThemeId::ALL[0], ThemeId::Chrome);
-        assert_eq!(ThemeId::Chrome.next(), ThemeId::Glossy, "the order is chrome, glossy, matte");
-        assert_eq!(ThemeId::Matte.next(), ThemeId::Chrome);
+    fn matte_is_the_default_and_comes_first() {
+        assert_eq!(Settings::default().theme, ThemeId::Matte);
+        assert_eq!(ThemeId::ALL[0], ThemeId::Matte);
+        assert_eq!(ThemeId::Matte.next(), ThemeId::Glossy, "the order is matte, glossy, chrome");
+        assert_eq!(ThemeId::Chrome.next(), ThemeId::Matte);
     }
 }

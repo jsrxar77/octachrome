@@ -32,33 +32,33 @@ What each MK3 button does is in its own document: **[buttons.md](buttons.md)**. 
 
 ## 2. Colour
 
-Three themes, three characters: **glossy** is strong and bright, **matte** is softer and chalky, and **chrome** is monochrome: one range (violet drifting to blue, strong to soft) with white last. Every theme has exactly **eight** colours, always in an order that recalls the rainbow, and they are chosen for what the MK3's LEDs can show: 16 hues in 3 levels on the pads and group keys, one colour on every other button. The logic is the same in all three; only the palette changes. The hex values are ours, not measured from the devices.
+Three themes, three characters, in this order: **matte** (the default) is softer and chalky, **glossy** is strong and bright, and **chrome** is monochrome: one range (violet drifting to blue, strong to soft) with white last. Every theme has exactly **eight** colours, always in an order that recalls the rainbow, and they are chosen for what the MK3's LEDs can show: 16 hues in 3 levels on the pads and group keys, one colour on every other button. The logic is the same in all three; only the palette changes. The hex values are ours, not measured from the devices.
 
 ### 2.1 Encoder colours
 
-| Encoder | glossy | matte | chrome (default) |
+| Encoder | matte (default) | glossy | chrome |
 | :-- | :-- | :-- | :-- |
-| 1 | `#0099FF` blue | `#3B8EBA` steel blue | `#D633FF` violet-magenta |
-| 2 | `#00E56A` green | `#D9822B` ochre | `#A442FF` violet |
-| 3 | `#F2F4F8` white | `#A9AFB8` grey | `#8652FF` soft violet |
-| 4 | `#FF4F00` orange | `#F2652A` orange | `#7361FF` periwinkle |
-| 5 | `#8B6CFF` violet | `#7FB58A` sage | `#707AFF` cornflower |
-| 6 | `#FFD21F` yellow | `#E3C77A` sand | `#809DFF` sky |
-| 7 | `#2ED3E6` cyan | `#A88BC7` lilac | `#8FBCFF` pale blue |
-| 8 | `#FF4FA0` pink | `#D9677A` dusty rose | `#EEF0F5` white |
+| 1 | `#3B8EBA` steel blue | `#0099FF` blue | `#D633FF` violet-magenta |
+| 2 | `#D9822B` ochre | `#00E56A` green | `#A442FF` violet |
+| 3 | `#A9AFB8` grey | `#F2F4F8` white | `#8652FF` soft violet |
+| 4 | `#F2652A` orange | `#FF4F00` orange | `#7361FF` periwinkle |
+| 5 | `#7FB58A` sage | `#8B6CFF` violet | `#707AFF` cornflower |
+| 6 | `#E3C77A` sand | `#FFD21F` yellow | `#809DFF` sky |
+| 7 | `#A88BC7` lilac | `#2ED3E6` cyan | `#8FBCFF` pale blue |
+| 8 | `#D9677A` dusty rose | `#FF4FA0` pink | `#EEF0F5` white |
 
 The first four follow the encoder order of each reference device (original OP-1: blue, green, white, orange; OP-1 field: blue, ochre, grey, orange). The four instrument colours are chosen so they are not confused with the first four at a glance.
 
 ### 2.2 Base colours
 
-| Token | glossy | matte | chrome | Use |
+| Token | matte | glossy | chrome | Use |
 | :-- | :-- | :-- | :-- | :-- |
 | `bg` | `#000000` | `#000000` | `#000000` | Background |
-| `fg` | `#F2F4F8` | `#F4EFE6` | `#EEF0F5` | Text and main strokes |
-| `dim` | `#7E8794` | `#8E918F` | `#80858F` | Context, not editable now |
-| `faint` | `#232831` | `#262A30` | `#24262C` | Guides, passive borders, empty steps |
-| `panel` | `#0D1118` | `#12161D` | `#0F1014` | Surface of keys and capsules |
-| `rec` | `#FF3B30` | `#E63946` | `#FF2244` | Only REC, erase and peaks |
+| `fg` | `#F4EFE6` | `#F2F4F8` | `#EEF0F5` | Text and main strokes |
+| `dim` | `#8E918F` | `#7E8794` | `#80858F` | Context, not editable now |
+| `faint` | `#262A30` | `#232831` | `#24262C` | Guides, passive borders, empty steps |
+| `panel` | `#12161D` | `#0D1118` | `#0F1014` | Surface of keys and capsules |
+| `rec` | `#E63946` | `#FF3B30` | `#FF2244` | Only REC, erase and peaks |
 
 The track colours (A–H) are part of each theme (`Theme.tracks` in `crates/op8-gfx/src/theme.rs`; `track_color(i)` in `op8-ui`). The pad and group LEDs take the same colours from the MK3's palette (`track_led_colors` in `crates/op8/src/controller.rs`): glossy is the rainbow, matte its softer hues, chrome one range from magenta to blue, then white. The palette order is still to be checked on the unit.
 
@@ -66,16 +66,16 @@ The track colours (A–H) are part of each theme (`Theme.tracks` in `crates/op8-
 
 The mark of OP-8 is **eight buttons, one per colour of the rainbow, the eighth white**. Everything in OP-8 is built on eight, and the eighth colour is white because it is the **octave** (*8va*): in music the eighth note is the first one again, higher. The mark is the only picture that stands for the product (guide, twin, icon, README). The themes are named glossy, matte and chrome (they were op-1, op-1 field and op-xy; the old names still open an old settings file).
 
-| Button | glossy | matte | chrome |
+| Button | matte | glossy | chrome |
 | :-- | :-- | :-- | :-- |
-| 1 red | `#FF2D2D` | `#D9534F` | `#D633FF` |
-| 2 orange | `#FF8A1F` | `#D9822B` | `#A442FF` |
-| 3 yellow | `#FFD21F` | `#E3C77A` | `#8652FF` |
-| 4 green | `#00E56A` | `#7FB58A` | `#7361FF` |
-| 5 blue | `#0099FF` | `#3B8EBA` | `#707AFF` |
-| 6 indigo | `#4B4BFF` | `#5F6BB5` | `#809DFF` |
-| 7 violet | `#B15CFF` | `#A88BC7` | `#8FBCFF` |
-| 8 white | `#F2F4F8` | `#F4EFE6` | `#EEF0F5` |
+| 1 red | `#D9534F` | `#FF2D2D` | `#D633FF` |
+| 2 orange | `#D9822B` | `#FF8A1F` | `#A442FF` |
+| 3 yellow | `#E3C77A` | `#FFD21F` | `#8652FF` |
+| 4 green | `#7FB58A` | `#00E56A` | `#7361FF` |
+| 5 blue | `#3B8EBA` | `#0099FF` | `#707AFF` |
+| 6 indigo | `#5F6BB5` | `#4B4BFF` | `#809DFF` |
+| 7 violet | `#A88BC7` | `#B15CFF` | `#8FBCFF` |
+| 8 white | `#F4EFE6` | `#F2F4F8` | `#EEF0F5` |
 
 Rules of the mark:
 
@@ -93,7 +93,7 @@ Rules of the mark:
 Every picture of the MK3 (the guide's map, the manual, the brand page, the twin, any future image) **follows the real front panel**, so the picture can be used to find the control in your hands.
 
 - The master geometry is `guide/mk3.js`, scaled from the unit's front view. Drawings take their positions from it; nobody places a button by eye.
-- The manual opens with a map of the unit drawn from it (`guide/unit-map.js`): every part is numbered and named, so the rest of the manual can say "button 5", "knob 7", "pad 12" or "group G". The manual, its pictures and the twin use the chrome theme, the default; the other two are one press of the 4D encoder away in settings.
+- The manual opens with a map of the unit drawn from it (`guide/unit-map.js`): every part is numbered and named, so the rest of the manual can say "button 5", "knob 7", "pad 12" or "group G". The manual, its pictures, the guide and the twin use the matte theme, the default; the other two are one press of the 4D encoder away in settings.
 - Top to bottom: the eight screen buttons, the two screens, the eight knobs under them. On the left, six rows of two buttons (CHANNEL to MACRO), the 4D encoder with VOLUME, SWING and TEMPO beside it, then PITCH, MOD, PERFORM, NOTES, the Smart Strip, the group keys A–H as two rows of four, and the transport at the bottom. In the middle, the pad-mode buttons above the pads and SCENE to MUTE in a column to their left. On the right, the 4×4 pads.
 - A group of **eight** is drawn as the eight knobs in a row or as the eight group keys, four and four. A group of **sixteen** is the 4×4 pads. Never another arrangement.
 - The same rule applies to what the player sees in OP-8: the 8 factory and 8 user instruments, and the 8 factory and 8 user projects, are the 16 pads ([instruments.md §7](instruments.md)).
@@ -157,7 +157,7 @@ In Rust, Jost (300 and 400, `assets/fonts/`) is embedded with `include_bytes!` a
 | Right screen (frame) | `crates/op8-ui/src/right.rs` |
 | Drawing of each instrument | `draw_ui` of each cartridge in `crates/op8-cartridges/src/` |
 
-The theme is chosen with `op8 run -t glossy|matte|chrome` or `OP8_THEME`.
+The theme is chosen with `op8 run -t matte|glossy|chrome` or `OP8_THEME`.
 
 ## 4. Screen structure
 

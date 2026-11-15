@@ -1,9 +1,9 @@
 /* The map of the unit at the start of the manual: the faceplate from mk3.js (the one source of every picture of the unit,
-   docs/design.md §2.4), every part numbered and named, in the chrome theme. A button's colour is its status in docs/buttons.md
+   docs/design.md §2.4), every part numbered and named, in the matte theme. A button's colour is its status in docs/buttons.md
    (the manual passes that table as `rows`). */
 (function () {
   window.drawUnitMap = function (host, rows) {
-    const M = window.MK3, T = window.OP8.THEMES.chrome, NS = "http://www.w3.org/2000/svg";
+    const M = window.MK3, T = window.OP8.THEMES.matte, NS = "http://www.w3.org/2000/svg";
     const el = (tag, attrs, parent, text) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (text != null) e.textContent = text; (parent || svg).appendChild(e); return e; };
     const svg = document.createElementNS(NS, "svg");
     svg.setAttribute("viewBox", "0 0 " + M.W + " " + M.H); svg.setAttribute("role", "img");
@@ -12,7 +12,7 @@
       const r = rows.find(x => x.n.split(" · ")[0].replace(/\s+/g, " ") === label || x.n.split(" · ")[0].replace(/\s+/g, " ") === label.replace("PAGE ◀", "PAGE ◀ ▶").replace("PAGE ▶", "PAGE ◀ ▶"));
       return r ? r.t : null;
     };
-    const fill = { y: T.knobs[6], p: T.knobs[2], n: T.off };
+    const fill = { y: T.knobs[4], p: T.knobs[5], n: T.off };
     const box = [38, 6, 450, 432];
     el("rect", { x: M.body[0], y: M.body[1], width: M.body[2], height: M.body[3], rx: 26, fill: T.panel, stroke: T.faint, "stroke-width": 2 });
     // screens

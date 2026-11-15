@@ -29,12 +29,12 @@ fn main() -> Result<()> {
             .cloned()
     };
     let seconds: Option<f32> = opt("-s", "--seconds").and_then(|s| s.parse().ok());
-    // Screen theme (docs/design.md §2): chrome (default), glossy, matte.
+    // Screen theme (docs/design.md §2): matte (default), glossy, chrome.
     let theme = opt("-t", "--theme").or_else(|| std::env::var("OP8_THEME").ok());
     let theme_given = theme.is_some();
     if let Some(name) = theme {
         let id = op8::settings::theme_from_name(&name)
-            .ok_or_else(|| anyhow::anyhow!("unknown theme {name:?} (glossy, matte, chrome)"))?;
+            .ok_or_else(|| anyhow::anyhow!("unknown theme {name:?} (matte, glossy, chrome)"))?;
         op8_gfx::set_theme(id);
     }
     let script = match opt("--script", "--script") {
@@ -58,7 +58,7 @@ fn main() -> Result<()> {
         "calib" => calib(seconds.unwrap_or(20.0)),
         "usb-reset" => usb_reset(),
         "-h" | "--help" | "help" => {
-            println!("usage: op8 [run | sim [-s SECS] [-o DIR] | hw-test [-s SECS]] [--script FILE] [-t chrome|glossy|matte]");
+            println!("usage: op8 [run | sim [-s SECS] [-o DIR] | hw-test [-s SECS]] [--script FILE] [-t matte|glossy|chrome]");
             Ok(())
         }
         other => anyhow::bail!("unknown command {other:?} (try --help)"),
