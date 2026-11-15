@@ -18,6 +18,7 @@
 mod anim;
 mod files;
 mod left;
+mod nav;
 mod pages;
 mod right;
 mod sampling;
@@ -26,6 +27,7 @@ mod theme;
 
 pub use anim::{animate, Anim};
 pub use left::{comp_glyph, draw_left, left_footer};
+pub use nav::{focused as nav_focused, CELLS as NAV_CELLS, items as nav_items, move_dir as nav_move_dir, step as nav_step, NavItem};
 pub use pages::{fx_footer, lfo_footer};
 pub use right::draw_right;
 pub use sampling::{peaks_of, SamplingView, COLUMNS as SAMPLING_COLUMNS, SOURCES as SAMPLING_SOURCES};
@@ -138,6 +140,11 @@ pub struct UiState {
     pub browse_inst: String,
     pub browse_last: Option<usize>,
     pub browse_note: String,
+    /// The item that has the focus in the view that is open (an index into `nav_items`), whether it is grabbed (a value being turned),
+    /// and where the ring is in its pulse, 0..1.
+    pub focus: usize,
+    pub grabbed: bool,
+    pub nav_phase: f32,
     /// SAMPLING: the take, its part and the knobs.
     pub smp: SamplingView,
     /// The slot last touched in FILE, and a line saying what happened.

@@ -77,7 +77,7 @@ They are the modules of the current mode, like M1–M4 on the OP-XY. Their name 
 | RESTART · Shift: loop | From the start | play (2nd time) | Go back to step 1 and keep playing | ✓ |
 | TAP · Shift: metro | Tap tempo | tempo / metronome | Tap tempo: the average gap of the last taps (the first tap after a pause of two seconds only starts counting). **SHIFT + TAP** turns the metronome on and off: a click on every beat while the sequencer runs, higher on the first of each bar | ✓ |
 | FOLLOW · Shift: grid | Follow playback | bar | Recording quantisation | ○ |
-| TEMPO + 4D encoder | Tempo | tempo | While TEMPO is held, the 4D encoder turns the tempo (Shift = fine) and the left screen shows it big. Without a button held the encoder still turns the tempo | ✓ |
+| TEMPO + 4D encoder | Tempo | tempo | While TEMPO is held, the 4D encoder turns the tempo (Shift = fine) and the left screen shows it big. Without a button held the encoder does not turn the tempo any more: it moves the focus ([design.md §4](design.md)) | ✓ |
 | SWING + 4D encoder | Swing | tempo (swing) | While SWING is held, the 4D encoder turns the global swing and the left screen shows it big | ✓ |
 | VOLUME + 4D encoder | Volume | volume | While VOLUME is held, the 4D encoder turns the master volume and the left screen shows it big. (A track's volume with a group held is still to do) | ◐ |
 | SHIFT | Secondary functions | shift | Secondary functions (rule 12) | ✓ |
@@ -89,8 +89,8 @@ They are the modules of the current mode, like M1–M4 on the OP-XY. Their name 
 | Knobs 1–4 | What the left footer shows (sequencer or the open module) | ✓ |
 | Knobs 5–8 | What the right footer shows (cartridge) | ✓ |
 | Touching a knob | Large overlay with its parameter | ✓ |
-| 4D encoder: turn | Value of the selected element; if none, tempo. In settings: the theme | ◐ |
-| 4D encoder: ◀ ▶ | In settings: previous and next theme | ✓ |
-| 4D encoder: ▲ ▼ and push | Move through lists and in the inspector; push confirms | ○ |
+| 4D encoder: turn | **Moves the focus** along the things to choose in the view that is open (FILE, PLUG-IN, BROWSER and SAMPLING today; the step view, the strip and the values come next); with a value grabbed it turns the value. In settings: the theme. In the inspector: the component cursor. It never turns the tempo by itself: only while TEMPO is held (2026-11-15) | ◐ |
+| 4D encoder: ◀ ▶ ▲ ▼ | Move the focus across the screens, to the nearest item that way (the right screen is to the right of the left one). In settings ◀ ▶: previous and next theme; with KEYBOARD, ◀ ▶: the octave | ◐ |
+| 4D encoder: push | Does what tapping the focused item does (SHIFT + push, what SHIFT + tap does); on a value, grabs it (turn changes it, push lets go) | ◐ |
 | Smart Strip | Per PITCH, MOD or PERFORM: pitch bend, modulation or punch-in intensity. Today: master filter | ◐ |
 | PITCH / MOD / NOTES | Smart Strip mode | ○ |

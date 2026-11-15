@@ -205,6 +205,18 @@ Like FILE: both screens, no footer, no strip. **Left:** `sampling` and the sixte
 
 Like FILE and PLUG-IN: both screens, no footer, no strip. **Left:** the sixteen places as the pads are; the top two rows are the presets that come with the instrument (`panel` fill and their names; an instrument with fewer than eight leaves the rest `empty`) and the bottom two are the player's (`user 1` to `user 8`, with a fill where there is one); the one last touched has the 2 px `fg` outline; the title is `presets`, or `save preset` while SHIFT is held. **Right:** `browser` and the instrument's name, what a tap and SHIFT + tap do, and a line saying what just happened. The pad LEDs are white: level 3 for the last one touched, 2 for a preset that exists, 1 for an empty place of the player's.
 
+### Navigation with the 4D encoder
+
+Decided with Javi on 2026-11-15: **every view that has things to choose has a focus, always, and the 4D encoder works on it**, so the unit can be played without reaching for the pads.
+
+- **Items.** A view lists what can be reached as items (a box on a screen), in `crates/op8-ui/src/nav.rs`; the same list draws the focus ring and answers the encoder, so what can be reached and what is drawn cannot drift apart. The sixteen places of FILE, PLUG-IN, BROWSER and SAMPLING are items 1–16 (reading order, the order of the pads); SAMPLING also has its four values (`source`, `start`, `end`, `fade`) under the right screen. The step view, the screen buttons, the track dots and the knob values follow (roadmap §8).
+- **The ring.** The focused item has a frame 3 px outside it (2 px) and a dot at its top-left corner, in the colour of knob 1 pulsing gently towards `fg` (a cycle of 1.6 s, so these screens move too). A **grabbed** value has a thicker frame (3.5 px) and a larger dot. The ring is always on something: opening a view puts it where you were (the last place touched, the instrument the track has) or on the first item. The cell last touched keeps its own 2 px `fg` outline inside the ring.
+- **Turn** the 4D: the focus goes to the next or previous item in the list, wrapping; the right screen's items come after the left screen's. With a value grabbed, it turns the value.
+- **Arrows ◀ ▲ ▼ ▶:** the focus goes to the nearest item that way, the right screen being to the right of the left one; nothing happens when there is nothing that way. An arrow also lets a grabbed value go.
+- **Push:** does what tapping the item does (a place is the pad of that place; SHIFT + push is SHIFT + tap, so it saves where SHIFT + a pad saves); on a value, it grabs it, and push again lets it go.
+- **The tempo** is no longer turned by the 4D by itself: hold TEMPO and turn (SWING and VOLUME work the same way). In settings the 4D turns through the themes, and in the step inspector it moves the component cursor, as before.
+- **Where it applies:** FILE, PLUG-IN, BROWSER and SAMPLING today; the composing views come next.
+
 ### Settings view
 
 Settings is a **main mode** (SETTINGS button; see [buttons.md](buttons.md)): it takes **both** screens, and the rule that the left is time and the right is sound is suspended while it is open. Composing (CHANNEL) is the other main mode. Each setting is a page that uses both screens: the left shows the choices, the right shows what they mean. Today there is one page, the theme.

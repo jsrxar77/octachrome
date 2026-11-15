@@ -190,6 +190,8 @@ impl Controller {
             ControlEvent::Encoder { delta } if self.ui.main == Main::Settings => {
                 self.step_theme(delta)
             }
+            // the 4D encoder moves the focus (or turns the value that is grabbed) wherever there are items to reach
+            ControlEvent::Encoder { delta } if self.ui.held.is_none() && self.nav_active() => self.nav_turn(delta, h),
             ControlEvent::Pad { pad, event } => match self.ui.mode {
                 Mode::Step => self.step_pad(pad, event, h, now_ms),
                 Mode::Brain => self.brain_pad(pad, event, h),
@@ -221,10 +223,8 @@ impl Controller {
                         .map_or(0, |s| s.components.len().min(MAX_COMPONENTS - 1));
                     self.ui.comp_cursor =
                         (self.ui.comp_cursor as i32 + delta).clamp(0, max as i32) as usize;
-                } else {
-                    let step = if self.held.shift { 0.1 } else { 1.0 };
-                    h.seq(Command::SetBpm(h.project.bpm + delta as f32 * step));
                 }
+                // anything else: the tempo is only turned while TEMPO is held (above)
             }
             ControlEvent::Strip { position } => {
                 self.ui.strip = position;
@@ -343,6 +343,11 @@ impl Controller {
             Button::ChannelMidi => self.set_main(Main::Instrument, h),
             Button::JogLeft if self.ui.main == Main::Instrument && self.ui.mode == Mode::Keys => self.shift_octave(-1, h),
             Button::JogRight if self.ui.main == Main::Instrument && self.ui.mode == Mode::Keys => self.shift_octave(1, h),
+            Button::JogLeft if self.nav_active() => self.nav_dir(-1, 0, h),
+            Button::JogRight if self.nav_active() => self.nav_dir(1, 0, h),
+            Button::JogUp if self.nav_active() => self.nav_dir(0, -1, h),
+            Button::JogDown if self.nav_active() => self.nav_dir(0, 1, h),
+            Button::JogPush if self.nav_active() => self.nav_push(h),
             Button::JogLeft if self.ui.main == Main::Settings => self.step_theme(-1),
             Button::JogRight if self.ui.main == Main::Settings => self.step_theme(1),
             // Screen buttons: 1 = step view, 2 = components of the first step, 5 = sound, 6 = shape.
@@ -388,6 +393,68 @@ impl Controller {
     /// SAMPLING is open on the audio input: the program opens the input stream only then.
     pub fn wants_input(&self) -> bool {
         self.ui.main == Main::Sampling && self.ui.smp.source == 0
+    }
+
+    // ---- navigation with the 4D encoder (docs/design.md §4) ----------------------------------------------------------
+
+    /// A view with items to reach is open: the 4D encoder and its arrows move the focus in it.
+    fn nav_active(&self) -> bool {
+        !op8_ui::nav_items(&self.ui).is_empty()
+    }
+
+    /// Keep the focus inside the list of the view that is open.
+    fn nav_clamp(&mut self) {
+        let n = op8_ui::nav_items(&self.ui).len();
+        if self.ui.focus >= n {
+            self.ui.focus = n.saturating_sub(1);
+        }
+    }
+
+    /// The pad that is cell `slot` of the sixteen-place views.
+    fn slot_pad(slot: usize) -> u8 {
+        (0..16u8).find(|&p| Self::pad_to_step(p) as usize == slot).unwrap_or(0)
+    }
+
+    /// Turn the 4D encoder: along the list, or the value that is grabbed.
+    fn nav_turn(&mut self, delta: i32, h: &mut EngineHandle) {
+        self.nav_clamp();
+        if self.ui.grabbed {
+            if self.ui.main == Main::Sampling && self.ui.focus >= op8_ui::NAV_CELLS {
+                self.sampling_knob(4 + self.ui.focus - op8_ui::NAV_CELLS, delta * DETENT, h);
+            }
+            return;
+        }
+        let n = op8_ui::nav_items(&self.ui).len();
+        self.ui.focus = op8_ui::nav_step(n, self.ui.focus, delta);
+    }
+
+    /// The arrows of the 4D encoder: across the screens (a grabbed value is let go first).
+    fn nav_dir(&mut self, dx: i32, dy: i32, _h: &mut EngineHandle) {
+        self.nav_clamp();
+        self.ui.grabbed = false;
+        let items = op8_ui::nav_items(&self.ui);
+        self.ui.focus = op8_ui::nav_move_dir(&items, self.ui.focus, dx, dy);
+    }
+
+    /// Push the 4D encoder: do what tapping the item would (a cell is the pad of its place; SHIFT does what SHIFT + the pad does), or grab
+    /// or let go of a value.
+    fn nav_push(&mut self, h: &mut EngineHandle) {
+        self.nav_clamp();
+        let f = self.ui.focus;
+        if f >= op8_ui::NAV_CELLS {
+            self.ui.grabbed = !self.ui.grabbed;
+            return;
+        }
+        let pad = Self::slot_pad(f);
+        for ev in [PadEvent::Press, PadEvent::Release] {
+            match self.ui.main {
+                Main::File => self.file_pad(pad, ev, h),
+                Main::Plugin => self.plugin_pad(pad, ev, h),
+                Main::Browser => self.browser_pad(pad, ev, h),
+                Main::Sampling => self.sampling_pad(pad, ev, h),
+                _ => {}
+            }
+        }
     }
 
     /// The name of the instrument on the selected track.
@@ -724,6 +791,7 @@ impl Controller {
                 self.set_main(Main::Instrument, h);
                 self.ui.mode = Mode::Step;
                 self.pad_down_at[pad as usize] = None; // see below: the release comes in composing
+                self.show_the_music(h);
             }
             // a place with a file that cannot be read is left alone; a place with nothing in it opens a new, empty project
             None if path.as_ref().is_some_and(|p| p.exists()) => self.ui.file_note = "damaged: not loaded".into(),
@@ -735,6 +803,25 @@ impl Controller {
                 self.pad_down_at[pad as usize] = None;
             }
         }
+    }
+
+    /// After a project opens, put the screens on something: the first track that has steps, its first page, and on a kit the sound
+    /// that has steps (so that what is drawn is not an empty lane).
+    fn show_the_music(&mut self, h: &mut EngineHandle) {
+        let tracks = h.project.tracks;
+        let has = |t: usize| tracks[t].steps[..tracks[t].length as usize].iter().any(|s| s.active);
+        if let Some(t) = (0..TRACKS).find(|&t| has(t)) {
+            self.ui.track = t;
+            if tracks[t].kit {
+                let lane = (0..8u8).find(|&l| tracks[t].steps[..tracks[t].length as usize].iter().any(|s| s.lanes & (1 << l) != 0));
+                if let Some(l) = lane {
+                    h.send(EngineCommand::SetParam { track: t as u8, index: 7, value: (l as f32 + 0.5) / 8.0 });
+                }
+            }
+        }
+        self.ui.right_page = 0;
+        self.ui.left_page = LeftPage::Steps;
+        self.ui.inspect_step = None;
     }
 
     /// The note a tap on a step places on this track's instrument, if it chooses a sound by a knob.
@@ -926,6 +1013,13 @@ impl Controller {
             self.ui.smp.note.clear();
         }
         self.ui.main = m;
+        // the focus starts on something sensible: where you were, or the first place
+        self.ui.grabbed = false;
+        self.ui.focus = match m {
+            Main::File => self.ui.file_last.unwrap_or(0),
+            Main::Plugin => self.ui.plug_current.unwrap_or(0),
+            _ => 0,
+        };
         self.ui.inspect_step = None;
         self.inspector_pad = None;
     }
@@ -1361,6 +1455,7 @@ impl Controller {
     /// activity LEDs.
     pub fn tick(&mut self, h: &mut EngineHandle, now_ms: u64) {
         self.ui.master = h.master;
+        self.ui.nav_phase = (now_ms % 1600) as f32 / 1600.0;
         if self.ui.main == Main::Sampling {
             self.sampling_tick(h, now_ms);
         }

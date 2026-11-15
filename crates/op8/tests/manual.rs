@@ -481,3 +481,29 @@ fn recipe_17_presets_load_one_keep_your_own() {
     b.press(Button::Browser);
     let _ = std::fs::remove_dir_all(&d);
 }
+
+// F-G04
+#[test]
+fn recipe_18_move_without_the_pads() {
+    let _one_at_a_time = serial();
+    let mut b = Bench::demo();
+    b.press(Button::File);
+    b.run_ms(100);
+    b.encoder(1);
+    b.run_ms(60);
+    b.capture("r18-file");
+    b.encoder(1);
+    b.press(Button::JogPush); // the dub
+    assert_eq!(b.project().bpm, 70.0);
+    b.press(Button::Sampling);
+    for _ in 0..17 {
+        b.encoder(1);
+    }
+    b.press(Button::JogPush); // grab `start`
+    b.encoder(1);
+    b.run_ms(60);
+    b.capture("r18-values");
+    assert!(b.ui().grabbed);
+    b.press(Button::JogPush);
+    assert!(!b.ui().grabbed);
+}
