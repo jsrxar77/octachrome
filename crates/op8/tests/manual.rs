@@ -375,7 +375,7 @@ fn recipe_14_the_look() {
     b.encoder(1);
     assert_ne!(op8_gfx::theme_id(), before, "the 4D encoder changes the theme at once");
     b.run_ms(100);
-    b.capture("r14-matte");
+    b.capture("r14-glossy");
     b.encoder(-1);
     assert_eq!(op8_gfx::theme_id(), before);
     b.press(Button::ChannelMidi);

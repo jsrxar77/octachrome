@@ -22,8 +22,8 @@
       light:{ bl:.8, level:3, mono:.85 }, cap:"Chrome · one range",
       note:"Monochrome: magenta-violet to blue, strong to soft, then white. Screens at 80 % of the backlight, pads and groups at level 3. To be tuned on the unit." },
   };
-  const ORDER = ["glossy", "matte", "chrome"], KEY = "op8-theme", subs = [];
-  let cur = "glossy";
+  const ORDER = ["chrome", "glossy", "matte"], KEY = "op8-theme", subs = [];
+  let cur = "chrome";
   try { const s = localStorage.getItem(KEY); if (THEMES[s]) cur = s; } catch (e) {}
   const OP8 = { THEMES, ORDER, get cur() { return cur; },
     set(n) { if (!THEMES[n]) return; cur = n; try { localStorage.setItem(KEY, n); } catch (e) {} subs.forEach(f => f(n)); },

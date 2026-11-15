@@ -8,12 +8,12 @@
   const add = (l, r, s, d) => B.push([l, ...r, s, d]);
 
   // 8 screen buttons, above the screens
-  [["step","p","Step grid and polymeter"],["components","p","Step components (hold a pad today)"],["players","n","Arpeggio and chords"],["bar","p","Length and division (knobs 1–2 today)"],["sound","y","Instrument page 1"],["shape","y","Instrument page 2"],["fx","n","The track's effect"],["mod","n","The track's LFO"]]
+  [["step","y","Step grid and polymeter"],["components","p","Step components"],["players","y","Arpeggio and chords"],["bar","y","Length, division, shift and rec rounds"],["sound","y","Instrument page 1: what matters most"],["shape","y","Instrument page 2"],["fx","y","The track's effect"],["mod","y","The track's LFO"]]
     .forEach((b, i) => add(String(i + 1), R(153 + 39.1 * i, 40, 34, 12), b[1], b[0] + ": " + b[2]));
   // left block: two columns, six rows
   [[["CHANNEL","y","Back to composing"],["PLUG-IN","y","Choose the track's instrument: the 16 pads are the 16 places"]],
    [["ARRANGER","n","Scenes and the song"],["MIXER","n","Level and pan of the 8 tracks"]],
-   [["BROWSER","n","Presets of the instrument"],["SAMPLING","n","Record a sample"]],
+   [["BROWSER","p","Presets of the instrument: the 16 pads are the 16 presets"],["SAMPLING","p","Record a sound and put it in the sampler"]],
    [["PAGE ◀","n","Previous page of the current mode"],["PAGE ▶","n","Next page of the current mode"]],
    [["FILE","y","Open and save projects: the 16 pads are the 16 slots (factory top, yours bottom); SHIFT + a pad saves"],["SETTINGS","p","Both screens become settings: pick the theme with the 4D encoder"]],
    [["AUTO","n","Hold and turn a knob to record automation"],["MACRO","n","Brain, effect sends and inputs/outputs"]]]

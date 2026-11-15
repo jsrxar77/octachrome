@@ -93,6 +93,7 @@ Rules of the mark:
 Every picture of the MK3 (the guide's map, the manual, the brand page, the twin, any future image) **follows the real front panel**, so the picture can be used to find the control in your hands.
 
 - The master geometry is `guide/mk3.js`, scaled from the unit's front view. Drawings take their positions from it; nobody places a button by eye.
+- The manual opens with a map of the unit drawn from it (`guide/unit-map.js`): every part is numbered and named, so the rest of the manual can say "button 5", "knob 7", "pad 12" or "group G". The manual, its pictures and the twin use the chrome theme, the default; the other two are one press of the 4D encoder away in settings.
 - Top to bottom: the eight screen buttons, the two screens, the eight knobs under them. On the left, six rows of two buttons (CHANNEL to MACRO), the 4D encoder with VOLUME, SWING and TEMPO beside it, then PITCH, MOD, PERFORM, NOTES, the Smart Strip, the group keys A–H as two rows of four, and the transport at the bottom. In the middle, the pad-mode buttons above the pads and SCENE to MUTE in a column to their left. On the right, the 4×4 pads.
 - A group of **eight** is drawn as the eight knobs in a row or as the eight group keys, four and four. A group of **sixteen** is the 4×4 pads. Never another arrangement.
 - The same rule applies to what the player sees in OP-8: the 8 factory and 8 user instruments, and the 8 factory and 8 user projects, are the 16 pads ([instruments.md §7](instruments.md)).
