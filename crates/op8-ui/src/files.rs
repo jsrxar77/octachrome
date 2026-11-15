@@ -10,9 +10,7 @@ use op8_gfx::{
 };
 use std::sync::atomic::Ordering::Relaxed;
 
-const CELL_W: f32 = 108.0;
-const CELL_H: f32 = 42.0;
-const GAP: f32 = 6.0;
+use crate::nav::{CELL_H, CELL_W, GAP};
 
 fn bar(fb: &mut FrameBuffer480x272, title: &str) {
     let t = theme();
@@ -21,12 +19,12 @@ fn bar(fb: &mut FrameBuffer480x272, title: &str) {
 }
 
 pub fn draw_left(fb: &mut FrameBuffer480x272, ui: &crate::UiState, st: &EngineStatus) {
-    pick_left(fb, st, if ui.shift { "save" } else { "open" }, &ui.files, ui.file_last);
+    pick_left(fb, ui, st, if ui.shift { "save" } else { "open" }, &ui.files, ui.file_last);
 }
 
 /// A grid of sixteen choices as the pads are (reading order), the top two rows the factory ones: used by
 /// FILE (projects) and PLUG-IN (instruments). A cell is `(name, available)`; the one in `last` is outlined.
-pub fn pick_left(fb: &mut FrameBuffer480x272, st: &EngineStatus, title: &str, cells: &[(String, bool)], last: Option<usize>) {
+pub fn pick_left(fb: &mut FrameBuffer480x272, ui: &crate::UiState, st: &EngineStatus, title: &str, cells: &[(String, bool)], last: Option<usize>) {
     let t = theme();
     fb.clear(t.bg);
     bar(fb, title);
@@ -50,6 +48,9 @@ pub fn pick_left(fb: &mut FrameBuffer480x272, st: &EngineStatus, title: &str, ce
         stroke_round_rect(fb, x, y, CELL_W, CELL_H, 8.0, if last { 2.0 } else { 1.0 }, col);
         let label = if name.is_empty() { "empty".to_string() } else { name };
         text_v(fb, &label, (x + CELL_W / 2.0) as i32, (y + CELL_H / 2.0) as i32, FontSize::Medium, if has { t.fg } else { t.dim }, Align::Center, VAlign::Middle);
+    }
+    if let Some(it) = crate::nav::focused(ui).filter(|it| it.screen == 0) {
+        crate::nav::draw_ring(fb, &it, ui.grabbed, ui.nav_phase);
     }
 }
 

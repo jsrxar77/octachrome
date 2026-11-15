@@ -75,8 +75,12 @@ fn f_c03_encoder_changes_the_theme() {
     let mut b = Bench::demo();
     let bpm = b.project().bpm;
     b.encoder(3);
-    assert_eq!(theme_id(), ThemeId::Glossy, "outside settings the encoder is the tempo");
-    assert_ne!(b.project().bpm, bpm);
+    assert_eq!(theme_id(), ThemeId::Glossy, "outside settings the encoder does not change the theme");
+    assert_eq!(b.project().bpm, bpm, "and it does not turn the tempo by itself: only while TEMPO is held");
+    b.button_down(Button::Tempo);
+    b.encoder(3);
+    b.button_up(Button::Tempo);
+    assert_ne!(b.project().bpm, bpm, "held TEMPO and the encoder: the tempo");
 
     b.press(Button::Settings);
     b.run_ms(100);

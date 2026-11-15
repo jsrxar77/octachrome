@@ -77,7 +77,7 @@ pub fn draw_left(fb: &mut FrameBuffer480x272, ui: &crate::UiState, st: &EngineSt
     let s = &ui.smp;
     let mut cells: Vec<(String, bool)> = (0..8).map(|i| (format!("user {}", i + 1), s.saved[i])).collect();
     cells.extend((0..8).map(|_| ("listen".to_string(), s.len > 0)));
-    pick_left(fb, st, "sampling", &cells, None);
+    pick_left(fb, ui, st, "sampling", &cells, None);
 }
 
 fn secs(s: f32) -> String {
@@ -141,6 +141,9 @@ pub fn draw_right(fb: &mut FrameBuffer480x272, ui: &crate::UiState) {
         let x = 60 + i as i32 * 120;
         text_v(fb, name, x, 236, FontSize::Small, t.dim, Align::Center, VAlign::Middle);
         text_v(fb, v, x, 254, FontSize::Medium, knob(4 + i), Align::Center, VAlign::Middle);
+    }
+    if let Some(it) = crate::nav::focused(ui).filter(|it| it.screen == 1) {
+        crate::nav::draw_ring(fb, &it, ui.grabbed, ui.nav_phase);
     }
 }
 

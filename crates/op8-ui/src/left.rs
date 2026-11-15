@@ -38,13 +38,13 @@ pub fn draw_left(fb: &mut FrameBuffer480x272, ui: &UiState, p: &Project, st: &En
     }
     if ui.main == crate::Main::Browser {
         let title = if ui.shift { "save preset" } else { "presets" };
-        return crate::files::pick_left(fb, st, title, &ui.browse, ui.browse_last);
+        return crate::files::pick_left(fb, ui, st, title, &ui.browse, ui.browse_last);
     }
     if ui.main == crate::Main::Sampling {
         return crate::sampling::draw_left(fb, ui, st);
     }
     if ui.main == crate::Main::Plugin {
-        return crate::files::pick_left(fb, st, "instruments", &ui.plugs, ui.plug_current);
+        return crate::files::pick_left(fb, ui, st, "instruments", &ui.plugs, ui.plug_current);
     }
     let t = theme();
     fb.clear(t.bg);

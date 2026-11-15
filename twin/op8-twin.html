@@ -193,6 +193,9 @@ canvas.lcd {
           <div class="row">
             <button class="btn" id="jogL">◀ JOG</button>
             <button class="btn" id="jogR">JOG ▶</button>
+            <button class="btn" id="jogU" title="Foco: una fila arriba (flecha ↑)">▲</button>
+            <button class="btn" id="jogD" title="Foco: una fila abajo (flecha ↓)">▼</button>
+            <button class="btn" id="jogP" title="Apretar el 4D: activar lo que tiene el foco (Enter)">PUSH</button>
           </div>
         </div>
         <div class="grp">
@@ -810,7 +813,7 @@ function setStrip(x) {
 }
 
 // ======================= controller (mirrors op8 Controller) =======================
-const UI = { leftPage: "steps", quant: 0, held: null, metro: false, fixed: false, rec: false, octave: 0, down: Array(16).fill(false), main: "instrument", mode: "step", track: 0, inspect: null, compCursor: 0, touch: Array(8).fill(false), page: 0, live: null, strip: null, activity: Array(8).fill(0), lastCount: Array(8).fill(0), shift: false, mute: false, erase: false };
+const UI = { leftPage: "steps", quant: 0, held: null, metro: false, fixed: false, rec: false, octave: 0, down: Array(16).fill(false), main: "instrument", mode: "step", track: 0, inspect: null, compCursor: 0, touch: Array(8).fill(false), page: 0, live: null, strip: null, activity: Array(8).fill(0), lastCount: Array(8).fill(0), shift: false, mute: false, erase: false, focus: 0, grabbed: false };
 const padDownAt = Array(16).fill(null); let inspectorPad = null; const knobAccum = Array(8).fill(0);
 const padToStep = pad => (3 - Math.floor(pad / 4)) * 4 + pad % 4; // bottom-left numbering -> reading order
 const DETENT = 40, SWEEP = 800;
@@ -826,7 +829,7 @@ function setMode(m) {
 // Main modes: CHANNEL composes (sequencer left, instrument right); SETTINGS
 // takes both screens for the machine's settings (theme for now).
 const THEME_IDS = ["matte", "glossy", "chrome"];
-function setMain(m) { if (m === "browser") { UI.brNote = ""; UI.brLast = null; } if (UI.main === "sampling" && m !== "sampling") SMP.rec = false; if (m === "sampling") SMP.note = ""; UI.main = m; UI.inspect = null; inspectorPad = null; if (m === "file") { UI.fileNote = ""; } if (m === "plugin") UI.plugNote = ""; }
+function setMain(m) { UI.grabbed = false; UI.focus = m === "file" ? (UI.fileLast ?? 0) : m === "plugin" ? Math.max(0, plugCells().cur) : 0; if (m === "browser") { UI.brNote = ""; UI.brLast = null; } if (UI.main === "sampling" && m !== "sampling") SMP.rec = false; if (m === "sampling") SMP.note = ""; UI.main = m; UI.inspect = null; inspectorPad = null; if (m === "file") { UI.fileNote = ""; } if (m === "plugin") UI.plugNote = ""; }
 function themeStep(d) { LOOK.theme = THEME_IDS[((THEME_IDS.indexOf(LOOK.theme) + d) % 3 + 3) % 3]; applyLook(); }
 function groupPress(g) {
   if (UI.main === "settings") return;
@@ -989,8 +992,29 @@ function openLeft(page) {
   const open = UI.mode === "step" && UI.inspect == null && UI.leftPage === page;
   setMode("step"); if (!open) UI.leftPage = page;
 }
+// ---- navigation with the 4D encoder (docs/design.md §4; crates/op8-ui/src/nav.rs): every view with things to choose has a focus, always
+// visible as a ring. Turn moves it along the list, the arrows across the screens, push activates (or grabs a value, turn changes it, push lets go).
+const navOn = () => ["file", "plugin", "browser", "sampling"].includes(UI.main);
+const navCount = () => UI.main === "sampling" ? 20 : navOn() ? 16 : 0;
+function navRect(i) { if (i < 16) return { s: 0, x: 12 + (i % 4) * 114, y: 44 + Math.floor(i / 4) * 48, w: 108, h: 42 }; const k = i - 16; return { s: 1, x: 60 + k * 120 - 52, y: 224, w: 104, h: 42 }; }
+function navMove(dx, dy) {
+  UI.grabbed = false; const at = i => { const r = navRect(i); return [r.x + r.w / 2 + r.s * 520, r.y + r.h / 2]; }, f = at(UI.focus); let best = null;
+  for (let i = 0; i < navCount(); i++) { if (i === UI.focus) continue; const [x, y] = at(i), along = dx ? (x - f[0]) * dx : (y - f[1]) * dy, across = dx ? Math.abs(y - f[1]) : Math.abs(x - f[0]); if (along <= 1) continue; const cost = along + 2.5 * across; if (!best || cost < best[0]) best = [cost, i]; }
+  if (best) UI.focus = best[1];
+}
+function navTurn(d) { if (UI.grabbed) { if (UI.main === "sampling" && UI.focus >= 16) smpKnob(4 + UI.focus - 16, d * DETENT); return; } const n = navCount(); UI.focus = ((UI.focus + d) % n + n) % n; }
+function navPush() {
+  if (UI.focus >= 16) { UI.grabbed = !UI.grabbed; return; }
+  const pad = [...Array(16).keys()].find(p => padToStep(p) === UI.focus); padDown(pad, .8);
+}
+function navRing(g, screen) {
+  if (!navOn() || UI.focus >= navCount()) return; const r = navRect(UI.focus); if (r.s !== screen) return;
+  const ph = (performance.now() % 1600) / 1600, pulse = .5 + .5 * Math.sin(ph * 2 * Math.PI);
+  g.globalAlpha = .6 + .4 * pulse; rrect(g, r.x - 3, r.y - 3, r.w + 6, r.h + 6, 11, KC[0], UI.grabbed ? 3.5 : 2); dot(g, r.x - 1, r.y - 1, UI.grabbed ? 5.5 : 4, KC[0]); g.globalAlpha = 1;
+}
 function jog(d) {
   if (UI.main === "settings") { themeStep(d); return; }
+  if (navOn() && !UI.held) { navTurn(d); return; }
   if (UI.held === "swing") { P.swing = clamp(P.swing + d * 0.005, 0.5, 0.75); return; }
   if (UI.held === "volume") { VOL = clamp(VOL + d * 0.01, 0, 1); if (master) master.gain.value = 0.8 * VOL; return; }
   if (UI.held === "tempo") { P.bpm = clamp(P.bpm + d * (UI.shift ? 0.1 : 1), 20, 300); return; }
@@ -998,7 +1022,7 @@ function jog(d) {
   if (UI.inspect != null) {
     const s = P.tracks[UI.track].steps[UI.inspect];
     UI.compCursor = clamp(UI.compCursor + d, 0, Math.min(s.comps.length, 5));
-  } else P.bpm = clamp(P.bpm + d * (UI.shift ? 0.1 : 1), 20, 300);
+  } // the tempo is only turned while TEMPO is held (above)
 }
 function controllerTick() {
   if (UI.main === "sampling") smpTickLevel();
@@ -1223,6 +1247,7 @@ function filePad(pad) {
   if (slot < 8) src = factoryProject(slot); else { try { const j = JSON.parse(localStorage.getItem(userKey(slot - 7))); if (j) { src = j.p; if (j.drums) DRUMS.vals = j.drums; } } catch (e) {} }
   if (!src) { loadProject(blankProject()); applyPiece(0); PARAMS.forEach((q, t) => { if (q && SLOTS[t] !== "drums") { const d = CARTS[SLOTS[t]].params.map(z => z[1]); q.splice(0, q.length, ...d); } }); UI.main = "instrument"; UI.mode = "step"; UI.fileNote = "a new empty project: SHIFT + tap saves it"; return; }
   loadProject(src); if (slot < 8) applyPiece(slot); UI.main = "instrument"; UI.mode = "step"; UI.fileNote = "";
+  { const t = P.tracks.findIndex(tr => tr.steps.slice(0, tr.length).some(st => st.active)); if (t >= 0) { UI.track = t; if (P.tracks[t].kit) { const lane = [0, 1, 2, 3, 4, 5, 6, 7].find(l => P.tracks[t].steps.slice(0, P.tracks[t].length).some(st => st.lanes & (1 << l))); if (lane != null && PARAMS[t]) PARAMS[t][7] = (lane + .5) / 8; } } UI.page = 0; UI.leftPage = "steps"; UI.inspect = null; }
 }
 // ---- SAMPLING (Controller::sampling_*): record the master or the microphone (up to ten seconds), keep a part of it, and put it
 // in one of the sampler's eight places of its own (the top two rows of pads); the bottom two rows listen to the part.
@@ -1288,6 +1313,7 @@ function smpRight(g) {
   const [a, b] = smpWindow();
   [["source", ["input", "resample"][SMP.source]], ["start", sec(a / 48000)], ["end", sec(b / 48000)], ["fade", Math.round(SMP.fade * 100) + "ms"]]
     .forEach(([n, v], i) => { txt(g, n, 60 + i * 120, 230, "s", DIM, "center"); txt(g, v, 60 + i * 120, 246, "m", KC[4 + i], "center"); });
+  navRing(g, 1);
 }
 // The presets that come with the instruments: a copy of crates/op8-cartridges/presets.txt (a test keeps the two equal).
 const FACTORY_PRESETS_TEXT = `# The presets that come with the instruments (docs/instruments.md §8): "instrument | name | the eight knobs, 0 to 1, in the order
@@ -1396,6 +1422,7 @@ function pickLeft(title, cells, last) {
       rrect(g, x + .5, y + .5, 107, 41, 8, on ? FG : has ? DIM : FAINT, on ? 2 : 1);
       txt(g, name || "empty", x + 54, y + 21, "m", has ? FG : DIM, "center", "middle");
     });
+    navRing(g, 0);
   };
 }
 function plugLeft(g) { const { cells, cur } = plugCells(); pickLeft("instruments", cells, cur)(g); }
@@ -2036,6 +2063,14 @@ $("sb7").addEventListener("click", () => { if (UI.main === "instrument") UI.page
 $("sb8").addEventListener("click", () => { if (UI.main === "instrument") UI.page = 3; });
 $("jogL").addEventListener("click", () => jog(-1));
 $("jogR").addEventListener("click", () => jog(1));
+$("jogU").addEventListener("click", () => { if (navOn()) navMove(0, -1); });
+$("jogD").addEventListener("click", () => { if (navOn()) navMove(0, 1); });
+$("jogP").addEventListener("click", () => { if (navOn()) navPush(); });
+document.addEventListener("keydown", e => {
+  if (!navOn() || (document.activeElement && document.activeElement !== document.body)) return;
+  const k = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[e.key];
+  if (k) { e.preventDefault(); navMove(k[0], k[1]); } else if (e.key === "Enter") { e.preventDefault(); navPush(); }
+});
 // Modifiers latch on click (a mouse can't hold two buttons). Shift and Mute
 // release after the next group press; Erase stays on until clicked again.
 for (const [id, key] of [["bShift", "shift"], ["bMute", "mute"], ["bErase", "erase"]]) {
