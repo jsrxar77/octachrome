@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>OP-8 · Guide</title>
 <link rel="icon" href="brand/op8-mark.svg" type="image/svg+xml">
+<link rel="stylesheet" href="site.css">
+<!--SOCIAL-->
 <meta name="description" content="How to play OP-8: a groovebox for the Maschine MK3. Interactive guide.">
 <meta name="color-scheme" content="dark">
 <style>
@@ -27,7 +29,6 @@ button{font:inherit;color:inherit;background:var(--panel);border:1px solid var(-
 button:hover{border-color:var(--dim)}
 button.on{border-color:var(--acc);color:var(--acc)}
 button:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--acc);outline-offset:3px}
-.top{position:fixed;top:14px;left:18px;z-index:6;font-size:15px;color:var(--dim)}.top a{color:var(--dim);text-decoration:none}.top a:hover,.top b{color:var(--fg)}.top b{font-weight:400}
 nav{position:fixed;right:14px;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:12px;z-index:5}
 nav a{width:10px;height:10px;border-radius:50%;background:var(--faint);display:block;transition:.2s}
 nav a.on{background:var(--acc);transform:scale(1.4)}
@@ -82,16 +83,14 @@ pre span{color:var(--dim)}
 .pw{display:flex;gap:18px;flex-wrap:wrap;justify-content:center}
 .pw div{background:var(--panel);border:1px solid var(--faint);border-radius:16px;padding:14px 20px;min-width:150px}
 .pw big{display:block;font-size:34px;font-weight:400}
-footer{padding:40px 20px 60px;text-align:center;color:var(--dim);font-size:15px}
-footer a{color:var(--fg)}
 @media (max-width:700px){nav{display:none}}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;scroll-behavior:auto!important}}
 </style>
 </head>
 <body>
-
-<div class="top"><b>Guide</b> · <a href="brand.html">Brand</a> · <a href="manual.html">Manual</a></div>
+<!--HEADER-->
 <nav id="nav" aria-label="Sections"></nav>
+<main id="main">
 
 <section class="hero" id="s0">
   <svg class="mark" id="heroMark" role="img" aria-label="OP-8 mark: eight coloured keys, four and four"></svg>
@@ -164,15 +163,8 @@ footer a{color:var(--fg)}
   <p class="dim" style="font-size:15px">Plug the MK3 straight into the Mac, not through a hub.</p>
 </section>
 
-<footer>
-  <a href="manual.html">Manual</a> ·
-  <a href="brand.html">Brand</a> ·
-  <a href="../docs/architecture.md">Architecture</a> ·
-  <a href="../docs/buttons.md">Buttons</a> ·
-  <a href="../docs/instruments.md">Instruments</a> ·
-  <a href="../docs/design.md">Design</a> ·
-  <a href="../twin/op8-twin.html">Twin</a>
-</footer>
+</main>
+<!--FOOTER-->
 
 <script src="mk3.js"></script>
 <script src="themes.js"></script>
