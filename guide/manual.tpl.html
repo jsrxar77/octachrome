@@ -54,6 +54,7 @@ td:first-child{white-space:nowrap;color:#fff;font-weight:400}
 .bar i{display:block;height:100%}
 .legend{display:flex;gap:18px;flex-wrap:wrap;color:var(--dim);font-size:15px}
 .unitmap{margin:22px 0 8px}.unitmap svg{width:100%;height:auto;display:block;font-family:Jost,system-ui,sans-serif}
+.facts-list h4{margin:22px 0 2px;color:var(--fg);text-transform:none;letter-spacing:.02em;font-size:20px}.facts-list p{margin:4px 0}
 .parts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4px 28px;margin:16px 0;max-width:none;padding:0;list-style:none}
 .parts li{display:grid;grid-template-columns:30px 1fr;gap:10px;margin:8px 0;align-items:start}
 .parts li>i{font-style:normal;width:26px;height:26px;border-radius:50%;border:2px solid var(--dim);display:grid;place-items:center;font-size:13px;margin-top:2px}
@@ -458,6 +459,27 @@ __PIECE_ROWS__
   <tr><td>macro</td><td>Twenty-four engines in one: analogue waves, FM, wavetables, chords, voices, strings, drums. One note at a time.</td><td>engine · harmonics · timbre · morph / decay · color · variant · level</td></tr>
   <tr><td>midi out</td><td>Sends the track's notes out of the MK3's MIDI socket to an outside synth. The track does not make a sound of its own.</td><td>channel · transpose · velocity · cc74</td></tr>
 </table>
+
+<h3 id="about">What each one is for, and where it comes from</h3>
+<p>Every instrument here is either written for OP-8 or built on open-source synthesis code with the licence that allows it. The code of the <b>Plaits</b> synthesiser by Émilie Gillet (Mutable Instruments, MIT licence) is the base of three of them; OP-8 gives its instruments names of their own and credits the source here.</p>
+<div class="facts-list">
+<h4>drums</h4>
+<p><b>What it is for:</b> a whole beat on one track. Eight percussion sounds (kick, snare, closed hat, open hat, tom, clap, rim, crash) that you program as eight lanes, with a few knobs to shape the sound that is chosen. <b>What it points at:</b> the one-track drum machine of a groovebox, where the sound is a lane and not a note. <b>Where it comes from:</b> the percussion models of Plaits (kick, snare, hi-hat, noise and modal), with OP-8's own lanes, per-sound settings and drawing.</p>
+<h4>KickSyn</h4>
+<p><b>What it is for:</b> a kick of your own, from a soft thump to a hard click, tuned to the key if you want (a track linked to the Brain plays tuned kicks). <b>What it points at:</b> the synthesised kick of analogue drum machines: a sine whose pitch falls fast, a decay, a noise click and some saturation. <b>Where it comes from:</b> written for OP-8, with no other code in it.</p>
+<h4>FmBass</h4>
+<p><b>What it is for:</b> bass lines, from a round sub to a growl or a metallic pluck; one note at a time, with glide. <b>What it points at:</b> classic two-operator FM, the kind of bass that FM keyboards made famous: a modulator that drives a carrier, with its own fast decay for the pluck and a sub-octave to keep the low end solid. <b>Where it comes from:</b> written for OP-8.</p>
+<h4>resonator</h4>
+<p><b>What it is for:</b> plucked strings and struck bells, harps, mallets and chimes; four notes ring at once. <b>What it points at:</b> physical modelling: instead of playing a recording, it simulates a string or a bell that vibrates after being struck. <b>Where it comes from:</b> the string and modal engines of Plaits (the same family of ideas as Mutable Instruments' Rings and Elements), with OP-8's own knobs and drawing.</p>
+<h4>sampler</h4>
+<p><b>What it is for:</b> recorded sounds: a voice, a loop, a field recording, a sound you made on another synth. Play them on the keyboard or from the steps, cut them, tune them, loop them; eight come with OP-8 and eight are yours (recorded with <kbd>SAMPLING</kbd> or copied in as WAV files). <b>What it points at:</b> the sampler of a groovebox, one of the places where a small machine becomes yours. <b>Where it comes from:</b> written for OP-8; the eight sounds that come with it are made by code, so nothing has to be installed.</p>
+<h4>granular <span class="dim">(coming)</span></h4>
+<p><b>What it will be for:</b> turning a sample into clouds of tiny grains: textures, pads and drifting sounds. <b>Where it will come from:</b> the granular ideas of Clouds and Beads (Mutable Instruments, MIT), on top of the sampler.</p>
+<h4>macro</h4>
+<p><b>What it is for:</b> the leads, pads, chords and odd sounds: twenty-four ways of making a sound in one instrument, from analogue waves to FM, wavetables, voices, strings and drums, with three knobs (harmonics, timbre, morph) that change meaning with the engine. One note at a time. <b>What it points at:</b> a macro oscillator: one oscillator with many models, played with few knobs. <b>Where it comes from:</b> the engines of Plaits, almost as they are, with OP-8's own page of knobs and drawing.</p>
+<h4>midi out</h4>
+<p><b>What it is for:</b> playing an outside synth or drum machine with a track of OP-8: the notes leave the MK3's MIDI socket. It makes no sound itself, and it is the last track (H) so that the sounding instruments come first. <b>Where it comes from:</b> written for OP-8.</p>
+</div>
 
 <h3 id="presets">The presets that come with them</h3>
 <p>Each instrument has eight, loaded from <kbd>BROWSER</kbd> (recipe 17). They are a first set, to be tuned by ear on the unit.</p>

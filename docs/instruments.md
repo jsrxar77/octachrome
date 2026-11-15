@@ -150,3 +150,18 @@ The factory projects (FILE, the top two rows) are **eight short pieces in eight 
 
 An empty place of the player's in FILE opens a **new empty project** (the standard instruments, nothing in the steps); SHIFT + tap saves it there.
 
+## 10. Credits and where each instrument comes from
+
+| Instrument | Written for OP-8 or built on | Licence |
+| :-- | :-- | :-- |
+| drums | The percussion models of Plaits (kick, snare, hi-hat, noise, modal); the lanes, per-sound settings and drawing are OP-8's | MIT (Plaits, `crates/op8-plaits`) |
+| KickSyn | Written for OP-8 (a sine with an exponential pitch sweep, a decay, a noise click and a tanh drive) | OP-8's |
+| FmBass | Written for OP-8 (two-operator FM with a sub-octave) | OP-8's |
+| resonator | The string and modal engines of Plaits | MIT |
+| sampler | Written for OP-8 | OP-8's |
+| macro | The engines of Plaits (24 in the vendored set), with OP-8's own pages and drawing | MIT |
+| midi out | Written for OP-8 | OP-8's |
+| granular (to build) | The granular ideas of Clouds / Beads (Mutable Instruments) | MIT |
+
+Plaits is by Émilie Gillet (Mutable Instruments). The name "Mutable Instruments" is a registered trademark: it appears only in credits, never as the name of an instrument. The manual says all of this in plain words under "What each one is for, and where it comes from" ([the manual](../guide/manual.tpl.html) is generated into the site).
+
