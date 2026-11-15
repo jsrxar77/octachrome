@@ -89,17 +89,17 @@ fn f_d10_screens_name_their_buttons() {
     assert_eq!(edge(&b, 1, 55), 0, "and does not run past its text");
     // The page that is open has the bright outline (fg), the other the faint one.
     let t = op8_gfx::theme();
-    assert_eq!(edge(&b, 1, 0), t.fg.0, "sound (button 6) is open");
-    assert_eq!(edge(&b, 0, 0), t.faint.0);
-    b.press(Button::Screen(5));
-    b.run_ms(100);
-    assert_eq!(edge(&b, 0, 0), t.fg.0, "shape (button 5) is open");
+    assert_eq!(edge(&b, 0, 0), t.fg.0, "sound (button 5) is open");
     assert_eq!(edge(&b, 1, 0), t.faint.0);
+    b.press(Button::Screen(6));
+    b.run_ms(100);
+    assert_eq!(edge(&b, 1, 0), t.fg.0, "shape (button 6) is open");
+    assert_eq!(edge(&b, 0, 0), t.faint.0);
     // An instrument with one page has no shape button: that capsule is empty (the sampler-like case is the MIDI out).
     b.press(Button::Screen(5));
     b.press(Button::Group(4)); // track E: the MIDI out has no second page
     b.run_ms(100);
-    assert_eq!(strip_lit(&b, Screen::Right, 0), 0, "no shape button on an instrument without a second page");
+    assert_eq!(strip_lit(&b, Screen::Right, 1), 0, "no shape button on an instrument without a second page");
     assert!(strip_lit(&b, Screen::Right, 2) > 20 && strip_lit(&b, Screen::Right, 3) > 20, "but fx and mod are there");
     // In settings the buttons do nothing, so nothing is named.
     b.press(Button::Settings);
@@ -166,23 +166,41 @@ fn f_d14_screen_button_leds_match_the_labels() {
     b.tick();
     let labels = |b: &Bench| op8_ui::screen_buttons(b.ui());
     let all = labels(&b);
-    assert!(all[0].is_some() && all[1].is_some() && all[4].is_some() && all[5].is_some(), "step, components, shape, sound");
+    assert!(all[0].is_some() && all[1].is_some() && all[4].is_some() && all[5].is_some(), "step, components, sound, shape");
     for n in 1..=8u8 {
         assert_eq!(led(&b, n) > 0, all[n as usize - 1].is_some(), "button {n}: lit exactly when it has a label");
     }
-    assert!(led(&b, 6) > led(&b, 5) && led(&b, 1) > led(&b, 2), "the open page is brighter than the other");
-    b.press(Button::Screen(5));
+    assert!(led(&b, 5) > led(&b, 6) && led(&b, 1) > led(&b, 2), "the open page (1 and 5) is brighter than the other");
+    b.press(Button::Screen(6));
     b.tick();
-    assert!(led(&b, 5) > led(&b, 6), "shape (button 5) is open now");
+    assert!(led(&b, 6) > led(&b, 5), "shape (button 6) is open now");
     // A track whose instrument has one page (track E, the MIDI bridge) has no `shape`: no label, and the button is dark.
     b.press(Button::Group(4));
     b.tick();
-    assert_eq!(led(&b, 5), 0, "no second page, no light");
-    assert!(led(&b, 6) > 0);
+    assert_eq!(led(&b, 6), 0, "no second page, no light");
+    assert!(led(&b, 5) > 0);
     // In settings nothing is named and nothing is lit.
     b.press(Button::Settings);
     b.tick();
     for n in 1..=8u8 {
         assert_eq!(led(&b, n), 0, "settings: button {n} is dark");
     }
+}
+
+// F-D17: choosing a track puts both screens on their first page: the steps on the left (button 1) and `sound` on the
+// right (button 5), whatever page was open.
+#[test]
+fn f_d17_choosing_a_track_shows_buttons_1_and_5() {
+    use op8_hw::leds::button_slot;
+    let led = |b: &Bench, n: u8| b.leds().slots[button_slot(Button::Screen(n)).unwrap()];
+    let mut b = Bench::demo();
+    b.press(Button::Screen(3)); // players on the left
+    b.press(Button::Screen(6)); // shape on the right
+    b.tick();
+    assert!(led(&b, 3) > led(&b, 1) && led(&b, 6) > led(&b, 5), "other pages are open");
+    b.press(Button::Group(5)); // a track with two pages
+    b.tick();
+    assert_eq!(b.ui().right_page, 0);
+    assert_eq!(b.ui().left_page, op8_ui::LeftPage::Steps);
+    assert!(led(&b, 1) > led(&b, 3) && led(&b, 5) > led(&b, 6), "buttons 1 and 5 are the open ones");
 }

@@ -272,6 +272,11 @@ impl Controller {
                         self.release_pads(h);
                     }
                     self.ui.track = t;
+                    // a track shows its first page on the right (button 5) and, in STEP, its steps on the left (button 1)
+                    self.ui.right_page = 0;
+                    if self.ui.mode == Mode::Step {
+                        self.ui.left_page = LeftPage::Steps;
+                    }
                     self.ui.inspect_step = None;
                     self.inspector_pad = None;
                 }
@@ -325,7 +330,7 @@ impl Controller {
             Button::JogRight if self.ui.main == Main::Instrument && self.ui.mode == Mode::Keys => self.shift_octave(1, h),
             Button::JogLeft if self.ui.main == Main::Settings => self.step_theme(-1),
             Button::JogRight if self.ui.main == Main::Settings => self.step_theme(1),
-            // Screen buttons: 1 = step view, 2 = components of the first step, 5 = shape, 6 = sound.
+            // Screen buttons: 1 = step view, 2 = components of the first step, 5 = sound, 6 = shape.
             Button::Screen(1) if self.ui.main == Main::Instrument => self.set_mode(Mode::Step, h),
             Button::Screen(3) if self.ui.main == Main::Instrument => self.open_left(LeftPage::Players, h),
             Button::Screen(4) if self.ui.main == Main::Instrument => self.open_left(LeftPage::Bar, h),
@@ -336,8 +341,8 @@ impl Controller {
                 self.ui.inspect_step = Some(0);
                 self.ui.comp_cursor = 0;
             }
-            Button::Screen(5) if self.ui.main == Main::Instrument => self.ui.right_page = 1,
-            Button::Screen(6) if self.ui.main == Main::Instrument => self.ui.right_page = 0,
+            Button::Screen(5) if self.ui.main == Main::Instrument => self.ui.right_page = 0,
+            Button::Screen(6) if self.ui.main == Main::Instrument => self.ui.right_page = 1,
             _ => {}
         }
     }

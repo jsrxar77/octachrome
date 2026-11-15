@@ -47,7 +47,7 @@ fn f_f05_save_and_open_a_user_slot() {
     // change things: the tempo, a knob of the first instrument
     b.encoder(7); // tempo +7
     let bpm = b.project().bpm;
-    b.press(Button::Screen(6)); // sound
+    b.press(Button::Screen(5)); // sound
     b.knob(4, 120);
     let tune = b.param(0, 0);
     b.press(Button::File);

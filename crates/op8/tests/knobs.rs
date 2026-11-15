@@ -21,7 +21,7 @@ fn f_k01_knob5_moves_parameter() {
 fn f_k02_page_two_moves_second_bank() {
     let mut b = Bench::demo();
     b.press(Button::Group(2));
-    b.press(Button::Screen(5));
+    b.press(Button::Screen(6));
     assert_eq!(b.ui().right_page, 1);
     let (p0, p4) = (b.param(2, 0), b.param(2, 4));
     b.knob(4, 300);
@@ -82,7 +82,7 @@ fn f_k09_a_kit_step_has_no_note() {
 fn f_k10_a_tap_toggles_the_chosen_lane() {
     let mut b = Bench::demo();
     b.press(Button::Group(0));
-    b.press(Button::Screen(5)); // shape: the second page, where `sound` is the last knob
+    b.press(Button::Screen(6)); // shape: the second page, where `sound` is the last knob
     b.knob(7, 120); // 3 detents: kick -> snare (lane 1)
     let pad = (0..16u8)
         .find(|&p| b.project().tracks[0].steps[op8::Controller::pad_to_step(p) as usize].lanes == 0)

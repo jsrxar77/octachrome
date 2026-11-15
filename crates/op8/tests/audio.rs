@@ -63,7 +63,7 @@ fn f_a11_choices_are_auditioned() {
     b.press(Button::Group(0));
     b.run_ms(300);
     let quiet = b.peak(0, 300);
-    b.press(Button::Screen(5));
+    b.press(Button::Screen(6));
     b.knob(7, 120);
     b.run_ms(400);
     assert!(b.peak(300, 700) > quiet + 0.01, "turning `sound` plays the sound: {} vs {}", b.peak(300, 700), quiet);
@@ -84,7 +84,7 @@ fn f_a12_auditions_do_not_repeat() {
     use std::sync::atomic::Ordering::Relaxed;
     let mut b = Bench::demo();
     b.press(Button::Group(0)); // the drums
-    b.press(Button::Screen(5)); // shape: the page with `sound` and body, level, pan
+    b.press(Button::Screen(6)); // shape: the page with `sound` and body, level, pan
     b.run_ms(300);
     let played = |b: &Bench| b.status().note_count[0].load(Relaxed);
     let before = played(&b);

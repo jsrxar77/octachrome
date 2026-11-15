@@ -104,8 +104,8 @@ Each instrument implements `InstrumentCartridge`. The mandatory methods are `pro
 ## 7. Screens and LEDs
 
 - Left: time (tempo, chord, polymeter rings, pad mirror, knobs 1–4).
-- Right: the track's instrument (knobs 5–8, pages with buttons 5 and 6), and the track's effect and LFO (buttons 7 and 8).
-- Theme: `glossy` (default), `matte`, `chrome`. Chosen with `-t` or `OP8_THEME`.
+- Right: the track's instrument (knobs 5–8, pages with buttons 5 (`sound`) and 6 (`shape`)), and the track's effect and LFO (buttons 7 and 8).
+- Theme: `chrome` (default, and the first of the list), `glossy`, `matte`. Chosen with `-t` or `OP8_THEME`.
 - LEDs: 103 slots (62 buttons, 25 of the strip, 16 pads). The pads are in HID order (top-left = 0), but the pad number the user sees is bottom-left first. See `leds.rs`.
 
 ### How the screens reach the MK3
@@ -166,9 +166,9 @@ A project file (`crates/op8/src/projectfile.rs`) is `OP8P`, a version byte, the 
 - **Eight and eight (2026-11-13).** 8 factory instruments plus 8 places for installed ones, and 8 factory projects plus 8 of the player's own: the 16 pads ([instruments.md §7](instruments.md)). The factory set is confirmed (KickSyn, FmBass, macro, MIDI out, drums, resonator, sampler, granular; the first four exist) and the rest are still to be built, in that order ([roadmap.md](roadmap.md)).
 - **The brand mark and every picture of the unit** follow the MK3's own arrangement of eight and sixteen ([design.md §2.3–2.4](design.md)). The themes are glossy, matte and chrome.
 - **Aesthetic:** the language of the OP-1 and OP-XY (colour tied to each physical control, drawings instead of text, absolute black). We take the ideas, never their graphics or fonts. It must not look like a programming project. Details in [design.md](design.md).
-- **8 knobs, 8 colours.** Knobs 1–4 drive the sequencer and appear on the left screen; 5–8 drive the instrument and appear on the right. Three themes: glossy (default), matte, chrome.
+- **8 knobs, 8 colours.** Knobs 1–4 drive the sequencer and appear on the left screen; 5–8 drive the instrument and appear on the right. Three themes: chrome (default), glossy, matte.
 - **Typeface: Jost** (OFL), weights 300 and 400, tuned by eye to resemble the OP-XY's. FlipMono cannot be used: it is actually SF Mono, licensed only for Apple devices.
-- **Instruments:** at most 8 parameters, 4 of shape (button 5) and 4 of sound (button 6). Effects and modulation are per track and the same for all instruments.
+- **Instruments:** at most 8 parameters, 4 of sound (button 5) and 4 of shape (button 6). Effects and modulation are per track and the same for all instruments.
 - **Settings are chosen on the machine and kept in a small text file** of `key=value` lines (`crates/op8/src/settings.rs`; today only `theme=chrome`). Location: `OP8_CONFIG`, else `$XDG_CONFIG_HOME/op8/settings`, else `$HOME/.config/op8/settings`. A missing file, an unknown key or a bad value is ignored (the default is used): a damaged file must never stop the machine from starting. It is written beside itself and renamed, so a power cut leaves the old file or the new one. **At start-up, `-t` / `OP8_THEME` win over the saved theme, which wins over glossy.** Only `op8 run` reads it: `sim` always starts from glossy so it stays reproducible.
 
 **Known limits**

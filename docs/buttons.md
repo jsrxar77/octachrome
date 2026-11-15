@@ -34,8 +34,8 @@ They are the modules of the current mode, like M1–M4 on the OP-XY. Their name 
 | 2 | components: step inspector | step components | ◐ (opens the inspector on step 1; holding a pad still opens it on that step) |
 | 3 | players: arpeggio and chords over the track | players | ✓ (knobs 1–4: `play` off, chord, up, down, up-down, random; `chord` major, minor, 7th, m7, sus2, sus4, power; `rate` (notes per step of an arpeggio) or `strum` (a chord); `octaves` 1–3. Choosing `chord` starts all together, choosing an arpeggio starts at four notes a step. Not on a drum kit; the same button again goes back to the steps) |
 | 4 | bar: length, division and shift of the track | bar | ✓ (knobs 1–4: `length`, `division`, `shift` (turns the steps round the bar) and `rec rounds` (nearest, down, up: which step REC writes to). The same button again goes back. The step view's own knobs 1–2 stay as they were) |
-| 5 | shape: page 2 of the cartridge (envelopes) | M2 | ✓ |
-| 6 | sound: page 1 of the cartridge | M1 | ✓ |
+| 5 | sound: page 1 of the cartridge (the one a track opens on, with what matters most) | M1 | ✓ |
+| 6 | shape: page 2 of the cartridge (envelopes) | M2 | ✓ |
 | 7 | fx: the track's effect | M3 | ✓ (knob 5 `type`: off, delay, reverb, chorus, filter, drive; knobs 6–8 are that effect's three knobs. One effect per track; it is saved with the project) |
 | 8 | mod: the track's LFO | M4 | ✓ (knobs 5–8: `shape` sine, triangle, square, saw, random; `rate` 0.05–20 Hz; `depth`; `moves` nothing, the track's volume, or one of the instrument's eight knobs. One LFO per track; saved with the project) |
 
