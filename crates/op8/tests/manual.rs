@@ -61,7 +61,7 @@ fn recipe_02_a_drum_beat() {
     }
     assert!(b.project().tracks[0].kit);
     b.capture("r02-kick");
-    b.press(Button::Screen(5)); // shape: its last knob chooses the sound
+    b.press(Button::Screen(6)); // shape: its last knob chooses the sound
     b.knob(7, 100); // about a tenth of a turn for each sound
     b.run_ms(50);
     assert_eq!(b.ui().lane, Some(1), "a tenth of a turn of knob 8 is the snare");
@@ -304,7 +304,7 @@ fn recipe_11_choose_an_instrument() {
     b.tap(pad(4)); // the fourth: the resonator
     assert_eq!(b.instrument(6).as_deref(), Some("resonator"));
     assert_eq!(b.ui().main, op8_ui::Main::Instrument, "it goes back to composing");
-    b.press(Button::Screen(5)); // the second page of that instrument
+    b.press(Button::Screen(6)); // the second page of that instrument
     b.run_ms(100);
     b.capture("r11-shape");
 }
@@ -396,11 +396,11 @@ fn recipe_15_play_a_recorded_sound() {
     b.capture("r15-bell");
     b.knob(5, 300); // knob 6, start: skip the first part of the sound
     b.knob(6, -300); // knob 7, length: and stop before the end
-    b.press(Button::Screen(5)); // shape
+    b.press(Button::Screen(6)); // shape
     b.knob(6, 800); // knob 7, loop: on
     b.run_ms(100);
     b.capture("r15-shape");
-    b.press(Button::Screen(6));
+    b.press(Button::Screen(5));
     b.press(Button::Keyboard);
     let t0 = b.now_ms();
     b.strike(0); // C3: an octave below the sound's own pitch

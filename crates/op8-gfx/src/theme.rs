@@ -16,12 +16,17 @@ pub enum ThemeId {
 }
 
 impl ThemeId {
-    pub const ALL: [ThemeId; 3] = [ThemeId::Glossy, ThemeId::Matte, ThemeId::Chrome];
+    /// In the order the player sees them (the settings view, the encoder): chrome, the default, comes first.
+    pub const ALL: [ThemeId; 3] = [ThemeId::Chrome, ThemeId::Glossy, ThemeId::Matte];
+    fn from_index(i: usize) -> Self {
+        [ThemeId::Glossy, ThemeId::Matte, ThemeId::Chrome][i.min(2)]
+    }
     pub fn name(self) -> &'static str {
         theme_of(self).name
     }
     pub fn next(self) -> Self {
-        Self::ALL[(self as usize + 1) % Self::ALL.len()]
+        let at = Self::ALL.iter().position(|t| *t == self).unwrap_or(0);
+        Self::ALL[(at + 1) % Self::ALL.len()]
     }
 }
 
@@ -189,7 +194,7 @@ pub const THEMES: [Theme; 3] = [
     },
 ];
 
-static CURRENT: AtomicU8 = AtomicU8::new(ThemeId::Glossy as u8);
+static CURRENT: AtomicU8 = AtomicU8::new(ThemeId::Chrome as u8);
 
 pub fn theme_of(id: ThemeId) -> &'static Theme {
     &THEMES[id as usize]
@@ -201,7 +206,7 @@ pub fn theme() -> &'static Theme {
 }
 
 pub fn theme_id() -> ThemeId {
-    ThemeId::ALL[(CURRENT.load(Ordering::Relaxed) as usize).min(THEMES.len() - 1)]
+    ThemeId::from_index(CURRENT.load(Ordering::Relaxed) as usize)
 }
 
 pub fn set_theme(id: ThemeId) {

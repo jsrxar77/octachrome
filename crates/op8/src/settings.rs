@@ -22,7 +22,7 @@ pub struct Settings {
 impl Default for Settings {
     fn default() -> Self {
         Self {
-            theme: ThemeId::Glossy,
+            theme: ThemeId::Chrome,
         }
     }
 }
@@ -163,5 +163,14 @@ mod tests {
         assert_eq!(Settings::load(&path), s);
         assert!(!path.with_extension("tmp").exists(), "temp file left behind");
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    // F-D17
+    #[test]
+    fn chrome_is_the_default_and_comes_first() {
+        assert_eq!(Settings::default().theme, ThemeId::Chrome);
+        assert_eq!(ThemeId::ALL[0], ThemeId::Chrome);
+        assert_eq!(ThemeId::Chrome.next(), ThemeId::Glossy, "the order is chrome, glossy, matte");
+        assert_eq!(ThemeId::Matte.next(), ThemeId::Chrome);
     }
 }

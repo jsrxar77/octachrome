@@ -10,7 +10,7 @@ It comes from the [button map](buttons.md) and from [instruments.md](instruments
 - MK3 driver (pads, knobs, buttons, LEDs, screens), `hw-test`, and deployment on the Pi 5 with systemd.
 - Screens on the real MK3: full-width row bands with compression, sent from a thread of their own, with a full refresh every 500 ms (see [architecture.md §7](architecture.md)).
 - Visual language: 8 knob colours, three themes, Jost, drawings per instrument, touch overlay.
-- Buttons ✓: STEP, CHORDS (Brain), PERFORM (Punch-in), groups A–H, MUTE, ERASE + pad, PLAY, STOP, RESTART, SHIFT, screen 5–6. The rest is in [buttons.md](buttons.md).
+- Buttons ✓: STEP, CHORDS (Brain), PERFORM (Punch-in), groups A–H, MUTE, ERASE + pad, PLAY, STOP, RESTART, SHIFT, screens 1–8. The rest is in [buttons.md](buttons.md).
 - The step grid shows active and empty steps far apart (screen and pad LEDs), and the screens name their buttons in a strip along the top.
 - The light of every button follows one rule (dark, a very faint white, a strong white when pressed or in focus; [design.md §2.6](design.md)).
 - PAD MODE and KEYBOARD: the pads play the instrument by hand (a drum kit's eight sounds, the Brain's scale, or a chromatic keyboard), without recording.
@@ -60,7 +60,7 @@ Known limits of the setup:
 
 ## 1. Navigation skeleton (next)
 
-- Done: all eight screen buttons are named in the strip and work: 1 step, 2 components, 3 players, 4 bar, 5 shape, 6 sound, 7 fx, 8 mod ([design.md §4](design.md)).
+- Done: all eight screen buttons are named in the strip and work: 1 step, 2 components, 3 players, 4 bar, 5 sound, 6 shape, 7 fx, 8 mod ([design.md §4](design.md)).
 - PAGE ◀ ▶, 4D encoder (▲ ▼ ◀ ▶, push, turn).
 - SETTINGS: audio, MIDI and brightness as further pages (the theme page is done). The 4D ▲ ▼ chooses the page once there is more than one, and the right screen then shows its page dots.
 
@@ -110,3 +110,12 @@ Known limits of the setup:
 - Real-time priority for the audio thread on Linux (`audio_thread_priority`), and a latency measurement on the Pi 5.
 - MIDI with timestamps (today it goes out as soon as the queue is drained, up to 1 ms plus one block).
 - Presets per instrument (BROWSER); projects already save the instruments' state.
+
+## 8. The batch of 2026-11-15 (in order)
+
+Asked by Javi on 2026-11-15, one pull request each, in this order:
+
+1. **Buttons 1 and 5, and chrome first.** Done: screen button 5 is `sound` (the first page, with what matters most of the instrument) and 6 is `shape`; choosing a track puts the screens on button 1 (steps) and button 5 (sound); chrome is the default theme, in the machine, the twin and the manual, and comes first in the list (glossy and matte follow). Not yet seen on the unit.
+2. **BROWSER (presets), the sampler's stage 3.** To do: the button opens a main mode on both screens; the sixteen pads are sixteen presets of the selected track's instrument (the top two rows the instrument's own, the bottom two the player's); a tap loads one and plays a note, SHIFT + tap on the bottom rows saves the current knobs into `~/.config/op8/presets/<instrument>/user-N.preset`. Presets are per instrument. The mechanism comes first; the factory presets are chosen by ear once it runs.
+3. **The manual, complete and in chrome.** To do: a diagram of the unit at the start with every part named and numbered (buttons, screens, knobs, pads, groups, transport, 4D encoder, Smart Strip), so that the rest of the manual can say "button 5" or "group G"; every page checked against the code and the six documents; the page and all its pictures in the chrome theme; a recipe for BROWSER; SAMPLING in the reference.
+4. **After that.** Granular (reuses the sampler); KEYBOARD on a drum kit like PAD MODE; a basic mixer; naming and deleting projects; PATTERN, SCENE and ARRANGER; real-MK3 verification of everything marked "not yet tried" above.

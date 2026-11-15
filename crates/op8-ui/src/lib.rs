@@ -197,13 +197,13 @@ pub fn screen_buttons(ui: &UiState) -> [Option<(&'static str, bool)>; 8] {
     b[1] = Some(("components", ui.inspect_step.is_some()));
     b[2] = Some(("players", steps && ui.left_page == LeftPage::Players));
     b[3] = Some(("bar", steps && ui.left_page == LeftPage::Bar));
-    // Button 5 is `shape` (the second page, if the instrument has one), 6 is `sound` (the first),
-    // 7 the track's effect and 8 its LFO.
+    // Button 5 is `sound` (the first page, the one a track opens on), 6 is `shape` (the second, if the
+    // instrument has one), 7 the track's effect and 8 its LFO.
     let page = right_page(ui);
+    b[4] = Some(("sound", page == 0));
     if ui.has_second {
-        b[4] = Some(("shape", page == 1));
+        b[5] = Some(("shape", page == 1));
     }
-    b[5] = Some(("sound", page == 0));
     b[6] = Some(("fx", page == 2));
     b[7] = Some(("mod", page == 3));
     b
@@ -353,6 +353,6 @@ mod tests {
             draw_right(&mut fb, &ui, Some(&c), &[0.5; 8]);
             assert!(fb.pixels().iter().filter(|&&px| px != 0).count() > 2000);
         }
-        op8_gfx::set_theme(op8_gfx::ThemeId::Glossy);
+        op8_gfx::set_theme(op8_gfx::ThemeId::Chrome);
     }
 }

@@ -20,7 +20,7 @@ fn f_l01_play_led_follows_transport() {
 #[test]
 fn f_l02_step_pads_show_track_colour() {
     let mut b = Bench::demo();
-    b.press(Button::Group(1)); // track B (KickSyn): orange
+    b.press(Button::Group(1)); // track B (KickSyn)
     let on_pad = (0..16u8).find(|&p| {
         let step = op8::Controller::pad_to_step(p) as usize;
         step < 16 && b.project().tracks[1].steps[step].active
@@ -31,7 +31,7 @@ fn f_l02_step_pads_show_track_colour() {
     });
     let (on, off) = (on_pad.unwrap(), off_pad.unwrap());
     assert_eq!(b.leds().pad(on) & 3, 3, "active pad {on} should be bright");
-    assert_eq!(b.leds().pad(on) >> 2, NiColor::Orange as u8, "active pad should be the track colour");
+    assert_eq!(b.leds().pad(on) >> 2, op8::controller::track_led_colors(op8_gfx::theme_id())[1] as u8, "active pad should be the track colour");
     assert_eq!(b.leds().pad(off) & 3, 1, "inactive pad {off} should be dim");
 }
 
