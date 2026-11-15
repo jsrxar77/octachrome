@@ -101,7 +101,7 @@ fn f_a17_a_pad_saves_the_part_into_the_sampler() {
     let mut b = Bench::demo();
     b.set_samples_dir(d.clone());
     // a sampler on an empty track first, so that it is already playing when the sound arrives
-    b.press(Button::Group(6));
+    b.press(Button::Group(5));
     b.press(Button::PlugIn);
     b.tap(pad_of(4));
     b.knob(4, 400); // sample: user 1 (empty)
@@ -118,14 +118,14 @@ fn f_a17_a_pad_saves_the_part_into_the_sampler() {
     assert!(!d.join("rec-1.wav.tmp").exists());
     // the sampler plays it from a step, with the sequencer
     b.press(Button::Sampling);
-    b.press(Button::Group(6));
+    b.press(Button::Group(5));
     b.tap(0);
     let from = b.now_ms();
     b.press(Button::Play);
     b.run_ms(1500);
     let to = b.now_ms();
     assert!(b.peak_db(from, to) > -30.0, "it plays: {} dB", b.peak_db(from, to));
-    assert!(b.status().note_count[6].load(Relaxed) > 0);
+    assert!(b.status().note_count[5].load(Relaxed) > 0);
     let _ = std::fs::remove_dir_all(&d);
 }
 

@@ -76,7 +76,7 @@ fn strip_lit(b: &Bench, screen: Screen, col: usize) -> usize {
 #[test]
 fn f_d10_screens_name_their_buttons() {
     let mut b = Bench::demo();
-    b.press(Button::Group(5)); // track F: macro, with two parameter pages
+    b.press(Button::Group(6)); // track G: macro, with two parameter pages
     b.run_ms(100);
     // Left: step, components, players, bar. Right: shape, sound, fx, mod.
     for col in 0..4 {
@@ -97,7 +97,7 @@ fn f_d10_screens_name_their_buttons() {
     assert_eq!(edge(&b, 0, 0), t.faint.0);
     // An instrument with one page has no shape button: that capsule is empty (the sampler-like case is the MIDI out).
     b.press(Button::Screen(5));
-    b.press(Button::Group(4)); // track E: the MIDI out has no second page
+    b.press(Button::Group(7)); // track H: the MIDI out has no second page
     b.run_ms(100);
     assert_eq!(strip_lit(&b, Screen::Right, 1), 0, "no shape button on an instrument without a second page");
     assert!(strip_lit(&b, Screen::Right, 2) > 20 && strip_lit(&b, Screen::Right, 3) > 20, "but fx and mod are there");
@@ -133,7 +133,7 @@ fn f_d11_active_and_empty_steps_are_far_apart() {
 #[test]
 fn f_d13_capsule_text_is_centred() {
     let mut b = Bench::demo();
-    b.press(Button::Group(5));
+    b.press(Button::Group(6));
     b.run_ms(200);
     for (screen, cols) in [(Screen::Left, [0usize, 1]), (Screen::Right, [0, 1])] {
         let fb = b.screen(screen);
@@ -162,7 +162,7 @@ fn f_d14_screen_button_leds_match_the_labels() {
     use op8_hw::leds::button_slot;
     let led = |b: &Bench, n: u8| b.leds().slots[button_slot(Button::Screen(n)).unwrap()];
     let mut b = Bench::demo();
-    b.press(Button::Group(5)); // track F: macro, two pages
+    b.press(Button::Group(6)); // track G: macro, two pages
     b.tick();
     let labels = |b: &Bench| op8_ui::screen_buttons(b.ui());
     let all = labels(&b);
@@ -175,7 +175,7 @@ fn f_d14_screen_button_leds_match_the_labels() {
     b.tick();
     assert!(led(&b, 6) > led(&b, 5), "shape (button 6) is open now");
     // A track whose instrument has one page (track E, the MIDI bridge) has no `shape`: no label, and the button is dark.
-    b.press(Button::Group(4));
+    b.press(Button::Group(7));
     b.tick();
     assert_eq!(led(&b, 6), 0, "no second page, no light");
     assert!(led(&b, 5) > 0);
@@ -198,7 +198,7 @@ fn f_d17_choosing_a_track_shows_buttons_1_and_5() {
     b.press(Button::Screen(6)); // shape on the right
     b.tick();
     assert!(led(&b, 3) > led(&b, 1) && led(&b, 6) > led(&b, 5), "other pages are open");
-    b.press(Button::Group(5)); // a track with two pages
+    b.press(Button::Group(6)); // a track with two pages
     b.tick();
     assert_eq!(b.ui().right_page, 0);
     assert_eq!(b.ui().left_page, op8_ui::LeftPage::Steps);

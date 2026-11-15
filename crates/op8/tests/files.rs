@@ -24,13 +24,13 @@ fn f_f04_a_pad_opens_a_factory_project() {
     assert_eq!(b.ui().files.len(), 16);
     assert!(b.ui().files[..8].iter().all(|f| f.1), "the factory projects are there");
     b.run_ms(100);
-    b.tap(pad_of(2)); // backbeat: 96 bpm, the kit alone
+    b.tap(pad_of(1)); // boom bap: 90 bpm, a snare and a hat on the kit
     b.run_ms(100);
     assert_eq!(b.ui().main, Main::Instrument, "opening goes back to composing");
     assert_eq!(b.ui().mode, Mode::Step);
-    assert_eq!(b.project().bpm, 96.0);
-    assert!(b.project().tracks[0].kit && b.project().tracks[0].steps[4].lanes & 0b100010 == 0b100010, "snare and clap together on step 5");
-    assert!(!b.project().tracks[1].steps[0].active, "the demo's kick is gone");
+    assert_eq!(b.project().bpm, 90.0);
+    assert!(b.project().tracks[0].kit && b.project().tracks[0].steps[4].lanes & 0b100 == 0b100, "a hat and the snare together on step 5");
+    assert!(b.project().tracks[1].steps[0].active && b.project().tracks[1].steps[4].lanes == 0 && !b.project().tracks[1].steps[4].active, "the demo's four on the floor is gone");
     // the second tap of the button leaves FILE too
     b.press(Button::File);
     assert_eq!(b.ui().main, Main::File);
@@ -69,7 +69,7 @@ fn f_f05_save_and_open_a_user_slot() {
     let _ = std::fs::remove_dir_all(&dir);
 }
 
-// F-F06: an empty slot says so and does not load; SHIFT on a factory slot does not overwrite it; a damaged file is refused
+// F-F06: an empty slot opens a new, empty project; SHIFT on a factory slot does not overwrite it; a damaged file is refused
 // and the project stays as it was.
 #[test]
 fn f_f06_empty_factory_and_damaged_slots() {
@@ -78,9 +78,15 @@ fn f_f06_empty_factory_and_damaged_slots() {
     b.set_projects_dir(dir.clone());
     let before = *b.project();
     b.press(Button::File);
-    b.tap(pad_of(10)); // an empty slot of the player's
-    assert_eq!(b.ui().main, Main::File, "still in FILE");
-    assert!(b.ui().file_note.starts_with("empty"));
+    b.tap(pad_of(10)); // an empty slot of the player's: a new project
+    assert_eq!(b.ui().main, Main::Instrument, "opening goes back to composing");
+    b.run_ms(50);
+    let used: Vec<usize> = (0..8).filter(|&t| b.project().tracks[t].steps.iter().any(|s| s.active)).collect();
+    assert!(used.is_empty(), "nothing in the steps, but tracks {used:?} have some; note {}", b.ui().file_note);
+    assert_eq!(b.project().bpm, 120.0);
+    assert_eq!(b.instrument(0).as_deref(), Some("drums"), "the standard instruments are there");
+    b.press(Button::File);
+    let before = *b.project();
     b.button_down(Button::Shift);
     b.tap(pad_of(1)); // a factory slot
     b.button_up(Button::Shift);
@@ -92,6 +98,7 @@ fn f_f06_empty_factory_and_damaged_slots() {
     b.press(Button::File); // and in again, so it looks at the folder
     b.tap(pad_of(8));
     assert_eq!(b.ui().main, Main::File, "a damaged file is not loaded");
+    assert!(b.ui().file_note.contains("damaged"));
     assert_eq!(*b.project(), before, "and the project is untouched");
     let _ = std::fs::remove_dir_all(&dir);
 }

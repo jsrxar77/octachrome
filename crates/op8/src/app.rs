@@ -253,11 +253,11 @@ mod tests {
             pressed: true,
         });
         app.surface.push(ControlEvent::Button {
-            button: Button::Group(5),
+            button: Button::Group(6),
             pressed: true,
         });
         app.frame(16).unwrap();
-        assert!(app.handle.project.tracks[5].brain_link);
+        assert!(app.handle.project.tracks[6].brain_link);
         assert_eq!(app.ctl.ui.track, 3);
     }
 

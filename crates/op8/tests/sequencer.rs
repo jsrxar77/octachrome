@@ -85,16 +85,16 @@ fn f_s06_knob1_sets_length() {
 fn f_s07_mute_group_toggles_mute() {
     let mut b = Bench::demo();
     b.button_down(Button::Mute);
-    b.press(Button::Group(4));
+    b.press(Button::Group(7));
     b.button_up(Button::Mute);
-    assert!(b.project().tracks[4].muted);
+    assert!(b.project().tracks[7].muted);
     b.button_down(Button::Mute);
-    b.press(Button::Group(4));
+    b.press(Button::Group(7));
     b.button_up(Button::Mute);
-    assert!(!b.project().tracks[4].muted);
+    assert!(!b.project().tracks[7].muted);
 }
 
-// F-S08: a muted track sends no new notes. Track C is the MIDI track.
+// F-S08: a muted track sends no new notes. Track H is the MIDI track.
 #[test]
 fn f_s08_muted_track_is_silent() {
     let mut b = Bench::demo();
@@ -104,7 +104,7 @@ fn f_s08_muted_track_is_silent() {
     assert!(before > 0, "precondition: MIDI track should play notes before mute");
 
     b.button_down(Button::Mute);
-    b.press(Button::Group(4));
+    b.press(Button::Group(7));
     b.button_up(Button::Mute);
     let t = b.now_ms() + 50;
     b.run_ms(2500);

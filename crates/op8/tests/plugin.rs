@@ -29,7 +29,7 @@ fn f_i01_a_pad_puts_the_instrument_on_the_track() {
     assert_eq!(b.ui().right_page, 0);
     // and back to a melodic one
     b.press(Button::PlugIn);
-    b.tap(pad_of(7)); // macro
+    b.tap(pad_of(6)); // macro
     assert_eq!(name_of(&b, 3).as_deref(), Some("macro"));
     b.press(Button::PlugIn);
     b.press(Button::PlugIn);
@@ -54,12 +54,12 @@ fn f_i02_unbuilt_and_empty_places_change_nothing() {
 #[test]
 fn f_i03_the_midi_out_moves() {
     let mut b = Bench::demo();
-    assert_eq!(name_of(&b, 4).as_deref(), Some("MidiOutBridge"));
-    b.press(Button::Group(6)); // an empty track
+    assert_eq!(name_of(&b, 7).as_deref(), Some("MidiOutBridge"), "the MIDI out is the last track");
+    b.press(Button::Group(5)); // an empty track
     b.press(Button::PlugIn);
-    b.tap(pad_of(6)); // midi out
-    assert_eq!(name_of(&b, 6).as_deref(), Some("MidiOutBridge"), "it is here now");
-    assert_eq!(name_of(&b, 4), None, "and no longer where it was");
+    b.tap(pad_of(7)); // midi out, the last of the eight
+    assert_eq!(name_of(&b, 5).as_deref(), Some("MidiOutBridge"), "it is here now");
+    assert_eq!(name_of(&b, 7), None, "and no longer where it was");
 }
 
 // F-I04: leaving the drums turns a kit track's lanes back into notes, so nothing is lost.
@@ -80,20 +80,20 @@ fn f_i04_leaving_the_drums_keeps_the_pattern() {
 #[test]
 fn f_i05_the_sampler_plays_from_a_step() {
     let mut b = Bench::empty();
-    b.press(Button::Group(6));
+    b.press(Button::Group(5));
     b.press(Button::PlugIn);
     b.tap(pad_of(4)); // the sampler
-    assert_eq!(name_of(&b, 6).as_deref(), Some("sampler"));
+    assert_eq!(name_of(&b, 5).as_deref(), Some("sampler"));
     assert_eq!(b.ui().main, Main::Instrument);
     b.run_ms(100);
     b.capture("f-i05-sampler");
     // turn knob 5 to another sound: it is auditioned, and the step plays it
     b.knob(4, 100);
     b.tap(0);
-    let before = b.status().note_count[6].load(std::sync::atomic::Ordering::Relaxed);
+    let before = b.status().note_count[5].load(std::sync::atomic::Ordering::Relaxed);
     b.press(Button::Play);
     b.run_ms(1500);
-    assert!(b.status().note_count[6].load(std::sync::atomic::Ordering::Relaxed) > before);
+    assert!(b.status().note_count[5].load(std::sync::atomic::Ordering::Relaxed) > before);
     assert!(b.rms_db(0, 1500) > -50.0, "the sound is heard: {} dB", b.rms_db(0, 1500));
     assert!(b.ui().has_second, "it has a second page");
 }

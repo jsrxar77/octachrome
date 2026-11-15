@@ -371,11 +371,11 @@ function demoProject() {
   b.steps[2] = { ...newStep(true, 48), comps: [C("ratchet",2)] };
   b.steps[3] = newStep(true, 43);
   b.steps[5] = { ...newStep(true, 40), comps: [C("every",[2,2]), C("oct",1)] };
-  const a = tracks[4]; a.length = 5; a.link = true;
+  const a = tracks[7]; a.length = 5; a.link = true;
   a.steps[0] = newStep(true, 60); a.steps[1] = newStep(true, 64);
   a.steps[2] = { ...newStep(true, 67), comps: [C("rand",5)] };
   a.steps[4] = { ...newStep(true, 72), comps: [C("chance",60)] };
-  const m = tracks[5]; m.link = true;
+  const m = tracks[6]; m.link = true;
   m.steps[0] = newStep(true, 60); m.steps[6] = newStep(true, 67);
   m.steps[10] = { ...newStep(true, 64), comps: [C("oct",1)] };
   // drums: a backbeat on a kit track; each lane is a sound (0 kick, 1 snare, 2 closed hat, 3 open hat, 4 tom, 5 clap, 6 rim, 7 crash)
@@ -422,9 +422,9 @@ const CARTS = {
   midi: { name: "MIDIOUTBRIDGE", cat: "MIDI",
     params: [["CHANNEL",0,v=>"CH "+(Math.min(15,Math.floor(v*16))+1)],["TRANSP",.5,v=>{const s=Math.round(-24+48*v);return (s>0?"+":"")+s+"st";}],["VEL",1,v=>Math.round(v*100)+"%"],["CC74",.5,v=>Math.round(v*100)+"%"]] },
 };
-// the instruments run from the most guttural to the most refined: drums, kick, bass, MIDI out, then the leads (macro)
+// the instruments run from the most guttural to the most refined, the order of PLUG-IN: drums, kick, bass, resonator, sampler, (granular), the leads (macro), and the MIDI out last
 let VOL = 1; // master volume
-const SLOTS = ["drums", "kick", "fm", "resonator", "midi", "macro", null, null];
+const SLOTS = ["drums", "kick", "fm", "resonator", "sampler", null, "macro", "midi"];
 const PARAMS = SLOTS.map(s => s ? CARTS[s].params.map(p => p[1]) : null);
 // the knobs edit the chosen drum sound: keep its values in step with PARAMS
 function drumsSync(t, i) {
@@ -1120,22 +1120,95 @@ function touchOverlay(g, cells, base) {
 // preview. Nothing is shown for a control that does nothing here (rule 11).
 function settingsBar(g, title) { dot(g, 16, 15, 6, FG); txt(g, title, 30, 6, "mid", FG); }
 // ---- FILE: projects (crates/op8/src/factory.rs and projectfile.rs). The factory eight, and the player's eight kept in localStorage.
-const FILE_NAMES = ["demo", "four floor", "backbeat", "bassline", "pluck", "lead", "polymeter", "blank"];
+const FILE_NAMES = ["house", "boom bap", "dub", "polyrhythm", "acid", "electro", "ambient", "breaks"];
+// The eight pieces that come with the machine (crates/op8/src/factory.rs): the same steps, components, chords, effects and LFOs.
+const KICK = 1, SNARE = 2, CHAT = 4, OHAT = 8, TOM = 16, CLAP = 32, RIM = 64, CRASH = 128;
+const PIECE_PRESETS = [ // by track A to H, and the share of each instrument's level that the piece keeps
+  [["", "punch", "round", "steel", "", "", "chords", ""], 0.85], [["", "soft", "sub", "nylon", "voice", "", "", ""], 1.0],
+  [["", "boom", "sub", "bell", "", "", "swarm", ""], 0.8], [["", "soft", "", "harp", "bell", "", "strings", ""], 1.0],
+  [["", "tight", "acid", "", "", "", "", ""], 0.5], [["", "click", "growl", "", "", "", "chip", ""], 0.65],
+  [["", "", "", "glass", "pad", "", "strings", ""], 1.0], [["", "hard", "growl", "muted", "tick", "", "", ""], 1.0]];
+function brainOf(key, scale, kind, degrees) { return { key, scale, mode: 1, len: degrees.length, live: null, prog: Array.from({ length: 8 }, (_, k) => ({ degree: degrees[k] || 0, kind, length: 16 })) }; }
 function factoryProject(i) {
-  if (i === 0) return demoProject();
-  const p = demoProject(); p.tracks.forEach(t => { t.steps = Array.from({ length: 16 }, () => newStep()); t.length = 16; t.kit = false; t.link = false; t.pl = null; t.fx = null; t.lfo = null; ensureTrack(t); });
-  p.brain.live = null;
-  const on = (t, steps, note) => steps.forEach(s => p.tracks[t].steps[s] = newStep(true, note));
-  const kit = (steps, lane) => steps.forEach(s => { const st = p.tracks[0].steps[s]; st.lanes |= 1 << lane; st.active = true; }); p.tracks[0].kit = true;
-  p.bpm = [122, 124, 96, 110, 84, 118, 100, 120][i];
-  if (i === 1) { kit([2, 6, 10, 14], 2); kit([15], 3); on(1, [0, 4, 8, 12], 36); }
-  if (i === 2) { kit([0, 10], 0); kit([4, 12], 1); kit([4, 12], 5); kit([0, 2, 4, 6, 8, 10, 12, 14], 2); kit([15], 4); }
-  if (i === 3) { const b = p.tracks[2]; b.length = 7; b.link = true; b.steps[0] = newStep(true, 36); b.steps[2] = newStep(true, 48); b.steps[3] = newStep(true, 43); b.steps[5] = newStep(true, 40); on(1, [0, 8], 36); b.lfo = { shape: 1, rate: 60, depth: 170, target: 3 }; }
-  if (i === 4) { const r = p.tracks[3]; r.length = 8; r.link = true; [[0, 60], [2, 64], [3, 67], [5, 72], [6, 67]].forEach(([s, n]) => r.steps[s] = newStep(true, n)); r.fx = { kind: 2, a: 190, b: 140, c: 110 }; }
-  if (i === 5) { const m = p.tracks[5]; m.link = true; m.steps[0] = newStep(true, 60); m.steps[6] = newStep(true, 67); m.steps[10] = newStep(true, 64); m.pl = { mode: 2, chord: 1, speed: 2, oct: 2 }; m.fx = { kind: 1, a: 178, b: 110, c: 90 }; }
-  if (i === 6) { p.tracks[1].length = 5; on(1, [0], 36); p.tracks[3].length = 7; on(3, [0], 60); on(3, [3], 67); p.tracks[0].length = 3; kit([0], 2); }
+  const p = demoProject();
+  p.tracks.forEach(t => { t.steps = Array.from({ length: 16 }, () => newStep()); t.length = 16; t.kit = false; t.link = false; t.div = 2; t.pl = null; t.fx = null; t.lfo = null; ensureTrack(t); });
+  const T = p.tracks, A = T[0], SAMP = T[4], MAC = T[6];
+  const on = (t, list) => list.forEach(([s, n, comps, gate]) => { T[t].steps[s] = { ...newStep(true, n), comps: comps || [] }; if (gate) T[t].steps[s].gate = gate; });
+  const kit = (lanes, at, comps) => { A.kit = true; at.forEach(s => { const st = A.steps[s]; st.lanes |= lanes; st.active = true; if (comps) st.comps = (st.comps || []).concat(comps); }); };
+  const fx = (t, kind, a, b, c) => T[t].fx = { kind, a, b, c };
+  const link = (...ts) => ts.forEach(t => T[t].link = true);
+  const pl = (t, mode, chord, speed, oct) => T[t].pl = { mode, chord, speed, oct };
+  const lfo = (t, shape, rate, depth, target) => T[t].lfo = { shape, rate, depth, target };
+  if (i === 0) { // house
+    p.bpm = 124; p.swing = .54; p.brain = brainOf(9, 1, "seventh", [0, 5, 2, 6]);
+    kit(OHAT, [2, 6, 10, 14]); kit(CLAP, [4, 12]); kit(CHAT, [0, 8, 15]);
+    on(1, [0, 4, 8, 12].map(s => [s, 36])); link(2, 3, 6); on(2, [[2, 36, 0, 40], [6, 36, 0, 40], [10, 36, 0, 40], [13, 43, 0, 40]]);
+    on(3, [3, 6, 11, 14].map(s => [s, 60])); pl(3, 1, 3, 0, 1); fx(3, 1, 160, 100, 110);
+    on(6, [[0, 60, [C("hold", 14)]]]); fx(6, 2, 150, 150, 70);
+  } else if (i === 1) { // boom bap
+    p.bpm = 90; p.swing = .60; p.brain = brainOf(0, 2, "seventh", [0, 3, 0, 4]);
+    kit(SNARE, [4, 12]); kit(CHAT, [0, 2, 4, 6, 8, 10, 12, 14]); kit(RIM, [15], [C("chance", 50)]);
+    on(1, [[0, 36], [7, 36], [10, 36]]); link(2, 3, 4); on(2, [[0, 36, 0, 75], [7, 36, 0, 75], [10, 38, 0, 75]]);
+    on(3, [[3, 60], [11, 60]]); pl(3, 1, 3, 2, 1); fx(3, 2, 140, 130, 70);
+    on(4, [[0, 60], [11, 67, [C("chance", 70)]]]);
+  } else if (i === 2) { // dub
+    p.bpm = 70; p.swing = .5; p.brain = brainOf(9, 1, "triad", [0, 0, 0, 3]);
+    kit(RIM, [12]); kit(CHAT, [6, 14]); fx(0, 1, 200, 140, 120);
+    on(1, [[0, 36], [10, 36]]); link(2, 3, 6);
+    on(2, [[0, 36, [C("hold", 2)]], [7, 36], [10, 39, [C("hold", 1)]]]); lfo(2, 1, 55, 150, 3);
+    on(3, [[4, 72], [11, 67, [C("chance", 70)]]]); fx(3, 1, 190, 150, 130);
+    on(6, [[0, 57, [C("hold", 15)]]]); fx(6, 2, 200, 170, 110);
+  } else if (i === 3) { // polyrhythm
+    p.bpm = 96; p.swing = .5; p.brain = brainOf(0, 0, "triad", [0, 4, 5, 3]);
+    A.length = 3; kit(CHAT, [0]); T[1].length = 5; on(1, [[0, 36]]);
+    T[3].length = 7; link(3); on(3, [[0, 60], [2, 64], [4, 67]]);
+    T[6].length = 9; link(6); on(6, [[0, 55, [C("hold", 6)]]]); fx(6, 2, 170, 150, 90);
+    T[4].length = 11; link(4); on(4, [[0, 72], [6, 67]]); fx(4, 1, 170, 110, 100);
+  } else if (i === 4) { // acid
+    p.bpm = 130; p.swing = .5; p.brain = brainOf(9, 1, "triad", [0, 0, 0, 6]);
+    kit(CHAT, [2, 6, 10, 14]); kit(CLAP, [4, 12]); kit(CRASH, [0], [C("every", [1, 4])]);
+    on(1, [0, 4, 8, 12].map(s => [s, 36])); link(2);
+    on(2, [[0, 36], [2, 36], [3, 48], [5, 36], [6, 36, [C("oct", 1)]], [8, 36], [10, 39], [11, 36, [C("ratchet", 2)]], [13, 36], [14, 43, [C("vel", -30)]]]);
+    fx(2, 5, 110, 170, 190); lfo(2, 1, 80, 200, 3);
+  } else if (i === 5) { // electro
+    p.bpm = 110; p.swing = .5; p.brain = brainOf(4, 1, "triad", [0, 5, 6, 2]);
+    kit(SNARE, [4, 12]); kit(CLAP, [12]); kit(CHAT, [0, 2, 4, 6, 8, 10, 12, 14]);
+    on(1, [0, 3, 8, 11].map(s => [s, 36])); link(2, 6);
+    on(2, [[0, 36], [3, 36], [6, 48], [8, 36], [11, 41]]);
+    MAC.div = 3; on(6, [[0, 60], [3, 64], [6, 67], [9, 72]]); pl(6, 4, 1, 2, 2); fx(6, 1, 178, 120, 110);
+  } else if (i === 6) { // ambient
+    p.bpm = 60; p.swing = .5; p.brain = brainOf(5, 4, "seventh", [0, 1, 0, 5]);
+    link(3, 6, 4);
+    on(3, [[0, 72], [5, 67], [9, 76, [C("chance", 70)]], [13, 71]]); fx(3, 2, 210, 175, 130);
+    on(6, [[0, 60, [C("hold", 15)]]]); fx(6, 3, 70, 140, 128);
+    on(4, [[0, 48, [C("hold", 15)]]]); fx(4, 2, 190, 160, 100);
+  } else { // breaks
+    p.bpm = 140; p.swing = .52; p.brain = brainOf(2, 3, "triad", [0, 0, 1, 0]);
+    kit(SNARE, [4, 13]); A.steps[13].comps = [C("ratchet", 2)]; kit(CHAT, [2, 6, 8, 12, 14]);
+    [2, 6, 14].forEach(s => A.steps[s].comps = [C("chance", 70)]); kit(CLAP, [12], [C("chance", 40)]);
+    kit(TOM, [15], [C("every", [2, 2])]);
+    on(1, [[0, 36], [10, 36], [3, 36, [C("chance", 50)]]]); link(2, 3);
+    on(2, [[0, 36], [6, 36], [7, 39, [C("every", [1, 2])]], [11, 36]]);
+    on(3, [1, 9, 14].map(s => [s, s === 1 ? 60 : s === 9 ? 64 : 67, [C("rand", 7), C("chance", 60)]]));
+    on(4, [[1, 60, [C("ratchet", 3)]], [5, 60, [C("chance", 60)]], [9, 60, [C("ratchet", 4)]], [11, 60, [C("chance", 50)]], [14, 60, [C("ratchet", 2)]]]); fx(4, 1, 150, 90, 90);
+  }
   return p;
 }
+// the standard tracks, in the order of PLUG-IN: A drums, B kick, C fm, D resonator, E sampler, F empty (the granular), G macro, H MIDI out
+function applyPiece(i) {
+  const [names, gain] = PIECE_PRESETS[i];
+  SLOTS.splice(0, 8, "drums", "kick", "fm", "resonator", "sampler", null, "macro", "midi");
+  SLOTS.forEach((s, t) => {
+    PARAMS[t] = s ? CARTS[s].params.map(q => q[1]) : null;
+    if (!s) return;
+    if (s === "drums") PARAMS[t][7] = .5 / 8;
+    const f = factoryPresets(s).find(x => x[0] === names[t]);
+    if (f) f[1].forEach((v, k) => { if (v != null && k < PARAMS[t].length) PARAMS[t][k] = v; });
+    if (s !== "drums" && PARAMS[t].length > 7) PARAMS[t][7] = Math.min(1, PARAMS[t][7] * gain);
+  });
+  if (actx) for (let t = 0; t < 8; t++) fxApply(t, true);
+}
+function blankProject() { const p = factoryProject(0); p.tracks.forEach(t => { t.steps = Array.from({ length: 16 }, () => newStep()); t.length = 16; t.kit = false; t.link = false; t.pl = null; t.fx = null; t.lfo = null; ensureTrack(t); }); p.bpm = 120; p.swing = .5; p.brain = brainOf(0, 0, "triad", [0, 5, 3, 4]); return p; }
 const userKey = n => "op8-user-" + n;
 function fileSlots() { return Array.from({ length: 16 }, (_, i) => i < 8 ? [FILE_NAMES[i], true] : (localStorage.getItem(userKey(i - 7)) ? ["user " + (i - 7), true] : ["", false])); }
 function loadProject(src) { const q = JSON.parse(JSON.stringify(src)); P.tracks = q.tracks.map(ensureTrack); P.bpm = q.bpm; P.swing = q.swing; P.brain = q.brain; if (actx) for (let t = 0; t < 8; t++) fxApply(t, true); }
@@ -1148,8 +1221,8 @@ function filePad(pad) {
   }
   let src = null;
   if (slot < 8) src = factoryProject(slot); else { try { const j = JSON.parse(localStorage.getItem(userKey(slot - 7))); if (j) { src = j.p; if (j.drums) DRUMS.vals = j.drums; } } catch (e) {} }
-  if (!src) { UI.fileNote = "empty: SHIFT + tap saves here"; return; }
-  loadProject(src); UI.main = "instrument"; UI.mode = "step"; UI.fileNote = "";
+  if (!src) { loadProject(blankProject()); applyPiece(0); PARAMS.forEach((q, t) => { if (q && SLOTS[t] !== "drums") { const d = CARTS[SLOTS[t]].params.map(z => z[1]); q.splice(0, q.length, ...d); } }); UI.main = "instrument"; UI.mode = "step"; UI.fileNote = "a new empty project: SHIFT + tap saves it"; return; }
+  loadProject(src); if (slot < 8) applyPiece(slot); UI.main = "instrument"; UI.mode = "step"; UI.fileNote = "";
 }
 // ---- SAMPLING (Controller::sampling_*): record the master or the microphone (up to ten seconds), keep a part of it, and put it
 // in one of the sampler's eight places of its own (the top two rows of pads); the bottom two rows listen to the part.
@@ -1299,7 +1372,7 @@ function brRight(g) {
   if (UI.brNote) txt(g, UI.brNote, 30, 208, "mid", FG);
 }
 // ---- PLUG-IN: the instrument of the selected track (Controller::plugin_pad). The factory eight, then eight places for installed ones.
-const FACTORY_INSTRUMENTS = [["drums", "drums", true], ["KickSyn", "kick", true], ["FmBass", "fm", true], ["resonator", "resonator", true], ["sampler", "sampler", true], ["granular", null, false], ["midi out", "midi", true], ["macro", "macro", true]];
+const FACTORY_INSTRUMENTS = [["drums", "drums", true], ["KickSyn", "kick", true], ["FmBass", "fm", true], ["resonator", "resonator", true], ["sampler", "sampler", true], ["granular", null, false], ["macro", "macro", true], ["midi out", "midi", true]];
 function plugPad(pad) {
   const slot = padToStep(pad), t = UI.track, f = FACTORY_INSTRUMENTS[slot];
   if (!f) { UI.plugNote = "empty: installed instruments will go here"; return; }
