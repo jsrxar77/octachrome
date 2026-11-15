@@ -62,6 +62,7 @@ pub fn light(ui: &UiState, c: &Context, b: Button) -> Light {
         File => state(ui.main == Main::File),
         PlugIn => state(ui.main == Main::Plugin),
         Sampling => state(ui.main == Main::Sampling),
+        Browser => state(ui.main == Main::Browser),
         // The pad-mode buttons all work from settings too (they go back to composing).
         Step => state(composing && ui.mode == Mode::Step),
         Chords => state(composing && ui.mode == Mode::Brain),

@@ -36,6 +36,14 @@ use op8_seq::{
 use op8_ui::{LeftPage, Main, Mode, UiState, COMPONENT_PRESETS};
 use std::sync::atomic::Ordering::Relaxed;
 
+/// Where the player's presets are: next to the settings file, in `presets/`.
+pub fn default_presets_dir() -> Option<std::path::PathBuf> {
+    if let Some(p) = std::env::var_os("OP8_PRESETS").filter(|p| !p.is_empty()) {
+        return Some(std::path::PathBuf::from(p));
+    }
+    crate::settings::default_path().and_then(|p| p.parent().map(|d| d.join("presets")))
+}
+
 pub const HOLD_MS: u64 = 300;
 /// The velocity a pad plays and REC writes while FIXED VEL is on.
 const FIXED_VELOCITY: u8 = 100;
@@ -117,6 +125,8 @@ pub struct Controller {
     pub projects_dir: Option<std::path::PathBuf>,
     /// Where SAMPLING saves what it records (`rec-1.wav` … `rec-8.wav`), if anywhere.
     pub samples_dir: Option<std::path::PathBuf>,
+    /// Where the player's presets are saved, one folder per instrument (`<name>/user-1.preset` …), if anywhere.
+    pub presets_dir: Option<std::path::PathBuf>,
     /// How many samples of the take the drawing of its wave was made from.
     smp_drawn: usize,
     /// When the last taps of TAP were, to work out a tempo.
@@ -174,6 +184,7 @@ impl Controller {
             ControlEvent::Pad { pad, event } if self.ui.main == Main::File => self.file_pad(pad, event, h),
             ControlEvent::Pad { pad, event } if self.ui.main == Main::Plugin => self.plugin_pad(pad, event, h),
             ControlEvent::Pad { pad, event } if self.ui.main == Main::Sampling => self.sampling_pad(pad, event, h),
+            ControlEvent::Pad { pad, event } if self.ui.main == Main::Browser => self.browser_pad(pad, event, h),
             ControlEvent::Knob { index, delta } if self.ui.main == Main::Sampling => self.sampling_knob(index as usize, delta, h),
             ControlEvent::Pad { .. } | ControlEvent::Knob { .. } if self.ui.main != Main::Instrument => {}
             ControlEvent::Encoder { delta } if self.ui.main == Main::Settings => {
@@ -307,6 +318,10 @@ impl Controller {
             }
             Button::Rec if self.ui.main == Main::Instrument => self.ui.rec = !self.ui.rec,
             Button::Rec if self.ui.main == Main::Sampling => self.toggle_record(h),
+            Button::Browser => {
+                let to = if self.ui.main == Main::Browser { Main::Instrument } else { Main::Browser };
+                self.set_main(to, h);
+            }
             Button::Sampling => {
                 let to = if self.ui.main == Main::Sampling { Main::Instrument } else { Main::Sampling };
                 self.set_main(to, h);
@@ -373,6 +388,96 @@ impl Controller {
     /// SAMPLING is open on the audio input: the program opens the input stream only then.
     pub fn wants_input(&self) -> bool {
         self.ui.main == Main::Sampling && self.ui.smp.source == 0
+    }
+
+    /// The name of the instrument on the selected track.
+    fn instrument_name(&self, h: &EngineHandle) -> Option<String> {
+        h.slots[self.ui.track].as_ref().and_then(|c| c.lock().ok().map(|c| c.info().name))
+    }
+
+    /// The file of a preset of an instrument: `slot` is the pad (8..16 are the player's).
+    fn preset_file(&self, name: &str, slot: usize) -> Option<std::path::PathBuf> {
+        let safe: String = name.chars().filter(|c| c.is_ascii_alphanumeric() || *c == '-' || *c == '_').collect();
+        Some(self.presets_dir.as_ref()?.join(safe).join(format!("user-{}.preset", slot - 7)))
+    }
+
+    /// The sixteen presets of the selected track's instrument: none come with it yet, the player's eight are the files.
+    fn refresh_browser(&mut self, h: &EngineHandle) {
+        let name = self.instrument_name(h);
+        self.ui.browse_inst = name.clone().unwrap_or_else(|| "empty track".into());
+        self.ui.browse = (0..16usize)
+            .map(|i| {
+                if i < 8 {
+                    return (String::new(), false);
+                }
+                let has = name.as_ref().and_then(|n| self.preset_file(n, i)).is_some_and(|p| p.is_file());
+                (format!("user {}", i - 7), has)
+            })
+            .collect();
+    }
+
+    /// The pads of BROWSER: a tap loads the preset into the track's instrument and plays a note; SHIFT + tap on the
+    /// player's eight saves the instrument's knobs into it.
+    fn browser_pad(&mut self, pad: u8, ev: PadEvent, h: &mut EngineHandle) {
+        if !matches!(ev, PadEvent::Press | PadEvent::Strike(_)) || self.pad_down_at[pad as usize].is_some() {
+            if ev == PadEvent::Release {
+                self.pad_down_at[pad as usize] = None;
+            }
+            return;
+        }
+        self.pad_down_at[pad as usize] = Some(0);
+        let slot = Self::pad_to_step(pad) as usize;
+        self.ui.browse_last = Some(slot);
+        let track = self.ui.track;
+        let (Some(name), Some(cart)) = (self.instrument_name(h), h.slots[track].clone()) else {
+            self.ui.browse_note = "this track has no instrument (PLUG-IN)".into();
+            return;
+        };
+        if slot < 8 {
+            self.ui.browse_note = "no presets come with the instrument yet".into();
+            return;
+        }
+        let Some(file) = self.preset_file(&name, slot) else {
+            self.ui.browse_note = "nowhere to save".into();
+            return;
+        };
+        if self.held.shift {
+            let Some(state) = cart.lock().ok().map(|c| c.save_state()) else { return };
+            let mut bytes = b"OP8S\x01".to_vec();
+            bytes.extend_from_slice(&state);
+            let tmp = file.with_extension("tmp");
+            let wrote = file
+                .parent()
+                .map_or(Ok(()), std::fs::create_dir_all)
+                .and_then(|_| std::fs::write(&tmp, &bytes))
+                .and_then(|_| std::fs::rename(&tmp, &file));
+            self.ui.browse_note = match wrote {
+                Ok(()) => format!("saved in user {}", slot - 7),
+                Err(e) => format!("could not save: {e}"),
+            };
+            self.refresh_browser(h);
+            return;
+        }
+        let Some(bytes) = std::fs::read(&file).ok().filter(|b| b.starts_with(b"OP8S\x01")) else {
+            self.ui.browse_note = "empty: SHIFT + tap saves here".into();
+            return;
+        };
+        // the knobs of the instrument take the preset's values; the engine is told so that it keeps them as its own
+        let values: Vec<Option<f32>> = match cart.lock() {
+            Ok(mut c) => {
+                c.load_state(&bytes[5..]);
+                (0..8).map(|i| c.parameter_value(i)).collect()
+            }
+            Err(_) => return,
+        };
+        for (i, v) in values.into_iter().enumerate() {
+            if let Some(value) = v {
+                h.send(EngineCommand::SetParam { track: track as u8, index: i as u8, value });
+            }
+        }
+        self.ui.browse_note = format!("loaded user {}", slot - 7);
+        let note = self.audition_note(h);
+        self.audition(h, note, 0.9);
     }
 
     /// Which of the eight places of the player's own have a recording file.
@@ -782,6 +887,11 @@ impl Controller {
             // leaving: whatever was recording or playing stops (the take stays for when it comes back)
             h.send(EngineCommand::Record(None));
             h.send(EngineCommand::Preview(None));
+        }
+        if m == Main::Browser {
+            self.refresh_browser(h);
+            self.ui.browse_note.clear();
+            self.ui.browse_last = None;
         }
         if m == Main::Sampling {
             self.refresh_samples();
@@ -1315,6 +1425,17 @@ impl Controller {
                     _ => 1,
                 };
                 out.set_pad(pad, NiColor::White, level);
+            }
+        }
+        if self.ui.main == Main::Browser {
+            for pad in 0..16u8 {
+                let slot = Self::pad_to_step(pad) as usize;
+                match self.ui.browse.get(slot) {
+                    Some((_, true)) if self.ui.browse_last == Some(slot) => out.set_pad(pad, NiColor::White, 3),
+                    Some((_, true)) => out.set_pad(pad, NiColor::White, 2),
+                    _ if slot >= 8 => out.set_pad(pad, NiColor::White, 1),
+                    _ => {}
+                }
             }
         }
         if self.ui.main == Main::Sampling {

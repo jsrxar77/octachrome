@@ -445,3 +445,33 @@ fn recipe_16_record_your_own_sound() {
     b.press(Button::Sampling);
     let _ = std::fs::remove_dir_all(&d);
 }
+
+// F-G04
+#[test]
+fn recipe_17_keep_a_sound_as_a_preset() {
+    let _one_at_a_time = serial();
+    let d = std::env::temp_dir().join(format!("op8-manual-presets-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&d);
+    let mut b = Bench::demo();
+    b.set_presets_dir(d.clone());
+    b.press(Button::Group(1));
+    b.knob(4, 300);
+    let kept = b.param(1, 0);
+    b.press(Button::Browser);
+    b.run_ms(100);
+    b.capture("r17-empty");
+    b.button_down(Button::Shift);
+    b.tap(pad(9)); // user 1
+    b.button_up(Button::Shift);
+    b.run_ms(100);
+    b.capture("r17-saved");
+    b.press(Button::Browser);
+    b.knob(4, -500);
+    assert!((b.param(1, 0) - kept).abs() > 0.2);
+    b.press(Button::Browser);
+    b.tap(pad(9));
+    b.run_ms(300);
+    assert!((b.param(1, 0) - kept).abs() < 0.01, "the knob is back where it was saved");
+    b.press(Button::Browser);
+    let _ = std::fs::remove_dir_all(&d);
+}

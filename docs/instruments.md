@@ -71,7 +71,7 @@ Legal note on Mutable Instruments: the code of the STM32 modules (Plaits, Braids
 1. ~~**macro**~~ (from Plaits): done.
 2. ~~**resonator**~~: done (string and bells, from the Plaits modal and string engines).
 3. ~~**drums**~~: done (eight sounds chosen by the pitch of the note).
-4. ~~**sampler**~~, stages 1 and 2 done (plays the eight that come with it and the player's WAV files; SAMPLING records what OP-8 plays or the audio interface's input, cuts it and saves it into one of the player's eight places). Stage 3: BROWSER.
+4. ~~**sampler**~~, stages 1 and 2 done (plays the eight that come with it and the player's WAV files; SAMPLING records what OP-8 plays or the audio interface's input, cuts it and saves it into one of the player's eight places). Stage 3, BROWSER, is done for every instrument (presets per instrument, the player's eight; the sampler's preset keeps the sound chosen and its cut).
 
 ## 5. Budget on the Raspberry Pi 5
 

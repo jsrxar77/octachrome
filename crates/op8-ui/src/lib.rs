@@ -48,6 +48,8 @@ pub enum Main {
     Plugin,
     /// Recording a sound (SAMPLING): both screens.
     Sampling,
+    /// The presets of the selected track's instrument (BROWSER): both screens.
+    Browser,
 }
 
 /// What the left screen shows when the step view is open: the steps, or one of the two pages of buttons 3 and 4.
@@ -131,6 +133,11 @@ pub struct UiState {
     pub plugs: Vec<(String, bool)>,
     pub plug_current: Option<usize>,
     pub plug_note: String,
+    /// BROWSER: the sixteen presets of the instrument (name, and whether there is one), its name, the last pad touched and a line saying what happened.
+    pub browse: Vec<(String, bool)>,
+    pub browse_inst: String,
+    pub browse_last: Option<usize>,
+    pub browse_note: String,
     /// SAMPLING: the take, its part and the knobs.
     pub smp: SamplingView,
     /// The slot last touched in FILE, and a line saying what happened.
