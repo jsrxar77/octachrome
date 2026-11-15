@@ -73,7 +73,7 @@ Known limits of the setup:
 
 ## 3. Instruments (the centre)
 
-- **Eight and eight.** 8 factory instruments + 8 installed ones ([instruments.md §7](instruments.md)). Factory today: drums, KickSyn, FmBass, resonator, MidiOutBridge, macro, ordered from the most guttural to the most refined (leads last). The sampler plays sounds (stage 1 done); to build, in this order: the sampler's recording and BROWSER, granular.
+- **Eight and eight.** 8 factory instruments + 8 installed ones ([instruments.md §7](instruments.md)). Factory today: drums, KickSyn, FmBass, resonator, MidiOutBridge, macro, ordered from the most guttural to the most refined (leads last). The sampler plays sounds and records them (stages 1 and 2 done), and BROWSER keeps presets; to build: granular.
 - Done: PLUG-IN shows the 16 places on the pads (the factory eight on top, eight places for installed ones below) and puts the chosen instrument on the selected track.
 
 - Kit of reusable drawings in `op8-gfx` (oscilloscope, envelope, polar waveform).
@@ -82,7 +82,7 @@ Known limits of the setup:
 
 ## 4. Track sound
 
-- BROWSER: presets per cartridge.
+- Done: BROWSER (presets per instrument). To do: the presets that come with each instrument.
 - Done: an effect per track (delay, reverb, chorus, filter, drive; button 7) and an LFO per track (button 8). To do: more effects (check the CPU on the Pi first), an LFO that follows the tempo, a second LFO, and an effect send shared by all tracks.
 - MACRO (Auxiliary): effect sends and Brain.
 - Done: the players (button 3): an arpeggio or a chord over each step. To do: NOTE REPEAT, an arpeggio that takes its notes from the Brain's chord instead of its own, and players on a drum kit (a roll).
@@ -99,7 +99,7 @@ Known limits of the setup:
 ## 6. Mix and samples
 
 - MIXER: level, pan, EQ and master compressor.
-- Done: the sampler cartridge (eight sounds that come with it, the player's WAV files from `~/.config/op8/samples/`). SAMPLING records what OP-8 plays or the audio input, cuts it and saves it into the sampler (2026-11-15; not yet tried on the unit). To do: BROWSER (choose sounds and presets), moving the cut while it plays, a recording threshold and count-in, and stereo or longer recordings.
+- Done: the sampler cartridge (eight sounds that come with it, the player's WAV files from `~/.config/op8/samples/`). SAMPLING records what OP-8 plays or the audio input, cuts it and saves it into the sampler (2026-11-15; not yet tried on the unit). To do: moving the cut while it plays, a recording threshold and count-in, and stereo or longer recordings.
 - Smart Strip with PITCH, MOD and NOTES.
 
 ## 7. Engine and quality
@@ -109,13 +109,13 @@ Known limits of the setup:
 - A triple-buffer snapshot of the cartridge UI so that `draw_ui` never shares the mutex with the audio.
 - Real-time priority for the audio thread on Linux (`audio_thread_priority`), and a latency measurement on the Pi 5.
 - MIDI with timestamps (today it goes out as soon as the queue is drained, up to 1 ms plus one block).
-- Presets per instrument (BROWSER); projects already save the instruments' state.
+- Presets that come with each instrument (BROWSER already keeps the player's); projects already save the instruments' state.
 
 ## 8. The batch of 2026-11-15 (in order)
 
 Asked by Javi on 2026-11-15, one pull request each, in this order:
 
 1. **Buttons 1 and 5, and chrome first.** Done: screen button 5 is `sound` (the first page, with what matters most of the instrument) and 6 is `shape`; choosing a track puts the screens on button 1 (steps) and button 5 (sound); chrome is the default theme, in the machine, the twin and the manual, and comes first in the list (glossy and matte follow). Not yet seen on the unit.
-2. **BROWSER (presets), the sampler's stage 3.** To do: the button opens a main mode on both screens; the sixteen pads are sixteen presets of the selected track's instrument (the top two rows the instrument's own, the bottom two the player's); a tap loads one and plays a note, SHIFT + tap on the bottom rows saves the current knobs into `~/.config/op8/presets/<instrument>/user-N.preset`. Presets are per instrument. The mechanism comes first; the factory presets are chosen by ear once it runs.
+2. **BROWSER (presets), the sampler's stage 3.** Done (2026-11-15, not yet tried on the unit): the button opens a main mode on both screens; the sixteen pads are sixteen presets of the selected track's instrument (the top two rows the instrument's own, the bottom two the player's); a tap loads one and plays a note, SHIFT + tap on the bottom rows saves the current knobs into `~/.config/op8/presets/<instrument>/user-N.preset`. Presets are per instrument. To do: the presets that come with each instrument (chosen by ear now that the mechanism runs), naming and deleting a preset.
 3. **The manual, complete and in chrome.** To do: a diagram of the unit at the start with every part named and numbered (buttons, screens, knobs, pads, groups, transport, 4D encoder, Smart Strip), so that the rest of the manual can say "button 5" or "group G"; every page checked against the code and the six documents; the page and all its pictures in the chrome theme; a recipe for BROWSER; SAMPLING in the reference.
 4. **After that.** Granular (reuses the sampler); KEYBOARD on a drum kit like PAD MODE; a basic mixer; naming and deleting projects; PATTERN, SCENE and ARRANGER; real-MK3 verification of everything marked "not yet tried" above.
