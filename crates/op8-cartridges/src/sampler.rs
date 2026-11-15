@@ -230,22 +230,44 @@ pub fn factory_bank() -> Vec<Sample> {
     makers.iter().zip(NAMES).map(|(m, name)| Sample::new(name, m())).collect()
 }
 
-/// The WAV files of a folder, in the order of their names (at most eight), as samples.
+/// The name a recording is saved under: `rec-1.wav` is the first of the player's places, `rec-8.wav` the last.
+pub fn recording_file(place: usize) -> String {
+    format!("rec-{}.wav", place + 1)
+}
+
+/// The WAV files of a folder as the eight places of the player's own. A file called `rec-N.wav` (what
+/// SAMPLING saves) is place N; the others fill the places that are left, in the order of their names.
+/// A place with nothing is an empty sample.
 pub fn load_folder(dir: &Path) -> Vec<Sample> {
-    let Ok(rd) = std::fs::read_dir(dir) else { return Vec::new() };
+    let mut places: Vec<Option<Sample>> = vec![None; PLACES - FACTORY];
+    let Ok(rd) = std::fs::read_dir(dir) else { return fill(places) };
     let mut files: Vec<PathBuf> = rd
         .filter_map(|e| e.ok().map(|e| e.path()))
         .filter(|p| p.extension().is_some_and(|x| x.eq_ignore_ascii_case("wav")))
         .collect();
     files.sort();
-    files
-        .iter()
-        .filter_map(|p| {
-            let data = crate::wav::parse(&std::fs::read(p).ok()?)?;
-            Some(Sample::new(p.file_stem()?.to_string_lossy().to_string(), data))
-        })
-        .take(PLACES - FACTORY)
-        .collect()
+    let read = |p: &PathBuf| -> Option<Sample> {
+        let data = crate::wav::parse(&std::fs::read(p).ok()?)?;
+        Some(Sample::new(p.file_stem()?.to_string_lossy().to_string(), data))
+    };
+    let mut others = Vec::new();
+    for p in &files {
+        let name = p.file_name().map(|n| n.to_string_lossy().to_lowercase()).unwrap_or_default();
+        match (0..PLACES - FACTORY).find(|&k| name == recording_file(k)) {
+            Some(k) => places[k] = read(p),
+            None => others.push(p),
+        }
+    }
+    let mut others = others.into_iter();
+    for slot in places.iter_mut().filter(|s| s.is_none()) {
+        // a file that cannot be read does not use up a place
+        *slot = others.by_ref().find_map(read);
+    }
+    fill(places)
+}
+
+fn fill(places: Vec<Option<Sample>>) -> Vec<Sample> {
+    places.into_iter().enumerate().map(|(k, s)| s.unwrap_or_else(|| Sample::new(NAMES[FACTORY + k], Vec::new()))).collect()
 }
 
 /// Where the player's samples are: `OP8_SAMPLES`, else `~/.config/op8/samples`.
@@ -301,6 +323,9 @@ impl Sampler {
     pub fn with_user(user: Vec<Sample>) -> Self {
         let mut bank = factory_bank();
         bank.extend(user.into_iter().take(PLACES - FACTORY));
+        while bank.len() < PLACES {
+            bank.push(Sample::new(NAMES[bank.len()], Vec::new()));
+        }
         let mut values = [0.0; 8];
         for (i, p) in PARAMS.iter().chain(SECONDARY.iter()).enumerate() {
             values[i] = p.default;
@@ -341,6 +366,19 @@ impl Sampler {
             age: self.clock,
             note,
         };
+    }
+
+    /// Put a sound in one of the player's eight places (0..8) while the instrument plays.
+    pub fn load_place(&mut self, place: usize, data: Vec<f32>) -> bool {
+        if place >= PLACES - FACTORY {
+            return false;
+        }
+        let k = FACTORY + place;
+        for v in self.voices.iter_mut().filter(|v| v.sample == k) {
+            v.active = false;
+        }
+        self.bank[k] = Sample::new(NAMES[k], data);
+        true
     }
 
     fn note_off(&mut self, note: u8) {
@@ -421,6 +459,9 @@ impl InstrumentCartridge for Sampler {
     }
     fn parameter_value(&self, index: usize) -> Option<f32> {
         self.values.get(index).copied()
+    }
+    fn load_sample(&mut self, place: usize, data: Vec<f32>) -> bool {
+        self.load_place(place, data)
     }
     fn all_notes_off(&mut self) {
         for v in &mut self.voices {
@@ -615,15 +656,46 @@ mod tests {
         std::fs::write(dir.join("notes.txt"), b"not a sound").unwrap();
         std::fs::write(dir.join("broken.wav"), b"RIFFxxxxWAVE").unwrap();
         let user = load_folder(&dir);
-        assert_eq!(user.iter().map(|s| s.name.as_str()).collect::<Vec<_>>(), ["a-first", "b-second"], "in the order of their names; what is not a sound is skipped");
+        assert_eq!(user.len(), 8);
+        assert_eq!(user.iter().filter(|s| !s.is_empty()).map(|s| s.name.as_str()).collect::<Vec<_>>(), ["a-first", "b-second"], "in the order of their names; what is not a sound is skipped");
         let mut s = Sampler::with_user(user);
         choose(&mut s, 8);
         let out = play(&mut s, 60, None, 100);
         assert!(out[..2000].iter().any(|x| x.abs() > 0.05), "the first of the player's own sounds plays");
         choose(&mut s, 12); // an empty place
         assert!(play(&mut s, 60, None, 10).iter().all(|x| *x == 0.0), "an empty place is silent");
-        assert!(load_folder(&dir.join("nowhere")).is_empty());
+        assert!(load_folder(&dir.join("nowhere")).iter().all(|s| s.is_empty()));
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    // F-A17: what SAMPLING saves as rec-N.wav is place N, whatever else is in the folder.
+    #[test]
+    fn a_recording_goes_to_its_own_place() {
+        let dir = std::env::temp_dir().join(format!("op8-rec-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let tone: Vec<f32> = (0..9_600).map(|i| (i as f32 * 0.05).sin()).collect();
+        let wav = crate::wav::encode_16(&tone, 48_000);
+        std::fs::write(dir.join(recording_file(2)), &wav).unwrap(); // place 3
+        std::fs::write(dir.join("a-mine.wav"), &wav).unwrap();
+        let user = load_folder(&dir);
+        assert!(!user[2].is_empty(), "rec-3 is the third place");
+        assert!(!user[0].is_empty() && user[0].name == "a-mine", "her own file takes the first place that is free");
+        assert!(user[1].is_empty() && user[3].is_empty());
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    // F-A17: a place can be filled while the instrument plays, and a voice on it stops.
+    #[test]
+    fn a_place_is_filled_while_it_plays() {
+        let mut s = Sampler::with_user(vec![]);
+        choose(&mut s, 9);
+        assert!(play(&mut s, 60, None, 10).iter().all(|x| *x == 0.0), "empty at first");
+        let tone: Vec<f32> = (0..24_000).map(|i| (i as f32 * 0.05).sin()).collect();
+        assert!(s.load_sample(1, tone));
+        assert!(!s.load_sample(8, vec![0.1; 10]), "there are eight places, not nine");
+        let out = play(&mut s, 60, None, 20);
+        assert!(out.iter().any(|x| x.abs() > 0.05), "it plays what was put there");
     }
 
     // F-A16

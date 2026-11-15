@@ -180,6 +180,7 @@ canvas.lcd {
             <button class="btn" id="bSettings" title="Settings: both screens">SETTINGS</button>
             <button class="btn" id="bFile" title="Proyectos: abrir y guardar">FILE</button>
             <button class="btn" id="bPlug" title="Elegir el instrumento de la pista">PLUG-IN</button>
+            <button class="btn" id="bSampling" title="Grabar un sonido: REC graba, los pads de arriba lo guardan, los de abajo lo escuchan">SAMPLING</button>
           </div>
         </div>
         <div class="grp">
@@ -447,6 +448,14 @@ function initAudio() {
   fx.limiter = actx.createDynamicsCompressor(); fx.limiter.threshold.value = -6; fx.limiter.ratio.value = 12;
   fx.echoSend = actx.createGain(); fx.echoSend.gain.value = 0;
   fx.delay = actx.createDelay(2); fx.fb = actx.createGain(); fx.fb.gain.value = 0.55;
+  smpIn = actx.createGain(); smpTap = actx.createScriptProcessor(1024, 1, 1);
+  smpIn.connect(smpTap); smpTap.connect(actx.destination); fx.limiter.connect(smpIn);
+  smpTap.onaudioprocess = e => {
+    if (!SMP.rec) return;
+    const d = e.inputBuffer.getChannelData(0); let pk = 0;
+    for (let i = 0; i < d.length && SMP.len < SMP_MAX; i++) { SMP.buf[SMP.len++] = d[i]; pk = Math.max(pk, Math.abs(d[i])); }
+    SMP.level = Math.max(SMP.level, pk); if (SMP.len >= SMP_MAX) SMP.rec = false;
+  };
   master.connect(fx.strip).connect(fx.punch).connect(fx.crush).connect(fx.gate).connect(fx.kill).connect(fx.limiter).connect(dest);
   fx.kill.connect(fx.echoSend).connect(fx.delay); fx.delay.connect(fx.fb).connect(fx.delay); fx.delay.connect(fx.limiter);
   for (let t = 0; t < 8; t++) {
@@ -816,7 +825,7 @@ function setMode(m) {
 // Main modes: CHANNEL composes (sequencer left, instrument right); SETTINGS
 // takes both screens for the machine's settings (theme for now).
 const THEME_IDS = ["glossy", "matte", "chrome"];
-function setMain(m) { UI.main = m; UI.inspect = null; inspectorPad = null; if (m === "file") { UI.fileNote = ""; } if (m === "plugin") UI.plugNote = ""; }
+function setMain(m) { if (UI.main === "sampling" && m !== "sampling") SMP.rec = false; if (m === "sampling") SMP.note = ""; UI.main = m; UI.inspect = null; inspectorPad = null; if (m === "file") { UI.fileNote = ""; } if (m === "plugin") UI.plugNote = ""; }
 function themeStep(d) { LOOK.theme = THEME_IDS[((THEME_IDS.indexOf(LOOK.theme) + d) % 3 + 3) % 3]; applyLook(); }
 function groupPress(g) {
   if (UI.main === "settings") return;
@@ -851,6 +860,7 @@ function padDown(pad, vel0) {
   const vel = UI.fixed ? 100 / 127 : vel0;
   if (UI.main === "file") { filePad(pad); return; }
   if (UI.main === "plugin") { plugPad(pad); return; }
+  if (UI.main === "sampling") { smpPad(pad); return; }
   if (UI.main === "settings") return;
   if (UI.mode === "step") {
     if (padDownAt[pad] == null) {
@@ -878,7 +888,7 @@ function padPressure(pad, p) {
   }
 }
 function padUp(pad) {
-  if (UI.main === "settings" || UI.main === "file" || UI.main === "plugin") return;
+  if (UI.main === "settings" || UI.main === "file" || UI.main === "plugin" || UI.main === "sampling") return;
   if (UI.mode === "step") {
     const wasDown = padDownAt[pad] != null; padDownAt[pad] = null;
     if (inspectorPad === pad) { inspectorPad = null; UI.inspect = null; }
@@ -897,6 +907,7 @@ function padUp(pad) {
   else if (punchState.slot === pad) setPunch(null, 0);
 }
 function knob(k, delta) {
+  if (UI.main === "sampling") { smpKnob(k, delta); return; }
   if (UI.main === "settings") return;
   if (k >= 4 && UI.page === 2) { fxKnob(k, delta); return; }
   if (k >= 4 && UI.page === 3) { lfoKnob(k, delta); return; }
@@ -988,6 +999,7 @@ function jog(d) {
   } else P.bpm = clamp(P.bpm + d * (UI.shift ? 0.1 : 1), 20, 300);
 }
 function controllerTick() {
+  if (UI.main === "sampling") smpTickLevel();
   if (UI.mode === "step" && inspectorPad == null) {
     const now = performance.now();
     for (let p = 0; p < 16; p++) if (padDownAt[p] != null && now - padDownAt[p] >= 300) {
@@ -1137,6 +1149,71 @@ function filePad(pad) {
   if (!src) { UI.fileNote = "empty: SHIFT + tap saves here"; return; }
   loadProject(src); UI.main = "instrument"; UI.mode = "step"; UI.fileNote = "";
 }
+// ---- SAMPLING (Controller::sampling_*): record the master or the microphone (up to ten seconds), keep a part of it, and put it
+// in one of the sampler's eight places of its own (the top two rows of pads); the bottom two rows listen to the part.
+const SMP_MAX = 480000;
+let smpIn = null, smpTap = null, smpMic = null;
+const SMP = { source: 1, rec: false, buf: new Float32Array(SMP_MAX), len: 0, start: 0, end: 1, fade: .05, level: 0, note: "", saved: Array(8).fill(false) };
+function smpToggleRec() {
+  initAudio();
+  if (SMP.rec) { SMP.rec = false; return; }
+  const go = () => { SMP.len = 0; SMP.start = 0; SMP.end = 1; SMP.note = ""; SMP.rec = true; };
+  if (SMP.source === 1) { try { smpMic && smpMic.disconnect(); } catch (e) {} fx.limiter.connect(smpIn); go(); return; }
+  fx.limiter.disconnect(smpIn);
+  const open = st => { smpMic = smpMic || actx.createMediaStreamSource(st); smpMic.connect(smpIn); go(); };
+  if (smpMic) { smpMic.connect(smpIn); go(); }
+  else navigator.mediaDevices.getUserMedia({ audio: true }).then(open).catch(e => { SMP.note = "no input: " + (e.message || e.name); });
+}
+function smpWindow() { return [Math.floor(SMP.start * SMP.len), Math.max(Math.floor(SMP.start * SMP.len), Math.floor(SMP.end * SMP.len))]; }
+function smpKept() {
+  const [a, b] = smpWindow(); if (b <= a) return null;
+  const d = SMP.buf.slice(a, b), fade = Math.min(Math.max(48, Math.floor(SMP.fade * .1 * 48000)), d.length >> 1);
+  for (let i = 0; i < fade; i++) { d[i] *= i / fade; d[d.length - 1 - i] *= i / fade; }
+  const pk = d.reduce((m, x) => Math.max(m, Math.abs(x)), 0); if (pk > 1e-6) for (let i = 0; i < d.length; i++) d[i] *= .9 / pk;
+  return d;
+}
+function smpPad(pad) {
+  if (SMP.rec) { SMP.note = "stop recording first (REC)"; return; }
+  const d = smpKept(); if (!d) { SMP.note = "nothing recorded yet (REC)"; return; }
+  const slot = padToStep(pad);
+  if (slot >= 8) { initAudio(); const b = actx.createBuffer(1, d.length, 48000); b.copyToChannel(d, 0); const s = actx.createBufferSource(), g = actx.createGain(); g.gain.value = .8; s.buffer = b; s.connect(g).connect(master); s.start(); return; }
+  if (!sampleBank) sampleBank = makeBank();
+  sampleBank[8 + slot] = d; SMP.saved[slot] = true; SMP.note = "saved in user " + (slot + 1);
+}
+function smpKnob(k, delta) {
+  if (k < 4 || k > 7) return;
+  const d = delta / 800;
+  if (k === 4) { if (!SMP.rec) SMP.source = delta > 0 ? 1 : 0; }
+  else if (k === 5) SMP.start = clamp(SMP.start + d, 0, Math.max(0, SMP.end - .01));
+  else if (k === 6) SMP.end = clamp(SMP.end + d, Math.min(1, SMP.start + .01), 1);
+  else SMP.fade = clamp(SMP.fade + d, 0, 1);
+}
+function smpLeft(g) { pickLeft("sampling", [...Array.from({ length: 8 }, (_, i) => ["user " + (i + 1), SMP.saved[i]]), ...Array.from({ length: 8 }, () => ["listen", SMP.len > 0])], null)(g); }
+function smpTickLevel() { SMP.level *= SMP.rec ? .97 : .9; }
+function smpRight(g) {
+  const sec = v => v.toFixed(2) + "s", ph = (performance.now() % 2000) / 2000, secs = SMP.len / 48000;
+  fill(g, 0, 0, 480, 272, BG);
+  dot(g, 16, 15, 6 + (SMP.rec ? 2 * (.5 + .5 * Math.sin(ph * 4 * Math.PI)) : 0), SMP.rec ? FG : DIM);
+  txt(g, SMP.rec ? "recording" : "sampling", 30, 6, "mid", FG); txt(g, sec(secs), 464, 6, "mid", DIM, "right");
+  const x0 = 30, w = 420, cy = 108, amp = 52; line(g, x0, cy, x0 + w, cy, FAINT, 1);
+  if (SMP.len === 0) dot(g, x0 + ph * w, cy, 4, DIM);
+  else {
+    const xs = x0 + SMP.start * w, xe = x0 + Math.max(SMP.start, SMP.end) * w;
+    rrect(g, xs, cy - amp - 6, Math.max(2, xe - xs), amp * 2 + 12, 6, PANEL);
+    for (let c = 0; c < 240; c++) {
+      const s0 = Math.floor(c * SMP.len / 240), s1 = Math.max(s0 + 1, Math.floor((c + 1) * SMP.len / 240)); let lo = 0, hi = 0;
+      for (let k = s0; k < s1; k += 8) { const v = SMP.buf[k]; lo = Math.min(lo, v); hi = Math.max(hi, v); }
+      const x = x0 + c * w / 240; line(g, x, cy - hi * amp, x, cy - lo * amp - .5, (x + w / 240 > xs && x < xe) ? FG : FAINT, 1.6);
+    }
+    line(g, xs, cy - amp - 10, xs, cy + amp + 10, KC[5], 2); line(g, xe, cy - amp - 10, xe, cy + amp + 10, KC[6], 2);
+    if (SMP.rec) { const x = x0 + w * Math.min(1, SMP.len / SMP_MAX); line(g, x, cy - amp - 12, x, cy + amp + 12, FG, 2); }
+  }
+  rrect(g, x0, 186, 420, 6, 3, FAINT); const lv = Math.sqrt(Math.min(1, SMP.level)); if (lv > 0) rrect(g, x0, 186, Math.max(6, 420 * lv), 6, 3, DIM);
+  if (SMP.note) txt(g, SMP.note, 30, 200, "m", FG);
+  const [a, b] = smpWindow();
+  [["source", ["input", "resample"][SMP.source]], ["start", sec(a / 48000)], ["end", sec(b / 48000)], ["fade", Math.round(SMP.fade * 100) + "ms"]]
+    .forEach(([n, v], i) => { txt(g, n, 60 + i * 120, 230, "s", DIM, "center"); txt(g, v, 60 + i * 120, 246, "m", KC[4 + i], "center"); });
+}
 // ---- PLUG-IN: the instrument of the selected track (Controller::plugin_pad). The factory eight, then eight places for installed ones.
 const FACTORY_INSTRUMENTS = [["drums", "drums", true], ["KickSyn", "kick", true], ["FmBass", "fm", true], ["resonator", "resonator", true], ["sampler", "sampler", true], ["granular", null, false], ["midi out", "midi", true], ["macro", "macro", true]];
 function plugPad(pad) {
@@ -1216,6 +1293,7 @@ function drawLeft(g) {
   if (UI.main === "settings") { settingsLeft(g); return; }
   if (UI.main === "file") { fileLeft(g); return; }
   if (UI.main === "plugin") { plugLeft(g); return; }
+  if (UI.main === "sampling") { smpLeft(g); return; }
   const accent = TRACK_COLORS[UI.track];
   fill(g, 0, 0, 480, 272, BG);
   topBar(g, accent);
@@ -1468,6 +1546,7 @@ function drawRight(g) {
   if (UI.main === "settings") { settingsRight(g); return; }
   if (UI.main === "file") { fileRight(g); return; }
   if (UI.main === "plugin") { plugRight(g); return; }
+  if (UI.main === "sampling") { smpRight(g); return; }
   const t = UI.track, accent = TRACK_COLORS[t], slot = SLOTS[t];
   fill(g, 0, 0, 480, 272, BG);
   dot(g, 16, 15 + HDR, 6, accent);
@@ -1783,7 +1862,8 @@ $("bTap").addEventListener("click", () => {
 });
 for (const [id, h] of [["bTempo", "tempo"], ["bSwing", "swing"], ["bVolume", "volume"]]) $(id).addEventListener("click", () => { if (UI.main === "instrument") UI.held = UI.held === h ? null : h; });
 $("bFixed").addEventListener("click", () => { if (UI.main === "instrument") UI.fixed = !UI.fixed; });
-$("bRec").addEventListener("click", () => { if (UI.main === "instrument") UI.rec = !UI.rec; });
+$("bRec").addEventListener("click", () => { if (UI.main === "instrument") UI.rec = !UI.rec; else if (UI.main === "sampling") smpToggleRec(); });
+$("bSampling").addEventListener("click", () => setMain(UI.main === "sampling" ? "instrument" : "sampling"));
 $("bFile").addEventListener("click", () => setMain(UI.main === "file" ? "instrument" : "file"));
 $("bPlug").addEventListener("click", () => setMain(UI.main === "plugin" ? "instrument" : "plugin"));
 $("sb1").addEventListener("click", () => { if (UI.main === "instrument") setMode("step"); }); // setMode also goes back to the steps
@@ -1819,6 +1899,7 @@ function updateLeds() {
   for (let pad = 0; pad < 16; pad++) {
     let c = "transparent", lvl = 0;
     if (UI.main === "settings") { padEls[pad].style.setProperty("--glow", c); padEls[pad].style.setProperty("--lvl", 0); continue; }
+    if (UI.main === "sampling") { const s = padToStep(pad); c = "#ffffff"; lvl = s < 8 ? (SMP.saved[s] ? 1 : .22) : (SMP.len > 0 && !SMP.rec ? .6 : 0); padEls[pad].style.setProperty("--glow", lvl ? c : "transparent"); padEls[pad].style.setProperty("--lvl", lvl); continue; }
     if (UI.mode === "step") {
       const s = padToStep(pad);
       if (UI.inspect === s) { c = "#ffffff"; lvl = 1; }
@@ -1844,9 +1925,9 @@ function updateLeds() {
   const L = {
     bStep: composing && UI.mode === "step" ? 2 : 1, bChords: composing && UI.mode === "brain" ? 2 : 1, bPerform: composing && UI.mode === "punch" ? 2 : 1,
     bPads: composing && UI.mode === "pads" ? 2 : 1, bKeys: composing && UI.mode === "keys" ? 2 : 1,
-    bChannel: composing ? 2 : 1, bSettings: UI.main === "settings" ? 2 : 1, bFile: UI.main === "file" ? 2 : 1, bPlug: UI.main === "plugin" ? 2 : 1, bShift: UI.shift ? 2 : 1,
+    bChannel: composing ? 2 : 1, bSettings: UI.main === "settings" ? 2 : 1, bFile: UI.main === "file" ? 2 : 1, bPlug: UI.main === "plugin" ? 2 : 1, bSampling: UI.main === "sampling" ? 2 : 1, bShift: UI.shift ? 2 : 1,
     bMute: composing ? (UI.mute ? 2 : 1) : 0, bErase: composing ? (UI.erase ? 2 : 1) : 0,
-    bStop: S.playing ? 1 : 2, bRestart: 1, bRec: composing ? (UI.rec ? 2 : 1) : 0, bTap: composing ? (UI.metro ? 2 : 1) : 0, bTempo: composing ? (UI.held === "tempo" ? 2 : 1) : 0, bSwing: composing ? (UI.held === "swing" ? 2 : 1) : 0, bVolume: composing ? (UI.held === "volume" ? 2 : 1) : 0, bFixed: composing ? (UI.fixed ? 2 : 1) : 0, jogL: !composing || UI.mode === "keys" ? 1 : 0, jogR: !composing || UI.mode === "keys" ? 1 : 0,
+    bStop: S.playing ? 1 : 2, bRestart: 1, bRec: composing ? (UI.rec ? 2 : 1) : UI.main === "sampling" ? (SMP.rec ? 2 : 1) : 0, bTap: composing ? (UI.metro ? 2 : 1) : 0, bTempo: composing ? (UI.held === "tempo" ? 2 : 1) : 0, bSwing: composing ? (UI.held === "swing" ? 2 : 1) : 0, bVolume: composing ? (UI.held === "volume" ? 2 : 1) : 0, bFixed: composing ? (UI.fixed ? 2 : 1) : 0, jogL: !composing || UI.mode === "keys" ? 1 : 0, jogR: !composing || UI.mode === "keys" ? 1 : 0,
     sb1: composing ? (UI.mode === "step" && UI.inspect == null && UI.leftPage === "steps" ? 2 : 1) : 0, sb2: composing ? (UI.inspect != null ? 2 : 1) : 0,
     sb3: composing ? (stepsOpen && UI.leftPage === "players" ? 2 : 1) : 0, sb4: composing ? (stepsOpen && UI.leftPage === "bar" ? 2 : 1) : 0,
     sb5: composing && second ? (rp === 1 ? 2 : 1) : 0, sb6: composing ? (rp === 0 ? 2 : 1) : 0,

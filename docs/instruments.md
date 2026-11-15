@@ -71,7 +71,7 @@ Legal note on Mutable Instruments: the code of the STM32 modules (Plaits, Braids
 1. ~~**macro**~~ (from Plaits): done.
 2. ~~**resonator**~~: done (string and bells, from the Plaits modal and string engines).
 3. ~~**drums**~~: done (eight sounds chosen by the pitch of the note).
-4. ~~**sampler**~~, stage 1 done (plays the eight that come with it and the player's WAV files). Stage 2: record with SAMPLING and trim. Stage 3: BROWSER.
+4. ~~**sampler**~~, stages 1 and 2 done (plays the eight that come with it and the player's WAV files; SAMPLING records what OP-8 plays or the audio interface's input, cuts it and saves it into one of the player's eight places). Stage 3: BROWSER.
 
 ## 5. Budget on the Raspberry Pi 5
 
@@ -99,7 +99,7 @@ The factory eight, confirmed by Javi on 2026-11-14 (all but the granular exist).
 | 2 | **KickSyn** | Synthetic kick | ✓ |
 | 3 | **FmBass** | Two-operator FM bass | ✓ |
 | 4 | **resonator** | Plucked strings and struck bells, four voices | ✓ |
-| 5 | **sampler** | Play sounds: eight that come with it and the player's own (recording with SAMPLING comes next) | ◐ |
+| 5 | **sampler** | Play sounds: eight that come with it and the player's own (SAMPLING records them) | ◐ |
 | 6 | **granular** | Granular on a sample (from Clouds / Beads) | ○ |
 | 7 | **MidiOutBridge** | The track out to an external synth (later also sound in) | ✓ |
 | 8 | **macro** | 24 engines in one (from Plaits): the leads | ✓ |

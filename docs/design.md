@@ -196,6 +196,10 @@ FILE is a main mode like settings: both screens, no footer, no strip. **Left:** 
 
 Like FILE (above): both screens, no footer, no strip. **Left:** the sixteen places as the pads are, with the same cells; the top two rows are the factory instruments in the order of [instruments.md §7](instruments.md), the instrument of the selected track has the 2 px `fg` outline, one that is not built yet has an outline only, and the bottom two rows are the places for installed instruments (`empty`). **Right:** `plug-in`, what a tap does, and what just happened. The pad LEDs are white: level 3 for the track's instrument, 2 for the others that can be chosen, off for the rest.
 
+### Sampling view (SAMPLING)
+
+Like FILE: both screens, no footer, no strip. **Left:** `sampling` and the sixteen pads as cells: the top two rows are `user 1` to `user 8`, the places of the player's own sounds (`panel` fill where one already has a sound), the bottom two rows say `listen` (filled once there is a take). **Right:** a dot and `sampling` (the dot pulses and the title reads `recording` while it records) and the length of the take at the right of the bar; the wave across the screen with the part that is kept lit in `fg` on a `panel` field and its two ends marked in the colours of knobs 6 and 7; a dot that goes along the line while there is no take (the screen moves while it waits); a level bar under the wave; one line saying what just happened; and under it the four knobs of the take, name in `dim` and value in the knob's colour: `source`, `start`, `end`, `fade` (knobs 5 to 8). The pad LEDs are white: level 3 for a place that has a sound, 1 for an empty one, level 2 for `listen` once there is a take. REC is lit while it records.
+
 ### Settings view
 
 Settings is a **main mode** (SETTINGS button; see [buttons.md](buttons.md)): it takes **both** screens, and the rule that the left is time and the right is sound is suspended while it is open. Composing (CHANNEL) is the other main mode. Each setting is a page that uses both screens: the left shows the choices, the right shows what they mean. Today there is one page, the theme.

@@ -193,6 +193,12 @@ pub trait InstrumentCartridge: Send + Sync {
         None
     }
 
+    /// Put a recorded sound (mono, 48 kHz) in one of the instrument's eight places for the player's own
+    /// sounds, while it plays. Returns whether the instrument took it (only a sampler does).
+    fn load_sample(&mut self, _place: usize, _data: Vec<f32>) -> bool {
+        false
+    }
+
     /// Silence every voice immediately (transport stop, panic).
     fn all_notes_off(&mut self) {}
 }

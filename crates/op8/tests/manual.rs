@@ -409,3 +409,39 @@ fn recipe_15_play_a_recorded_sound() {
     b.release(0);
     b.press(Button::Keyboard);
 }
+
+// F-G04
+#[test]
+fn recipe_16_record_your_own_sound() {
+    let _one_at_a_time = serial();
+    let d = std::env::temp_dir().join(format!("op8-manual-rec-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&d);
+    let mut b = Bench::demo();
+    b.set_samples_dir(d.clone());
+    b.press(Button::Play);
+    b.run_ms(400);
+    b.press(Button::Sampling);
+    b.run_ms(300);
+    b.capture("r16-waiting");
+    b.press(Button::Rec);
+    b.run_ms(2000);
+    b.press(Button::Rec);
+    b.run_ms(200);
+    b.knob(5, 120); // knob 6, start
+    b.knob(6, -120); // knob 7, end
+    b.knob(7, 100); // knob 8, fade
+    b.run_ms(100);
+    b.capture("r16-take");
+    b.press(Button::Stop);
+    b.run_ms(300);
+    let t0 = b.now_ms();
+    b.tap(pad(10)); // a listen pad (the tenth)
+    b.run_ms(500);
+    assert!(b.rms_db(t0, t0 + 500) > -50.0, "the part is heard: {} dB", b.rms_db(t0, t0 + 500));
+    b.tap(pad(1)); // user 1
+    b.run_ms(100);
+    b.capture("r16-saved");
+    assert!(d.join("rec-1.wav").is_file());
+    b.press(Button::Sampling);
+    let _ = std::fs::remove_dir_all(&d);
+}

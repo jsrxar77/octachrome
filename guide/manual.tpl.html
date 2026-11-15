@@ -2,7 +2,7 @@
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>OP-8 · Manual</title>
 <link rel="icon" href="brand/op8-mark.svg" type="image/svg+xml">
-<meta name="description" content="The OP-8 manual: how the machine works, fifteen recipes you can follow from the first minute, and every button.">
+<meta name="description" content="The OP-8 manual: how the machine works, sixteen recipes you can follow from the first minute, and every button.">
 <style>
 @font-face{font-family:Jost;font-weight:300;src:url(fonts/Jost-Light.ttf)}
 @font-face{font-family:Jost;font-weight:400;src:url(fonts/Jost-Regular.ttf)}
@@ -65,7 +65,7 @@ h2.ref small{font-size:14px;color:var(--dim)}
 </style></head><body>
 <p class="dim"><a href="index.html">Guide</a> · <a href="brand.html">Brand</a> · Manual</p>
 <h1>Manual</h1>
-<p class="dim" style="font-size:22px;max-width:40ch;margin-top:14px">How OP-8 works, from the first minute. Fifteen recipes you can follow with the unit in front of you, and then every button.</p>
+<p class="dim" style="font-size:22px;max-width:40ch;margin-top:14px">How OP-8 works, from the first minute. Sixteen recipes you can follow with the unit in front of you, and then every button.</p>
 
 <nav class="toc" aria-label="Contents">
   <a href="#welcome">What it is</a><a href="#unit">The unit</a><a href="#first">First ten minutes</a><a href="#recipes">Recipes</a><a href="#ideas">The ideas behind it</a><a href="#instruments">Instruments</a><a href="#reference">Every button</a><a href="#help">If something is odd</a><a href="#notyet">Not yet</a>
@@ -355,8 +355,23 @@ h2.ref small{font-size:14px;color:var(--dim)}
   </ol>
   <figure><div class="pair"><img src="img/r15-bell-right.png" alt="The sampler with the bell chosen."><img src="img/r15-shape-right.png" alt="The second page of the sampler."></div><figcaption>Left: the wave of the bell with its two marks. Right: the second page, with the loop on and the marks turned into rings.</figcaption></figure>
   <h4>Your own sounds</h4>
-  <p>Put WAV files (any sample rate, 8, 16, 24 or 32 bit, mono or stereo, up to ten seconds) in <code>~/.config/op8/samples/</code> <b>before starting OP-8</b>. The first eight, in the order of their names, are <b>user 1</b> to <b>user 8</b>. Files that are not sounds are skipped. A user place with nothing in it is silent and the screen draws an empty line.</p>
+  <p>Put WAV files (any sample rate, 8, 16, 24 or 32 bit, mono or stereo, up to ten seconds) in <code>~/.config/op8/samples/</code> <b>before starting OP-8</b>. The first eight, in the order of their names, are <b>user 1</b> to <b>user 8</b>, except the ones called <code>rec-1.wav</code> to <code>rec-8.wav</code>, which are what you record yourself (next recipe) and always take their own place. Files that are not sounds are skipped. A user place with nothing in it is silent and the screen draws an empty line.</p>
   <p class="next"><b>Try next:</b> put the sampler on a track, tap a few steps, and give each step a different <b>transpose</b> component (recipe 5): one sound, a melody. Or a short <b>glitch</b> with the length knob turned down: a percussive tick.</p>
+</div>
+
+<div class="recipe" id="r16">
+  <h3>16 <span>RECORD YOUR OWN SOUND</span></h3>
+  <p class="goal">Record a few seconds of what OP-8 plays, keep the part you like, and play it from the sampler.</p>
+  <ol class="steps">
+    <li><div>Start a beat (recipe 2) and press <kbd>PLAY</kbd>. Then press <kbd>SAMPLING</kbd>. Both screens change: on the left sixteen pads, <b>user 1</b> to <b>user 8</b> on top and <b>listen</b> below; on the right an empty line with a dot going along it, waiting.</div></li>
+    <li><div>Press <kbd>REC</kbd>. The title says <b>recording</b>, the wave grows and the bar under it shows how loud it is. Press <kbd>REC</kbd> again to stop. Ten seconds is the most it keeps. The source is on <b>knob 5</b>: <b>resample</b> records what OP-8 plays (nothing to plug in); <b>input</b> records the audio coming into the interface, a microphone or a synth.</div></li>
+    <li><div>Cut the take. <b>Knob 6, start</b>, moves the yellow mark and <b>knob 7, end</b>, the blue one; only what is between them is kept. <b>Knob 8, fade</b>, softens both ends so it does not click. Press any of the <b>listen</b> pads to hear the part, as many times as you like.</div></li>
+    <li><div>When it sounds right, tap one of the pads of the top two rows: the sound is saved in that place (<b>user 1</b> to <b>user 8</b>) and the screen says so. It is written to <code>~/.config/op8/samples/</code> as <code>rec-1.wav</code> to <code>rec-8.wav</code>, so it is still there next time. A pad that already has a sound is lit; tapping it again replaces it.</div></li>
+    <li><div>Press <kbd>SAMPLING</kbd> to go back. On a track with the sampler (recipe 15), turn <b>knob 5, sample</b>, to the <b>user</b> place you used: it plays what you recorded, on the keyboard and from the steps, with everything the sampler can do (cut, tune, loop).</div></li>
+  </ol>
+  <figure><div class="pair"><img src="img/r16-take-right.png" alt="A recording with the part to keep marked."><img src="img/r16-saved-left.png" alt="The pads after saving into user 1."></div><figcaption>Left: the take, with the part that is kept lit between the two marks. Right: the pads after saving; <b>user 1</b> is lit.</figcaption></figure>
+  <div class="callout"><p>On the unit, <b>input</b> uses the MK3's own input. The first time, the Mac may ask permission to use the microphone. <b>resample</b> needs none of that.</p></div>
+  <p class="next"><b>Try next:</b> record one bar of the beat with a bass line, save it, and use it as a loop on another track at half the tempo; or record your voice and play it as a melody on the keyboard.</p>
 </div>
 
 <h2 id="ideas">The ideas behind it</h2>
