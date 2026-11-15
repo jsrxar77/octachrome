@@ -6,8 +6,8 @@
 <style>
 @font-face{font-family:Jost;font-weight:300;src:url(fonts/Jost-Light.ttf)}
 @font-face{font-family:Jost;font-weight:400;src:url(fonts/Jost-Regular.ttf)}
-/* the chrome theme (docs/design.md §2.1): the manual, the pictures and the machine's default share it */
-:root{color-scheme:dark;--bg:#000;--fg:#EEF0F5;--dim:#80858F;--faint:#24262C;--panel:#0F1014;--g:#8FBCFF;--y:#A442FF;--acc:#809DFF;--rec:#FF2244;--k1:#D633FF;--k2:#A442FF;--k3:#8652FF;--k4:#7361FF;--k5:#707AFF;--k6:#809DFF;--k7:#8FBCFF}
+/* the matte theme (docs/design.md §2.1): the manual, the pictures and the machine's default share it */
+:root{color-scheme:dark;--bg:#000;--fg:#F4EFE6;--dim:#8E918F;--faint:#262A30;--panel:#12161D;--g:#7FB58A;--y:#E3C77A;--acc:#3B8EBA;--rec:#E63946;--k1:#3B8EBA;--k2:#D9822B;--k3:#A9AFB8;--k4:#F2652A;--k5:#7FB58A;--k6:#E3C77A;--k7:#A88BC7}
 *{box-sizing:border-box;margin:0}
 html{scroll-behavior:smooth;scroll-padding-top:20px}
 body{background:var(--bg);color:var(--fg);font:300 18px/1.6 Jost,system-ui,sans-serif;padding:40px 20px 100px;max-width:1040px;margin:auto;-webkit-font-smoothing:antialiased}
@@ -81,7 +81,7 @@ h2.ref small{font-size:14px;color:var(--dim)}
 <p class="sub">Every part of the Maschine MK3 has a number here, and the manual calls it by that name: "button 5", "knob 7", "pad 12", "group G".</p>
 <figure>
   <div class="unitmap" id="unitmap"></div>
-  <figcaption>The front panel as OP-8 uses it. The outline of a button is its state: <b style="color:var(--k7)">pale blue</b> works today, <b style="color:var(--k3)">violet</b> works in part, <b>grey</b> is planned. Dashed boxes group the parts, numbered as in the list below.</figcaption>
+  <figcaption>The front panel as OP-8 uses it. The outline of a button is its state: <b style="color:var(--g)">green</b> works today, <b style="color:var(--y)">sand</b> works in part, <b>grey</b> is planned. Dashed boxes group the parts, numbered as in the list below.</figcaption>
 </figure>
 <ol class="parts">
   <li><i style="border-color:var(--k1)">1</i><div><b>Screen buttons 1–8</b><span>Eight buttons above the two screens, numbered left to right. They change the page of the screen below them; each screen names its buttons along its top edge. Written "button 5" in this manual.</span></div></li>
@@ -365,7 +365,7 @@ h2.ref small{font-size:14px;color:var(--dim)}
   <p class="goal">Pick a theme.</p>
   <ol class="steps">
     <li><div>Press <kbd>SETTINGS</kbd>. Both screens become the settings: a card for each theme on the left, the eight knob colours on the right.</div></li>
-    <li><div>Turn the 4D encoder (or push it left and right). The theme changes at once, on the screens <i>and</i> on every light of the unit. There are three, in this order: <b>chrome</b>, the one OP-8 starts with and the one this manual is drawn in, is one range from violet to blue; <b>glossy</b> is bright and saturated; <b>matte</b> is softer.</div></li>
+    <li><div>Turn the 4D encoder (or push it left and right). The theme changes at once, on the screens <i>and</i> on every light of the unit. There are three, in this order: <b>matte</b>, the one OP-8 starts with and the one this manual is drawn in, is soft and chalky; <b>glossy</b> is bright and saturated; <b>chrome</b> is one range from violet to blue.</div></li>
     <li><div>Press <kbd>CHANNEL</kbd> (or <kbd>SETTINGS</kbd> again) to go back to composing. The theme is remembered the next time you start OP-8.</div></li>
   </ol>
   <figure><div class="pair"><img src="img/r14-settings-left.png" alt="Settings: the three themes."><img src="img/r14-glossy-left.png" alt="The left screen once the glossy theme is chosen."></div><figcaption>The three themes, and the same left screen after choosing <b>glossy</b>. While settings is open the pads and knobs do nothing; <kbd>PLAY</kbd>, <kbd>STOP</kbd> and <kbd>RESTART</kbd> still do.</figcaption></figure>

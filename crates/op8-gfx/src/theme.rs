@@ -16,8 +16,8 @@ pub enum ThemeId {
 }
 
 impl ThemeId {
-    /// In the order the player sees them (the settings view, the encoder): chrome, the default, comes first.
-    pub const ALL: [ThemeId; 3] = [ThemeId::Chrome, ThemeId::Glossy, ThemeId::Matte];
+    /// In the order the player sees them (the settings view, the encoder): matte, the default, comes first.
+    pub const ALL: [ThemeId; 3] = [ThemeId::Matte, ThemeId::Glossy, ThemeId::Chrome];
     fn from_index(i: usize) -> Self {
         [ThemeId::Glossy, ThemeId::Matte, ThemeId::Chrome][i.min(2)]
     }
@@ -194,7 +194,7 @@ pub const THEMES: [Theme; 3] = [
     },
 ];
 
-static CURRENT: AtomicU8 = AtomicU8::new(ThemeId::Chrome as u8);
+static CURRENT: AtomicU8 = AtomicU8::new(ThemeId::Matte as u8);
 
 pub fn theme_of(id: ThemeId) -> &'static Theme {
     &THEMES[id as usize]

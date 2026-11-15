@@ -81,7 +81,7 @@ fn f_c03_encoder_changes_the_theme() {
     b.press(Button::Settings);
     b.run_ms(100);
     let mut seen = vec![b.screen_hash(Screen::Right)];
-    for expect in [ThemeId::Matte, ThemeId::Chrome, ThemeId::Glossy] {
+    for expect in [ThemeId::Chrome, ThemeId::Matte, ThemeId::Glossy] {
         b.encoder(1);
         b.run_ms(100);
         assert_eq!(theme_id(), expect);
@@ -91,12 +91,12 @@ fn f_c03_encoder_changes_the_theme() {
     assert!(seen[0] != seen[1] && seen[1] != seen[2], "each theme should look different");
 
     b.encoder(-1);
-    assert_eq!(theme_id(), ThemeId::Chrome, "turning back wraps");
+    assert_eq!(theme_id(), ThemeId::Matte, "turning back goes to the one before glossy");
     b.press(Button::JogLeft);
-    assert_eq!(theme_id(), ThemeId::Matte);
+    assert_eq!(theme_id(), ThemeId::Chrome, "and wraps from the first to the last");
     b.press(Button::JogRight);
-    assert_eq!(theme_id(), ThemeId::Chrome);
-    b.capture("f-c03-chrome");
+    assert_eq!(theme_id(), ThemeId::Matte);
+    b.capture("f-c03-matte");
 }
 
 // F-C04: STEP, CHORDS and PERFORM leave settings and choose their pad mode.
@@ -151,9 +151,9 @@ fn f_c07_theme_change_is_saved() {
     b.app.settings_path = Some(path.clone());
     b.press(Button::Settings);
     assert!(!path.exists(), "nothing to save before a change");
-    b.encoder(2); // glossy → chrome
-    assert_eq!(std::fs::read_to_string(&path).expect("saved"), "theme=chrome\n");
-    b.encoder(1); // wraps to glossy
+    b.encoder(2); // glossy → chrome → matte
+    assert_eq!(std::fs::read_to_string(&path).expect("saved"), "theme=matte\n");
+    b.encoder(1); // glossy
     assert_eq!(std::fs::read_to_string(&path).unwrap(), "theme=glossy\n");
 
     // No path: the encoder changes the theme and the disk is not touched.
@@ -210,11 +210,11 @@ fn f_c09_choosing_a_theme_in_settings_recolours_the_pads() {
     b.tick();
     let glossy = pad(&b);
     b.press(Button::Settings);
-    b.encoder(1); // matte
     b.encoder(1); // chrome
+    b.encoder(1); // matte
     b.press(Button::ChannelMidi); // back to composing
     b.tick();
-    assert_eq!(theme_id(), ThemeId::Chrome);
+    assert_eq!(theme_id(), ThemeId::Matte);
     assert_ne!(pad(&b), glossy, "the pads wear the chosen theme once composing again");
-    assert_eq!(pad(&b), op8::controller::track_led_colors(ThemeId::Chrome)[1] as u8);
+    assert_eq!(pad(&b), op8::controller::track_led_colors(ThemeId::Matte)[1] as u8);
 }

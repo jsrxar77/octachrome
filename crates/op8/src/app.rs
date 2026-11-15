@@ -56,7 +56,7 @@ impl<S: ControlSurface> App<S> {
             last_dump_ms: None,
             log_events: false,
             logged_playing: false,
-            logged_main: (op8_ui::Main::Instrument, op8_gfx::ThemeId::Chrome),
+            logged_main: (op8_ui::Main::Instrument, op8_gfx::ThemeId::Matte),
             settings_path: None,
             no_leds: false,
         }

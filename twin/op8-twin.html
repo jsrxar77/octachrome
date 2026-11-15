@@ -128,7 +128,7 @@ canvas.lcd {
     <h1>OP-8 Twin</h1>
     <p>Gemelo de la Maschine MK3 con el motor OP-8: las mismas pantallas de 480×272, los mismos controles y un secuenciador con polimetría, Step Components, Brain y Punch-in FX. Tocá PLAY para escuchar.</p>
     <div class="look">
-      <span>tema</span><button data-look="theme" data-v="chrome">chrome</button><button data-look="theme" data-v="glossy">glossy</button><button data-look="theme" data-v="matte">matte</button>
+      <span>tema</span><button data-look="theme" data-v="matte">matte</button><button data-look="theme" data-v="glossy">glossy</button><button data-look="theme" data-v="chrome">chrome</button>
     </div>
   </header>
 
@@ -825,7 +825,7 @@ function setMode(m) {
 }
 // Main modes: CHANNEL composes (sequencer left, instrument right); SETTINGS
 // takes both screens for the machine's settings (theme for now).
-const THEME_IDS = ["chrome", "glossy", "matte"];
+const THEME_IDS = ["matte", "glossy", "chrome"];
 function setMain(m) { if (m === "browser") { UI.brNote = ""; UI.brLast = null; } if (UI.main === "sampling" && m !== "sampling") SMP.rec = false; if (m === "sampling") SMP.note = ""; UI.main = m; UI.inspect = null; inspectorPad = null; if (m === "file") { UI.fileNote = ""; } if (m === "plugin") UI.plugNote = ""; }
 function themeStep(d) { LOOK.theme = THEME_IDS[((THEME_IDS.indexOf(LOOK.theme) + d) % 3 + 3) % 3]; applyLook(); }
 function groupPress(g) {
@@ -1021,13 +1021,13 @@ function controllerTick() {
 // Design tokens: see docs/design.md. Three themes, each with four encoder
 // colours: knobs 1–4 drive the sequencer (left screen), 5–8 the instrument (right) and three type families to compare.
 const THEMES = {
-  chrome:  { name: "chrome",      bg: "#000", fg: "#EEF0F5", dim: "#80858F", faint: "#24262C", panel: "#0F1014", knobs: ["#D633FF", "#A442FF", "#8652FF", "#7361FF", "#707AFF", "#809DFF", "#8FBCFF", "#EEF0F5"], brand: ["#D633FF", "#A442FF", "#8652FF", "#7361FF", "#707AFF", "#809DFF", "#8FBCFF", "#EEF0F5"], tracks: ["#e83dff", "#d633ff", "#a442ff", "#8652ff", "#7361ff", "#5c8dff", "#8fbcff", "#eef0f5"], rec: "#FF2244", light: { backlight: 0.8, led: 3 } },
-  glossy:   { name: "glossy",       bg: "#000", fg: "#F2F4F8", dim: "#7E8794", faint: "#232831", panel: "#0D1118", knobs: ["#0099FF", "#00E56A", "#F2F4F8", "#FF4F00", "#8B6CFF", "#FFD21F", "#2ED3E6", "#FF4FA0"], brand: ["#FF2D2D", "#FF8A1F", "#FFD21F", "#00E56A", "#0099FF", "#4B4BFF", "#B15CFF", "#F2F4F8"], tracks: ["#ff3b30", "#ff9500", "#ffd60a", "#34c759", "#30d5c8", "#0a84ff", "#bf5af2", "#ff2d92"], rec: "#FF3B30", light: { backlight: 1, led: 3 } },
   matte: { name: "matte", bg: "#000", fg: "#F4EFE6", dim: "#8E918F", faint: "#262A30", panel: "#12161D", knobs: ["#3B8EBA", "#D9822B", "#A9AFB8", "#F2652A", "#7FB58A", "#E3C77A", "#A88BC7", "#D9677A"], brand: ["#D9534F", "#D9822B", "#E3C77A", "#7FB58A", "#3B8EBA", "#5F6BB5", "#A88BC7", "#F4EFE6"], tracks: ["#d9534f", "#d9822b", "#e3c77a", "#7fb58a", "#6fb3b8", "#3b8eba", "#a88bc7", "#d9677a"], rec: "#E63946", light: { backlight: 0.6, led: 2 } },
+  glossy:   { name: "glossy",       bg: "#000", fg: "#F2F4F8", dim: "#7E8794", faint: "#232831", panel: "#0D1118", knobs: ["#0099FF", "#00E56A", "#F2F4F8", "#FF4F00", "#8B6CFF", "#FFD21F", "#2ED3E6", "#FF4FA0"], brand: ["#FF2D2D", "#FF8A1F", "#FFD21F", "#00E56A", "#0099FF", "#4B4BFF", "#B15CFF", "#F2F4F8"], tracks: ["#ff3b30", "#ff9500", "#ffd60a", "#34c759", "#30d5c8", "#0a84ff", "#bf5af2", "#ff2d92"], rec: "#FF3B30", light: { backlight: 1, led: 3 } },
+  chrome:  { name: "chrome",      bg: "#000", fg: "#EEF0F5", dim: "#80858F", faint: "#24262C", panel: "#0F1014", knobs: ["#D633FF", "#A442FF", "#8652FF", "#7361FF", "#707AFF", "#809DFF", "#8FBCFF", "#EEF0F5"], brand: ["#D633FF", "#A442FF", "#8652FF", "#7361FF", "#707AFF", "#809DFF", "#8FBCFF", "#EEF0F5"], tracks: ["#e83dff", "#d633ff", "#a442ff", "#8652ff", "#7361ff", "#5c8dff", "#8fbcff", "#eef0f5"], rec: "#FF2244", light: { backlight: 0.8, led: 3 } },
 };
 let BG, FG, DIM, FAINT, KC, PANEL, REC, FONT;
 const prefs = (() => { try { return JSON.parse(localStorage.getItem("op8-look") || "{}"); } catch { return {}; } })();
-const LOOK = { theme: THEMES[prefs.theme] ? prefs.theme : "chrome" };
+const LOOK = { theme: THEMES[prefs.theme] ? prefs.theme : "matte" };
 function applyLook() {
   const t = THEMES[LOOK.theme];
   BG = t.bg; FG = t.fg; DIM = t.dim; FAINT = t.faint; KC = t.knobs; PANEL = t.panel; REC = t.rec;
