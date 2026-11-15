@@ -105,8 +105,8 @@ pub const FACTORY_INSTRUMENTS: [(&str, &str, bool); 8] = [
     ("resonator", "resonator", true),
     ("sampler", "sampler", true),
     ("granular", "granular", false),
-    ("midi out", "MidiOutBridge", true),
     ("macro", "macro", true),
+    ("midi out", "MidiOutBridge", true),
 ];
 
 /// The notes of a chord, ascending from its root in the octave below middle C (C3 = 48).
@@ -679,6 +679,8 @@ impl Controller {
         self.ui.right_page = 0;
         self.ui.plug_note = String::new();
         self.set_main(Main::Instrument, h);
+        // the pad is let go in composing: that release must not toggle a step
+        self.pad_down_at[pad as usize] = None;
     }
 
     /// FILE: a pad opens the project in its slot; SHIFT + a pad of the player's slots saves into it.
@@ -709,10 +711,11 @@ impl Controller {
             self.refresh_files();
             return;
         }
+        let path = (slot >= 8).then(|| self.projects_dir.as_ref().map(|d| crate::projectfile::user_path(d, slot - 8))).flatten();
         let file = if slot < 8 {
             Some(crate::factory::file(slot))
         } else {
-            self.projects_dir.as_ref().and_then(|d| crate::projectfile::load(&crate::projectfile::user_path(d, slot - 8)))
+            path.as_ref().and_then(|p| crate::projectfile::load(p))
         };
         match file {
             Some(f) => {
@@ -720,8 +723,17 @@ impl Controller {
                 self.ui.file_note = String::new();
                 self.set_main(Main::Instrument, h);
                 self.ui.mode = Mode::Step;
+                self.pad_down_at[pad as usize] = None; // see below: the release comes in composing
             }
-            None => self.ui.file_note = "empty: SHIFT + tap saves here".into(),
+            // a place with a file that cannot be read is left alone; a place with nothing in it opens a new, empty project
+            None if path.as_ref().is_some_and(|p| p.exists()) => self.ui.file_note = "damaged: not loaded".into(),
+            None => {
+                crate::factory::blank().apply(h);
+                self.ui.file_note = "a new empty project: SHIFT + tap saves it".into();
+                self.set_main(Main::Instrument, h);
+                self.ui.mode = Mode::Step;
+                self.pad_down_at[pad as usize] = None;
+            }
         }
     }
 

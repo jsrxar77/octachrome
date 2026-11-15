@@ -89,9 +89,9 @@ Everything in OP-8 is built on eight, and the MK3 has sixteen pads. So the libra
 | | Factory (pads 1–8) | Yours (pads 9–16) |
 | :-- | :-- | :-- |
 | **Instruments** (PLUG-IN) | 8 that always ship and cannot be removed | 8 places for instruments installed as separate packages (stage 2 and 3 of §3) |
-| **Projects** (FILE) | 8 music projects that always ship (done: demo, four floor, backbeat, bassline, pluck, lead, polymeter, blank) | 8 places for the player's own projects (done) |
+| **Projects** (FILE) | 8 music projects that always ship (done: eight short pieces in eight styles: house, boom bap, dub, polyrhythm, acid, electro, ambient, breaks; [§9](#9-the-eight-pieces-that-come-with-it)) | 8 places for the player's own projects (done) |
 
-The factory eight, confirmed by Javi on 2026-11-14 (all but the granular exist). **They are ordered from the most guttural to the most refined, drums first and the leads last**; that order is the order of the factory slots, of the tracks in the demo (A to E) and of the list the player will browse. The MIDI out has its place because the MK3 will eventually also take input: MIDI out and sound in. The order of work is drums and resonator (done), sampler (stage 1 done), granular.
+The factory eight, confirmed by Javi on 2026-11-14 (all but the granular exist). **They are ordered from the most guttural to the most refined, drums first, the leads next to last and the MIDI out last (decided by Javi on 2026-11-15)**; that order is the order of the pads of PLUG-IN and of the standard tracks: A drums, B KickSyn, C FmBass, D resonator, E sampler, F empty (the granular goes here when it exists), G macro, H MIDI out. The MIDI out is last because it makes no sound of its own, and because the MK3 will eventually also take input: MIDI out and sound in. The order of work is drums and resonator (done), sampler (stage 1 done), granular.
 
 | # | Instrument | Idea | Status |
 | :-- | :-- | :-- | :-- |
@@ -101,8 +101,8 @@ The factory eight, confirmed by Javi on 2026-11-14 (all but the granular exist).
 | 4 | **resonator** | Plucked strings and struck bells, four voices | ✓ |
 | 5 | **sampler** | Play sounds: eight that come with it and the player's own (SAMPLING records them) | ◐ |
 | 6 | **granular** | Granular on a sample (from Clouds / Beads) | ○ |
-| 7 | **MidiOutBridge** | The track out to an external synth (later also sound in) | ✓ |
-| 8 | **macro** | 24 engines in one (from Plaits): the leads | ✓ |
+| 7 | **macro** | 24 engines in one (from Plaits): the leads | ✓ |
+| 8 | **MidiOutBridge** | The track out to an external synth (later also sound in) | ✓ |
 
 Rules: the factory eight meet §2 like any other instrument; each factory project shows one thing (an instrument, a rhythm idea, the Brain) and is made only with the factory eight, so it always loads. Removing, replacing or overwriting a factory slot is not possible; a user slot starts empty.
 
@@ -132,4 +132,21 @@ They were written after the kinds of sound that grooveboxes of this family ship 
 | sampler | pluck, bell, pad, voice, thump, sweep, glass, tick (they choose one of the sounds that come with it and how it is cut) |
 | macro | lead, strings, chip, organ, chords, swarm, pluck, modal (each on its own engine) |
 | midi out | none: its knobs are channel, transpose, velocity and `cc74` |
+
+## 9. The eight pieces that come with it
+
+The factory projects (FILE, the top two rows) are **eight short pieces in eight styles**, so that the first thing anyone hears is what the machine can do. They use the factory instruments with their presets ([§8](#8-presets-that-come-with-the-instruments)), the sampler, the track effects, the LFO, the Brain, players and step components, and each is a different tempo, feel and mix of tracks. Their levels are brought to about the same loudness (a test measures it). **Like the presets they were made by measurement and are a first set**: keep the ones that move you and replace the rest.
+
+| # | Piece | Tempo | What it shows |
+| :-- | :-- | :-- | :-- |
+| 1 | **house** | 124 | A kick on every beat, offbeat open hats and a clap, a round bass between the kicks, chord stabs that follow the Brain with an echo, a pad in a room |
+| 2 | **boom bap** | 90, heavy swing | A lazy kit, a sub bass under a soft kick, a voice sample, seventh chords on the off beats |
+| 3 | **dub** | 70 | One deep kick, a sub bass whose tone breathes (an LFO), bells thrown into an echo, a pad in a big room |
+| 4 | **polyrhythm** | 96 | Five tracks of 3, 5, 7, 9 and 11 steps that never line up, over a slow chord |
+| 5 | **acid** | 130 | A bass line that opens and closes by itself (an LFO) through a drive, hats, a clap, ratchets |
+| 6 | **electro** | 110 | A dry kit, a hard bass, an arpeggio that runs over the chords with an echo |
+| 7 | **ambient** | 60 | Nothing hits: a glass line, strings with a chorus and a sampled pad that holds through a loop and follows the chords |
+| 8 | **breaks** | 140 | A kit that never plays the same bar twice (chance, ratchets, "every"), a growling bass, random notes and glitches |
+
+An empty place of the player's in FILE opens a **new empty project** (the standard instruments, nothing in the steps); SHIFT + tap saves it there.
 

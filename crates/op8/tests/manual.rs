@@ -54,7 +54,10 @@ fn recipe_01_hear_the_demo() {
 #[test]
 fn recipe_02_a_drum_beat() {
     let _one_at_a_time = serial();
-    let mut b = Bench::empty();
+    let mut b = Bench::demo();
+    b.press(Button::File);
+    b.tap(pad(10)); // an empty place of yours: a new empty project
+    assert!(b.project().tracks.iter().all(|t| t.steps.iter().all(|s| !s.active)), "nothing in the steps");
     b.press(Button::Group(0)); // A is the drums
     for s in [1, 5, 9, 13] {
         b.tap(pad(s)); // the kick, on every beat
@@ -132,7 +135,7 @@ fn recipe_03_a_bass_that_follows_the_chords() {
 fn recipe_04_play_a_melody_and_record_it() {
     let _one_at_a_time = serial();
     let mut b = Bench::empty();
-    b.press(Button::Group(5)); // F is the macro
+    b.press(Button::Group(6)); // G is the macro
     b.press(Button::Keyboard);
     b.press(Button::Rec);
     b.press(Button::Play);
@@ -146,7 +149,7 @@ fn recipe_04_play_a_melody_and_record_it() {
     b.release(4);
     b.run_ms(300);
     b.capture("r04-keyboard");
-    let notes: Vec<u8> = b.project().tracks[5].steps.iter().filter(|s| s.active).map(|s| s.note).collect();
+    let notes: Vec<u8> = b.project().tracks[6].steps.iter().filter(|s| s.active).map(|s| s.note).collect();
     assert_eq!(notes, [48, 52], "what was played is on the steps");
     // the octave: ◀ ▶ of the 4D encoder
     b.press(Button::JogRight);
@@ -297,12 +300,12 @@ fn recipe_10_perform() {
 fn recipe_11_choose_an_instrument() {
     let _one_at_a_time = serial();
     let mut b = Bench::empty();
-    b.press(Button::Group(6)); // G is empty
+    b.press(Button::Group(5)); // F is empty
     b.press(Button::PlugIn);
     b.run_ms(100);
     b.capture("r11-plugin");
     b.tap(pad(4)); // the fourth: the resonator
-    assert_eq!(b.instrument(6).as_deref(), Some("resonator"));
+    assert_eq!(b.instrument(5).as_deref(), Some("resonator"));
     assert_eq!(b.ui().main, op8_ui::Main::Instrument, "it goes back to composing");
     b.press(Button::Screen(6)); // the second page of that instrument
     b.run_ms(100);
@@ -324,7 +327,7 @@ fn recipe_12_save_and_come_back() {
     b.tap(pad(9)); // the first of your own
     b.button_up(Button::Shift);
     assert!(b.ui().file_note.starts_with("saved"));
-    b.tap(pad(8)); // open the blank project
+    b.tap(pad(7)); // open the ambient piece, which has no kick
     assert!(!b.project().tracks[1].steps[0].active);
     b.press(Button::File);
     b.tap(pad(9));
@@ -387,10 +390,8 @@ fn recipe_14_the_look() {
 fn recipe_15_play_a_recorded_sound() {
     let _one_at_a_time = serial();
     let mut b = Bench::empty();
-    b.press(Button::Group(6)); // G is empty
-    b.press(Button::PlugIn);
-    b.tap(pad(5)); // the fifth: the sampler
-    assert_eq!(b.instrument(6).as_deref(), Some("sampler"));
+    b.press(Button::Group(4)); // E is the sampler
+    assert_eq!(b.instrument(4).as_deref(), Some("sampler"));
     b.knob(4, 50); // knob 5, sample: one click is the next sound, the bell
     b.run_ms(100);
     b.capture("r15-bell");

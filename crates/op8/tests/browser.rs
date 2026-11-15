@@ -144,7 +144,7 @@ fn f_k16_the_presets_that_come_with_it() {
     assert!(b.param(0, 1) > 0.7, "decay is the preset's");
     // and a track with no instrument has none
     b.press(Button::Browser);
-    b.press(Button::Group(7));
+    b.press(Button::Group(5));
     b.press(Button::Browser);
     b.tap(pad_of(1));
     assert!(b.ui().browse_note.contains("no instrument"), "{}", b.ui().browse_note);

@@ -2,7 +2,7 @@
 //! `op8 run` on first boot and by `op8 sim`.
 
 use op8_cartridge::InstrumentCartridge;
-use op8_cartridges::{Drums, FmBass, KickSyn, MacroOsc, MidiMessage, MidiOutBridge, Resonator};
+use op8_cartridges::{Drums, FmBass, KickSyn, MacroOsc, MidiMessage, MidiOutBridge, Resonator, Sampler};
 use op8_engine::{Engine, EngineHandle, SharedCartridge};
 use op8_seq::{Project, Step, StepComponent, TRACKS};
 use std::sync::{Arc, Mutex};
@@ -13,8 +13,8 @@ fn shared(c: impl InstrumentCartridge + 'static) -> Option<SharedCartridge> {
     )))
 }
 
-/// The instruments run from the most guttural to the most refined: A drums (a kit), B KickSyn,
-/// C FmBass, D resonator, E MidiOutBridge, F macro (the leads); G–H empty.
+/// The instruments run from the most guttural to the most refined, the order of PLUG-IN: A drums (a kit), B KickSyn,
+/// C FmBass, D resonator, E sampler, F empty (the granular, not built yet), G macro (the leads), H the MIDI out (always last).
 pub fn slots() -> (
     [Option<SharedCartridge>; TRACKS],
     rtrb::Consumer<MidiMessage>,
@@ -25,8 +25,9 @@ pub fn slots() -> (
     s[1] = shared(KickSyn::new());
     s[2] = shared(FmBass::new());
     s[3] = shared(Resonator::new());
-    s[4] = shared(bridge);
-    s[5] = shared(MacroOsc::new());
+    s[4] = shared(Sampler::new());
+    s[6] = shared(MacroOsc::new());
+    s[7] = shared(bridge);
     (s, midi_rx)
 }
 
@@ -78,7 +79,7 @@ pub fn project() -> Project {
     pluck.steps[6] = Step::on(67).with(StepComponent::Chance(80));
     pluck.steps[9] = Step::on(72).with(StepComponent::Velocity(-30));
 
-    let arp = &mut p.tracks[4];
+    let arp = &mut p.tracks[7];
     arp.length = 5;
     arp.brain_link = true;
     arp.steps[0] = Step::on(60);
@@ -87,7 +88,7 @@ pub fn project() -> Project {
     arp.steps[4] = Step::on(72).with(StepComponent::Chance(60));
 
     // macro: a slow chord-ish line on the 'va' engine, linked to the Brain.
-    let synth = &mut p.tracks[5];
+    let synth = &mut p.tracks[6];
     synth.length = 16;
     synth.brain_link = true;
     synth.steps[0] = Step::on(60);

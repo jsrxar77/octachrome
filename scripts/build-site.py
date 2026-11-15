@@ -38,6 +38,18 @@ def button_rows():
                      "note": c[-1][1:].strip(" ()")})
     return rows
 
+def piece_rows():
+    """The manual's table of the eight pieces (docs/instruments.md §9 is the source)."""
+    text = (root / "docs/instruments.md").read_text()
+    sec = text[text.index("## 9. The eight pieces"):]
+    rows = []
+    for line in sec.splitlines():
+        c = [x.strip() for x in line.strip().strip("|").split("|")]
+        if line.startswith("|") and len(c) == 4 and c[0].isdigit():
+            name = c[1].replace("**", "")
+            rows.append(f"  <tr><td>{name}</td><td><b>{c[2].replace(', heavy swing', '')}</b> · {c[3]}</td></tr>")
+    return "\n".join(rows)
+
 def preset_rows():
     """The manual's table of the presets that come with the instruments (crates/op8-cartridges/presets.txt)."""
     by = {}
@@ -94,7 +106,7 @@ def render(text, page, data=None):
     for key, n in (("N_Y", sum(r["t"] == "y" for r in rows)), ("N_P", sum(r["t"] == "p" for r in rows)),
                    ("N_N", sum(r["t"] == "n" for r in rows)), ("N_ALL", len(rows))):
         text = text.replace("{{" + key + "}}", str(n))
-    text = text.replace("__PRESET_ROWS__", preset_rows())
+    text = text.replace("__PRESET_ROWS__", preset_rows()).replace("__PIECE_ROWS__", piece_rows())
     return text.replace("{{DOCS}}", docs_url).replace("{{REPO}}", repo_url).replace("{{SITE}}", site_url)
 
 # ---- build ------------------------------------------------------------------------------------------------------------

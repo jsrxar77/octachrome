@@ -18,7 +18,7 @@ It comes from the [button map](buttons.md) and from [instruments.md](instruments
 - Main modes: CHANNEL (composing) and SETTINGS (both screens). Settings has one page today, the theme: it is chosen with the 4D encoder and kept in a settings file ([architecture.md §10](architecture.md)). Tried in the Twin first.
 - The audio comes back by itself when the MK3's audio device drops (it used to stay dead, leaving the sequencer frozen).
 - The name is OP-8. The brand mark is defined (eight rainbow buttons, 4 + 4 as the unit's group keys or eight knobs in a row, the eighth white as the octave), the themes are glossy (bright), matte (soft) and chrome (one monochrome range) with their own backlight and LED levels, and every picture of the unit follows the real front panel ([design.md §2.3–2.4](design.md)). Guide, manual and brand page are in `guide/`.
-- Twin with the same screens, macro on track F and an approximate sound in WebAudio.
+- Twin with the same screens, macro on track G and an approximate sound in WebAudio.
 
 ## Hardware status
 
@@ -77,7 +77,7 @@ Known limits of the setup:
 
 ## 3. Instruments (the centre)
 
-- **Eight and eight.** 8 factory instruments + 8 installed ones ([instruments.md §7](instruments.md)). Factory today: drums, KickSyn, FmBass, resonator, MidiOutBridge, macro, ordered from the most guttural to the most refined (leads last). The sampler plays sounds and records them (stages 1 and 2 done), and BROWSER keeps presets; to build: granular.
+- **Eight and eight.** 8 factory instruments + 8 installed ones ([instruments.md §7](instruments.md)). Factory today: drums, KickSyn, FmBass, resonator, sampler, macro and the MIDI out, ordered from the most guttural to the most refined (leads next to last, the MIDI out last; the granular goes between the sampler and the macro). The sampler plays sounds and records them (stages 1 and 2 done), and BROWSER keeps presets; to build: granular.
 - Done: PLUG-IN shows the 16 places on the pads (the factory eight on top, eight places for installed ones below) and puts the chosen instrument on the selected track.
 
 - Kit of reusable drawings in `op8-gfx` (oscilloscope, envelope, polar waveform).
@@ -93,7 +93,7 @@ Known limits of the setup:
 
 ## 5. Structure
 
-- **Eight and eight projects.** 8 factory projects (one idea each, made only with the factory instruments) and 8 for the player; FILE shows them on the 16 pads ([instruments.md §7](instruments.md)). Needs save and load first (§7).
+- **Eight and eight projects.** 8 factory projects (eight short pieces in eight styles, made only with the factory instruments and their presets: [instruments.md §9](instruments.md)) and 8 for the player; FILE shows them on the 16 pads ([instruments.md §7](instruments.md)). Needs save and load first (§7).
 
 - PATTERN: 16 patterns per track.
 - SCENE and ARRANGER: scenes and song.
@@ -123,4 +123,5 @@ Asked by Javi on 2026-11-15, one pull request each, in this order:
 2. **BROWSER (presets), the sampler's stage 3.** Done (2026-11-15, not yet tried on the unit): the button opens a main mode on both screens; the sixteen pads are sixteen presets of the selected track's instrument (the top two rows the instrument's own, the bottom two the player's); a tap loads one and plays a note, SHIFT + tap on the bottom rows saves the current knobs into `~/.config/op8/presets/<instrument>/user-N.preset`. Presets are per instrument. The presets that come with the instruments are done as a first set of eight each (2026-11-15, [instruments.md §8](instruments.md)), checked by measurement and not yet by ear. To do: tune them on the unit, naming and deleting a preset.
 3. **The manual, complete and in matte.** Done (2026-11-15): a diagram of the unit at the start with every part named and numbered (buttons, screens, knobs, pads, groups, transport, 4D encoder, Smart Strip), so that the rest of the manual can say "button 5" or "group G"; the manual checked against the code (the instruments, "where OP-8 keeps your things", "if something is odd", "not yet"); the page and all its pictures in the matte theme; recipes 16 (SAMPLING) and 17 (BROWSER).
 4. **The public site (guide and manual).** Asked on 2026-11-15: the guide and the manual as one introduction to the project that can be published, well connected, in the matte theme (matte first, then glossy, then chrome; brand stays apart). Done: the sources are templates with a shared header, footer and style; `scripts/build-site.py` builds `site/` (pages, 404, `robots.txt`, `sitemap.xml`, the sharing image, social tags, the twin as "Try it"); `scripts/check-site.py` checks links, anchors, images and metadata and runs in `cargo test` (F-G05); the Pages workflow builds, checks and publishes it; the manual works on a phone. The home page now says what OP-8 is, what you need (the MK3 and a Pi 5, with a Pi 4 as the floor) and where it stands, in plain words for someone who has never heard of it. To do: look at it on a phone and a laptop once published; **to publish**, fill in the address of the site and of the repository (`guide/site.json`, or `OP8_SITE_URL` and the repository variable `OP8_REPO_URL`) and enable Pages (Settings, Pages, source GitHub Actions; a public repository or a plan that includes Pages), then look at it once on a phone and a laptop.
-5. **After that.** Granular (reuses the sampler); KEYBOARD on a drum kit like PAD MODE; a basic mixer; naming and deleting projects; PATTERN, SCENE and ARRANGER; real-MK3 verification of everything marked "not yet tried" above.
+5. **Eight pieces and the order of the instruments.** Asked on 2026-11-15: eight musical examples to hear what the machine can do, and the MIDI out last. Done: the factory projects are house, boom bap, dub, polyrhythm, acid, electro, ambient and breaks (levels matched, F-F07); PLUG-IN and the standard tracks run drums, KickSyn, FmBass, resonator, sampler, (granular), macro, MIDI out; an empty place of the player's in FILE opens a new empty project; a pad that closes FILE or PLUG-IN no longer toggles a step when it is let go. To do: tune the pieces and the presets by ear on the unit.
+6. **After that.** Granular (reuses the sampler); KEYBOARD on a drum kit like PAD MODE; a basic mixer; naming and deleting projects; PATTERN, SCENE and ARRANGER; real-MK3 verification of everything marked "not yet tried" above.

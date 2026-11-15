@@ -160,9 +160,9 @@ The buttons and their implementation status are in [buttons.md](buttons.md). Thi
 
 | ID | Behaviour | How it is verified | Status |
 | :-- | :-- | :-- | :-- |
-| F-I01 | PLUG-IN shows the sixteen places on both screens (the factory instruments from the most guttural to the most refined, then eight for installed ones), marks the instrument of the selected track, and a pad puts that instrument on the track and goes back to composing; PLUG-IN again leaves | the instrument of the track | ✓ |
+| F-I01 | PLUG-IN shows the sixteen places on both screens (the factory instruments from the most guttural to the most refined with the MIDI out last: drums, KickSyn, FmBass, resonator, sampler, granular, macro, midi out; then eight for installed ones), marks the instrument of the selected track, and a pad puts that instrument on the track and goes back to composing; PLUG-IN again leaves | the instrument of the track | ✓ |
 | F-I02 | An instrument that is not built yet, and an empty place, say so and change nothing | the instrument is unchanged | ✓ |
-| F-I03 | The MIDI out is one bridge that owns the MIDI queue: choosing it moves it from the track that has it | the instruments of both tracks | ✓ |
+| F-I03 | The MIDI out is one bridge that owns the MIDI queue, on the last track (H) as the standard tracks follow the order of PLUG-IN: choosing it moves it from the track that has it | the instruments of both tracks | ✓ |
 | F-I04 | Leaving the drums turns a kit track's lanes back into notes, so the pattern is not lost | the steps of the track | ✓ |
 | F-K14 | SAMPLING (the button) takes both screens; REC records the master until REC again and the take has the length of what played; knob 5 chooses the source, 6 and 7 cut the take and cannot cross, 8 sets the fade; the bottom pads play the kept part and it ends by itself; SAMPLING again goes back to composing | `ui().main`, `ui().smp`, the audio the preview made | ✓ |
 | F-D17 | Choosing a track puts both screens on their first page, whatever was open: the steps (button 1) and `sound` (button 5) are the lit ones; matte is the default theme and the first of the list (the settings view and the 4D encoder go matte, glossy, chrome) | the LED slots of the screen buttons, `ui().right_page`, `ui().left_page`, and the settings unit test | ✓ |
@@ -180,9 +180,10 @@ The buttons and their implementation status are in [buttons.md](buttons.md). Thi
 | F-F01 | A project round-trips through bytes (`op8_seq::io`), and garbage, a truncated file or another version is refused | unit tests | ✓ |
 | F-F02 | A project file (the project and each track's instrument name and state) round-trips, and a damaged or other-version file is refused | unit test (`projectfile.rs`) | ✓ |
 | F-F03 | The eight factory projects load and differ from each other | unit test (`factory.rs`) | ✓ |
+| F-F07 | The eight pieces that come with the machine (house, boom bap, dub, polyrhythm, acid, electro, ambient, breaks) open from FILE and play for twelve seconds with sound all the way through (no silent second in the middle), do not clip, are about as loud as each other (within 7 dB) and every track that has steps makes notes | the bench's audio and the note counts (`tests/songs.rs`) | ✓ |
 | F-F04 | FILE shows the sixteen slots (the factory projects in the top two rows) on both screens; a pad opens the project, with its instruments, and goes back to composing; FILE again leaves | the project in the engine after the tap | ✓ |
 | F-F05 | SHIFT + a pad of the player's slots saves into it (a file in the projects folder), and a tap opens it again with the tempo and the instruments' knobs | the files and the project after reopening | ✓ |
-| F-F06 | An empty slot says so and does not load; SHIFT on a factory slot does not overwrite it; a damaged file is refused and the project stays as it was | the project is unchanged | ✓ |
+| F-F06 | An empty slot opens a new empty project (the standard instruments, nothing in the steps); SHIFT on a factory slot does not overwrite it; a damaged file is refused and the project stays as it was | the project is unchanged | ✓ |
 | F-F07 | The players, the effect and the LFO of every track are saved with the project and come back with it; a project saved before they existed (version 1) still opens, with them off | save, open another project, open it again; `op8-seq` unit test of a version 1 file | ✓ |
 
 ## R · Recording (`tests/rec.rs`)

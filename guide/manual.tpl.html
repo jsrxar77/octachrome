@@ -77,7 +77,7 @@ h2.ref small{font-size:14px;color:var(--dim)}
 <p class="dim" style="font-size:22px;max-width:40ch;margin-top:14px">How OP-8 works, from the first minute. Seventeen recipes you can follow with the unit in front of you, and then every button.</p>
 
 <nav class="toc" aria-label="Contents">
-  <a href="#map">The unit, part by part</a><a href="#welcome">What it is</a><a href="#unit">Five facts</a><a href="#first">First ten minutes</a><a href="#recipes">Recipes</a><a href="#ideas">The ideas behind it</a><a href="#instruments">Instruments</a><a href="#reference">Every button</a><a href="#saved">Where things are kept</a><a href="#help">If something is odd</a><a href="#notyet">Not yet</a>
+  <a href="#map">The unit, part by part</a><a href="#welcome">What it is</a><a href="#unit">Five facts</a><a href="#pieces">Eight pieces</a><a href="#first">First ten minutes</a><a href="#recipes">Recipes</a><a href="#ideas">The ideas behind it</a><a href="#instruments">Instruments</a><a href="#reference">Every button</a><a href="#saved">Where things are kept</a><a href="#help">If something is odd</a><a href="#notyet">Not yet</a>
 </nav>
 
 <h2 id="map">The unit, part by part</h2>
@@ -132,11 +132,19 @@ h2.ref small{font-size:14px;color:var(--dim)}
 <p>On a Mac, plug the MK3 in <i>directly</i> (a hub can starve its screens of power), close Native Instruments' own software, and run <code>scripts/run.sh</code> (or just <code>op8</code>, if you set that alias up). On the Raspberry Pi 5 it starts by itself when the unit is powered. The sound comes out of the MK3's own audio outputs.</p>
 <p>OP-8 starts with a small demo already in it: a drum beat, a kick, a bass, a plucked line, a MIDI arpeggio and a synth line. It is there so there is always something to listen to and take apart.</p>
 
+<h2 id="pieces">Eight pieces to listen to</h2>
+<p class="sub">Before you build anything, hear what it can do. Press <kbd>FILE</kbd>, tap one of the top two rows of pads, and press <kbd>PLAY</kbd>. Each is short and in a different style; turn knobs, mute tracks and take it apart.</p>
+<table>
+  <tr><th>Piece</th><th>Listen for</th></tr>
+__PIECE_ROWS__
+</table>
+<p>They use every instrument with its presets, the track effects, the LFO, the chord Brain and the step components. To keep one you changed, save it in a place of your own (recipe 12).</p>
+
 <h2 id="first">Your first ten minutes</h2>
 <p class="sub">No rules, only things to press.</p>
 <ol class="steps">
   <li><div>Press <kbd>PLAY</kbd>. The demo plays, and the pad lights run along the steps. Press <kbd>PLAY</kbd> again to pause, and <kbd>STOP</kbd> to stop. <kbd>RESTART</kbd> goes back to step 1 and keeps playing.</div></li>
-  <li><div>Press the group buttons <kbd>A</kbd> to <kbd>F</kbd> one after another. Each track has its own colour and its own instrument; the right screen changes with it. G and H are empty.</div></li>
+  <li><div>Press the group buttons <kbd>A</kbd> to <kbd>H</kbd> one after another. Each track has its own colour and its own instrument, in the order of <kbd>PLUG-IN</kbd>: drums, kick, bass, strings and bells, sampler, (F is empty: the granular will go there), synth, and last the MIDI out. The right screen changes with it.</div></li>
   <li><div>Hold <kbd>MUTE</kbd> and press a group button: that track goes quiet. Do it again to bring it back. Mute everything except the bass and the kick and you have the skeleton of the piece.</div></li>
   <li><div>Turn knobs 5–8 while the demo plays. The right screen names what each one does, and the picture changes with the sound. This is the main way to shape a sound.</div></li>
   <li><div>Hold <kbd>TEMPO</kbd> and turn the 4D encoder (the big knob in the corner): the tempo changes, and the left screen shows it in large numbers while you hold the button.</div></li>
@@ -166,7 +174,7 @@ h2.ref small{font-size:14px;color:var(--dim)}
   <p class="goal">Kick, snare and hi-hat on one track, using the drum machine's eight lanes.</p>
   <p>Track A is a <b>kit</b>: one track with eight sounds (kick, snare, closed hat, open hat, tom, clap, rim, crash). Instead of one note per step, every step can have any of the eight sounds switched on.</p>
   <ol class="steps">
-    <li><div>Start from an empty project: <kbd>FILE</kbd>, tap the last pad of the second row (<b>blank</b>).</div></li>
+    <li><div>Start from an empty project: <kbd>FILE</kbd>, then tap any empty place of yours in the bottom two rows. It opens a new project with the standard instruments and nothing in the steps.</div></li>
     <li><div>Press group <kbd>A</kbd>. The right screen shows <b>drums</b>, with a kick (the first sound) chosen.</div></li>
     <li><div>Tap steps <b>1, 5, 9 and 13</b> (the left column of pads). Each tap sounds the kick and lights the pad.</div></li>
     <li><div>Press screen button <kbd>6</kbd> (<kbd>shape</kbd>). Turn knob 8, <b>sound</b>, a tenth of a turn: the display switches to the snare, and you hear it as you turn. Tap steps <b>5</b> and <b>13</b>.</div></li>
@@ -197,7 +205,7 @@ h2.ref small{font-size:14px;color:var(--dim)}
   <h3>4 <span>PLAY A MELODY AND RECORD IT</span></h3>
   <p class="goal">Play by hand and let OP-8 write down what you played.</p>
   <ol class="steps">
-    <li><div>Press group <kbd>F</kbd> (the <b>macro</b> synth).</div></li>
+    <li><div>Press group <kbd>G</kbd> (the <b>macro</b> synth).</div></li>
     <li><div>Press <kbd>KEYBOARD</kbd>. The pads become a chromatic keyboard starting at C3, with every C brighter. Play it: the pads play the selected track's instrument while you hold them, and hit harder for a louder note. The 4D encoder, pushed left and right, moves the whole keyboard an octave.</div></li>
     <li><div>Press <kbd>REC</kbd> (it lights red) and then <kbd>PLAY</kbd>.</div></li>
     <li><div>Play pads in time. Each note you play is written on the step you were closest to, with the velocity you played it at.</div></li>
@@ -327,13 +335,13 @@ h2.ref small{font-size:14px;color:var(--dim)}
   <h3>11 <span>CHOOSE AN INSTRUMENT</span></h3>
   <p class="goal">Put a different instrument on a track.</p>
   <ol class="steps">
-    <li><div>Press group <kbd>G</kbd> (empty).</div></li>
-    <li><div>Press <kbd>PLUG-IN</kbd>. Both screens show sixteen places. The top two rows are the eight instruments that come with OP-8, from the most guttural to the most refined: <b>drums</b>, <b>KickSyn</b>, <b>FmBass</b>, <b>resonator</b> on the first row; <b>sampler</b>, <b>granular</b> (not built yet, it says so), <b>midi out</b>, <b>macro</b> on the second. The two bottom rows are places for instruments you will install later. The instrument this track has is outlined.</div></li>
-    <li><div>Tap the fourth pad, the <b>resonator</b>. It goes on track G, and the screens go back to composing.</div></li>
+    <li><div>Press group <kbd>F</kbd> (empty).</div></li>
+    <li><div>Press <kbd>PLUG-IN</kbd>. Both screens show sixteen places. The top two rows are the eight instruments that come with OP-8, from the most guttural to the most refined: <b>drums</b>, <b>KickSyn</b>, <b>FmBass</b>, <b>resonator</b> on the first row; <b>sampler</b>, <b>granular</b> (not built yet, it says so), <b>macro</b> and, last, <b>midi out</b> on the second. The tracks follow the same order: A is the drums and H the MIDI out. The two bottom rows are places for instruments you will install later. The instrument this track has is outlined.</div></li>
+    <li><div>Tap the fourth pad, the <b>resonator</b>. It goes on track F, and the screens go back to composing.</div></li>
     <li><div>Press <kbd>5</kbd> (<kbd>sound</kbd>) and <kbd>6</kbd> (<kbd>shape</kbd>) to move between the instrument's two pages of four knobs.</div></li>
   </ol>
   <figure><div class="pair"><img src="img/r11-plugin-left.png" alt="PLUG-IN: sixteen places."><img src="img/r11-shape-right.png" alt="The second page of the resonator."></div><figcaption>Left: the sixteen places. Right: the second page of the resonator, with its drawing of eight bells.</figcaption></figure>
-  <p>The <b>midi out</b> is one bridge that sends a track out of the MK3's MIDI socket to an outside synth, so there is only one at a time: choosing it moves it from the track that had it. If you leave the drums for another instrument, the drum lanes turn back into ordinary notes and the pattern stays.</p>
+  <p>The <b>midi out</b> is one bridge that sends a track out of the MK3's MIDI socket to an outside synth, so there is only one at a time (it starts on track H): choosing it moves it from the track that had it. If you leave the drums for another instrument, the drum lanes turn back into ordinary notes and the pattern stays.</p>
   <p class="next"><b>Try next:</b> put the <b>macro</b> on a track and turn its first knob, <b>engine</b>: it has twenty-four ways of making a sound, from plain waves to bells, voices and drums.</p>
 </div>
 
@@ -341,13 +349,13 @@ h2.ref small{font-size:14px;color:var(--dim)}
   <h3>12 <span>SAVE YOUR WORK AND COME BACK</span></h3>
   <p class="goal">Keep a project and open it tomorrow.</p>
   <ol class="steps">
-    <li><div>Press <kbd>FILE</kbd>. Sixteen places: eight factory projects on top (demo, four floor, backbeat, bassline, pluck, lead, polymeter, blank) and eight places of yours below.</div></li>
+    <li><div>Press <kbd>FILE</kbd>. Sixteen places: eight factory pieces on top (house, boom bap, dub, polyrhythm, acid, electro, ambient, breaks; see <a href="#pieces">listen to them</a>) and eight places of yours below. A tap on an empty place of yours opens a new empty project.</div></li>
     <li><div>Hold <kbd>SHIFT</kbd> and tap one of the empty bottom places. The right screen says <b>saved in user 1</b>.</div></li>
     <li><div>Whenever you want it back: <kbd>FILE</kbd>, tap that place. The project, the instruments and every knob come back as you left them, and the screens go back to composing.</div></li>
   </ol>
   <figure><div class="pair one"><img src="img/r12-file-left.png" alt="FILE: the factory projects and empty places."></div><figcaption>The eight factory projects on top, your eight places below (empty ones are dim).</figcaption></figure>
   <p>The projects live in <code>~/.config/op8/projects/</code> (one file each), so you can back them up or move them to another unit. The factory projects can be opened but never overwritten. What is saved: the steps and components, the tempo and swing, the chords, each track's instrument with its knobs, its players, its effect and its LFO.</p>
-  <p class="next"><b>Try next:</b> open <b>bassline</b> (a bass with an LFO), <b>pluck</b> (strings with reverb) and <b>lead</b> (an arpeggio with an echo): each factory project shows one idea.</p>
+  <p class="next"><b>Try next:</b> open <b>acid</b>, press <kbd>PLAY</kbd> and open the track's LFO page (button <kbd>8</kbd>) on the bass: the tone that opens and closes by itself is one knob moved by an LFO.</p>
 </div>
 
 <div class="recipe" id="r13">
@@ -378,7 +386,7 @@ h2.ref small{font-size:14px;color:var(--dim)}
   <h3>15 <span>PLAY A RECORDED SOUND</span></h3>
   <p class="goal">Use the sampler: pick a sound, cut the part you want, and play it on the keyboard.</p>
   <ol class="steps">
-    <li><div>Press group <kbd>G</kbd> (empty), then <kbd>PLUG-IN</kbd>, and tap the <b>fifth</b> pad (the first of the second row), the sampler. It goes on track G.</div></li>
+    <li><div>Press group <kbd>E</kbd>: the <b>sampler</b> is there already (it is the fifth instrument in <kbd>PLUG-IN</kbd>, between the resonator and the synth, and track E).</div></li>
     <li><div>The right screen draws the <b>wave</b> of the sound. Turn <b>knob 5, sample</b>, one click: the next sound (the bell), and you hear it. In order: pluck, bell, pad, voice, thump, sweep, glass, glitch, and then <b>user 1</b> to <b>user 8</b>, which are your own files (see below).</div></li>
     <li><div><b>Knob 6, start</b>, moves the first mark, in the colour of knob 6: the sound begins later. <b>Knob 7, length</b>, moves the second mark, in the colour of knob 7: it stops sooner. Only the part between the marks is lit and only that part plays. <b>Knob 8, tune</b>, moves it up or down by up to an octave.</div></li>
     <li><div>Press <kbd>6</kbd> (<kbd>shape</kbd>) for the second page: <b>attack</b> (how slowly it fades in), <b>release</b> (how long the fade at the end is), <b>loop</b> and <b>level</b>. Turn <b>knob 7, loop</b>, to <b>loop</b>: the lit part now repeats for as long as you hold a key, and fades when you let go.</div></li>
@@ -447,8 +455,8 @@ h2.ref small{font-size:14px;color:var(--dim)}
   <tr><td>resonator</td><td>A plucked string or a struck bell. Four notes ring at once.</td><td>type · structure · bright · damping / decay · color · spread · level</td></tr>
   <tr><td>sampler</td><td>Plays recorded sounds. Eight come with it (pluck, bell, pad, voice, thump, sweep, glass, glitch) and eight places are for your own sounds: record them with <kbd>SAMPLING</kbd> (recipe 16), or drop WAV files in <code>~/.config/op8/samples/</code> before starting OP-8 and they appear as user 1, 2… in the order of their names. A note plays the sound at its own pitch for C4 and higher or lower for other notes. One shot plays through; loop repeats the part between <b>start</b> and <b>length</b> while the note is held.</td><td>sample · start · length · tune / attack · release · loop · level</td></tr>
   <tr><td>granular</td><td colspan="2" class="dim">Coming: clouds of tiny grains from a sample.</td></tr>
-  <tr><td>midi out</td><td>Sends the track's notes out of the MK3's MIDI socket to an outside synth. The track does not make a sound of its own.</td><td>channel · transpose · velocity · cc74</td></tr>
   <tr><td>macro</td><td>Twenty-four engines in one: analogue waves, FM, wavetables, chords, voices, strings, drums. One note at a time.</td><td>engine · harmonics · timbre · morph / decay · color · variant · level</td></tr>
+  <tr><td>midi out</td><td>Sends the track's notes out of the MK3's MIDI socket to an outside synth. The track does not make a sound of its own.</td><td>channel · transpose · velocity · cc74</td></tr>
 </table>
 
 <h3 id="presets">The presets that come with them</h3>
