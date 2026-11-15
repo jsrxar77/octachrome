@@ -89,8 +89,8 @@ They are the modules of the current mode, like M1–M4 on the OP-XY. Their name 
 | Knobs 1–4 | What the left footer shows (sequencer or the open module) | ✓ |
 | Knobs 5–8 | What the right footer shows (cartridge) | ✓ |
 | Touching a knob | Large overlay with its parameter | ✓ |
-| 4D encoder: turn | **Moves the focus** along the things to choose in the view that is open (FILE, PLUG-IN, BROWSER and SAMPLING today; the step view, the strip and the values come next); with a value grabbed it turns the value. In settings: the theme. In the inspector: the component cursor. It never turns the tempo by itself: only while TEMPO is held (2026-11-15) | ◐ |
-| 4D encoder: ◀ ▶ ▲ ▼ | Move the focus across the screens, to the nearest item that way (the right screen is to the right of the left one). In settings ◀ ▶: previous and next theme; with KEYBOARD, ◀ ▶: the octave | ◐ |
-| 4D encoder: push | Does what tapping the focused item does (SHIFT + push, what SHIFT + tap does); on a value, grabs it (turn changes it, push lets go) | ◐ |
+| 4D encoder: turn | **Moves the focus** along the things to choose in the view that is open (FILE, PLUG-IN, BROWSER, SAMPLING, and composing: screen buttons, tracks, pads of the grid and the values under the screens); with a value grabbed it turns the value. In settings: the theme. In the inspector: the component cursor. It never turns the tempo by itself: only while TEMPO is held (2026-11-15) | ✓ |
+| 4D encoder: ◀ ▶ ▲ ▼ | Move the focus across the screens, to the nearest item that way (the right screen is to the right of the left one). In settings ◀ ▶: previous and next theme; with KEYBOARD, ◀ ▶: the octave | ✓ |
+| 4D encoder: push | Does what tapping the focused item does (SHIFT + push, what SHIFT + tap does); on a value, grabs it (turn changes it, push lets go); in the step inspector it closes it | ✓ |
 | Smart Strip | Per PITCH, MOD or PERFORM: pitch bend, modulation or punch-in intensity. Today: master filter | ◐ |
 | PITCH / MOD / NOTES | Smart Strip mode | ○ |

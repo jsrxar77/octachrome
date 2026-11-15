@@ -813,7 +813,7 @@ function setStrip(x) {
 }
 
 // ======================= controller (mirrors op8 Controller) =======================
-const UI = { leftPage: "steps", quant: 0, held: null, metro: false, fixed: false, rec: false, octave: 0, down: Array(16).fill(false), main: "instrument", mode: "step", track: 0, inspect: null, compCursor: 0, touch: Array(8).fill(false), page: 0, live: null, strip: null, activity: Array(8).fill(0), lastCount: Array(8).fill(0), shift: false, mute: false, erase: false, focus: 0, grabbed: false };
+const UI = { leftPage: "steps", quant: 0, held: null, metro: false, fixed: false, rec: false, octave: 0, down: Array(16).fill(false), main: "instrument", mode: "step", track: 0, inspect: null, compCursor: 0, touch: Array(8).fill(false), page: 0, live: null, strip: null, activity: Array(8).fill(0), lastCount: Array(8).fill(0), shift: false, mute: false, erase: false, focus: { k: "track", i: 0 }, grabbed: false };
 const padDownAt = Array(16).fill(null); let inspectorPad = null; const knobAccum = Array(8).fill(0);
 const padToStep = pad => (3 - Math.floor(pad / 4)) * 4 + pad % 4; // bottom-left numbering -> reading order
 const DETENT = 40, SWEEP = 800;
@@ -829,7 +829,7 @@ function setMode(m) {
 // Main modes: CHANNEL composes (sequencer left, instrument right); SETTINGS
 // takes both screens for the machine's settings (theme for now).
 const THEME_IDS = ["matte", "glossy", "chrome"];
-function setMain(m) { UI.grabbed = false; UI.focus = m === "file" ? (UI.fileLast ?? 0) : m === "plugin" ? Math.max(0, plugCells().cur) : 0; if (m === "browser") { UI.brNote = ""; UI.brLast = null; } if (UI.main === "sampling" && m !== "sampling") SMP.rec = false; if (m === "sampling") SMP.note = ""; UI.main = m; UI.inspect = null; inspectorPad = null; if (m === "file") { UI.fileNote = ""; } if (m === "plugin") UI.plugNote = ""; }
+function setMain(m) { UI.grabbed = false; UI.focus = m === "file" ? { k: "cell", i: UI.fileLast ?? 0 } : m === "plugin" ? { k: "cell", i: Math.max(0, plugCells().cur) } : m === "instrument" ? { k: "track", i: UI.track } : { k: "cell", i: 0 }; if (m === "browser") { UI.brNote = ""; UI.brLast = null; } if (UI.main === "sampling" && m !== "sampling") SMP.rec = false; if (m === "sampling") SMP.note = ""; UI.main = m; UI.inspect = null; inspectorPad = null; if (m === "file") { UI.fileNote = ""; } if (m === "plugin") UI.plugNote = ""; }
 function themeStep(d) { LOOK.theme = THEME_IDS[((THEME_IDS.indexOf(LOOK.theme) + d) % 3 + 3) % 3]; applyLook(); }
 function groupPress(g) {
   if (UI.main === "settings") return;
@@ -993,25 +993,54 @@ function openLeft(page) {
   setMode("step"); if (!open) UI.leftPage = page;
 }
 // ---- navigation with the 4D encoder (docs/design.md §4; crates/op8-ui/src/nav.rs): every view with things to choose has a focus, always
-// visible as a ring. Turn moves it along the list, the arrows across the screens, push activates (or grabs a value, turn changes it, push lets go).
-const navOn = () => ["file", "plugin", "browser", "sampling"].includes(UI.main);
-const navCount = () => UI.main === "sampling" ? 20 : navOn() ? 16 : 0;
-function navRect(i) { if (i < 16) return { s: 0, x: 12 + (i % 4) * 114, y: 44 + Math.floor(i / 4) * 48, w: 108, h: 42 }; const k = i - 16; return { s: 1, x: 60 + k * 120 - 52, y: 224, w: 104, h: 42 }; }
-function navMove(dx, dy) {
-  UI.grabbed = false; const at = i => { const r = navRect(i); return [r.x + r.w / 2 + r.s * 520, r.y + r.h / 2]; }, f = at(UI.focus); let best = null;
-  for (let i = 0; i < navCount(); i++) { if (i === UI.focus) continue; const [x, y] = at(i), along = dx ? (x - f[0]) * dx : (y - f[1]) * dy, across = dx ? Math.abs(y - f[1]) : Math.abs(x - f[0]); if (along <= 1) continue; const cost = along + 2.5 * across; if (!best || cost < best[0]) best = [cost, i]; }
-  if (best) UI.focus = best[1];
+// visible as a frame. Turn moves it along the list, the arrows across the screens, push does what tapping does (or grabs a value: turn changes it,
+// push lets go). An item is {k: kind, i: number, s: screen, x, y, w, h}; the focus remembers its kind and number.
+const BCX = [24, 164, 304, 444];
+function navItems() {
+  const cell = i => ({ k: "cell", i, s: 0, x: 12 + (i % 4) * 114, y: 44 + Math.floor(i / 4) * 48, w: 108, h: 42 });
+  if (["file", "plugin", "browser"].includes(UI.main)) return Array.from({ length: 16 }, (_, i) => cell(i));
+  if (UI.main === "sampling") return [...Array.from({ length: 16 }, (_, i) => cell(i)), ...Array.from({ length: 4 }, (_, k) => ({ k: "value", i: 4 + k, s: 1, x: 60 + k * 120 - 52, y: 224, w: 104, h: 42 }))];
+  if (UI.main !== "instrument" || UI.inspect != null) return [];
+  const slot = SLOTS[UI.track], second = slot && CARTS[slot].params.length > 4;
+  const strip = (n, s) => ({ k: "strip", i: n, s, x: BCX[n % 4] - 52, y: 1, w: 104, h: 22 }), has = n => n !== 5 || second;
+  const v = [0, 1, 2, 3].map(n => strip(n, 0));
+  for (let t = 0; t < 8; t++) v.push({ k: "track", i: t, s: 0, x: 338 + t * 18 - 9, y: 29, w: 18, h: 18 });
+  if (UI.mode !== "step" || UI.leftPage === "steps") for (let c = 0; c < 16; c++) v.push({ k: "grid", i: c, s: 0, x: 262 + (c % 4) * 42, y: 50 + Math.floor(c / 4) * 42, w: 37, h: 37 });
+  for (let k = 0; k < 4; k++) v.push({ k: "value", i: k, s: 0, x: k * 120 + 6, y: 227, w: 108, h: 42 });
+  [4, 5, 6, 7].filter(has).forEach(n => v.push(strip(n, 1)));
+  for (let k = 0; k < 4; k++) v.push({ k: "value", i: 4 + k, s: 1, x: k * 120 + 6, y: 227, w: 108, h: 42 });
+  return v;
 }
-function navTurn(d) { if (UI.grabbed) { if (UI.main === "sampling" && UI.focus >= 16) smpKnob(4 + UI.focus - 16, d * DETENT); return; } const n = navCount(); UI.focus = ((UI.focus + d) % n + n) % n; }
+const navOn = () => navItems().length > 0;
+function navIndex(items) { const n = items.findIndex(it => it.k === UI.focus.k && it.i === UI.focus.i); return n < 0 ? 0 : n; }
+function navSet(it) { if (it) UI.focus = { k: it.k, i: it.i }; }
+function navMove(dx, dy) {
+  UI.grabbed = false; const items = navItems(), at = it => [it.x + it.w / 2 + it.s * 520, it.y + it.h / 2], cur = navIndex(items), f = items[cur] && at(items[cur]); let best = null;
+  if (!f) return;
+  items.forEach((it, n) => { if (n === cur) return; const [x, y] = at(it), along = dx ? (x - f[0]) * dx : (y - f[1]) * dy, across = dx ? Math.abs(y - f[1]) : Math.abs(x - f[0]); if (along <= 1) return; const cost = along + 2.5 * across; if (!best || cost < best[0]) best = [cost, it]; });
+  if (best) navSet(best[1]);
+}
+function navTurn(d) {
+  const items = navItems(); if (!items.length) return;
+  if (UI.grabbed) { if (UI.focus.k === "value") { if (UI.main === "sampling") smpKnob(UI.focus.i, d * DETENT); else knob(UI.focus.i, d * DETENT); } return; }
+  navSet(items[((navIndex(items) + d) % items.length + items.length) % items.length]);
+}
 function navPush() {
-  if (UI.focus >= 16) { UI.grabbed = !UI.grabbed; return; }
-  const pad = [...Array(16).keys()].find(p => padToStep(p) === UI.focus); padDown(pad, .8);
+  if (UI.main === "instrument" && UI.inspect != null && inspectorPad == null) { UI.inspect = null; return; }
+  const items = navItems(); const it = items[navIndex(items)]; if (!it) return;
+  const padOf = i => [...Array(16).keys()].find(q => padToStep(q) === i);
+  if (it.k === "value") UI.grabbed = !UI.grabbed;
+  else if (it.k === "strip") $("sb" + (it.i + 1)).click();
+  else if (it.k === "track") groupPress(it.i);
+  else if (it.k === "grid" && UI.shift && UI.mode === "step") { UI.inspect = it.i; UI.compCursor = 0; UI.leftPage = "steps"; UI.shift = false; }
+  else if (it.k === "grid") { padDown(padOf(it.i), .8); padUp(padOf(it.i)); }
+  else padDown(padOf(it.i), .8);
 }
 function navRing(g, screen) {
-  if (!navOn() || UI.focus >= navCount()) return; const r = navRect(UI.focus); if (r.s !== screen) return;
-  const ph = (performance.now() % 1600) / 1600, pulse = .5 + .5 * Math.sin(ph * 2 * Math.PI);
-  g.globalAlpha = .6 + .4 * pulse; rrect(g, r.x - 3, r.y - 3, r.w + 6, r.h + 6, 11, KC[0], UI.grabbed ? 3.5 : 2); dot(g, r.x - 1, r.y - 1, UI.grabbed ? 5.5 : 4, KC[0]); g.globalAlpha = 1;
+  if (UI.focus == null) return; const items = navItems(), it = items[navIndex(items)]; if (!it || it.s !== screen) return;
+  rrect(g, it.x - 3, it.y - 3, it.w + 6, it.h + 6, 11, UI.grabbed ? FG : KC[0], UI.grabbed ? 3.5 : 2.5);
 }
+function jogOctave(d) { UI.octave = clamp(UI.octave + d, -2, 4); UI.down.fill(false); }
 function jog(d) {
   if (UI.main === "settings") { themeStep(d); return; }
   if (navOn() && !UI.held) { navTurn(d); return; }
@@ -2069,7 +2098,8 @@ $("jogP").addEventListener("click", () => { if (navOn()) navPush(); });
 document.addEventListener("keydown", e => {
   if (!navOn() || (document.activeElement && document.activeElement !== document.body)) return;
   const k = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[e.key];
-  if (k) { e.preventDefault(); navMove(k[0], k[1]); } else if (e.key === "Enter") { e.preventDefault(); navPush(); }
+  if (k && k[0] && UI.main === "instrument" && UI.mode === "keys") { e.preventDefault(); jogOctave(k[0]); } // in KEYBOARD ◀ ▶ are the octave
+  else if (k) { e.preventDefault(); navMove(k[0], k[1]); } else if (e.key === "Enter") { e.preventDefault(); navPush(); }
 });
 // Modifiers latch on click (a mouse can't hold two buttons). Shift and Mute
 // release after the next group press; Erase stays on until clicked again.
@@ -2137,7 +2167,7 @@ function updateLeds() {
 
 function frame() {
   updateVisual(); controllerTick();
-  drawLeft(lcdL); drawRight(lcdR); updateLeds();
+  drawLeft(lcdL); drawRight(lcdR); if (UI.main === "instrument") { navRing(lcdL, 0); navRing(lcdR, 1); } updateLeds();
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);

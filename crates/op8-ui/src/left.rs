@@ -30,6 +30,13 @@ const CELL: i32 = 37;
 const GAP: i32 = 5;
 
 pub fn draw_left(fb: &mut FrameBuffer480x272, ui: &UiState, p: &Project, st: &EngineStatus) {
+    draw_left_view(fb, ui, p, st);
+    if let Some(it) = crate::nav::focused(ui).filter(|it| it.screen == 0 && ui.main == crate::Main::Instrument) {
+        crate::nav::draw_ring(fb, &it, ui.grabbed);
+    }
+}
+
+fn draw_left_view(fb: &mut FrameBuffer480x272, ui: &UiState, p: &Project, st: &EngineStatus) {
     if ui.main == crate::Main::Settings {
         return crate::settings::draw_left(fb, st);
     }

@@ -17,6 +17,18 @@ pub fn draw_right(
     cartridge: Option<&SharedCartridge>,
     params: &[f32; 8],
 ) {
+    draw_right_view(fb, ui, cartridge, params);
+    if let Some(it) = crate::nav::focused(ui).filter(|it| it.screen == 1 && ui.main == crate::Main::Instrument) {
+        crate::nav::draw_ring(fb, &it, ui.grabbed);
+    }
+}
+
+fn draw_right_view(
+    fb: &mut FrameBuffer480x272,
+    ui: &UiState,
+    cartridge: Option<&SharedCartridge>,
+    params: &[f32; 8],
+) {
     if ui.main == crate::Main::Settings {
         return crate::settings::draw_right(fb);
     }
