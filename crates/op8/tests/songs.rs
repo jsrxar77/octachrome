@@ -29,6 +29,7 @@ fn f_f07_the_eight_pieces_play() {
         let name = op8::factory::NAMES[i];
         let b = play(i, 12_000);
         let (rms, peak) = (b.rms_db(2_000, 12_000), b.peak_db(0, 12_000));
+        b.save_audio(&format!("piece-{}-{}", i + 1, name.replace(' ', "-"))); // with OP8_BENCH_DIR set: a WAV to listen to
         eprintln!("{i} {name:12} rms {rms:6.1} peak {peak:5.1} bpm {}", b.project().bpm);
         if rms < -30.0 {
             problems.push(format!("{name} is too quiet: {rms:.1} dB"));
