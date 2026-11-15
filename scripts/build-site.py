@@ -38,6 +38,16 @@ def button_rows():
                      "note": c[-1][1:].strip(" ()")})
     return rows
 
+def preset_rows():
+    """The manual's table of the presets that come with the instruments (crates/op8-cartridges/presets.txt)."""
+    by = {}
+    for line in (root / "crates/op8-cartridges/presets.txt").read_text().splitlines():
+        if line.strip() and not line.startswith("#"):
+            p = [x.strip() for x in line.split("|")]
+            by.setdefault(p[0], []).append(p[1])
+    names = [("drums", "drums"), ("KickSyn", "KickSyn"), ("FmBass", "FmBass"), ("resonator", "resonator"), ("sampler", "sampler"), ("macro", "macro")]
+    return "\n".join(f"  <tr><td>{label}</td><td>{', '.join(by.get(key, []))}</td></tr>" for label, key in names)
+
 # ---- the parts every page shares -----------------------------------------------------------------------------------
 NAV = [("index.html", "Home"), ("manual.html", "Manual"), ("twin/op8-twin.html", "Try it")]
 
@@ -84,6 +94,7 @@ def render(text, page, data=None):
     for key, n in (("N_Y", sum(r["t"] == "y" for r in rows)), ("N_P", sum(r["t"] == "p" for r in rows)),
                    ("N_N", sum(r["t"] == "n" for r in rows)), ("N_ALL", len(rows))):
         text = text.replace("{{" + key + "}}", str(n))
+    text = text.replace("__PRESET_ROWS__", preset_rows())
     return text.replace("{{DOCS}}", docs_url).replace("{{REPO}}", repo_url).replace("{{SITE}}", site_url)
 
 # ---- build ------------------------------------------------------------------------------------------------------------

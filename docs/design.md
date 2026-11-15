@@ -203,7 +203,7 @@ Like FILE: both screens, no footer, no strip. **Left:** `sampling` and the sixte
 
 ### Presets view (BROWSER)
 
-Like FILE and PLUG-IN: both screens, no footer, no strip. **Left:** the sixteen places as the pads are; the top two rows are the presets that come with the instrument (none yet, so they say `empty`) and the bottom two are the player's (`user 1` to `user 8`, with a fill where there is one); the one last touched has the 2 px `fg` outline; the title is `presets`, or `save preset` while SHIFT is held. **Right:** `browser` and the instrument's name, what a tap and SHIFT + tap do, and a line saying what just happened. The pad LEDs are white: level 3 for the last one touched, 2 for a preset that exists, 1 for an empty place of the player's.
+Like FILE and PLUG-IN: both screens, no footer, no strip. **Left:** the sixteen places as the pads are; the top two rows are the presets that come with the instrument (`panel` fill and their names; an instrument with fewer than eight leaves the rest `empty`) and the bottom two are the player's (`user 1` to `user 8`, with a fill where there is one); the one last touched has the 2 px `fg` outline; the title is `presets`, or `save preset` while SHIFT is held. **Right:** `browser` and the instrument's name, what a tap and SHIFT + tap do, and a line saying what just happened. The pad LEDs are white: level 3 for the last one touched, 2 for a preset that exists, 1 for an empty place of the player's.
 
 ### Settings view
 

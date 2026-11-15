@@ -31,7 +31,7 @@ fn f_k15_a_preset_saves_and_loads_the_knobs() {
     assert_eq!(b.ui().main, Main::Browser);
     assert_eq!(b.ui().browse_inst, "KickSyn");
     assert_eq!(b.ui().browse.len(), 16);
-    assert!(b.ui().browse.iter().all(|c| !c.1), "nothing saved yet");
+    assert!(b.ui().browse[8..].iter().all(|c| !c.1), "nothing of the player's is saved yet");
     b.press(Button::Browser);
     assert_eq!(b.ui().main, Main::Instrument);
     // a sound to keep: the first knob turned up a good way
@@ -62,6 +62,7 @@ fn f_k15_a_preset_saves_and_loads_the_knobs() {
     b.press(Button::Browser);
     assert_ne!(b.ui().browse_inst, "KickSyn");
     assert!(!b.ui().browse[8].1, "KickSyn's preset is not here");
+    assert_ne!(b.ui().browse[0].0, "deep", "and neither are its names on the top row");
     let _ = std::fs::remove_dir_all(&d);
 }
 
@@ -80,8 +81,10 @@ fn f_k15_it_says_what_it_cannot_do() {
     b.press(Button::Browser);
     b.tap(pad_of(9));
     assert!(b.ui().browse_note.starts_with("empty"), "{}", b.ui().browse_note);
+    b.button_down(Button::Shift);
     b.tap(pad_of(2));
-    assert!(b.ui().browse_note.contains("no presets come"), "{}", b.ui().browse_note);
+    b.button_up(Button::Shift);
+    assert!(b.ui().browse_note.contains("stay as they are"), "{}", b.ui().browse_note);
     // a damaged file is not loaded
     std::fs::create_dir_all(d.join("KickSyn")).unwrap();
     std::fs::write(d.join("KickSyn").join("user-2.preset"), b"garbage").unwrap();
@@ -110,4 +113,39 @@ fn f_d18_browser_draws_both_screens() {
     assert_ne!(b.screen_hash(op8_hw::Screen::Left), l0, "a saved preset changes the left screen");
     assert!(b.leds().pad(pad_of(8)) & 3 >= 2, "a preset's pad is lit");
     let _ = std::fs::remove_dir_all(&d);
+}
+
+// F-K16: the top two rows are the presets that come with the instrument (named, and the same eight as in `presets.txt`): a tap
+// loads every knob it names and leaves the others, plays a note, and each instrument has its own.
+#[test]
+fn f_k16_the_presets_that_come_with_it() {
+    let mut b = Bench::demo();
+    b.press(Button::Group(1)); // KickSyn
+    b.press(Button::Browser);
+    let names: Vec<&str> = b.ui().browse[..8].iter().map(|c| c.0.as_str()).collect();
+    assert_eq!(names, ["deep", "punch", "boom", "tight", "click", "dirty", "soft", "hard"]);
+    assert!(b.ui().browse[..8].iter().all(|c| c.1), "all eight can be loaded");
+    let from = b.now_ms();
+    b.tap(pad_of(4)); // click
+    b.run_ms(300);
+    assert!(b.ui().browse_note.contains("loaded click"), "{}", b.ui().browse_note);
+    let want = op8_cartridges::presets::factory("KickSyn").into_iter().nth(4).unwrap().1;
+    for (i, v) in want.iter().enumerate() {
+        assert!((b.param(1, i) - v.unwrap()).abs() < 0.01, "knob {i}");
+    }
+    assert!(b.peak_db(from, b.now_ms()) > -40.0, "it is heard");
+    // the drums keep the sound they were on: a preset of the kit leaves `sound` alone
+    b.press(Button::Browser);
+    b.press(Button::Group(0));
+    let sound = b.param(0, 7);
+    b.press(Button::Browser);
+    b.tap(pad_of(1)); // boomy
+    assert!((b.param(0, 7) - sound).abs() < 0.001, "the chosen sound is not changed");
+    assert!(b.param(0, 1) > 0.7, "decay is the preset's");
+    // and a track with no instrument has none
+    b.press(Button::Browser);
+    b.press(Button::Group(7));
+    b.press(Button::Browser);
+    b.tap(pad_of(1));
+    assert!(b.ui().browse_note.contains("no instrument"), "{}", b.ui().browse_note);
 }

@@ -86,7 +86,7 @@ Known limits of the setup:
 
 ## 4. Track sound
 
-- Done: BROWSER (presets per instrument). To do: the presets that come with each instrument.
+- Done: BROWSER (presets per instrument, with eight that come with each instrument). To do: tune them by ear on the unit.
 - Done: an effect per track (delay, reverb, chorus, filter, drive; button 7) and an LFO per track (button 8). To do: more effects (check the CPU on the Pi first), an LFO that follows the tempo, a second LFO, and an effect send shared by all tracks.
 - MACRO (Auxiliary): effect sends and Brain.
 - Done: the players (button 3): an arpeggio or a chord over each step. To do: NOTE REPEAT, an arpeggio that takes its notes from the Brain's chord instead of its own, and players on a drum kit (a roll).
@@ -113,14 +113,14 @@ Known limits of the setup:
 - A triple-buffer snapshot of the cartridge UI so that `draw_ui` never shares the mutex with the audio.
 - Real-time priority for the audio thread on Linux (`audio_thread_priority`), and a latency measurement on the Pi 5.
 - MIDI with timestamps (today it goes out as soon as the queue is drained, up to 1 ms plus one block).
-- Presets that come with each instrument (BROWSER already keeps the player's); projects already save the instruments' state.
+- Tuning the presets that come with the instruments by ear (BROWSER already keeps the player's); projects already save the instruments' state.
 
 ## 8. The batch of 2026-11-15 (in order)
 
 Asked by Javi on 2026-11-15, one pull request each, in this order:
 
 1. **Buttons 1 and 5, and the theme order.** Done: screen button 5 is `sound` (the first page, with what matters most of the instrument) and 6 is `shape`; choosing a track puts the screens on button 1 (steps) and button 5 (sound); matte is the default theme (it was chrome for a day, 2026-11-15), in the machine, the twin, the guide and the manual, and comes first in the list (glossy and chrome follow). Not yet seen on the unit.
-2. **BROWSER (presets), the sampler's stage 3.** Done (2026-11-15, not yet tried on the unit): the button opens a main mode on both screens; the sixteen pads are sixteen presets of the selected track's instrument (the top two rows the instrument's own, the bottom two the player's); a tap loads one and plays a note, SHIFT + tap on the bottom rows saves the current knobs into `~/.config/op8/presets/<instrument>/user-N.preset`. Presets are per instrument. To do: the presets that come with each instrument (chosen by ear now that the mechanism runs), naming and deleting a preset.
+2. **BROWSER (presets), the sampler's stage 3.** Done (2026-11-15, not yet tried on the unit): the button opens a main mode on both screens; the sixteen pads are sixteen presets of the selected track's instrument (the top two rows the instrument's own, the bottom two the player's); a tap loads one and plays a note, SHIFT + tap on the bottom rows saves the current knobs into `~/.config/op8/presets/<instrument>/user-N.preset`. Presets are per instrument. The presets that come with the instruments are done as a first set of eight each (2026-11-15, [instruments.md §8](instruments.md)), checked by measurement and not yet by ear. To do: tune them on the unit, naming and deleting a preset.
 3. **The manual, complete and in matte.** Done (2026-11-15): a diagram of the unit at the start with every part named and numbered (buttons, screens, knobs, pads, groups, transport, 4D encoder, Smart Strip), so that the rest of the manual can say "button 5" or "group G"; the manual checked against the code (the instruments, "where OP-8 keeps your things", "if something is odd", "not yet"); the page and all its pictures in the matte theme; recipes 16 (SAMPLING) and 17 (BROWSER).
 4. **The public site (guide and manual).** Asked on 2026-11-15: the guide and the manual as one introduction to the project that can be published, well connected, in the matte theme (matte first, then glossy, then chrome; brand stays apart). Done: the sources are templates with a shared header, footer and style; `scripts/build-site.py` builds `site/` (pages, 404, `robots.txt`, `sitemap.xml`, the sharing image, social tags, the twin as "Try it"); `scripts/check-site.py` checks links, anchors, images and metadata and runs in `cargo test` (F-G05); the Pages workflow builds, checks and publishes it; the manual works on a phone. The home page now says what OP-8 is, what you need (the MK3 and a Pi 5, with a Pi 4 as the floor) and where it stands, in plain words for someone who has never heard of it. To do: look at it on a phone and a laptop once published; **to publish**, fill in the address of the site and of the repository (`guide/site.json`, or `OP8_SITE_URL` and the repository variable `OP8_REPO_URL`) and enable Pages (Settings, Pages, source GitHub Actions; a public repository or a plan that includes Pages), then look at it once on a phone and a laptop.
 5. **After that.** Granular (reuses the sampler); KEYBOARD on a drum kit like PAD MODE; a basic mixer; naming and deleting projects; PATTERN, SCENE and ARRANGER; real-MK3 verification of everything marked "not yet tried" above.

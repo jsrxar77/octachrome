@@ -1216,6 +1216,65 @@ function smpRight(g) {
   [["source", ["input", "resample"][SMP.source]], ["start", sec(a / 48000)], ["end", sec(b / 48000)], ["fade", Math.round(SMP.fade * 100) + "ms"]]
     .forEach(([n, v], i) => { txt(g, n, 60 + i * 120, 230, "s", DIM, "center"); txt(g, v, 60 + i * 120, 246, "m", KC[4 + i], "center"); });
 }
+// The presets that come with the instruments: a copy of crates/op8-cartridges/presets.txt (a test keeps the two equal).
+const FACTORY_PRESETS_TEXT = `# The presets that come with the instruments (docs/instruments.md §8): "instrument | name | the eight knobs, 0 to 1, in the order
+# of the two pages (sound: 1-4, shape: 5-8)". A "-" leaves that knob where it is. Up to eight per instrument; the order is the
+# order of the pads. The twin carries a copy of this text (a test keeps the two equal).
+KickSyn | deep   | 0.20 0.65 0.50 0.10 0.10 0.55 0.00 0.80
+KickSyn | punch  | 0.40 0.35 0.85 0.30 0.40 0.25 0.00 0.80
+KickSyn | boom   | 0.25 0.85 0.55 0.35 0.15 0.45 0.00 0.75
+KickSyn | tight  | 0.50 0.18 0.70 0.20 0.45 0.15 0.00 0.80
+KickSyn | click  | 0.60 0.15 0.60 0.15 0.90 0.10 0.00 0.75
+KickSyn | dirty  | 0.40 0.40 0.70 0.80 0.40 0.30 0.00 0.70
+KickSyn | soft   | 0.35 0.45 0.30 0.05 0.05 0.50 0.00 0.80
+KickSyn | hard   | 0.55 0.28 0.95 0.55 0.60 0.20 0.00 0.70
+FmBass  | sub    | 0.30 0.10 0.55 0.35 0.00 0.90 0.80 0.70
+FmBass  | round  | 0.30 0.30 0.50 0.30 0.00 0.50 0.70 0.70
+FmBass  | growl  | 0.50 0.70 0.45 0.30 0.00 0.40 0.60 0.65
+FmBass  | metal  | 0.70 0.85 0.35 0.25 0.00 0.30 0.40 0.60
+FmBass  | pluck  | 0.30 0.45 0.25 0.15 0.00 0.40 0.10 0.70
+FmBass  | slide  | 0.30 0.40 0.50 0.40 0.60 0.60 0.70 0.70
+FmBass  | acid   | 0.50 0.60 0.30 0.20 0.35 0.20 0.30 0.65
+FmBass  | fat    | 0.10 0.55 0.60 0.40 0.00 0.80 0.80 0.65
+resonator | nylon | 0.25 0.30 0.35 0.60 0.55 0.40 0.30 0.70
+resonator | steel | 0.25 0.45 0.75 0.60 0.70 0.55 0.40 0.70
+resonator | harp  | 0.25 0.55 0.60 0.65 0.85 0.50 0.60 0.65
+resonator | muted | 0.25 0.35 0.30 0.15 0.25 0.30 0.20 0.75
+resonator | bell  | 0.75 0.40 0.70 0.60 0.75 0.50 0.40 0.65
+resonator | glass | 0.75 0.70 0.90 0.70 0.85 0.70 0.70 0.60
+resonator | gong  | 0.75 0.20 0.40 0.85 0.95 0.30 0.50 0.65
+resonator | chime | 0.75 0.55 0.85 0.55 0.50 0.80 0.90 0.65
+drums   | tight  | 0.50 0.25 0.55 0.60 0.40 - - -
+drums   | boomy  | 0.40 0.75 0.40 0.30 0.70 - - -
+drums   | bright | 0.55 0.40 0.85 0.60 0.40 - - -
+drums   | dull   | 0.45 0.40 0.15 0.30 0.50 - - -
+drums   | snappy | 0.50 0.30 0.60 0.95 0.30 - - -
+drums   | loose  | 0.50 0.65 0.50 0.40 0.60 - - -
+drums   | lofi   | 0.35 0.45 0.20 0.15 0.55 - - -
+drums   | hard   | 0.60 0.30 0.70 0.90 0.50 - - -
+sampler | pluck  | 0.031 0.00 1.00 0.50 0.00 0.20 0.00 0.80
+sampler | bell   | 0.094 0.00 1.00 0.50 0.00 0.35 0.00 0.80
+sampler | pad    | 0.156 0.15 0.65 0.50 0.60 0.70 1.00 0.70
+sampler | voice  | 0.219 0.00 1.00 0.50 0.05 0.40 0.00 0.80
+sampler | thump  | 0.281 0.00 0.50 0.45 0.00 0.20 0.00 0.85
+sampler | sweep  | 0.344 0.45 0.55 0.50 0.05 0.50 0.00 0.70
+sampler | glass  | 0.406 0.10 0.50 0.50 0.10 0.60 1.00 0.70
+sampler | tick   | 0.469 0.00 0.15 0.50 0.00 0.10 0.00 0.80
+macro   | lead    | 0.021 0.50 0.60 0.40 0.50 0.50 0.00 0.80
+macro   | strings | 0.271 0.50 0.50 0.50 0.70 0.50 0.00 0.75
+macro   | chip    | 0.313 0.50 0.50 0.50 0.35 0.50 0.00 0.75
+macro   | organ   | 0.521 0.70 0.40 0.50 0.60 0.50 0.00 0.75
+macro   | chords  | 0.604 0.50 0.50 0.50 0.55 0.50 0.00 0.70
+macro   | swarm   | 0.688 0.50 0.60 0.50 0.65 0.50 0.00 0.70
+macro   | pluck   | 0.813 0.50 0.50 0.50 0.40 0.50 0.00 0.80
+macro   | modal   | 0.854 0.50 0.50 0.50 0.50 0.50 0.00 0.80
+`;
+const PRESET_NAMES = { kick: "KickSyn", fm: "FmBass", resonator: "resonator", drums: "drums", sampler: "sampler", macro: "macro" };
+function factoryPresets(slot) {
+  const inst = PRESET_NAMES[slot]; if (!inst) return [];
+  return FACTORY_PRESETS_TEXT.split("\n").filter(l => l.trim() && !l.trim().startsWith("#")).map(l => l.split("|").map(x => x.trim()))
+    .filter(p => p[0] === inst).slice(0, 8).map(p => [p[1], p[2].split(/\s+/).map(v => v === "-" ? null : +v)]);
+}
 // ---- BROWSER (Controller::browser_pad): the presets of the selected track's instrument. None come with it yet; the player's eight
 // (the bottom two rows of pads) are kept in the browser's storage, one set per instrument. A tap loads, SHIFT + tap saves.
 function brKey(i) { return "op8-preset-" + SLOTS[UI.track] + "-" + (i - 7); }
@@ -1223,12 +1282,17 @@ function brGet(i) { try { const v = JSON.parse(localStorage.getItem(brKey(i)) ||
 function brPad(pad) {
   const i = padToStep(pad), t = UI.track; UI.brLast = i;
   if (!SLOTS[t]) { UI.brNote = "this track has no instrument (PLUG-IN)"; return; }
-  if (i < 8) { UI.brNote = "no presets come with the instrument yet"; return; }
+  if (i < 8) {
+    if (UI.shift) { UI.brNote = "the presets that come with it stay as they are"; UI.shift = false; return; }
+    const f = factoryPresets(SLOTS[t])[i]; if (!f) { UI.brNote = "empty: this instrument has fewer presets"; return; }
+    f[1].forEach((v, k) => { if (v != null && k < PARAMS[t].length) PARAMS[t][k] = v; });
+    UI.brNote = "loaded " + f[0]; audition(t, 60, .9, false); return;
+  }
   if (UI.shift) { try { localStorage.setItem(brKey(i), JSON.stringify(PARAMS[t])); UI.brNote = "saved in user " + (i - 7); } catch { UI.brNote = "could not save"; } UI.shift = false; return; }
   const v = brGet(i); if (!v || v.length !== PARAMS[t].length) { UI.brNote = "empty: SHIFT + tap saves here"; return; }
   PARAMS[t] = v.slice(); UI.brNote = "loaded user " + (i - 7); audition(t, 60, .9, false);
 }
-function brLeft(g) { pickLeft(UI.shift ? "save preset" : "presets", Array.from({ length: 16 }, (_, i) => i < 8 ? ["", false] : ["user " + (i - 7), !!SLOTS[UI.track] && !!brGet(i)]), UI.brLast)(g); }
+function brLeft(g) { pickLeft(UI.shift ? "save preset" : "presets", Array.from({ length: 16 }, (_, i) => i < 8 ? (factoryPresets(SLOTS[UI.track])[i] ? [factoryPresets(SLOTS[UI.track])[i][0], true] : ["", false]) : ["user " + (i - 7), !!SLOTS[UI.track] && !!brGet(i)]), UI.brLast)(g); }
 function brRight(g) {
   fill(g, 0, 0, 480, 272, BG); dot(g, 16, 15, 6, FG); txt(g, "browser · " + (SLOTS[UI.track] ? CARTS[SLOTS[UI.track]].name : "empty track"), 30, 6, "mid", FG);
   [["tap a pad", "loads that preset"], ["shift + tap", "saves the knobs into your presets"]].forEach(([a, b], k) => { txt(g, a, 30, 80 + k * 56, "mid", FG); txt(g, b, 30, 110 + k * 56, "m", DIM); });
@@ -1922,7 +1986,7 @@ function updateLeds() {
   for (let pad = 0; pad < 16; pad++) {
     let c = "transparent", lvl = 0;
     if (UI.main === "settings") { padEls[pad].style.setProperty("--glow", c); padEls[pad].style.setProperty("--lvl", 0); continue; }
-    if (UI.main === "browser") { const s = padToStep(pad); c = "#ffffff"; lvl = s >= 8 ? (!!SLOTS[UI.track] && brGet(s) ? (UI.brLast === s ? 1 : .6) : .22) : 0; padEls[pad].style.setProperty("--glow", lvl ? c : "transparent"); padEls[pad].style.setProperty("--lvl", lvl); continue; }
+    if (UI.main === "browser") { const s = padToStep(pad); c = "#ffffff"; lvl = s >= 8 ? (!!SLOTS[UI.track] && brGet(s) ? (UI.brLast === s ? 1 : .6) : .22) : (factoryPresets(SLOTS[UI.track])[s] ? (UI.brLast === s ? 1 : .6) : 0); padEls[pad].style.setProperty("--glow", lvl ? c : "transparent"); padEls[pad].style.setProperty("--lvl", lvl); continue; }
     if (UI.main === "sampling") { const s = padToStep(pad); c = "#ffffff"; lvl = s < 8 ? (SMP.saved[s] ? 1 : .22) : (SMP.len > 0 && !SMP.rec ? .6 : 0); padEls[pad].style.setProperty("--glow", lvl ? c : "transparent"); padEls[pad].style.setProperty("--lvl", lvl); continue; }
     if (UI.mode === "step") {
       const s = padToStep(pad);
