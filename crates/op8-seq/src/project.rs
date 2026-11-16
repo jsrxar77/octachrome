@@ -64,7 +64,16 @@ pub struct Track {
     pub fx: TrackFx,
     /// The track's LFO.
     pub lfo: Lfo,
+    /// The track's level in the mix, 0..=127 (the engine plays it as level / 127, never above 1).
+    pub level: u8,
+    /// Where the track sits between the speakers, 0..=127: 0 hard left, 64 centre, 127 hard right.
+    pub pan: u8,
 }
+
+/// A track's level when it is new: 80 % of the way up, what the engine used for every track before the mixer.
+pub const DEFAULT_LEVEL: u8 = 102;
+/// The centre of the pan.
+pub const PAN_CENTRE: u8 = 64;
 
 impl Default for Track {
     fn default() -> Self {
@@ -78,6 +87,8 @@ impl Default for Track {
             players: Players::default(),
             fx: TrackFx::default(),
             lfo: Lfo::default(),
+            level: DEFAULT_LEVEL,
+            pan: PAN_CENTRE,
         }
     }
 }
@@ -201,6 +212,14 @@ pub enum Command {
     SetLfo {
         track: u8,
         lfo: Lfo,
+    },
+    SetLevel {
+        track: u8,
+        level: u8,
+    },
+    SetPan {
+        track: u8,
+        pan: u8,
     },
     SetBrainLink {
         track: u8,
@@ -357,6 +376,16 @@ impl Project {
             SetLfo { track, lfo } => {
                 if let Some(t) = self.tracks.get_mut(track as usize) {
                     t.lfo = Lfo { target: lfo.target.min(crate::rack::LFO_TARGETS - 1), ..lfo };
+                }
+            }
+            SetLevel { track, level } => {
+                if let Some(t) = self.tracks.get_mut(track as usize) {
+                    t.level = level.min(127);
+                }
+            }
+            SetPan { track, pan } => {
+                if let Some(t) = self.tracks.get_mut(track as usize) {
+                    t.pan = pan.min(127);
                 }
             }
             SetBrainLink { track, linked } => {

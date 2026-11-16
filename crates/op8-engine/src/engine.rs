@@ -25,10 +25,6 @@ pub enum EngineCommand {
         index: u8,
         value: f32,
     },
-    SetVolume {
-        track: u8,
-        volume: f32,
-    },
     /// Engage/release a Punch-in FX with intensity 0..1.
     Punch(Option<PunchFx>, f32),
     PunchIntensity(f32),
@@ -153,7 +149,6 @@ pub struct Engine {
     events: BlockEvents,
     track_l: Box<[f32]>,
     track_r: Box<[f32]>,
-    volumes: [f32; TRACKS],
     base_params: [[f32; PARAMS_PER_SLOT]; TRACKS],
     fx: FxRack,
     peaks: [f32; TRACKS],
@@ -211,7 +206,6 @@ impl Engine {
             events: BlockEvents::default(),
             track_l: vec![0.0; MAX_BLOCK].into_boxed_slice(),
             track_r: vec![0.0; MAX_BLOCK].into_boxed_slice(),
-            volumes: [0.8; TRACKS],
             base_params: params,
             fx: FxRack::new(),
             peaks: [0.0; TRACKS],
@@ -284,11 +278,6 @@ impl Engine {
                 EngineCommand::Audition { track, note, velocity } => {
                     if let Some(a) = self.audition.get_mut(track as usize) {
                         *a = Some(Audition { note, velocity: velocity.clamp(0.0, 1.0), started: false, left: AUDITION_SAMPLES });
-                    }
-                }
-                EngineCommand::SetVolume { track, volume } => {
-                    if let Some(v) = self.volumes.get_mut(track as usize) {
-                        *v = volume.clamp(0.0, 1.0);
                     }
                 }
                 EngineCommand::Punch(fx, intensity) => match fx {
@@ -423,10 +412,14 @@ impl Engine {
             c.process(l, r, evs);
             drop(c);
             self.track_fx[t].process(&self.seq.project.tracks[t].fx, l, r);
-            let vol = self.volumes[t] * vol_scale;
+            // the mix: the level of the track, and a balance (the centre is unity, the far side fades to nothing at the edge)
+            let (level, pan) = (self.seq.project.tracks[t].level, self.seq.project.tracks[t].pan);
+            let vol = (level as f32 / 127.0) * vol_scale;
+            let bal = ((pan as f32 - 64.0) / 63.0).clamp(-1.0, 1.0);
+            let (gl, gr) = ((1.0 - bal.max(0.0)) * vol, (1.0 + bal.min(0.0)) * vol);
             let mut peak = self.peaks[t] * 0.9;
             for i in 0..n {
-                let (a, b) = (l[i] * vol, r[i] * vol);
+                let (a, b) = (l[i] * gl, r[i] * gr);
                 out_l[i] += a;
                 out_r[i] += b;
                 peak = peak.max(a.abs()).max(b.abs());
@@ -704,6 +697,45 @@ mod tests {
         assert!(out.iter().any(|&s| s.abs() > 0.1));
         assert!(e.status.playing.load(Relaxed));
         assert!(e.status.note_count[0].load(Relaxed) >= 1);
+    }
+
+    fn render_both(e: &mut Engine, frames: usize) -> (Vec<f32>, Vec<f32>) {
+        let (mut l, mut r) = (vec![0.0; frames], vec![0.0; frames]);
+        for (cl, cr) in l.chunks_mut(128).zip(r.chunks_mut(128)) {
+            e.render(cl, cr);
+        }
+        (l, r)
+    }
+
+    fn playing_kick(level: u8, pan: u8) -> (Engine, EngineHandle) {
+        let (e, mut h) = rig();
+        h.seq(Command::SetStep { track: 0, step: 0, value: Step::on(36) });
+        h.seq(Command::SetLevel { track: 0, level });
+        h.seq(Command::SetPan { track: 0, pan });
+        h.send(EngineCommand::Play);
+        (e, h)
+    }
+
+    // F-A20: the mix: a track's level scales it (down to silence, and the default is what the engine always used), and its pan moves it
+    // between the speakers: the far side goes quiet at the edge, the centre is the same in both.
+    #[test]
+    fn f_a20_a_track_has_a_level_and_a_pan() {
+        let peak = |v: &[f32]| v.iter().fold(0.0f32, |m, s| m.max(s.abs()));
+        let (mut e, _h) = playing_kick(102, 64);
+        let (l, r) = render_both(&mut e, 4800);
+        let full = peak(&l);
+        assert!(full > 0.1 && (full - peak(&r)).abs() < 1e-4, "centred: both speakers the same ({full})");
+        let (mut e, _h) = playing_kick(51, 64);
+        let half = peak(&render_both(&mut e, 4800).0);
+        assert!((half / full - 0.5).abs() < 0.05, "half the level is half the sound: {half} vs {full}");
+        let (mut e, _h) = playing_kick(0, 64);
+        assert!(render_both(&mut e, 4800).0.iter().all(|&s| s == 0.0), "level 0 is silence");
+        let (mut e, _h) = playing_kick(102, 0);
+        let (l, r) = render_both(&mut e, 4800);
+        assert!(peak(&l) > 0.1 && r.iter().all(|&s| s == 0.0), "hard left: nothing on the right");
+        let (mut e, _h) = playing_kick(102, 127);
+        let (l, r) = render_both(&mut e, 4800);
+        assert!(peak(&r) > 0.1 && l.iter().all(|&s| s == 0.0), "hard right: nothing on the left");
     }
 
     #[test]

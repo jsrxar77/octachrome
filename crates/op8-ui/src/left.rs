@@ -31,7 +31,7 @@ const GAP: i32 = 5;
 
 pub fn draw_left(fb: &mut FrameBuffer480x272, ui: &UiState, p: &Project, st: &EngineStatus) {
     draw_left_view(fb, ui, p, st);
-    if let Some(it) = crate::nav::focused(ui).filter(|it| it.screen == 0 && ui.main == crate::Main::Instrument) {
+    if let Some(it) = crate::nav::focused(ui).filter(|it| it.screen == 0 && ui.main == crate::Main::Instrument && ui.held != Some(crate::Held::Volume)) {
         crate::nav::draw_ring(fb, &it, ui);
     }
 }
@@ -77,16 +77,72 @@ fn draw_left_view(fb: &mut FrameBuffer480x272, ui: &UiState, p: &Project, st: &E
     let cells = left_footer(ui, p);
     draw_footer(fb, &cells, 0);
     touch_overlay(fb, &cells, 0, &ui.anim);
+    if ui.held == Some(crate::Held::Volume) {
+        mixer_view(fb, ui, p);
+        return mixer_footer(fb, ui, 0);
+    }
     if let Some(held) = ui.held {
-        // TEMPO, SWING or VOLUME is held: what the encoder turns, big
+        // TEMPO or SWING is held: what the encoder turns, big
         let (name, value) = match held {
             crate::Held::Tempo => ("tempo", format!("{:.1}", p.bpm)),
             crate::Held::Swing => ("swing", format!("{:.0}%", p.swing * 100.0)),
-            crate::Held::Volume => ("volume", format!("{:.0}%", ui.master * 100.0)),
+            crate::Held::Volume => unreachable!("VOLUME shows the mix"),
         };
         fb.fill_rect(0, STRIP_H, 480, FOOTER_Y - STRIP_H, t.bg);
         text_v(fb, name, 240, 80, FontSize::Large, t.dim, Align::Center, VAlign::Middle);
         text_v(fb, &value, 240, 140, FontSize::Huge, t.fg, Align::Center, VAlign::Middle);
+    }
+}
+
+/// VOLUME held: the mix. Eight faders, one for each track, in the colour of the track (the track that is muted is dim, the one that is
+/// open has its letter in `fg`), each with its pan under it: a marker on a line, with a tick at the centre. The knobs under the screen
+/// are the faders; with SHIFT held they are the pans, and then the pans are drawn in `fg` and the faders step back. The master volume,
+/// which the 4D encoder turns, is the big number at the top right.
+fn mixer_view(fb: &mut FrameBuffer480x272, ui: &UiState, p: &Project) {
+    let t = theme();
+    fb.fill_rect(0, STRIP_H, 480, FOOTER_Y - STRIP_H, t.bg);
+    text_v(fb, if ui.shift { "pan" } else { "mix" }, 20, 38, FontSize::Large, t.dim, Align::Left, VAlign::Middle);
+    text_v(fb, &format!("{:.0}%", ui.master * 100.0), 460, 38, FontSize::Large, t.fg, Align::Right, VAlign::Middle);
+    text_v(fb, "master", 460, 56, FontSize::Small, t.dim, Align::Right, VAlign::Middle);
+    for i in 0..TRACKS {
+        let tr = &p.tracks[i];
+        let cx = 44.0 + i as f32 * 56.0;
+        let col = if tr.muted { t.faint } else { track_color(i) };
+        let (top, h) = (62.0, 100.0);
+        fill_round_rect(fb, cx - 10.0, top, 20.0, h, 4.0, t.faint);
+        let fill = (h * tr.level as f32 / 127.0).max(2.0);
+        fill_round_rect(fb, cx - 10.0, top + h - fill, 20.0, fill, 4.0, if ui.shift { col.scale(0.4) } else { col });
+        // the pan: a line, a tick in the middle, a marker where the track sits
+        let y = 182.0;
+        fb.fill_rect((cx - 22.0) as i32, y as i32, 44, 1, t.faint);
+        fb.fill_rect(cx as i32, y as i32 - 4, 1, 9, t.dim);
+        let mx = cx + (tr.pan as f32 - 64.0) / 64.0 * 22.0;
+        fill_circle(fb, mx, y + 0.5, 5.0, if ui.shift { t.fg } else { t.dim });
+        let sel = i == ui.track;
+        text_v(fb, &((b'A' + i as u8) as char).to_string(), cx as i32, 206, FontSize::Medium, if sel { t.fg } else { t.dim }, Align::Center, VAlign::Middle);
+    }
+}
+
+/// Under a screen while VOLUME is held: the four tracks whose knobs are under it (`first` is the first of them), each with its level, or
+/// with SHIFT its pan, in place of the values the knobs have the rest of the time.
+pub fn mixer_footer(fb: &mut FrameBuffer480x272, ui: &UiState, first: usize) {
+    let t = theme();
+    fb.fill_rect(0, FOOTER_Y, 480, 272 - FOOTER_Y, t.bg);
+    for k in 0..4 {
+        let i = first + k;
+        let (level, pan) = ui.mix[i];
+        let value = if ui.shift {
+            match pan.cmp(&64) {
+                std::cmp::Ordering::Equal => "C".to_string(),
+                std::cmp::Ordering::Less => format!("L{}", 64 - pan),
+                std::cmp::Ordering::Greater => format!("R{}", pan - 64),
+            }
+        } else {
+            format!("{}%", (level as u32 * 100 + 63) / 127)
+        };
+        let cx = 60 + 120 * k as i32;
+        text_v(fb, &((b'A' + i as u8) as char).to_string(), cx - 34, 248, FontSize::Large, track_color(i), Align::Center, VAlign::Middle);
+        text_v(fb, &value, cx - 18, 248, FontSize::Large, t.fg, Align::Left, VAlign::Middle);
     }
 }
 

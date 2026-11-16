@@ -520,3 +520,31 @@ fn recipe_18_move_without_the_pads() {
     b.press(Button::JogPush);
     assert!(!b.ui().grabbed);
 }
+
+// F-G04
+#[test]
+fn recipe_19_the_mix() {
+    let _one_at_a_time = serial();
+    let mut b = Bench::demo();
+    b.run_ms(100);
+    b.press(Button::Play);
+    b.run_ms(600);
+    let (level, pan) = (b.project().tracks[2].level, b.project().tracks[2].pan);
+    b.button_down(Button::Volume);
+    b.knob(2, 40 * 3); // knob 3: track C a little louder
+    b.knob(0, -40 * 4); // knob 1: the drums quieter
+    b.run_ms(60);
+    b.capture("r19-mix");
+    assert_eq!(b.project().tracks[2].level, level + 12);
+    b.button_down(Button::Shift);
+    b.knob(2, -40 * 4); // SHIFT: the pan of track C to the left
+    b.run_ms(60);
+    b.capture("r19-pan");
+    assert_eq!(b.project().tracks[2].pan, pan - 16);
+    b.button_up(Button::Shift);
+    b.button_up(Button::Volume);
+    b.run_ms(100);
+    // the mix is kept with the project: saved and opened again, it is the same
+    let bytes = op8_seq::io::encode(b.project());
+    assert_eq!(op8_seq::io::decode(&bytes).unwrap().tracks[2].pan, pan - 16);
+}

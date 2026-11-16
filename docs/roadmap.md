@@ -72,7 +72,7 @@ Known limits of the setup:
 
 - Done: PAD MODE and KEYBOARD play the track's instrument from the pads (octave on the 4D encoder). They are not recorded yet: that is REC, below.
 - Done: REC writes notes played by hand into the track at the nearest step, or the one sounding, or the next (the bar page; a drum kit: into its lane). To do: recording chords and knob movements (automation), the count-in.
-- Done: TAP (tap tempo, SHIFT + TAP the metronome), TEMPO, SWING and VOLUME with the 4D encoder (master volume), and FIXED VEL. To do: a track's volume with a group held, the count-in.
+- Done: TAP (tap tempo, SHIFT + TAP the metronome), TEMPO, SWING and VOLUME with the 4D encoder (master volume), and FIXED VEL. A track's volume and pan are done (VOLUME held and the knobs, 2026-11-16). To do: the count-in.
 - AUTO: automation per knob.
 
 ## 3. Instruments (the centre)
@@ -136,7 +136,7 @@ Saved on 2026-11-16, after the batch of section 8. Development goes on first and
 1. Done (2026-11-16): the step inspector's own items: its components and values reached with the focus and the 4D, like every other view (F-N15).
 2. Granular (reuses the sampler); it is an empty place in PLUG-IN until it is built.
 3. Done (2026-11-16): KEYBOARD on a drum kit is PAD MODE (F-K17).
-4. A basic mixer: a track's volume and pan, with a group held (volume with a group held is still to do).
+4. Done (2026-11-16): the basic mixer: a level and a pan for each track, turned with VOLUME held and the knobs (SHIFT for the pan), saved with the project (format version 3) (F-A20, F-K18, F-D20). Still to do: a master compressor, sends, and a page for the MIXER button.
 5. Naming and deleting projects and presets.
 6. PATTERN, SCENE and ARRANGER.
 7. The sampler's gaps: hot-load of copied WAVs, a record threshold and count-in, slices, the root note.

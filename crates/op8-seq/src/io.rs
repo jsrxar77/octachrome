@@ -11,7 +11,8 @@ use crate::{
 };
 
 /// Version 2 adds the players, the effect and the LFO of each track; a version 1 file still opens (those are then off).
-pub const VERSION: u8 = 2;
+/// Version 3 adds the level and the pan of each track; an older file still opens (the tracks are then at the default level, centred).
+pub const VERSION: u8 = 3;
 
 struct W(Vec<u8>);
 impl W {
@@ -153,6 +154,8 @@ pub fn encode(p: &Project) -> Vec<u8> {
         w.u8(t.lfo.rate);
         w.u8(t.lfo.depth);
         w.u8(t.lfo.target);
+        w.u8(t.level);
+        w.u8(t.pan);
         for s in &t.steps {
             w.u8(s.active as u8);
             w.u8(s.note);
@@ -172,7 +175,7 @@ pub fn encode(p: &Project) -> Vec<u8> {
 pub fn decode(data: &[u8]) -> Option<Project> {
     let mut r = R(data);
     let version = r.u8()?;
-    if version != 1 && version != VERSION {
+    if !(1..=VERSION).contains(&version) {
         return None;
     }
     let mut p = Project::default();
@@ -222,6 +225,10 @@ pub fn decode(data: &[u8]) -> Option<Project> {
                 target: r.u8()?.min(LFO_TARGETS - 1),
             };
         }
+        if version >= 3 {
+            tr.level = r.u8()?.min(127);
+            tr.pan = r.u8()?.min(127);
+        }
         for s in tr.steps.iter_mut() {
             let mut st = Step::default();
             st.active = r.u8()? != 0;
@@ -265,6 +272,8 @@ mod tests {
         p.tracks[1].players = Players { mode: PlayMode::UpDown, chord: ChordType::MinorSeventh, speed: 3, octaves: 2 };
         p.tracks[1].fx = TrackFx { kind: FxKind::Delay, a: 10, b: 200, c: 77 };
         p.tracks[1].lfo = Lfo { shape: LfoShape::Saw, rate: 33, depth: 250, target: 4 };
+        p.tracks[2].level = 31;
+        p.tracks[2].pan = 120;
         let bytes = encode(&p);
         let q = decode(&bytes).expect("decodes");
         assert_eq!(q, p);
@@ -276,17 +285,36 @@ mod tests {
         let mut p = Project::default();
         p.bpm = 101.0;
         p.tracks[3].steps[2] = Step::on(50);
-        let v2 = encode(&p);
-        // no components in this project, so each track is 3 header bytes, 12 extras and 16 steps of 6 bytes
-        let head = v2.len() - TRACKS * (3 + 12 + MAX_STEPS * 6);
-        let mut v1 = v2[..head].to_vec();
+        let v3 = encode(&p);
+        // no components in this project, so each track is 3 header bytes, 14 extras (version 2's 12 and the level and pan) and 16 steps of 6 bytes
+        let head = v3.len() - TRACKS * (3 + 14 + MAX_STEPS * 6);
+        let mut v1 = v3[..head].to_vec();
         v1[0] = 1;
         for t in 0..TRACKS {
-            let at = head + t * (3 + 12 + MAX_STEPS * 6);
-            v1.extend_from_slice(&v2[at..at + 3]);
-            v1.extend_from_slice(&v2[at + 15..at + 15 + MAX_STEPS * 6]);
+            let at = head + t * (3 + 14 + MAX_STEPS * 6);
+            v1.extend_from_slice(&v3[at..at + 3]);
+            v1.extend_from_slice(&v3[at + 17..at + 17 + MAX_STEPS * 6]);
         }
         assert_eq!(decode(&v1).expect("a version 1 file opens"), p);
+    }
+
+    // F-F01
+    #[test]
+    fn a_version_2_file_still_opens_with_the_mix_at_its_defaults() {
+        let mut p = Project::default();
+        p.tracks[3].steps[2] = Step::on(50);
+        p.tracks[4].lfo = Lfo { shape: LfoShape::Saw, rate: 33, depth: 250, target: 4 };
+        let v3 = encode(&p);
+        let per_track = 3 + 14 + MAX_STEPS * 6;
+        let head = v3.len() - TRACKS * per_track;
+        let mut v2 = v3[..head].to_vec();
+        v2[0] = 2;
+        for t in 0..TRACKS {
+            let at = head + t * per_track;
+            v2.extend_from_slice(&v3[at..at + 15]); // the header and version 2's twelve extras
+            v2.extend_from_slice(&v3[at + 17..at + per_track]); // not the level and the pan
+        }
+        assert_eq!(decode(&v2).expect("a version 2 file opens"), p, "the mix is at its defaults, as the project made it");
     }
 
     // F-F01
