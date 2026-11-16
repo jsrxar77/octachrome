@@ -189,21 +189,27 @@ pub fn touch_overlay(
     }
 }
 
+/// Where the capsule of button `i` (0..4) of a strip is: its left edge, width and height, in whole pixels, so that the 1 px
+/// outline falls exactly on pixel rows and columns and stays crisp. The navigation ring uses it too: it is the same capsule.
+pub fn strip_capsule(i: usize, name: &str) -> (f32, f32, f32) {
+    use op8_gfx::{text_width, FontSize};
+    let w = (text_width(name, FontSize::Label) + 28.0).round();
+    let x = (BUTTON_CX[i] as f32 - w / 2.0).round().clamp(1.0, 479.0 - w);
+    (x, w, (STRIP_H - 2) as f32)
+}
+
 /// The strip along the top of a screen: the name of what each of the 4 buttons
 /// above it does (rule 11), in a capsule centred on the button. A button with no
 /// function shows nothing; the page that is open has an `fg` outline and `fg`
 /// text, the others a `faint` outline and `dim` text.
 pub fn button_strip(fb: &mut FrameBuffer480x272, labels: &[(&str, bool); 4]) {
-    use op8_gfx::{paint::fill_round_rect, text_width, FontSize};
+    use op8_gfx::{paint::fill_round_rect, FontSize};
     let t = op8_gfx::theme();
     for (i, (name, on)) in labels.iter().enumerate() {
         if name.is_empty() {
             continue;
         }
-        // Whole pixels, so the 1 px outline falls exactly on pixel rows and columns and stays crisp.
-        let w = (text_width(name, FontSize::Label) + 28.0).round();
-        let x = (BUTTON_CX[i] as f32 - w / 2.0).round().clamp(1.0, 479.0 - w);
-        let h = (STRIP_H - 2) as f32;
+        let (x, w, h) = strip_capsule(i, name);
         // The outline is a 1 px band between two filled shapes on whole pixels, so it is
         // the same width all the way round, on the curves as on the straight sides.
         fill_round_rect(fb, x, 1.0, w, h, h / 2.0, if *on { t.fg } else { t.faint });

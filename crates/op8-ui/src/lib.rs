@@ -367,4 +367,52 @@ mod tests {
         }
         op8_gfx::set_theme(op8_gfx::ThemeId::Matte);
     }
+    // F-D19: ink over a colour always reads: whatever the theme, the track and the intensity of an effect, the ink on the fill that
+    // `readable` returns has at least the contrast the design asks for.
+    #[test]
+    fn f_d19_ink_over_colour_reads() {
+        let _guard = lock();
+        for id in op8_gfx::ThemeId::ALL {
+            op8_gfx::set_theme(id);
+            for track in 0..8 {
+                for pct in 0..=100 {
+                    let want = track_color(track).scale(0.35 + 0.65 * pct as f32 / 100.0);
+                    let (fill, ink) = op8_gfx::readable(want);
+                    assert!(fill.contrast(ink) >= op8_gfx::MIN_INK_CONTRAST, "{} track {track} at {pct} %: {:.2}", id.name(), fill.contrast(ink));
+                }
+                let (fill, ink) = op8_gfx::readable(track_color(track));
+                assert!(fill.contrast(ink) >= op8_gfx::MIN_INK_CONTRAST, "{} track {track} solid", id.name());
+            }
+        }
+        op8_gfx::set_theme(op8_gfx::ThemeId::Matte);
+    }
+
+    // F-N13: the ring of every item of every view is inside the screen, and the ring of a screen button is on the capsule that is drawn.
+    #[test]
+    fn f_n13_every_ring_is_inside_the_screen_and_on_its_capsule() {
+        let _guard = lock();
+        let modes = [Mode::Step, Mode::Brain, Mode::Punch, Mode::Pads, Mode::Keys];
+        let mut seen = 0;
+        for main in [Main::Instrument, Main::File, Main::Plugin, Main::Browser, Main::Sampling] {
+            for mode in modes {
+                for page in [LeftPage::Steps, LeftPage::Players, LeftPage::Bar] {
+                    for has_second in [false, true] {
+                        let ui = UiState { main, mode, left_page: page, has_second, ..Default::default() };
+                        let labels = [strip_labels(&ui, 0), strip_labels(&ui, 1)];
+                        for it in nav::items(&ui) {
+                            let (x, y, w, h, _) = nav::ring_box(&it);
+                            assert!(x >= 0.0 && y >= 0.0 && x + w <= 480.0 && y + h <= 272.0, "{main:?} {mode:?} {:?}: ring {x},{y} {w}x{h}", it.kind);
+                            if let nav::NavKind::Strip(n) = it.kind {
+                                let (name, _) = labels[n as usize / 4][n as usize % 4];
+                                let (cx, cw, ch) = theme::strip_capsule(n as usize % 4, name);
+                                assert_eq!((x, y, w, h), (cx, 1.0, cw, ch), "the ring of button {n} is its capsule");
+                            }
+                            seen += 1;
+                        }
+                    }
+                }
+            }
+        }
+        assert!(seen > 500, "{seen} items checked");
+    }
 }

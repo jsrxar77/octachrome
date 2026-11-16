@@ -1003,7 +1003,8 @@ function navItems() {
   if (UI.main === "sampling") return [...Array.from({ length: 16 }, (_, i) => cell(i)), ...Array.from({ length: 4 }, (_, k) => ({ k: "value", i: 4 + k, s: 1, x: 60 + k * 120 - 52, y: 224, w: 104, h: 42 }))];
   if (UI.main !== "instrument" || UI.inspect != null) return [];
   const slot = SLOTS[UI.track], second = slot && CARTS[slot].params.length > 4;
-  const strip = (n, s) => ({ k: "strip", i: n, s, x: BCX[n % 4] - 52, y: 1, w: 104, h: 22 }), has = n => n !== 5 || second;
+  const NAMES = ["step", "components", "players", "bar", "sound", "shape", "fx", "mod"], cv = document.createElement("canvas").getContext("2d");
+  const strip = (n, s) => { const [x, w] = stripCapsule(cv, n % 4, NAMES[n]); return { k: "strip", i: n, s, x, y: 1, w, h: 22 }; }, has = n => n !== 5 || second;
   const v = [0, 1, 2, 3].map(n => strip(n, 0));
   for (let t = 0; t < 8; t++) v.push({ k: "track", i: t, s: 0, x: 338 + t * 18 - 9, y: 29, w: 18, h: 18 });
   // the pads on the left screen: the steps' grid (unless a page covers it), the notes' grid, or PERFORM's sixteen effects (bigger); Brain draws none
@@ -1046,7 +1047,9 @@ function navRing(g, screen) {
   if (UI.focus == null) return; const items = navItems(), it = items[navIndex(items)]; if (!it || it.s !== screen) return;
   const sounding = UI.mode === "punch" && it.k === "grid" && punchState.slot === [...Array(16).keys()].find(q => padToStep(q) === it.i), hold = UI.grabbed || sounding;
   if (it.k === "track") { g.beginPath(); g.arc(it.x + it.w / 2, it.y + it.h / 2, it.i === UI.track ? 10 : 8, 0, Math.PI * 2); g.strokeStyle = KC[0]; g.lineWidth = 2.5; g.stroke(); return; } // a track is a round capsule: the ring hugs its edge
-  rrect(g, it.x - 3, it.y - 3, it.w + 6, it.h + 6, 11, hold ? FG : KC[0], hold ? 3.5 : 2.5);
+  if (it.k === "strip") { const w = hold ? 3.5 : 2.5; rrect(g, it.x + w / 2, it.y + w / 2, it.w - w, it.h - w, 11 - w / 2, hold ? FG : KC[0], w); return; } // a capsule at the very top: the ring is on its own edge (the stroke is centred, so the box is inset by half of it)
+  const lw = hold ? 3.5 : 2.5, bx = Math.min(Math.max(it.x - 3, 0), 480 - (it.w + 6)), by = Math.min(Math.max(it.y - 3, 0), 272 - (it.h + 6)); // never off the screen
+  rrect(g, bx + lw / 2, by + lw / 2, it.w + 6 - lw, it.h + 6 - lw, 11, hold ? FG : KC[0], lw);
 }
 function jogOctave(d) { UI.octave = clamp(UI.octave + d, -2, 4); UI.down.fill(false); }
 function jog(d) {
@@ -1113,6 +1116,16 @@ function box(g, x, y, w, h, c, lw = 1) { g.strokeStyle = c; g.lineWidth = lw; g.
 function fill(g, x, y, w, h, c) { g.fillStyle = c; g.fillRect(x, y, w, h); }
 function dot(g, x, y, r, c) { g.fillStyle = c; g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill(); }
 function ring(g, x, y, r, c, lw = 1, a0 = 0, a1 = Math.PI * 2) { g.strokeStyle = c; g.lineWidth = lw; g.beginPath(); g.arc(x, y, r, a0, a1); g.stroke(); }
+// ink over a colour (docs/design.md, crates/op8-gfx readable): a mid-tone fill is darkened until the theme's FG reads on it (4.5:1); a light one gets BG ink
+const rgbOf = c => { const m = c.startsWith("#") ? [1, 3, 5].map(i => parseInt(c.slice(i, i + 2), 16)) : c.match(/\d+/g).map(Number); return m.slice(0, 3); };
+const lumOf = c => { const [r, g, b] = rgbOf(c).map(v => { v /= 255; return v <= .03928 ? v / 12.92 : Math.pow((v + .055) / 1.055, 2.4); }); return .2126 * r + .7152 * g + .0722 * b; };
+const contrastOf = (a, b) => { const x = lumOf(a), y = lumOf(b); return (Math.max(x, y) + .05) / (Math.min(x, y) + .05); };
+function readable(base, k = 1) {
+  const at = f => { const [r, g, b] = rgbOf(base).map(v => Math.round(v * f)); return `rgb(${r},${g},${b})`; };
+  let fill = at(k); if (contrastOf(fill, BG) >= 4.5 * 1.8) return [fill, BG];
+  while (contrastOf(fill, FG) < 4.5 && k > .05) { k -= .03; fill = at(k); }
+  return [fill, FG];
+}
 function rrect(g, x, y, w, h, r, c, stroke = 0) { g.beginPath(); g.roundRect(x, y, w, h, r); if (stroke) { g.strokeStyle = c; g.lineWidth = stroke; g.stroke(); } else { g.fillStyle = c; g.fill(); } }
 function line(g, x0, y0, x1, y1, c, lw = 1) { g.strokeStyle = c; g.lineWidth = lw; g.beginPath(); g.moveTo(x0, y0); g.lineTo(x1, y1); g.stroke(); }
 function mix(hex, k) { const n = parseInt(hex.slice(1), 16); const f = c => Math.round(((n >> c) & 255) * k); return `rgb(${f(16)},${f(8)},${f(0)})`; }
@@ -1540,10 +1553,11 @@ function drawLeft(g) {
 // (rule 11), in a capsule centred on the button (about 140 px apart on the unit);
 // a button with no function shows nothing.
 const BUTTON_CX = [24, 164, 304, 444];
+function stripCapsule(g, i, name) { g.font = FONT.lab; const w = Math.round(g.measureText(name).width + 28); return [Math.min(Math.max(1, Math.round(BUTTON_CX[i] - w / 2)), 479 - w), w]; }
 function buttonStrip(g, labels) {
   labels.forEach(([name, on], i) => {
     if (!name) return;
-    g.font = FONT.lab; const w = Math.round(g.measureText(name).width + 28), x = Math.min(Math.max(1, Math.round(BUTTON_CX[i] - w / 2)), 479 - w);
+    const [x, w] = stripCapsule(g, i, name);
     rrect(g, x, 1, w, 22, 11, on ? FG : FAINT); rrect(g, x + 1, 2, w - 2, 20, 10, PANEL); // a 1 px band between two filled shapes: uniform all round
     // centred as the eye does (design.md §3): the ink horizontally, the x-height vertically
     g.font = FONT.lab; if ("letterSpacing" in g) g.letterSpacing = TRACK_SP.lab;
@@ -1664,8 +1678,9 @@ function brainView(g, accent) {
   for (let i = 0; i < b.len; i++) {
     const sl = b.prog[i], w = 440 * sl.length / total, cx = x + w / 2, on = i === active && !b.live;
     const c = diatonic(b.key, b.scale, sl.degree, sl.kind), r = Math.min(30, w / 2 - 4);
-    if (on) dot(g, cx, 82, r, accent); else ring(g, cx, 82, r, DIM, 1.5);
-    txt(g, chordName(c), cx, 82, "m", on ? BG : FG, "center", "middle");
+    const [fill, ink] = readable(accent);
+    if (on) dot(g, cx, 82, r, fill); else ring(g, cx, 82, r, DIM, 1.5);
+    txt(g, chordName(c), cx, 82, "m", on ? ink : FG, "center", "middle");
     x += w;
   }
   // the chord as notes on a 12-tone circle
@@ -1729,10 +1744,11 @@ function playView(g, accent) {
 function punchView(g, accent) {
   PUNCH.forEach(([name, kind], i) => {
     const col = i % 4, row = 3 - Math.floor(i / 4), x = 12 + col * 116, y = 52 + row * 42, on = punchState.slot === i;
-    if (on) rrect(g, x, y, 108, 36, 8, mix(accent, 0.35 + 0.65 * punchState.amount)); else rrect(g, x + .5, y + .5, 107, 35, 8, FAINT, 1);
-    fxGlyph(g, typeof kind === "number" ? "loop" : kind, x + 10, y + 6, 40, 24, on ? BG : FG, on ? punchState.amount : 0.5);
-    if (typeof kind === "number") txt(g, (name.startsWith("STUT") ? "s " : "") + FX_SUB[kind], x + 30, y + 18, "s", on ? BG : FG, "center", "middle");
-    txt(g, name.toLowerCase().replace(/ .*/, ""), x + 98, y + 18, "s", on ? BG : DIM, "right", "middle");
+    const [fill, ink] = readable(accent, 0.35 + 0.65 * punchState.amount); // the fill grows with the intensity but never so bright that the ink stops reading
+    if (on) rrect(g, x, y, 108, 36, 8, fill); else rrect(g, x + .5, y + .5, 107, 35, 8, FAINT, 1);
+    fxGlyph(g, typeof kind === "number" ? "loop" : kind, x + 10, y + 6, 40, 24, on ? ink : FG, on ? punchState.amount : 0.5);
+    if (typeof kind === "number") txt(g, (name.startsWith("STUT") ? "s " : "") + FX_SUB[kind], x + 30, y + 18, "s", on ? ink : FG, "center", "middle");
+    txt(g, name.toLowerCase().replace(/ .*/, ""), x + 98, y + 18, "s", on ? ink : DIM, "right", "middle");
   });
 }
 function leftFooter() {

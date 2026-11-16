@@ -577,8 +577,9 @@ fn brain_view(fb: &mut FrameBuffer480x272, p: &Project, st: &EngineStatus, accen
         let on = i == active && b.live.is_none();
         let c = Chord::diatonic(b.key, b.scale, slot.degree, slot.kind);
         let r = (w / 2.0 - 4.0).min(30.0);
+        let (fill, ink) = op8_gfx::readable(accent);
         if on {
-            fill_circle(fb, cx, 82.0, r, accent);
+            fill_circle(fb, cx, 82.0, r, fill);
         } else {
             ring(fb, cx, 82.0, r, 1.5, t.dim);
         }
@@ -588,7 +589,7 @@ fn brain_view(fb: &mut FrameBuffer480x272, p: &Project, st: &EngineStatus, accen
             cx as i32,
             82,
             FontSize::Medium,
-            if on { t.bg } else { t.fg },
+            if on { ink } else { t.fg },
             Align::Center,
             VAlign::Middle,
         );
@@ -740,12 +741,14 @@ fn punch_view(fb: &mut FrameBuffer480x272, ui: &UiState, accent: Rgb565) {
         let (x, y) = (12.0 + col * 116.0, 52.0 + row * 42.0);
         let on = ui.punch.map(|(s, _)| s) == Some(i);
         let amt = ui.punch.map_or(0.0, |(_, v)| v);
+        // the fill grows with the intensity, but never so bright that the ink stops reading
+        let (fill, ink) = op8_gfx::readable(accent.scale(0.35 + 0.65 * amt));
         if on {
-            fill_round_rect(fb, x, y, 108.0, 36.0, 8.0, accent.scale(0.35 + 0.65 * amt));
+            fill_round_rect(fb, x, y, 108.0, 36.0, 8.0, fill);
         } else {
             stroke_round_rect(fb, x, y, 108.0, 36.0, 8.0, 1.0, t.faint);
         }
-        let ink = if on { t.bg } else { t.fg };
+        let ink = if on { ink } else { t.fg };
         let mut words = name.split(' ');
         let head = words.next().unwrap_or("").to_lowercase();
         let sub = words.next();
@@ -779,7 +782,7 @@ fn punch_view(fb: &mut FrameBuffer480x272, ui: &UiState, accent: Rgb565) {
             x as i32 + 98,
             y as i32 + 18,
             FontSize::Small,
-            if on { t.bg } else { t.dim },
+            if on { ink } else { t.dim },
             Align::Right,
             VAlign::Middle,
         );
