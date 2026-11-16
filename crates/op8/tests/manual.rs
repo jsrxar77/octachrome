@@ -340,6 +340,15 @@ fn recipe_12_save_and_come_back() {
     b.press(Button::File);
     b.tap(pad(9));
     assert!(b.project().tracks[1].steps[0].active, "your project is back");
+    assert!(dir.join("user-1.name").is_file(), "it carries a name, the day and the tempo");
+    // to get rid of it: ERASE and the place, twice
+    b.press(Button::File);
+    for _ in 0..2 {
+        b.button_down(Button::Erase);
+        b.tap(pad(9));
+        b.button_up(Button::Erase);
+    }
+    assert!(!dir.join("user-1.op8p").exists() && !dir.join("user-1.name").exists(), "erased");
     let _ = std::fs::remove_dir_all(&dir);
 }
 

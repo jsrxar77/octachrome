@@ -1294,7 +1294,18 @@ function applyPiece(i) {
 }
 function blankProject() { const p = factoryProject(0); p.tracks.forEach(t => { t.steps = Array.from({ length: 16 }, () => newStep()); t.length = 16; t.kit = false; t.link = false; t.pl = null; t.fx = null; t.lfo = null; ensureTrack(t); }); p.bpm = 120; p.swing = .5; p.brain = brainOf(0, 0, "triad", [0, 5, 3, 4]); return p; }
 const userKey = n => "op8-user-" + n;
-function fileSlots() { return Array.from({ length: 16 }, (_, i) => i < 8 ? [FILE_NAMES[i], true] : (localStorage.getItem(userKey(i - 7)) ? ["user " + (i - 7), true] : ["", false])); }
+// what is saved is named (projectfile.rs: a text file next to it): by the day and the tempo, a preset by the day; `user N` where there is none
+const nameKey = k => "op8-name-" + k, getName = (k, n) => { try { return localStorage.getItem(nameKey(k)) || "user " + n; } catch { return "user " + n; } };
+const dayLabel = () => { const d = new Date(); return d.getUTCDate() + " " + ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"][d.getUTCMonth()]; };
+function keepName(k, name) { try { if (!localStorage.getItem(nameKey(k))) localStorage.setItem(nameKey(k), name); } catch {} }
+// ERASE held and a pad: the player's own places, on the second touch of the same one (Controller::erase_place); returns [note, erased]
+function erasePlace(slot, has, label, key, kind) {
+  if (slot < 8) { UI.confirm = null; return [`the ${kind}s that come with it stay as they are`, false]; }
+  if (!has) { UI.confirm = null; return ["nothing to erase there", false]; }
+  if (UI.confirm === slot) { UI.confirm = null; try { localStorage.removeItem(key); localStorage.removeItem(nameKey(key)); } catch {} return ["erased " + label, true]; }
+  UI.confirm = slot; return [`erase ${label}? touch it again`, false];
+}
+function fileSlots() { return Array.from({ length: 16 }, (_, i) => i < 8 ? [FILE_NAMES[i], true] : (localStorage.getItem(userKey(i - 7)) ? [getName(userKey(i - 7), i - 7), true] : ["", false])); }
 // the mix (Engine: level / 127 as the gain, a balance for the pan: the centre is unity, the far side fades to nothing at the edge)
 function mixApply(t) { if (!actx || !trackOut[t]) return; const tr = P.tracks[t]; trackOut[t].gain.value = tr.level / 127; if (trackPan[t]) trackPan[t].pan.value = clamp((tr.pan - 64) / 63, -1, 1); }
 function mixKnob(k, delta) { const n = detents(k, delta); if (!n || k >= 8) return; const tr = P.tracks[k]; if (UI.shift) tr.pan = clamp(tr.pan + n * 4, 0, 127); else tr.level = clamp(tr.level + n * 4, 0, 127); mixApply(k); }
@@ -1319,9 +1330,11 @@ function mixFooter(g, first) {
 function loadProject(src) { const q = JSON.parse(JSON.stringify(src)); P.tracks = q.tracks.map(ensureTrack); P.bpm = q.bpm; P.swing = q.swing; P.brain = q.brain; if (actx) for (let t = 0; t < 8; t++) { fxApply(t, true); mixApply(t); } }
 function filePad(pad) {
   const slot = padToStep(pad); UI.fileLast = slot;
+  if (UI.erase) { const k = userKey(slot - 7); UI.fileNote = erasePlace(slot, slot >= 8 && !!localStorage.getItem(k), slot >= 8 ? getName(k, slot - 7) : "", k, "project")[0]; return; }
+  UI.confirm = null;
   if (UI.shift) {
     if (slot < 8) { UI.fileNote = "the factory projects stay as they are"; return; }
-    try { localStorage.setItem(userKey(slot - 7), JSON.stringify({ p: P, drums: DRUMS.vals })); UI.fileNote = "saved in user " + (slot - 7); } catch (e) { UI.fileNote = "could not save"; }
+    try { localStorage.setItem(userKey(slot - 7), JSON.stringify({ p: P, drums: DRUMS.vals })); keepName(userKey(slot - 7), dayLabel() + " " + Math.round(P.bpm)); UI.fileNote = "saved in user " + (slot - 7); } catch (e) { UI.fileNote = "could not save"; }
     return;
   }
   let src = null;
@@ -1462,21 +1475,23 @@ function brGet(i) { try { const v = JSON.parse(localStorage.getItem(brKey(i)) ||
 function brPad(pad) {
   const i = padToStep(pad), t = UI.track; UI.brLast = i;
   if (!SLOTS[t]) { UI.brNote = "this track has no instrument (PLUG-IN)"; return; }
+  if (UI.erase) { UI.brNote = erasePlace(i, i >= 8 && !!brGet(i), i >= 8 ? getName(brKey(i), i - 7) : "", brKey(i), "preset")[0]; return; }
+  UI.confirm = null;
   if (i < 8) {
     if (UI.shift) { UI.brNote = "the presets that come with it stay as they are"; UI.shift = false; return; }
     const f = factoryPresets(SLOTS[t])[i]; if (!f) { UI.brNote = "empty: this instrument has fewer presets"; return; }
     f[1].forEach((v, k) => { if (v != null && k < PARAMS[t].length) PARAMS[t][k] = v; });
     UI.brNote = "loaded " + f[0]; audition(t, 60, .9, false); return;
   }
-  if (UI.shift) { try { localStorage.setItem(brKey(i), JSON.stringify(PARAMS[t])); UI.brNote = "saved in user " + (i - 7); } catch { UI.brNote = "could not save"; } UI.shift = false; return; }
+  if (UI.shift) { try { localStorage.setItem(brKey(i), JSON.stringify(PARAMS[t])); keepName(brKey(i), dayLabel()); UI.brNote = "saved in user " + (i - 7); } catch { UI.brNote = "could not save"; } UI.shift = false; return; }
   const v = brGet(i); if (!v || v.length !== PARAMS[t].length) { UI.brNote = "empty: SHIFT + tap saves here"; return; }
   PARAMS[t] = v.slice(); UI.brNote = "loaded user " + (i - 7); audition(t, 60, .9, false);
 }
-function brLeft(g) { pickLeft(UI.shift ? "save preset" : "presets", Array.from({ length: 16 }, (_, i) => i < 8 ? (factoryPresets(SLOTS[UI.track])[i] ? [factoryPresets(SLOTS[UI.track])[i][0], true] : ["", false]) : ["user " + (i - 7), !!SLOTS[UI.track] && !!brGet(i)]), UI.brLast)(g); }
+function brLeft(g) { pickLeft(UI.shift ? "save preset" : "presets", Array.from({ length: 16 }, (_, i) => i < 8 ? (factoryPresets(SLOTS[UI.track])[i] ? [factoryPresets(SLOTS[UI.track])[i][0], true] : ["", false]) : [getName(brKey(i), i - 7), !!SLOTS[UI.track] && !!brGet(i)]), UI.brLast)(g); }
 function brRight(g) {
   fill(g, 0, 0, 480, 272, BG); dot(g, 16, 15, 6, FG); txt(g, "browser · " + (SLOTS[UI.track] ? CARTS[SLOTS[UI.track]].name : "empty track"), 30, 6, "mid", FG);
-  [["tap a pad", "loads that preset"], ["shift + tap", "saves the knobs into your presets"]].forEach(([a, b], k) => { txt(g, a, 30, 80 + k * 56, "mid", FG); txt(g, b, 30, 110 + k * 56, "m", DIM); });
-  if (UI.brNote) txt(g, UI.brNote, 30, 208, "mid", FG);
+  [["tap a pad", "loads that preset"], ["shift + tap", "saves the knobs into your presets"], ["erase + tap twice", "erases one of yours"]].forEach(([a, b], k) => { txt(g, a, 30, 76 + k * 50, "mid", FG); txt(g, b, 30, 102 + k * 50, "m", DIM); });
+  if (UI.brNote) txt(g, UI.brNote, 30, 236, "mid", FG);
 }
 // ---- PLUG-IN: the instrument of the selected track (Controller::plugin_pad). The factory eight, then eight places for installed ones.
 const FACTORY_INSTRUMENTS = [["drums", "drums", true], ["KickSyn", "kick", true], ["FmBass", "fm", true], ["resonator", "resonator", true], ["sampler", "sampler", true], ["granular", null, false], ["macro", "macro", true], ["midi out", "midi", true]];
@@ -1501,7 +1516,8 @@ function pickLeft(title, cells, last) {
       const x = 12 + (i % 4) * 114, y = 44 + Math.floor(i / 4) * 48, on = last === i;
       if (has) rrect(g, x, y, 108, 42, 8, i < 8 ? PANEL : FAINT);
       rrect(g, x + .5, y + .5, 107, 41, 8, on ? FG : has ? DIM : FAINT, on ? 2 : 1);
-      txt(g, name || "empty", x + 54, y + 21, "m", has ? FG : DIM, "center", "middle");
+      if (UI.confirm === i) { const [fill_, ink] = readable(REC); rrect(g, x, y, 108, 42, 8, fill_); txt(g, "erase?", x + 54, y + 21, "m", ink, "center", "middle"); } // the place ERASE has marked
+      else txt(g, name || "empty", x + 54, y + 21, "m", has ? FG : DIM, "center", "middle");
     });
     navRing(g, 0);
   };
@@ -1519,13 +1535,15 @@ function fileLeft(g) {
     const x = 12 + (i % 4) * 114, y = 44 + Math.floor(i / 4) * 48, last = UI.fileLast === i;
     if (has) rrect(g, x, y, 108, 42, 8, i < 8 ? PANEL : FAINT);
     rrect(g, x + .5, y + .5, 107, 41, 8, last ? FG : has ? DIM : FAINT, last ? 2 : 1);
-    txt(g, name || "empty", x + 54, y + 21, "m", has ? FG : DIM, "center", "middle");
+    if (UI.confirm === i) { const [fill_, ink] = readable(REC); rrect(g, x, y, 108, 42, 8, fill_); txt(g, "erase?", x + 54, y + 21, "m", ink, "center", "middle"); }
+    else txt(g, name || "empty", x + 54, y + 21, "m", has ? FG : DIM, "center", "middle");
   });
+  navRing(g, 0);
 }
 function fileRight(g) {
   fill(g, 0, 0, 480, 272, BG); dot(g, 16, 15, 6, FG); txt(g, "projects", 30, 6, "mid", FG);
-  [["tap a pad", "opens it"], ["shift + tap", "saves into your slots"]].forEach(([a, b], i) => { txt(g, a, 30, 80 + i * 56, "mid", FG); txt(g, b, 30, 110 + i * 56, "m", DIM); });
-  if (UI.fileNote) txt(g, UI.fileNote, 30, 208, "mid", FG);
+  [["tap a pad", "opens it"], ["shift + tap", "saves into your slots"], ["erase + tap twice", "erases one of yours"]].forEach(([a, b], i) => { txt(g, a, 30, 76 + i * 50, "mid", FG); txt(g, b, 30, 102 + i * 50, "m", DIM); });
+  if (UI.fileNote) txt(g, UI.fileNote, 30, 236, "mid", FG);
 }
 function settingsLeft(g) {
   fill(g, 0, 0, 480, 272, BG);
