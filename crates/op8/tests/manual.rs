@@ -557,3 +557,28 @@ fn recipe_19_the_mix() {
     let bytes = op8_seq::io::encode(b.project());
     assert_eq!(op8_seq::io::decode(&bytes).unwrap().tracks[2].pan, pan - 16);
 }
+
+// F-G04
+#[test]
+fn recipe_20_granular_a_cloud_from_a_sound() {
+    let _one_at_a_time = serial();
+    let mut b = Bench::demo();
+    b.press(Button::Group(5)); // F, empty
+    b.press(Button::PlugIn);
+    b.tap(pad(6)); // the granular, the sixth of the eight
+    assert_eq!(b.instrument(5).as_deref(), Some("granular"));
+    b.press(Button::Keyboard);
+    b.strike_at(0, 0.9); // hold a pad
+    b.run_ms(300);
+    b.knob(5, 40 * 3); // position
+    b.run_ms(200);
+    b.capture("r20-cloud");
+    b.release(0);
+    b.press(Button::Screen(6)); // shape
+    b.run_ms(100);
+    b.capture("r20-shape");
+    b.press(Button::Browser);
+    assert!(b.ui().browse[..8].iter().all(|c| c.1), "eight presets");
+    b.tap(pad(4));
+    assert!(b.ui().browse_note.starts_with("loaded"), "{}", b.ui().browse_note);
+}

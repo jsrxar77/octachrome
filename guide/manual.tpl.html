@@ -4,7 +4,7 @@
 <link rel="icon" href="brand/op8-mark.svg" type="image/svg+xml">
 <link rel="stylesheet" href="site.css">
 <!--SOCIAL-->
-<meta name="description" content="The OP-8 manual: how the machine works, nineteen recipes you can follow from the first minute, and every button.">
+<meta name="description" content="The OP-8 manual: how the machine works, twenty recipes you can follow from the first minute, and every button.">
 <style>
 @font-face{font-family:Jost;font-weight:300;src:url(fonts/Jost-Light.ttf)}
 @font-face{font-family:Jost;font-weight:400;src:url(fonts/Jost-Regular.ttf)}
@@ -145,7 +145,7 @@ __PIECE_ROWS__
 <p class="sub">No rules, only things to press.</p>
 <ol class="steps">
   <li><div>Press <kbd>PLAY</kbd>. The demo plays, and the pad lights run along the steps. Press <kbd>PLAY</kbd> again to pause, and <kbd>STOP</kbd> to stop. <kbd>RESTART</kbd> goes back to step 1 and keeps playing.</div></li>
-  <li><div>Press the group buttons <kbd>A</kbd> to <kbd>H</kbd> one after another. Each track has its own colour and its own instrument, in the order of <kbd>PLUG-IN</kbd>: drums, kick, bass, strings and bells, sampler, (F is empty: the granular will go there), synth, and last the MIDI out. The right screen changes with it.</div></li>
+  <li><div>Press the group buttons <kbd>A</kbd> to <kbd>H</kbd> one after another. Each track has its own colour and its own instrument, in the order of <kbd>PLUG-IN</kbd>: drums, kick, bass, strings and bells, sampler, (F is empty: choose the granular there, recipe 20), synth, and last the MIDI out. The right screen changes with it.</div></li>
   <li><div>Hold <kbd>MUTE</kbd> and press a group button: that track goes quiet. Do it again to bring it back. Mute everything except the bass and the kick and you have the skeleton of the piece.</div></li>
   <li><div>Turn knobs 5–8 while the demo plays. The right screen names what each one does, and the picture changes with the sound. This is the main way to shape a sound.</div></li>
   <li><div>Hold <kbd>TEMPO</kbd> and turn the 4D encoder (the big knob in the corner): the tempo changes, and the left screen shows it in large numbers while you hold the button.</div></li>
@@ -338,7 +338,7 @@ __PIECE_ROWS__
   <p class="goal">Put a different instrument on a track.</p>
   <ol class="steps">
     <li><div>Press group <kbd>F</kbd> (empty).</div></li>
-    <li><div>Press <kbd>PLUG-IN</kbd>. Both screens show sixteen places. The top two rows are the eight instruments that come with OP-8, from the most guttural to the most refined: <b>drums</b>, <b>KickSyn</b>, <b>FmBass</b>, <b>resonator</b> on the first row; <b>sampler</b>, <b>granular</b> (not built yet, it says so), <b>macro</b> and, last, <b>midi out</b> on the second. The tracks follow the same order: A is the drums and H the MIDI out. The two bottom rows are places for instruments you will install later. The instrument this track has is outlined.</div></li>
+    <li><div>Press <kbd>PLUG-IN</kbd>. Both screens show sixteen places. The top two rows are the eight instruments that come with OP-8, from the most guttural to the most refined: <b>drums</b>, <b>KickSyn</b>, <b>FmBass</b>, <b>resonator</b> on the first row; <b>sampler</b>, <b>granular</b>, <b>macro</b> and, last, <b>midi out</b> on the second. The tracks follow the same order: A is the drums and H the MIDI out. The two bottom rows are places for instruments you will install later. The instrument this track has is outlined.</div></li>
     <li><div>Tap the fourth pad, the <b>resonator</b>. It goes on track F, and the screens go back to composing.</div></li>
     <li><div>Press <kbd>5</kbd> (<kbd>sound</kbd>) and <kbd>6</kbd> (<kbd>shape</kbd>) to move between the instrument's two pages of four knobs.</div></li>
   </ol>
@@ -465,6 +465,23 @@ __PIECE_ROWS__
   <p class="next"><b>Try next:</b> open one of the eight pieces, hold <kbd>VOLUME</kbd> and bring the drums down by two notches to hear what the bass does.</p>
 </div>
 
+<div class="recipe" id="r20">
+  <h3>20 <span>GRANULAR: A CLOUD FROM A SOUND</span></h3>
+  <p class="goal">Turn a short sound into something that lasts, and move through it while it sounds.</p>
+  <ol class="steps">
+    <li><div>Press group <kbd>F</kbd> (it is empty), then <kbd>PLUG-IN</kbd> and tap <b>granular</b>, the sixth of the eight on the top two rows. The right screen draws the <b>wave</b> of a sound (the <b>pad</b>, to begin with).</div></li>
+    <li><div>Press <kbd>KEYBOARD</kbd> and hold a pad. A cloud starts, and every grain that sounds is drawn as a small <b>bar</b> where it is reading the sound. Hold two or three pads: the grains take their pitch from the keys, in turn.</div></li>
+    <li><div>Still holding, turn <b>knob 6, position</b>: the line in the colour of knob 6 moves along the wave and the cloud is cut from somewhere else. <b>Knob 7, size</b>, is how long each grain is (the line under the wave, in the colour of knob 7): short grains are a buzz, long ones a smear of the original sound.</div></li>
+    <li><div><b>Knob 8, density</b>, does two things. Below the middle the grains come at <b>regular</b> intervals and the further left, the more of them; above the middle they come <b>by chance</b>, and the further right, the more of them. In the <b>middle</b>, a small dead zone, only the one grain that each key starts is heard: a sound that is cut and pitched, like a sampler.</div></li>
+    <li><div>Press <kbd>6</kbd> (<kbd>shape</kbd>) for the second page. <b>Tune</b> moves every grain up or down. <b>Texture</b> is the window of each grain: low, it opens fast and stays open (a sharp, clicky grain); high, it swells and fades smoothly. <b>Spread</b> scatters the grains between the speakers: the bars on the screen sit higher or lower as they do. <b>Level</b> is the volume.</div></li>
+    <li><div>Press <kbd>BROWSER</kbd>: eight presets (cloud, dust, freeze, shimmer, glitch, rumble, bells, swarm). Tap one and play.</div></li>
+    <li><div>To play it from the steps, tap a step and open its inspector (hold the pad): a long <b>gate</b> keeps the cloud going for as long as the note is held.</div></li>
+  </ol>
+  <figure><div class="pair"><img src="img/r20-cloud-right.png" alt="The granular playing a cloud: the wave, the position and the grains."><img src="img/r20-shape-right.png" alt="The second page of the granular."></div><figcaption>Left: the wave with the position line, the size under it and the grains that sound, as bars. Right: the second page (tune, texture, spread, level).</figcaption></figure>
+  <div class="callout"><p><b>Your own sound as a cloud.</b> The granular and the sampler share the same sixteen sounds. Record something with <kbd>SAMPLING</kbd> (recipe 16) and save it in one of your places: on a track with the granular, turn <b>knob 5, sample</b>, to that <b>user</b> place, and the cloud is made of it. A sound of a second or two is best: the grains never run past its end.</p></div>
+  <p class="next"><b>Try next:</b> the <b>freeze</b> preset on the <b>voice</b>, then slowly turn <b>position</b> while you hold a key: you walk through the word without it ever moving on by itself.</p>
+</div>
+
 <h2 id="ideas">The ideas behind it</h2>
 <p class="sub">Short, so you can keep them in your head.</p>
 
@@ -492,7 +509,7 @@ __PIECE_ROWS__
   <tr><td>FmBass</td><td>A two-operator FM bass: round, growling, metallic.</td><td>ratio · index · decay · release / glide · sub · sustain · level</td></tr>
   <tr><td>resonator</td><td>A plucked string or a struck bell. Four notes ring at once.</td><td>type · structure · bright · damping / decay · color · spread · level</td></tr>
   <tr><td>sampler</td><td>Plays recorded sounds. Eight come with it (pluck, bell, pad, voice, thump, sweep, glass, glitch) and eight places are for your own sounds: record them with <kbd>SAMPLING</kbd> (recipe 16), or drop WAV files in <code>~/.config/op8/samples/</code> before starting OP-8 and they appear as user 1, 2… in the order of their names. A note plays the sound at its own pitch for C4 and higher or lower for other notes. One shot plays through; loop repeats the part between <b>start</b> and <b>length</b> while the note is held.</td><td>sample · start · length · tune / attack · release · loop · level</td></tr>
-  <tr><td>granular</td><td colspan="2" class="dim">Coming: clouds of tiny grains from a sample.</td></tr>
+  <tr><td>granular</td><td>Plays a sound as a cloud of tiny grains: textures, pads, drifting sounds. It uses the same sixteen sounds as the sampler, and what you record with <kbd>SAMPLING</kbd> can be its sound too. Up to four notes at once; the grains take their pitch from the keys you hold. Recipe 20.</td><td>sample · position · size · <b>density</b> / tune · texture · spread · level</td></tr>
   <tr><td>macro</td><td>Twenty-four engines in one: analogue waves, FM, wavetables, chords, voices, strings, drums. One note at a time.</td><td>engine · harmonics · timbre · morph / decay · color · variant · level</td></tr>
   <tr><td>midi out</td><td>Sends the track's notes out of the MK3's MIDI socket to an outside synth. The track does not make a sound of its own.</td><td>channel · transpose · velocity · cc74</td></tr>
 </table>
@@ -510,8 +527,8 @@ __PIECE_ROWS__
 <p><b>What it is for:</b> plucked strings and struck bells, harps, mallets and chimes; four notes ring at once. <b>What it points at:</b> physical modelling: instead of playing a recording, it simulates a string or a bell that vibrates after being struck. <b>Where it comes from:</b> the string and modal engines of Plaits (the same family of ideas as Mutable Instruments' Rings and Elements), with OP-8's own knobs and drawing.</p>
 <h4>sampler</h4>
 <p><b>What it is for:</b> recorded sounds: a voice, a loop, a field recording, a sound you made on another synth. Play them on the keyboard or from the steps, cut them, tune them, loop them; eight come with OP-8 and eight are yours (recorded with <kbd>SAMPLING</kbd> or copied in as WAV files). <b>What it points at:</b> the sampler of a groovebox, one of the places where a small machine becomes yours. <b>Where it comes from:</b> written for OP-8; the eight sounds that come with it are made by code, so nothing has to be installed.</p>
-<h4>granular <span class="dim">(coming)</span></h4>
-<p><b>What it will be for:</b> turning a sample into clouds of tiny grains: textures, pads and drifting sounds. <b>Where it will come from:</b> the granular ideas of Clouds and Beads (Mutable Instruments, MIT), on top of the sampler.</p>
+<h4>granular</h4>
+<p><b>What it is for:</b> turning a sound into a cloud: textures, pads that never end, drifting sounds, and glitchy shimmer from the same recording that the sampler would play as a note. <b>What it points at:</b> granular synthesis, where a sound is cut into very short pieces (<i>grains</i>, a few hundredths of a second) that are played in overlap, and where you choose which part of the sound they come from. <b>Where it comes from:</b> the way grains are scheduled, shaped and added together follows the granular player of Clouds by Émilie Gillet (Mutable Instruments, MIT licence), rewritten for OP-8 to play a stored sound, with OP-8's own pages of knobs, bank of sounds and drawing.</p>
 <h4>macro</h4>
 <p><b>What it is for:</b> the leads, pads, chords and odd sounds: twenty-four ways of making a sound in one instrument, from analogue waves to FM, wavetables, voices, strings and drums, with three knobs (harmonics, timbre, morph) that change meaning with the engine. One note at a time. <b>What it points at:</b> a macro oscillator: one oscillator with many models, played with few knobs. <b>Where it comes from:</b> the engines of Plaits, almost as they are, with OP-8's own page of knobs and drawing.</p>
 <h4>midi out</h4>

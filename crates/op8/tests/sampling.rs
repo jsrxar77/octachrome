@@ -165,3 +165,27 @@ fn f_d16_both_screens_draw_and_move() {
     let _ = m;
     assert!(b.ui().smp.recording);
 }
+
+// F-I06: what SAMPLING saves is heard in a granular that is already playing, as it is in a sampler.
+#[test]
+fn f_i06_a_recording_can_be_the_sound_of_the_granular() {
+    let d = dir("granular");
+    let mut b = Bench::demo();
+    b.set_samples_dir(d.clone());
+    b.press(Button::Group(5));
+    b.press(Button::PlugIn);
+    b.tap(pad_of(5)); // the granular
+    b.knob(4, 400); // sample: user 1 (empty)
+    with_a_take(&mut b, 1500);
+    b.knob(5, 100);
+    b.tap(pad_of(0));
+    assert!(b.ui().smp.note.contains("saved in user 1"), "{}", b.ui().smp.note);
+    b.press(Button::Sampling);
+    b.press(Button::Group(5));
+    b.tap(12);
+    let from = b.now_ms();
+    b.press(Button::Play);
+    b.run_ms(1500);
+    assert!(b.peak_db(from, b.now_ms()) > -40.0, "the granular plays what was recorded: {} dB", b.peak_db(from, b.now_ms()));
+    let _ = std::fs::remove_dir_all(&d);
+}
