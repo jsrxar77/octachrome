@@ -47,6 +47,15 @@ pub fn default_presets_dir() -> Option<std::path::PathBuf> {
 pub const HOLD_MS: u64 = 300;
 /// The velocity a pad plays and REC writes while FIXED VEL is on.
 const FIXED_VELOCITY: u8 = 100;
+/// SAMPLING: the beats the count-in counts before a recording.
+const COUNT_IN_BEATS: u8 = 3;
+
+/// A count-in that is going: when it began, what it will record and how many clicks have sounded.
+struct CountIn {
+    from_ms: u64,
+    source: op8_engine::RecSource,
+    beats_done: u8,
+}
 /// A button that has something to do is this bright (of 1.0): a very faint white.
 const FAINT_WHITE: f32 = 0.10;
 /// How long a knob of the instrument has to be still before its result is auditioned.
@@ -140,6 +149,8 @@ pub struct Controller {
     pub presets_dir: Option<std::path::PathBuf>,
     /// How many samples of the take the drawing of its wave was made from.
     smp_drawn: usize,
+    /// SAMPLING: the count-in that is going before a recording starts.
+    countin: Option<CountIn>,
     /// When the last taps of TAP were, to work out a tempo.
     taps: Vec<u64>,
     /// The time of the event being handled (ms).
@@ -374,6 +385,11 @@ impl Controller {
             }
             Button::Rec if self.ui.main == Main::Instrument => self.ui.rec = !self.ui.rec,
             Button::Rec if self.ui.main == Main::Sampling => self.toggle_record(h),
+            Button::Tap if self.ui.main == Main::Sampling => {
+                let on = !self.ui.smp.count_in;
+                self.ui.smp.count_in = on;
+                self.ui.smp.note = if on { "count-in on: REC counts three beats" } else { "count-in off: REC starts at once" }.into();
+            }
             Button::Browser => {
                 let to = if self.ui.main == Main::Browser { Main::Instrument } else { Main::Browser };
                 self.set_main(to, h);
@@ -758,6 +774,11 @@ impl Controller {
 
     /// REC in SAMPLING: start recording from the chosen source, or stop.
     fn toggle_record(&mut self, h: &mut EngineHandle) {
+        if self.countin.take().is_some() {
+            // REC during the count-in cancels it
+            self.ui.smp.counting = 0;
+            return;
+        }
         if self.ui.smp.recording || self.ui.smp.armed {
             h.send(EngineCommand::Record(None));
             self.ui.smp.recording = false;
@@ -765,8 +786,14 @@ impl Controller {
             return;
         }
         let source = if self.ui.smp.source == 0 { op8_engine::RecSource::Input } else { op8_engine::RecSource::Resample };
-        // SHIFT + REC waits for a sound; REC alone starts at once
+        // SHIFT + REC waits for a sound; with the count-in on, REC counts three beats first; otherwise it starts at once
         let arm = self.held.shift;
+        if !arm && self.ui.smp.count_in {
+            self.countin = Some(CountIn { from_ms: self.now, source, beats_done: 0 });
+            self.ui.smp.counting = COUNT_IN_BEATS;
+            self.ui.smp.note = String::new();
+            return;
+        }
         if arm {
             h.send(EngineCommand::RecordWhenLoud(source, op8_ui::SAMPLING_ARM_THRESHOLD));
         } else {
@@ -781,6 +808,27 @@ impl Controller {
 
     /// Every frame in SAMPLING: what the engine has recorded, how loud it is, and the wave to draw.
     fn sampling_tick(&mut self, h: &mut EngineHandle, now_ms: u64) {
+        if let Some(c) = &mut self.countin {
+            // a beat of the project's tempo each: a click at the start of every one, and the recording after the last
+            let beat_ms = (60_000.0 / h.project.bpm.max(20.0)) as u64;
+            let beat = ((now_ms.saturating_sub(c.from_ms)) / beat_ms.max(1)) as u8;
+            if beat >= COUNT_IN_BEATS {
+                let source = c.source;
+                self.countin = None;
+                self.ui.smp.counting = 0;
+                h.send(EngineCommand::Record(Some(source)));
+                let s = &mut self.ui.smp;
+                (s.recording, s.len, s.start, s.end, s.peaks, s.note) = (true, 0, 0.0, 1.0, Vec::new(), String::new());
+                self.smp_drawn = 0;
+            } else {
+                if beat >= c.beats_done {
+                    // the last click of the count is the high one
+                    h.send(EngineCommand::Click(beat + 1 == COUNT_IN_BEATS));
+                    c.beats_done = beat + 1;
+                }
+                self.ui.smp.counting = COUNT_IN_BEATS - beat;
+            }
+        }
         let st = &h.status;
         let s = &mut self.ui.smp;
         s.phase = (now_ms % 2000) as f32 / 2000.0;
@@ -802,7 +850,7 @@ impl Controller {
     }
 
     /// The knobs under the right screen: source, start, end, fade.
-    fn sampling_knob(&mut self, k: usize, delta: i32, _h: &mut EngineHandle) {
+    fn sampling_knob(&mut self, k: usize, delta: i32, h: &mut EngineHandle) {
         if !(4..8).contains(&k) {
             return;
         }
@@ -810,11 +858,16 @@ impl Controller {
         let n = if k == 4 { self.detents(k, delta) } else { 0 };
         let s = &mut self.ui.smp;
         match k {
-            4 if !s.recording && !s.armed => s.source = (s.source as i32 + n).clamp(0, 1) as u8,
+            4 if !s.recording && !s.armed && s.counting == 0 => s.source = (s.source as i32 + n).clamp(0, 1) as u8,
             5 => s.start = (s.start + d).clamp(0.0, (s.end - 0.01).max(0.0)),
             6 => s.end = (s.end + d).clamp((s.start + 0.01).min(1.0), 1.0),
             7 => s.fade = (s.fade + d).clamp(0.0, 1.0),
             _ => {}
+        }
+        if k == 5 || k == 6 {
+            // a part that is playing follows the cut (the engine does nothing if none is)
+            let (a, b) = self.ui.smp.window();
+            h.send(EngineCommand::PreviewWindow(a as u32, b as u32));
         }
     }
 
@@ -848,7 +901,7 @@ impl Controller {
         if !matches!(ev, PadEvent::Press | PadEvent::Strike(_)) {
             return;
         }
-        if self.ui.smp.recording || self.ui.smp.armed {
+        if self.ui.smp.recording || self.ui.smp.armed || self.ui.smp.counting > 0 {
             self.ui.smp.note = "stop recording first (REC)".into();
             return;
         }
@@ -1803,6 +1856,9 @@ impl Controller {
     /// activity LEDs.
     pub fn tick(&mut self, h: &mut EngineHandle, now_ms: u64) {
         self.ui.master = h.master;
+        if self.ui.main != Main::Sampling && self.countin.take().is_some() {
+            self.ui.smp.counting = 0; // leaving SAMPLING cancels a count-in
+        }
         if self.ui.main == Main::Sampling {
             self.sampling_tick(h, now_ms);
         }

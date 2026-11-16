@@ -52,10 +52,10 @@ pub fn light(ui: &UiState, c: &Context, b: Button) -> Light {
         Stop => state(!c.playing),
         Restart => Light::Dim,
         // REC arms the recording: strong while armed, and only while composing
-        Tap => if composing { state(ui.metronome) } else { Light::Off },
+        Tap => if composing { state(ui.metronome) } else if ui.main == Main::Sampling { state(ui.smp.count_in) } else { Light::Off },
         Tempo | Swing | Volume => if composing { Light::Dim } else { Light::Off },
         FixedVel => if composing { state(ui.fixed_vel) } else { Light::Off },
-        Rec => if composing { state(ui.rec) } else if ui.main == Main::Sampling { state(ui.smp.recording || ui.smp.armed) } else { Light::Off },
+        Rec => if composing { state(ui.rec) } else if ui.main == Main::Sampling { state(ui.smp.recording || ui.smp.armed || ui.smp.counting > 0) } else { Light::Off },
         // Going back to composing, or into settings
         ChannelMidi => state(composing),
         Settings => state(ui.main == Main::Settings),

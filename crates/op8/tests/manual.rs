@@ -458,6 +458,15 @@ fn recipe_16_record_your_own_sound() {
     assert!(b.ui().smp.recording && !b.ui().smp.armed, "the sound started it");
     b.press(Button::Rec);
     b.run_ms(100);
+    // the count-in: TAP turns it on and REC counts
+    b.press(Button::Tap);
+    b.press(Button::Rec);
+    b.run_ms(150);
+    assert_eq!(b.ui().smp.counting, 3);
+    b.capture("r16-count");
+    b.press(Button::Rec); // cancelled
+    b.press(Button::Tap); // and off
+    b.run_ms(100);
     b.press(Button::Rec);
     b.run_ms(2000);
     b.press(Button::Rec);

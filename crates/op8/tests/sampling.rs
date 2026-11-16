@@ -1,6 +1,6 @@
 //! SAMPLING: recording a sound, keeping a part of it and putting it in the sampler (docs/features.md §A, §K, §D).
 use op8::bench::Bench;
-use op8_hw::Button;
+use op8_hw::{Button, Screen};
 use op8_ui::Main;
 use std::sync::atomic::Ordering::Relaxed;
 
@@ -188,4 +188,75 @@ fn f_i06_a_recording_can_be_the_sound_of_the_granular() {
     b.run_ms(1500);
     assert!(b.peak_db(from, b.now_ms()) > -40.0, "the granular plays what was recorded: {} dB", b.peak_db(from, b.now_ms()));
     let _ = std::fs::remove_dir_all(&d);
+}
+
+// F-K20: TAP in SAMPLING turns the count-in on: REC then counts three beats of the project's tempo (a click on each, the last higher, and
+// the beats on the right screen) before it records; REC during the count cancels it, leaving SAMPLING too, and with it off REC starts at once.
+#[test]
+fn f_k20_the_count_in_comes_before_the_recording() {
+    let mut b = Bench::empty();
+    b.press(Button::Sampling);
+    b.press(Button::Rec);
+    b.run_ms(100);
+    assert!(b.ui().smp.recording && b.ui().smp.counting == 0, "off: REC starts at once");
+    b.press(Button::Rec);
+    b.run_ms(100);
+    b.press(Button::Tap);
+    assert!(b.ui().smp.count_in && b.ui().smp.note.contains("count-in on"));
+    let beat = (60_000.0 / b.project().bpm) as u64;
+    let from = b.now_ms();
+    b.press(Button::Rec);
+    b.run_ms(60);
+    assert!(b.ui().smp.counting == 3 && !b.ui().smp.recording, "counting three, not recording");
+    assert!(b.peak_db(from, from + 60) > -40.0, "the first click is heard");
+    let counting = b.screen_hash(Screen::Right);
+    b.capture("f-k20-count-in");
+    b.run_ms(beat);
+    assert_eq!(b.ui().smp.counting, 2);
+    assert_ne!(b.screen_hash(Screen::Right), counting, "the number changes on the screen");
+    b.run_ms(beat);
+    assert_eq!(b.ui().smp.counting, 1);
+    b.run_ms(beat);
+    assert!(b.ui().smp.recording && b.ui().smp.counting == 0, "after the third beat it records");
+    b.press(Button::Rec);
+    b.run_ms(100);
+    assert!(!b.ui().smp.recording);
+    // REC during the count cancels it, and nothing records afterwards
+    b.press(Button::Rec);
+    b.run_ms(beat);
+    b.press(Button::Rec);
+    b.run_ms(beat * 4);
+    assert!(b.ui().smp.counting == 0 && !b.ui().smp.recording, "cancelled");
+    // leaving SAMPLING cancels it too
+    b.press(Button::Rec);
+    b.run_ms(100);
+    b.press(Button::Sampling);
+    b.run_ms(beat * 4);
+    assert!(!b.ui().smp.recording && b.ui().smp.counting == 0, "left: nothing records");
+    // TAP again turns it off
+    b.press(Button::Sampling);
+    b.press(Button::Tap);
+    assert!(!b.ui().smp.count_in);
+}
+
+// F-A25: the ends of the part (knobs 6 and 7) move while it plays: the end cuts it short, the start jumps ahead.
+#[test]
+fn f_a25_the_cut_moves_while_it_plays() {
+    let heard = |move_cut: bool| {
+        let mut b = Bench::demo();
+        with_a_take(&mut b, 1500);
+        let from = b.now_ms();
+        b.tap(pad_of(10));
+        b.run_ms(300);
+        if move_cut {
+            b.knob(6, -700);
+        }
+        b.run_ms(900);
+        (b.peak_db(from + 500, from + 1000), b.ui().smp.end)
+    };
+    let (still, _) = heard(false);
+    assert!(still > -20.0, "without moving it, it is still playing: {still} dB");
+    let (cut, end) = heard(true);
+    assert!(end < 0.2, "{end}");
+    assert!(cut < still - 30.0, "the end moved behind it and it stopped: {cut} dB against {still} dB");
 }

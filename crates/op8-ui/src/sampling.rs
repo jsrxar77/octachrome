@@ -39,6 +39,10 @@ pub struct SamplingView {
     /// Which of the eight places of the player's own have a sound.
     pub saved: [bool; 8],
     pub note: String,
+    /// TAP: REC counts three beats of the project's tempo before it records.
+    pub count_in: bool,
+    /// The beats left of the count-in (3, 2, 1), 0 when none is counting.
+    pub counting: u8,
     /// 0..1, going round every two seconds: what moves on the screen while nothing records.
     pub phase: f32,
 }
@@ -57,6 +61,8 @@ impl Default for SamplingView {
             peaks: Vec::new(),
             saved: [false; 8],
             note: String::new(),
+            count_in: false,
+            counting: 0,
             phase: 0.0,
         }
     }
@@ -94,16 +100,21 @@ pub fn draw_right(fb: &mut FrameBuffer480x272, ui: &crate::UiState) {
     let s = &ui.smp;
     fb.clear(t.bg);
     // the bar: a dot that pulses while it records, the title, the source and the length
-    let busy = s.recording || s.armed;
+    let busy = s.recording || s.armed || s.counting > 0;
     let pulse = if busy { 0.5 + 0.5 * (s.phase * std::f32::consts::TAU * if s.armed { 1.0 } else { 2.0 }).sin() } else { 0.0 };
     fill_circle(fb, 16.0, HEADER_CY, 6.0 + 2.0 * pulse, if busy { t.fg } else { t.dim });
-    text_v(fb, if s.recording { "recording" } else if s.armed { "waiting for a sound" } else { "sampling" }, 30, HEADER_CY as i32, FontSize::Large, t.fg, Align::Left, VAlign::Middle);
+    text_v(fb, if s.recording { "recording" } else if s.counting > 0 { "get ready" } else if s.armed { "waiting for a sound" } else { "sampling" }, 30, HEADER_CY as i32, FontSize::Large, t.fg, Align::Left, VAlign::Middle);
     text_v(fb, &secs(s.seconds()), 464, HEADER_CY as i32, FontSize::Large, t.dim, Align::Right, VAlign::Middle);
+    if s.count_in && s.counting == 0 && !s.recording {
+        text_v(fb, "count-in", 380, HEADER_CY as i32, FontSize::Small, t.dim, Align::Right, VAlign::Middle);
+    }
 
     // the wave
     let (x0, w, cy, amp) = (30.0f32, 420.0f32, 108.0f32, 52.0f32);
     line_aa(fb, x0, cy, x0 + w, cy, 1.0, t.faint);
-    if s.len == 0 {
+    if s.counting > 0 {
+        // counting in: the old take is out of the way, only the beat that is left
+    } else if s.len == 0 {
         // nothing yet: a dot goes along the line, waiting
         fill_circle(fb, x0 + s.phase * w, cy, 4.0, t.dim);
     } else {
@@ -121,6 +132,11 @@ pub fn draw_right(fb: &mut FrameBuffer480x272, ui: &crate::UiState) {
             let x = x0 + w * (s.len as f32 / op8_engine::MAX_RECORD as f32).min(1.0);
             line_aa(fb, x, cy - amp - 12.0, x, cy + amp + 12.0, 2.0, t.fg);
         }
+    }
+
+    if s.counting > 0 {
+        // the beats that are left, big, over the wave
+        text_v(fb, &s.counting.to_string(), 240, cy as i32, FontSize::Huge, t.fg, Align::Center, VAlign::Middle);
     }
 
     // the level
