@@ -71,8 +71,8 @@ Known limits of the setup:
 ## 2. Playing and recording
 
 - Done: PAD MODE and KEYBOARD play the track's instrument from the pads (octave on the 4D encoder). They are not recorded yet: that is REC, below.
-- Done: REC writes notes played by hand into the track at the nearest step, or the one sounding, or the next (the bar page; a drum kit: into its lane). To do: recording chords and knob movements (automation), the count-in.
-- Done: TAP (tap tempo, SHIFT + TAP the metronome), TEMPO, SWING and VOLUME with the 4D encoder (master volume), and FIXED VEL. A track's volume and pan are done (VOLUME held and the knobs, 2026-11-16). To do: the count-in.
+- Done: REC writes notes played by hand into the track at the nearest step, or the one sounding, or the next (the bar page; a drum kit: into its lane). To do: recording chords and knob movements (automation), and a count-in for this REC (SAMPLING has its own, 2026-11-16).
+- Done: TAP (tap tempo, SHIFT + TAP the metronome), TEMPO, SWING and VOLUME with the 4D encoder (master volume), and FIXED VEL. A track's volume and pan are done (VOLUME held and the knobs, 2026-11-16). To do: a count-in for the REC that writes notes (SAMPLING has its own: TAP, F-K20).
 - AUTO: automation per knob.
 
 ## 3. Instruments (the centre)
@@ -103,7 +103,7 @@ Known limits of the setup:
 ## 6. Mix and samples
 
 - MIXER: level, pan, EQ and master compressor.
-- Done: the sampler cartridge (eight sounds that come with it, the player's WAV files from `~/.config/op8/samples/`). SAMPLING records what OP-8 plays or the audio input, cuts it and saves it into the sampler (2026-11-15; not yet tried on the unit). To do: moving the cut while it plays, a recording threshold and count-in, and stereo or longer recordings.
+- Done: the sampler cartridge (eight sounds that come with it, the player's WAV files from `~/.config/op8/samples/`). SAMPLING records what OP-8 plays or the audio input, cuts it and saves it into the sampler (2026-11-15; not yet tried on the unit). Since then: the armed recording (F-A23), the count-in (F-K20) and the cut that moves while it plays (F-A25). To do: stereo or longer recordings.
 - Smart Strip with PITCH, MOD and NOTES.
 
 ## 7. Engine and quality
@@ -139,8 +139,9 @@ Saved on 2026-11-16, after the batch of section 8. Development goes on first and
 4. Done (2026-11-16): the basic mixer: a level and a pan for each track, turned with VOLUME held and the knobs (SHIFT for the pan), saved with the project (format version 3) (F-A20, F-K18, F-D20). Still to do: a master compressor, sends, and a page for the MIXER button.
 5. Done (2026-11-16): names for projects and presets (by the day, and a text file the player can edit) and ERASE + a tap, twice, to erase one (F-F08, F-F09, F-K19). **To do, later:** naming on the unit itself: a text screen where the 4D encoder chooses the letter, the pads move the cursor and SHIFT keeps it (names of up to 12 characters); it would be reusable for any other name.
 6. PATTERN, SCENE and ARRANGER.
-7. Done (2026-11-16): the sampler's gaps: copied WAVs are loaded when SAMPLING or PLUG-IN opens (F-A24), SHIFT + REC waits for the sound (F-A23), slices on the `loop` knob and `tune` of ± 24, which is also the root note (F-A22). Left: the count-in (with REC, item 8), cutting slices at the hits, and moving the cut while it plays.
+7. Done (2026-11-16): the sampler's gaps: copied WAVs are loaded when SAMPLING or PLUG-IN opens (F-A24), SHIFT + REC waits for the sound (F-A23), slices on the `loop` knob and `tune` of ± 24, which is also the root note (F-A22). Left: cutting slices at the hits.
 8. Done (2026-11-16): SETTINGS in four pages, `theme`, `audio` (output, input, block), `midi` (port, test note, silence) and `light` (steps of backlight and pad level, never more than the supply allows), with the devices asked for live and kept in the settings file (F-C10 to F-C15). Not tried on the unit: the lists of devices of the Mac and the Pi, reopening the audio while it plays, and the brightness steps. Left: REC's count-in. Outside the code: MIDI clock out and MIDI in are not built.
+9. Done (2026-11-16): the count-in of SAMPLING (TAP turns it on, REC counts three beats: F-K20) and the cut that moves while the part plays (F-A25). The count-in of the REC that writes notes is still to do (with chords and knob movements).
 
 **To try on the unit, all together**
 

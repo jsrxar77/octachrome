@@ -65,6 +65,11 @@ pub enum EngineCommand {
     SetInput(Box<rtrb::Consumer<f32>>),
     /// SAMPLING: play `start..end` of the take (in samples) to hear it; `None` stops it.
     Preview(Option<(u32, u32)>),
+    /// One click of the count-in before a recording (a higher one when `true`), whether the sequencer runs or not.
+    Click(bool),
+    /// SAMPLING: move the part that is being listened to while it plays (nothing if it is not playing): the end moves, and the
+    /// playing position follows the start if it falls behind it.
+    PreviewWindow(u32, u32),
 }
 
 /// Where a recording comes from.
@@ -328,6 +333,17 @@ impl Engine {
                     self.status.armed.store(true, Relaxed);
                 }
                 EngineCommand::SetInput(rx) => self.input = Some(*rx),
+                EngineCommand::PreviewWindow(a, b) => {
+                    if let Some((pos, _)) = self.preview {
+                        let (a, b) = (a as usize, (b as usize).min(MAX_RECORD));
+                        self.preview = (pos.max(a) < b).then_some((pos.max(a), b));
+                    }
+                }
+                EngineCommand::Click(high) => {
+                    self.click_left = (SAMPLE_RATE * 0.03) as u32;
+                    self.click_phase = 0.0;
+                    self.click_hz = if high { 1500.0 } else { 1000.0 };
+                }
                 EngineCommand::Preview(r) => self.preview = r.map(|(a, b)| (a as usize, (b as usize).min(MAX_RECORD))),
                 EngineCommand::LoadCartridge { track, cartridge } => {
                     if let Some(slot) = self.slots.get_mut(track as usize) {
