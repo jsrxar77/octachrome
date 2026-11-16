@@ -126,3 +126,28 @@ Asked by Javi on 2026-11-15, one pull request each, in this order:
 5. **Eight pieces and the order of the instruments.** Asked on 2026-11-15: eight musical examples to hear what the machine can do, and the MIDI out last. Done: the factory projects are house, boom bap, dub, polyrhythm, acid, electro, ambient and breaks (levels matched, F-F07); PLUG-IN and the standard tracks run drums, KickSyn, FmBass, resonator, sampler, (granular), macro, MIDI out; an empty place of the player's in FILE opens a new empty project; a pad that closes FILE or PLUG-IN no longer toggles a step when it is let go. To do: tune the pieces and the presets by ear on the unit.
 6. **Navigation with the 4D encoder.** Asked on 2026-11-15: every screen has items that can be reached with the central 4D encoder, global and easy. Decided: a focus that is always visible (a ring and a dot), the encoder turns it, the arrows move it across the screens, push activates or grabs a value, and the tempo is only turned while TEMPO is held. Done (2026-11-15; no dot, only the frame): the mechanism and every view: FILE, PLUG-IN, BROWSER, SAMPLING (with its four values) and composing (the screen buttons 1–8, the tracks A–H, the pads of the grid and the eight values under the screens, which push grabs and the 4D edits), and an opened piece shows its music (F-N01 to F-N10). Not yet tried on the unit. 2026-11-16: the frame of a track hugs its round capsule, and PERFORM works with the 4D (the focus visits the sixteen effects where they are drawn, push engages one and keeps it, turning is its intensity; Brain lists no pads) (F-N11, F-N12). 2026-11-16, after a photo of the unit: the ink over a coloured fill is made to read (`readable`, F-D19) and no ring goes off the screen, the ring of a screen button lying on its own capsule (F-N13). 2026-11-16: the eight sounds of a drum kit can be chosen with the 4D from the right screen (F-N14). To do: the step inspector's own items (its components and values) so that it can be reached the same way.
 7. **After that.** Granular (reuses the sampler); KEYBOARD on a drum kit like PAD MODE; a basic mixer; naming and deleting projects; PATTERN, SCENE and ARRANGER; real-MK3 verification of everything marked "not yet tried" above.
+
+## 9. What is left (2026-11-16)
+
+Saved on 2026-11-16, after the batch of section 8. Development goes on first and everything is tried on the MK3 together afterwards.
+
+**Development, in the order proposed**
+
+1. The step inspector's own items: its components and values reached with the focus and the 4D, like every other view.
+2. Granular (reuses the sampler); it is an empty place in PLUG-IN until it is built.
+3. KEYBOARD on a drum kit, like PAD MODE (the eight sounds, with the chosen sound's lane).
+4. A basic mixer: a track's volume and pan, with a group held (volume with a group held is still to do).
+5. Naming and deleting projects and presets.
+6. PATTERN, SCENE and ARRANGER.
+7. The sampler's gaps: hot-load of copied WAVs, a record threshold and count-in, slices, the root note.
+8. SETTINGS: audio, MIDI and brightness as pages. REC: the count-in.
+
+**To try on the unit, all together**
+
+- The audio input and SAMPLING; BROWSER and the factory presets; the eight pieces; the focus of the 4D everywhere (PERFORM included, and the 4 % step of its intensity turn); ink over colour and the rings at the edges (F-D19, F-N13); the sounds of a kit chosen with the 4D (F-N14); the themes.
+- Tune the presets and the pieces by ear, with what is heard on the unit.
+
+**Outside the code**
+
+- The CI of GitHub does not start (billing of the account, seen 2026-11-16): the last pull requests were merged after running `cargo test --workspace` locally.
+- Publishing the site: the site and repository addresses (placeholders in `guide/site.json`) and enabling Pages.
