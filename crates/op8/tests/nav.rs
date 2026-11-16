@@ -246,3 +246,51 @@ fn f_n10_the_arrows_cross_the_screens_and_keyboard_keeps_its_octave() {
     b.press(Button::JogUp);
     assert_ne!(b.ui().focus, before, "but ▲ moves the focus");
 }
+
+// F-N11: in PERFORM the focus visits the sixteen effects, and its frame is on the place where each one is drawn (the pad that plays
+// it is that effect); Brain, which draws no pads, lists none.
+#[test]
+fn f_n11_perform_lists_the_sixteen_effects_where_they_are_drawn() {
+    use op8_ui::NavKind;
+    let mut b = Bench::demo();
+    b.press(Button::Perform);
+    let cells: Vec<_> = op8_ui::nav_items(b.ui()).into_iter().filter(|i| matches!(i.kind, NavKind::Cell(_))).collect();
+    assert_eq!(cells.len(), 16);
+    for it in &cells {
+        let NavKind::Cell(c) = it.kind else { unreachable!() };
+        let slot = op8_ui::nav_punch_slot(c as usize);
+        // punch_view: pad 0 bottom-left, 116 px between columns, 42 between rows
+        let (x, y) = (12.0 + (slot % 4) as f32 * 116.0, 52.0 + (3 - slot / 4) as f32 * 42.0);
+        assert_eq!((it.rect.0, it.rect.1), (x, y), "cell {c} is the effect of pad {slot}");
+        assert_eq!(pad_of(c as usize) as usize, slot, "the pad of reading place {c}");
+    }
+    b.press(Button::Chords);
+    assert!(!op8_ui::nav_items(b.ui()).iter().any(|i| matches!(i.kind, NavKind::Cell(_))), "Brain draws no pads");
+}
+
+// F-N12: pushing an effect engages it and keeps it, turning is its intensity while the arrows still move the focus, a second push
+// lets it go, and leaving PERFORM lets it go too.
+#[test]
+fn f_n12_push_engages_an_effect_and_the_wheel_is_its_intensity() {
+    use op8_ui::NavKind;
+    let mut b = Bench::demo();
+    b.press(Button::Perform);
+    focus_on(&mut b, NavKind::Cell(0)); // top-left: pad 12, the effect in slot 12
+    b.press(Button::JogPush);
+    let slot = op8_ui::nav_punch_slot(0);
+    assert_eq!(b.ui().punch, Some((slot, 0.5)), "engaged at half and kept after the push");
+    b.encoder(5);
+    assert!(b.ui().punch.unwrap().1 > 0.6, "the wheel is the intensity: {:?}", b.ui().punch);
+    assert_eq!(b.ui().focus, NavKind::Cell(0), "and it does not move the focus");
+    b.press(Button::JogRight);
+    assert_eq!(b.ui().focus, NavKind::Cell(1), "the arrows do");
+    assert_eq!(b.ui().punch.map(|p| p.0), Some(slot), "and the effect goes on sounding");
+    b.press(Button::JogPush);
+    assert_eq!(b.ui().punch.map(|p| p.0), Some(op8_ui::nav_punch_slot(1)), "another effect takes its place");
+    b.press(Button::JogPush);
+    assert_eq!(b.ui().punch, None, "the second push lets it go");
+    b.press(Button::JogPush);
+    assert!(b.ui().punch.is_some());
+    b.press(Button::Step);
+    assert_eq!(b.ui().punch, None, "leaving PERFORM lets it go");
+}

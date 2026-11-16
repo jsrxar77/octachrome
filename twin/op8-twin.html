@@ -824,6 +824,7 @@ function setMode(m) {
   if (UI.mode === "punch" && punchState.slot != null) setPunch(null, 0);
   if (UI.mode === "brain" && UI.live != null) { UI.live = null; P.brain.live = null; }
   UI.mode = m; UI.inspect = null; inspectorPad = null; UI.leftPage = "steps";
+  if (m === "punch" && UI.focus.k !== "grid") UI.focus = { k: "grid", i: 0 }; // PERFORM is played on its sixteen effects: the focus starts on one
   UI.main = "instrument"; // a pad mode button always goes back to composing
 }
 // Main modes: CHANNEL composes (sequencer left, instrument right); SETTINGS
@@ -1005,7 +1006,9 @@ function navItems() {
   const strip = (n, s) => ({ k: "strip", i: n, s, x: BCX[n % 4] - 52, y: 1, w: 104, h: 22 }), has = n => n !== 5 || second;
   const v = [0, 1, 2, 3].map(n => strip(n, 0));
   for (let t = 0; t < 8; t++) v.push({ k: "track", i: t, s: 0, x: 338 + t * 18 - 9, y: 29, w: 18, h: 18 });
-  if (UI.mode !== "step" || UI.leftPage === "steps") for (let c = 0; c < 16; c++) v.push({ k: "grid", i: c, s: 0, x: 262 + (c % 4) * 42, y: 50 + Math.floor(c / 4) * 42, w: 37, h: 37 });
+  // the pads on the left screen: the steps' grid (unless a page covers it), the notes' grid, or PERFORM's sixteen effects (bigger); Brain draws none
+  if (UI.mode === "punch") for (let c = 0; c < 16; c++) v.push({ k: "grid", i: c, s: 0, x: 12 + (c % 4) * 116, y: 52 + Math.floor(c / 4) * 42, w: 108, h: 36 });
+  else if (UI.mode === "pads" || UI.mode === "keys" || (UI.mode === "step" && UI.leftPage === "steps")) for (let c = 0; c < 16; c++) v.push({ k: "grid", i: c, s: 0, x: 262 + (c % 4) * 42, y: 50 + Math.floor(c / 4) * 42, w: 37, h: 37 });
   for (let k = 0; k < 4; k++) v.push({ k: "value", i: k, s: 0, x: k * 120 + 6, y: 227, w: 108, h: 42 });
   [4, 5, 6, 7].filter(has).forEach(n => v.push(strip(n, 1)));
   for (let k = 0; k < 4; k++) v.push({ k: "value", i: 4 + k, s: 1, x: k * 120 + 6, y: 227, w: 108, h: 42 });
@@ -1022,6 +1025,8 @@ function navMove(dx, dy) {
 }
 function navTurn(d) {
   const items = navItems(); if (!items.length) return;
+  // an effect of PERFORM is sounding: the wheel is its intensity (the pad's pressure); the arrows still move the focus
+  if (UI.main === "instrument" && UI.mode === "punch" && UI.focus.k === "grid" && punchState.slot != null) { const v = clamp(punchState.amount + d * 0.04, 0, 1); setPunch(punchState.slot, v); return; }
   if (UI.grabbed) { if (UI.focus.k === "value") { if (UI.main === "sampling") smpKnob(UI.focus.i, d * DETENT); else knob(UI.focus.i, d * DETENT); } return; }
   navSet(items[((navIndex(items) + d) % items.length + items.length) % items.length]);
 }
@@ -1033,12 +1038,15 @@ function navPush() {
   else if (it.k === "strip") $("sb" + (it.i + 1)).click();
   else if (it.k === "track") groupPress(it.i);
   else if (it.k === "grid" && UI.shift && UI.mode === "step") { UI.inspect = it.i; UI.compCursor = 0; UI.leftPage = "steps"; UI.shift = false; }
+  else if (it.k === "grid" && UI.mode === "punch") { const slot = padOf(it.i); if (punchState.slot === slot) setPunch(null, 0); else { punchState.base = .5; setPunch(slot, .5); } }
   else if (it.k === "grid") { padDown(padOf(it.i), .8); padUp(padOf(it.i)); }
   else padDown(padOf(it.i), .8);
 }
 function navRing(g, screen) {
   if (UI.focus == null) return; const items = navItems(), it = items[navIndex(items)]; if (!it || it.s !== screen) return;
-  rrect(g, it.x - 3, it.y - 3, it.w + 6, it.h + 6, 11, UI.grabbed ? FG : KC[0], UI.grabbed ? 3.5 : 2.5);
+  const sounding = UI.mode === "punch" && it.k === "grid" && punchState.slot === [...Array(16).keys()].find(q => padToStep(q) === it.i), hold = UI.grabbed || sounding;
+  if (it.k === "track") { g.beginPath(); g.arc(it.x + it.w / 2, it.y + it.h / 2, it.i === UI.track ? 10 : 8, 0, Math.PI * 2); g.strokeStyle = KC[0]; g.lineWidth = 2.5; g.stroke(); return; } // a track is a round capsule: the ring hugs its edge
+  rrect(g, it.x - 3, it.y - 3, it.w + 6, it.h + 6, 11, hold ? FG : KC[0], hold ? 3.5 : 2.5);
 }
 function jogOctave(d) { UI.octave = clamp(UI.octave + d, -2, 4); UI.down.fill(false); }
 function jog(d) {

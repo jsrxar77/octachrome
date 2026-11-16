@@ -32,7 +32,7 @@ const GAP: i32 = 5;
 pub fn draw_left(fb: &mut FrameBuffer480x272, ui: &UiState, p: &Project, st: &EngineStatus) {
     draw_left_view(fb, ui, p, st);
     if let Some(it) = crate::nav::focused(ui).filter(|it| it.screen == 0 && ui.main == crate::Main::Instrument) {
-        crate::nav::draw_ring(fb, &it, ui.grabbed);
+        crate::nav::draw_ring(fb, &it, ui);
     }
 }
 

@@ -27,7 +27,7 @@ mod theme;
 
 pub use anim::{animate, Anim};
 pub use left::{comp_glyph, draw_left, left_footer};
-pub use nav::{focused as nav_focused, index as nav_index, items as nav_items, move_dir as nav_move_dir, step as nav_step, NavItem, NavKind};
+pub use nav::{focused as nav_focused, index as nav_index, items as nav_items, move_dir as nav_move_dir, punch_slot as nav_punch_slot, step as nav_step, NavItem, NavKind};
 pub use pages::{fx_footer, lfo_footer};
 pub use right::draw_right;
 pub use sampling::{peaks_of, SamplingView, COLUMNS as SAMPLING_COLUMNS, SOURCES as SAMPLING_SOURCES};

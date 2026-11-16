@@ -19,7 +19,7 @@ pub fn draw_right(
 ) {
     draw_right_view(fb, ui, cartridge, params);
     if let Some(it) = crate::nav::focused(ui).filter(|it| it.screen == 1 && ui.main == crate::Main::Instrument) {
-        crate::nav::draw_ring(fb, &it, ui.grabbed);
+        crate::nav::draw_ring(fb, &it, ui);
     }
 }
 
