@@ -31,6 +31,8 @@ pub enum NavKind {
     Value(u8),
     /// One of the eight sounds of a drum kit, drawn on the right screen: pushing chooses it.
     Sound(u8),
+    /// A component of the step inspector (the last one is the `+` that adds one): pushing grabs it, turning changes its kind.
+    Comp(u8),
 }
 
 /// Something that can have the focus: what it is, on which screen (0 left, 1 right) and its box in that screen's pixels.
@@ -90,6 +92,11 @@ pub fn sound_rect(i: usize) -> (f32, f32, f32, f32) {
     (24.0 + (i % 4) as f32 * 60.0, 76.0 + (i / 4) as f32 * 60.0, 52.0, 52.0)
 }
 
+/// A component card of the step inspector: three to a row, as the inspector draws them.
+pub fn comp_rect(i: usize) -> (f32, f32, f32, f32) {
+    (160.0 + (i % 3) as f32 * 104.0, 54.0 + (i / 3) as f32 * 60.0, 96.0, 52.0)
+}
+
 /// One of the four values of a footer, under its screen.
 pub fn footer_rect(col: usize) -> (f32, f32, f32, f32) {
     (col as f32 * FOOTER_COL as f32 + 6.0, FOOTER_Y as f32 + 3.0, FOOTER_COL as f32 - 12.0, 42.0)
@@ -106,7 +113,7 @@ pub fn items(ui: &UiState) -> Vec<NavItem> {
             .map(cell)
             .chain((0..4).map(|k| NavItem { kind: NavKind::Value(4 + k as u8), screen: 1, rect: value_rect(k) }))
             .collect(),
-        Main::Instrument if ui.inspect_step.is_none() => {
+        Main::Instrument => {
             let buttons = crate::screen_buttons(ui);
             let strip = |range: std::ops::Range<usize>, screen: u8| {
                 range
@@ -118,6 +125,11 @@ pub fn items(ui: &UiState) -> Vec<NavItem> {
             // the pads are on the left screen: the grid of the steps (unless a page of buttons 3 and 4 covers it), the grid of the
             // notes, or the sixteen effects of PERFORM, which are drawn bigger; Brain draws no pads, so it lists none
             match ui.mode {
+                // the step inspector draws the components of the step (and the `+` that adds one) where the grid is
+                Mode::Step if ui.inspect_step.is_some() => {
+                    let n = (ui.comp_count + 1).min(op8_seq::MAX_COMPONENTS);
+                    v.extend((0..n).map(|i| NavItem { kind: NavKind::Comp(i as u8), screen: 0, rect: comp_rect(i) }))
+                }
                 Mode::Step if ui.left_page == crate::LeftPage::Steps => {
                     v.extend((0..CELLS).map(|c| NavItem { kind: NavKind::Cell(c as u8), screen: 0, rect: grid_rect(c) }))
                 }
@@ -254,8 +266,12 @@ mod tests {
         assert_eq!(count(|k| matches!(k, NavKind::Value(_))), 8);
         let one_page = UiState { main: Main::Instrument, has_second: false, ..Default::default() };
         assert_eq!(items(&one_page).iter().filter(|i| matches!(i.kind, NavKind::Strip(_))).count(), 7, "no shape button without a second page");
-        let open = UiState { main: Main::Instrument, inspect_step: Some(0), ..Default::default() };
-        assert!(items(&open).is_empty(), "the step inspector has its own cursor");
+        let open = UiState { main: Main::Instrument, inspect_step: Some(0), comp_count: 2, ..Default::default() };
+        let comps = items(&open).iter().filter(|i| matches!(i.kind, NavKind::Comp(_))).count();
+        assert_eq!(comps, 3, "the step inspector lists its two components and the `+`");
+        assert_eq!(items(&open).iter().filter(|i| matches!(i.kind, NavKind::Cell(_))).count(), 0, "and not the grid it covers");
+        let full = UiState { main: Main::Instrument, inspect_step: Some(0), comp_count: 6, ..Default::default() };
+        assert_eq!(items(&full).iter().filter(|i| matches!(i.kind, NavKind::Comp(_))).count(), 6, "a full stack has no `+`");
         let players = UiState { main: Main::Instrument, left_page: crate::LeftPage::Players, ..Default::default() };
         assert_eq!(items(&players).iter().filter(|i| matches!(i.kind, NavKind::Cell(_))).count(), 0, "a page that covers the grid lists no pads");
     }

@@ -299,7 +299,7 @@ fn play_view(fb: &mut FrameBuffer480x272, ui: &UiState, p: &Project, accent: Rgb
             None => stroke_round_rect(fb, x, y, cs, cs, 6.0, 1.0, t.faint),
         }
         if let Some(n) = note {
-            let label = if kit && ui.mode == Mode::Pads {
+            let label = if kit {
                 SOUND_LABELS[(n - op8_seq::step::KIT_BASE_NOTE) as usize % 8].to_string()
             } else {
                 note_name(n)
@@ -309,8 +309,8 @@ fn play_view(fb: &mut FrameBuffer480x272, ui: &UiState, p: &Project, accent: Rgb
     }
     // what the pads are, on the left
     let (title, sub) = match ui.mode {
+        _ if kit => ("kit".to_string(), if ui.mode == Mode::Keys { "keyboard: eight sounds" } else { "eight sounds" }.to_string()),
         Mode::Keys => (format!("C{}", 3 + ui.octave), "keyboard".to_string()),
-        _ if kit => ("kit".to_string(), "eight sounds".to_string()),
         _ => (NOTE_NAMES[p.brain.key as usize].to_string(), format!("{} scale", p.brain.scale.name().to_lowercase())),
     };
     text_v(fb, &title, 30, 100, FontSize::Huge, accent, Align::Left, VAlign::Middle);
