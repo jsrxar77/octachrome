@@ -27,6 +27,7 @@ mod theme;
 
 pub use anim::{animate, Anim};
 pub use left::{comp_glyph, draw_left, left_footer};
+pub use settings::SettingsView;
 pub use nav::{focused as nav_focused, index as nav_index, items as nav_items, move_dir as nav_move_dir, punch_slot as nav_punch_slot, step as nav_step, NavItem, NavKind};
 pub use pages::{fx_footer, lfo_footer};
 pub use right::draw_right;
@@ -114,6 +115,8 @@ pub struct UiState {
     pub mix: [(u8, u8); 8],
     /// How many components the step in the inspector has (the controller keeps it: the list of the 4D's items depends on it).
     pub comp_count: usize,
+    /// What the pages of settings show and keep (see `settings.rs`).
+    pub settings: SettingsView,
     pub knob_touch: [bool; 8],
     /// Right screen page: 0 = sound, 1 = shape (the second page of the instrument), 2 = fx, 3 = mod.
     pub right_page: usize,
@@ -208,8 +211,15 @@ pub fn pad_note(ui: &UiState, p: &op8_seq::Project, pad: u8) -> Option<u8> {
 /// Buttons 1–4 are above the left screen, 5–8 above the right one.
 pub fn screen_buttons(ui: &UiState) -> [Option<(&'static str, bool)>; 8] {
     let mut b = [None; 8];
+    if ui.main == Main::Settings {
+        // the four pages of settings are the buttons over the left screen; the right screen's buttons do nothing here
+        for (i, name) in ["theme", "audio", "midi", "light"].into_iter().enumerate() {
+            b[i] = Some((name, ui.settings.page as usize == i));
+        }
+        return b;
+    }
     if ui.main != Main::Instrument {
-        return b; // in settings the buttons do nothing
+        return b;
     }
     let steps = ui.mode == Mode::Step && ui.inspect_step.is_none();
     b[0] = Some(("step", steps && ui.left_page == LeftPage::Steps));
@@ -419,6 +429,24 @@ mod tests {
                     }
                 }
             }
+        }
+        // the pages of settings, with more devices than there is room for
+        for page in 0..4u8 {
+            let mut ui = UiState { main: Main::Settings, ..Default::default() };
+            ui.settings.page = page;
+            ui.settings.outs = (0..12).map(|i| format!("a very long name of an audio output device number {i}")).collect();
+            ui.settings.ins = (0..9).map(|i| format!("input {i}")).collect();
+            ui.settings.ports = (0..9).map(|i| format!("port {i}")).collect();
+            let items = nav::items(&ui);
+            assert_eq!(items.is_empty(), page == 0, "the theme page lists nothing, the others do");
+            for it in &items {
+                let (x, y, w, h, _) = nav::ring_box(it);
+                assert!(x >= 0.0 && y >= 0.0 && x + w <= 480.0 && y + h <= 272.0, "settings page {page} {:?}: ring {x},{y} {w}x{h}", it.kind);
+                seen += 1;
+            }
+            let mut fb = FrameBuffer480x272::new();
+            draw_left(&mut fb, &ui, &Project::default(), &EngineStatus::default());
+            draw_right(&mut fb, &ui, None, &[0.0; 8]);
         }
         assert!(seen > 500, "{seen} items checked");
     }

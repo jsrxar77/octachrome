@@ -33,7 +33,7 @@ fn draw_right_view(
     params: &[f32; 8],
 ) {
     if ui.main == crate::Main::Settings {
-        return crate::settings::draw_right(fb);
+        return crate::settings::draw_right(fb, ui);
     }
     if ui.main == crate::Main::File {
         return crate::files::draw_right(fb, ui);

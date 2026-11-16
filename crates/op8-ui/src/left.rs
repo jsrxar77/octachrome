@@ -38,7 +38,7 @@ pub fn draw_left(fb: &mut FrameBuffer480x272, ui: &UiState, p: &Project, st: &En
 
 fn draw_left_view(fb: &mut FrameBuffer480x272, ui: &UiState, p: &Project, st: &EngineStatus) {
     if ui.main == crate::Main::Settings {
-        return crate::settings::draw_left(fb, st);
+        return crate::settings::draw_left(fb, ui, st);
     }
     if ui.main == crate::Main::File {
         return crate::files::draw_left(fb, ui, st);

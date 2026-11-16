@@ -9,10 +9,13 @@ use std::sync::atomic::Ordering::Relaxed;
 /// One notch of a knob (the unit sends 1000 per turn, and a notch is 40 of them).
 const NOTCH: i32 = 40;
 
-/// The theme is global, and a recipe changes it: the recipes run one at a time so that no picture comes out in the wrong theme.
+/// The theme is global, and a recipe changes it: the recipes run one at a time so that no picture comes out in the wrong theme. The
+/// manual is drawn in matte (the unit itself starts in chrome since 2026-11-16), so each recipe starts with matte.
 static SERIAL: std::sync::Mutex<()> = std::sync::Mutex::new(());
 fn serial() -> std::sync::MutexGuard<'static, ()> {
-    SERIAL.lock().unwrap_or_else(|e| e.into_inner())
+    let guard = SERIAL.lock().unwrap_or_else(|e| e.into_inner());
+    op8_gfx::set_theme(op8_gfx::ThemeId::Matte);
+    guard
 }
 
 /// The pad of step `n` (1..=16): step 1 is the top-left pad, and they read like a page.
@@ -615,4 +618,46 @@ fn recipe_21_slices_a_kit_made_of_a_sound() {
     b.run_ms(300);
     assert!(b.rms_db(0, b.now_ms()) > -60.0, "a slice is heard");
     b.release(0);
+}
+
+// F-G04
+#[test]
+fn recipe_22_settings_audio_midi_and_light() {
+    use op8::controller::{DeviceList, Request};
+    use op8_ui::NavKind;
+    let _one_at_a_time = serial();
+    let mut b = Bench::demo();
+    b.press(Button::Settings);
+    b.press(Button::Screen(2)); // audio
+    assert!(b.app.ctl.requests.contains(&Request::ListDevices), "it asks for the devices");
+    b.app.ctl.devices_listed(DeviceList {
+        outs: vec!["Maschine MK3".into(), "MacBook Pro Speakers".into(), "USB Audio".into()],
+        ins: vec!["Maschine MK3".into(), "Scarlett 2i2".into()],
+        ports: vec!["Maschine MK3 MIDI".into(), "IAC Driver Bus 1".into()],
+        out_now: "Maschine MK3".into(),
+        in_now: "Maschine MK3".into(),
+        port_now: "Maschine MK3 MIDI".into(),
+        stream_now: "48 kHz · 2 ch · buffer 128".into(),
+        supply: "the host gives the MK3 480 mA: limited: screens at 50, LEDs capped".into(),
+        note: None,
+    });
+    b.run_ms(100);
+    b.capture("r22-audio");
+    for _ in 0..40 {
+        if b.ui().focus == NavKind::Pick(2) {
+            break;
+        }
+        b.encoder(1);
+    }
+    b.press(Button::JogPush);
+    assert_eq!(b.app.ctl.settings.audio_out.as_deref(), Some("MacBook Pro Speakers"));
+    b.press(Button::Screen(3)); // midi
+    b.run_ms(100);
+    b.capture("r22-midi");
+    b.press(Button::Screen(4)); // light
+    b.run_ms(100);
+    b.capture("r22-light");
+    assert_eq!((b.ui().settings.screen, b.ui().settings.pads), (4, 3));
+    b.press(Button::Screen(1));
+    b.press(Button::ChannelMidi);
 }

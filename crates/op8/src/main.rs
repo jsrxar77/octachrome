@@ -117,24 +117,33 @@ fn open_mk3() -> Result<op8_hw::mk3::Mk3Surface> {
     Ok(s)
 }
 
+#[cfg(all(feature = "mk3", feature = "audio"))]
+fn audio_prefs(s: &op8::settings::Settings) -> op8::audio::Prefs {
+    op8::audio::Prefs { out: s.audio_out.clone(), input: s.audio_in.clone(), buffer: s.buffer }
+}
+
 #[cfg(feature = "mk3")]
 fn run(mut script: Option<Script>, theme_given: bool) -> Result<()> {
     use std::sync::{atomic::AtomicBool, Arc};
     let (engine, handle, midi_rx) = demo::rig();
     let stop = Arc::new(AtomicBool::new(false));
+    // What the player chose in SETTINGS (the devices, the block, the light): read before anything is opened.
+    let saved = op8::settings::default_path().map(|p| op8::settings::Settings::load(&p)).unwrap_or_default();
+    #[cfg(feature = "audio")]
+    op8::audio::set_prefs(audio_prefs(&saved));
     // Diagnostic: OP8_MIDI=off sends no MIDI to the MK3's port.
     let midi_off = std::env::var("OP8_MIDI").is_ok_and(|v| v == "off");
     let port = if midi_off {
         Err(anyhow::anyhow!("turned off by OP8_MIDI=off"))
     } else {
-        op8::midi::open_default()
+        op8::midi::open_port(saved.midi_out.as_deref())
     }
     .unwrap_or_else(|e| {
         eprintln!("midi: {e}; MidiOutBridge output is discarded");
         Box::new(op8::midi::NullPort)
     });
     println!("midi out: {}", port.name());
-    let _midi = op8::midi::spawn(midi_rx, port, stop.clone());
+    let (_midi, midi_link) = op8::midi::spawn_linked(midi_rx, port, stop.clone());
 
     // The engine lives in `Audio`, which reopens the stream if the device goes
     // away: the sequencer's clock runs in the audio callback, so without audio
@@ -167,6 +176,8 @@ fn run(mut script: Option<Script>, theme_given: bool) -> Result<()> {
         }
         app.settings_path = Some(path);
     }
+    app.ctl.settings = saved.clone();
+    app.ctl.ui.settings.supply = app.surface.power_note().to_string();
     app.ctl.projects_dir = op8::projectfile::default_dir();
     app.ctl.samples_dir = op8_cartridges::sampler::default_dir();
     app.ctl.watch_samples();
@@ -181,11 +192,13 @@ fn run(mut script: Option<Script>, theme_given: bool) -> Result<()> {
     let mut backoff = op8::backoff::Backoff::new();
     // The theme's light (backlight, LED levels), applied again whenever the
     // theme or the surface changes.
-    let mut lit: Option<op8_gfx::ThemeId> = None;
+    // The player's steps of backlight and pad level are put on it (a share of what the supply allows, never more).
+    let mut lit: Option<(op8_gfx::ThemeId, u8, u8)> = None;
     loop {
-        if lit != Some(op8_gfx::theme_id()) {
-            let _ = app.surface.set_look(op8_gfx::theme().light);
-            lit = Some(op8_gfx::theme_id());
+        let want = (op8_gfx::theme_id(), app.ctl.settings.screen, app.ctl.settings.pads);
+        if lit != Some(want) {
+            let _ = app.surface.set_look(op8::settings::effective_light(op8_gfx::theme().light, want.1, want.2));
+            lit = Some(want);
         }
         #[cfg(feature = "audio")]
         if let Some(line) = audio.keep_alive() {
@@ -207,6 +220,67 @@ fn run(mut script: Option<Script>, theme_given: bool) -> Result<()> {
                 println!("script done; the instrument is yours");
                 script = None;
             }
+        }
+        // SETTINGS asked something of the audio, the MIDI port or the surface: do it, and say what the hardware has now
+        if !app.ctl.requests.is_empty() {
+            let requests = std::mem::take(&mut app.ctl.requests);
+            let mut note = None;
+            for r in requests {
+                match r {
+                    #[cfg(feature = "audio")]
+                    op8::controller::Request::AudioOut(_) | op8::controller::Request::Buffer(_) => {
+                        op8::audio::set_prefs(audio_prefs(&app.ctl.settings));
+                        audio.restart();
+                        let _ = audio.keep_alive();
+                        note = Some(match audio.now() {
+                            Some((device, _)) => format!("audio: {device}"),
+                            None => "audio: nothing opened yet".to_string(),
+                        });
+                    }
+                    #[cfg(feature = "audio")]
+                    op8::controller::Request::AudioIn(_) => {
+                        op8::audio::set_prefs(audio_prefs(&app.ctl.settings));
+                        audio_in.restart();
+                    }
+                    op8::controller::Request::MidiPort(name) => {
+                        note = Some(match op8::midi::open_port(name.as_deref()) {
+                            Ok(p) => {
+                                let shown = p.name();
+                                midi_link.switch(p);
+                                format!("midi: {shown}")
+                            }
+                            Err(e) => format!("midi: {e}; it stays as it was"),
+                        });
+                    }
+                    op8::controller::Request::MidiTest => midi_link.test(),
+                    op8::controller::Request::MidiPanic => {
+                        midi_link.panic();
+                        note = Some("everything silenced".to_string());
+                    }
+                    _ => {}
+                }
+            }
+            #[cfg(feature = "audio")]
+            let (outs, ins, out_now, stream_now, in_now) = (
+                op8::audio::list_outputs(),
+                op8::audio::list_inputs(),
+                audio.now().map(|n| n.0).unwrap_or_default(),
+                audio.now().map(|n| n.1).unwrap_or_default(),
+                audio_in.now().unwrap_or_default(),
+            );
+            #[cfg(not(feature = "audio"))]
+            let (outs, ins, out_now, stream_now, in_now) = (Vec::new(), Vec::new(), String::new(), String::new(), String::new());
+            app.ctl.devices_listed(op8::controller::DeviceList {
+                outs,
+                ins,
+                ports: op8::midi::list_ports(),
+                out_now,
+                in_now,
+                port_now: midi_link.name(),
+                stream_now,
+                supply: app.surface.power_note().to_string(),
+                note,
+            });
         }
         if let Err(e) = app.frame(pacer.now_ms()) {
             // Let go of the screens first: while the old surface holds

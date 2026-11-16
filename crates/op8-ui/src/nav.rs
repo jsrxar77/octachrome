@@ -33,6 +33,8 @@ pub enum NavKind {
     Sound(u8),
     /// A component of the step inspector (the last one is the `+` that adds one): pushing grabs it, turning changes its kind.
     Comp(u8),
+    /// One of the choices of a page of settings (a row of a list of devices, a button, a step of the light): pushing chooses it.
+    Pick(u8),
 }
 
 /// Something that can have the focus: what it is, on which screen (0 left, 1 right) and its box in that screen's pixels.
@@ -97,6 +99,66 @@ pub fn comp_rect(i: usize) -> (f32, f32, f32, f32) {
     (160.0 + (i % 3) as f32 * 104.0, 54.0 + (i / 3) as f32 * 60.0, 96.0, 52.0)
 }
 
+/// The pages of settings.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Page {
+    Theme,
+    Audio,
+    Midi,
+    Light,
+}
+
+/// The sizes of the audio block the player can choose (frames).
+pub const BUFFER_CHOICES: [u32; 3] = [64, 128, 256];
+
+/// How many rows a list of devices shows: `automatic` and the names, at most eight on the left screen and four on the right one.
+pub fn list_len(names: usize, _page: Page, screen: u8) -> usize {
+    (1 + names).min(if screen == 0 { 8 } else { 4 })
+}
+
+/// The screen and the box of choice `n` of a page of settings. Audio: 0..8 the outputs (left), 8..12 the inputs (right), 16..19 the audio
+/// block (right). MIDI: 0..8 the ports (left), 8 and 9 the two buttons (right). Light: 0..4 the backlight steps and 4..7 the pad levels
+/// (left).
+pub fn pick_rect(page: Page, n: usize) -> (u8, (f32, f32, f32, f32)) {
+    let (i, f) = (n as f32, |k: usize| k as f32);
+    match (page, n) {
+        (Page::Audio | Page::Midi, 0..=7) => (0, (12.0, 52.0 + i * 26.0, 456.0, 24.0)),
+        (Page::Audio, 8..=11) => (1, (12.0, 40.0 + f(n - 8) * 26.0, 456.0, 24.0)),
+        (Page::Audio, 16..=18) => (1, (12.0 + f(n - 16) * 152.0, 176.0, 144.0, 30.0)),
+        (Page::Midi, 8) => (1, (12.0, 60.0, 224.0, 36.0)),
+        (Page::Midi, 9) => (1, (244.0, 60.0, 224.0, 36.0)),
+        (Page::Light, 0..=3) => (0, (12.0 + i * 114.0, 72.0, 108.0, 60.0)),
+        (Page::Light, 4..=6) => (0, (12.0 + f(n - 4) * 152.0, 176.0, 144.0, 70.0)),
+        _ => (0, (0.0, 0.0, 0.0, 0.0)),
+    }
+}
+
+/// What can be reached on the open page of settings, in the order the 4D turns through it: the theme page lists nothing (the 4D turns the
+/// theme itself).
+pub fn pick_items(ui: &UiState) -> Vec<NavItem> {
+    let s = &ui.settings;
+    let page = s.page_kind();
+    let mut v = Vec::new();
+    let mut add = |n: usize| {
+        let (screen, rect) = pick_rect(page, n);
+        v.push(NavItem { kind: NavKind::Pick(n as u8), screen, rect });
+    };
+    match page {
+        Page::Theme => {}
+        Page::Audio => {
+            (0..list_len(s.outs.len(), page, 0)).for_each(&mut add);
+            (8..8 + list_len(s.ins.len(), page, 1)).for_each(&mut add);
+            (16..19).for_each(&mut add);
+        }
+        Page::Midi => {
+            (0..list_len(s.ports.len(), page, 0)).for_each(&mut add);
+            (8..10).for_each(&mut add);
+        }
+        Page::Light => (0..7).for_each(&mut add),
+    }
+    v
+}
+
 /// One of the four values of a footer, under its screen.
 pub fn footer_rect(col: usize) -> (f32, f32, f32, f32) {
     (col as f32 * FOOTER_COL as f32 + 6.0, FOOTER_Y as f32 + 3.0, FOOTER_COL as f32 - 12.0, 42.0)
@@ -109,6 +171,7 @@ pub fn items(ui: &UiState) -> Vec<NavItem> {
     let cell = |i: usize| NavItem { kind: NavKind::Cell(i as u8), screen: 0, rect: cell_rect(i) };
     match ui.main {
         Main::File | Main::Plugin | Main::Browser => (0..CELLS).map(cell).collect(),
+        Main::Settings => pick_items(ui),
         Main::Sampling => (0..CELLS)
             .map(cell)
             .chain((0..4).map(|k| NavItem { kind: NavKind::Value(4 + k as u8), screen: 1, rect: value_rect(k) }))
@@ -146,7 +209,6 @@ pub fn items(ui: &UiState) -> Vec<NavItem> {
             v.extend((0..4).map(|k| NavItem { kind: NavKind::Value(4 + k as u8), screen: 1, rect: footer_rect(k) }));
             v
         }
-        _ => Vec::new(),
     }
 }
 

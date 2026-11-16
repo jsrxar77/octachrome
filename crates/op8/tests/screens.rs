@@ -101,14 +101,13 @@ fn f_d10_screens_name_their_buttons() {
     b.run_ms(100);
     assert_eq!(strip_lit(&b, Screen::Right, 1), 0, "no shape button on an instrument without a second page");
     assert!(strip_lit(&b, Screen::Right, 2) > 20 && strip_lit(&b, Screen::Right, 3) > 20, "but fx and mod are there");
-    // In settings the buttons do nothing, so nothing is named.
+    // In settings the four buttons over the left screen are its pages, and the right screen's buttons do nothing, so nothing is named there.
     b.press(Button::Settings);
     b.run_ms(100);
-    for screen in [Screen::Left, Screen::Right] {
-        let fb = b.screen(screen);
-        let lit = (0..24usize).flat_map(|y| (120..360usize).map(move |x| (x, y))).filter(|&(x, y)| fb.pixels()[y * 480 + x] != 0).count();
-        assert_eq!(lit, 0, "{screen:?}: no strip in settings");
-    }
+    assert!(strip_lit(&b, Screen::Left, 1) > 20 && strip_lit(&b, Screen::Left, 2) > 20, "the pages are named on the left");
+    let fb = b.screen(Screen::Right);
+    let lit = (0..24usize).flat_map(|y| (120..360usize).map(move |x| (x, y))).filter(|&(x, y)| fb.pixels()[y * 480 + x] != 0).count();
+    assert_eq!(lit, 0, "no strip on the right screen of settings");
 }
 
 // F-D11: on the step grid an active step and an empty one are far apart in brightness.
@@ -179,10 +178,14 @@ fn f_d14_screen_button_leds_match_the_labels() {
     b.tick();
     assert_eq!(led(&b, 6), 0, "no second page, no light");
     assert!(led(&b, 5) > 0);
-    // In settings nothing is named and nothing is lit.
+    // In settings the four pages are named and lit (the open one brighter); the right screen's buttons are dark.
     b.press(Button::Settings);
     b.tick();
-    for n in 1..=8u8 {
+    for n in 1..=4u8 {
+        assert!(led(&b, n) > 0, "settings: button {n} is a page");
+    }
+    assert!(led(&b, 1) > led(&b, 2), "the open page is brighter");
+    for n in 5..=8u8 {
         assert_eq!(led(&b, n), 0, "settings: button {n} is dark");
     }
 }
