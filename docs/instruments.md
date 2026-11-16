@@ -49,6 +49,7 @@ In three stages, from the simplest to the most open:
 | **resonator** | A string or a bank of bells that rings when a note strikes it; four voices (a fifth note takes the oldest). Sound: `type` (string, bells), `structure`, `bright`, `damping`. Shape: `decay`, `color`, `spread` (how far apart the four voices sit in the stereo field), `level`. Built on the string and modal engines of the Plaits code (MIT) | A string held at both ends that shivers with the sound (structure bows it, bright thickens it), or eight rings spaced as the modes of a bell are, fading outward with the damping |
 | **drums** | Eight percussion sounds on one track, chosen by the pitch of the note: C kick, C# snare, D closed hat, D# open hat, E tom, F clap, F# rim, G crash (the notes above G wrap round). The knobs edit the sound picked with the `sound` knob and each sound keeps its own values. Sound: `tune`, `decay`, `tone`, `snap`. Shape: `body`, `level`, `pan`, `sound`. Built on the percussion engines of the Plaits code (MIT) | The eight sounds as a 4 × 2 grid of keys, each with a small picture that flashes when it plays; the chosen one large, with the four colours of knobs 5–8 showing tune (height), decay (size), tone (rings) and snap (spikes) |
 | **sampler** | Plays recorded sounds with the keyboard and the steps. Sixteen places like everything else: eight sounds that come with it (pluck, bell, pad, voice, thump, sweep, glass, glitch, all made by the code, so nothing has to be installed) and eight for the player's own WAV files from `~/.config/op8/samples/` (`OP8_SAMPLES` overrides it), in the order of their names; any rate, 8–32 bit or float, mono or stereo, up to ten seconds. A note plays the sound at its own pitch for C4 and shifted by the interval for others; eight voices. Sound: `sample`, `start`, `length`, `tune`. Shape: `attack`, `release`, `loop`, `level`. One shot plays through and fades over the last `release`; loop repeats the window while the note is held and fades when it is let go | The wave of the chosen sound across the screen, the part that plays lit between two marks (`start`, `length`), a mark for the tune, a white line for every voice that is playing |
+| **granular** | Plays a sound as a cloud of grains (very short, overlapping pieces). The sound is one of the sampler's sixteen places (the eight that come with it and the player's own; what SAMPLING records goes in at once). Up to four held notes: each grain takes its pitch from them in turn (C4 is the sound's own). Sound: `sample`, `position` (where in the sound grains are cut), `size` (32 ms to 512 ms), `density` (regular below the middle, random above, a dead zone in the middle where only the grain a note starts is heard). Shape: `tune` (± 24 semitones), `texture` (the window of a grain: a trapezoid when low, a raised cosine when high), `spread` (between the speakers), `level`. Up to 32 grains at once; the quality of their interpolation falls as they get busy. Built on the granular player of Clouds (MIT) | The wave of the chosen sound, a band over the part where grains can start, a line where they are cut from (`position`) and one under it as long as a grain (`size`), and every grain that sounds as a bar where it reads, as tall as its window is open and higher or lower as it sits between the speakers (`spread`); the pitch as a mark on a short scale |
 | **macro** | 24 engines in one (virtual analogue, FM, wavetable, chords, voice, strings, percussion), from the Plaits code (MIT, `crates/op8-plaits`). Sound: `engine`, `harmonics`, `timbre`, `morph`. Shape: `decay`, `color`, `variant`, `level` | A ring of 24 engines, a polar waveform that beats with the level, and a timbre × morph field |
 
 macro is monophonic and uses gate semantics (the 6-operator FM engines need the held gate). It goes to sleep and gives exact zeros when it is not sounding.
@@ -63,6 +64,8 @@ macro is monophonic and uses gate semantics (the 6-operator FM engines need the 
 | **Clouds / Beads** (Mutable Instruments) | Granular on a sample | MIT | **Yes** (useful for the future sampler) |
 | **Surge XT** | A huge synth with very many oscillators and filters | GPL-3.0 | **Only if OP-8 becomes GPL**, or if only its ideas are used, without its code |
 | **Vital** | Wavetable | GPL-3.0 | Same as Surge |
+
+Clouds' granular code was checked on 2026-11-16: the files carry the MIT notice (Copyright 2014 Emilie Gillet), which is kept in the source of the granular.
 
 Legal note on Mutable Instruments: the code of the STM32 modules (Plaits, Braids, Rings, Elements, Clouds, Beads) is MIT, but the name "Mutable Instruments" is a registered trademark and its author asks that the module names not be used in derived works. OP-8 instruments based on that code carry names of their own (for example "macro", "resonator") and say in the credits where they come from.
 
@@ -91,7 +94,7 @@ Everything in OP-8 is built on eight, and the MK3 has sixteen pads. So the libra
 | **Instruments** (PLUG-IN) | 8 that always ship and cannot be removed | 8 places for instruments installed as separate packages (stage 2 and 3 of §3) |
 | **Projects** (FILE) | 8 music projects that always ship (done: eight short pieces in eight styles: house, boom bap, dub, polyrhythm, acid, electro, ambient, breaks; [§9](#9-the-eight-pieces-that-come-with-it)) | 8 places for the player's own projects (done) |
 
-The factory eight, confirmed by Javi on 2026-11-14 (all but the granular exist). **They are ordered from the most guttural to the most refined, drums first, the leads next to last and the MIDI out last (decided by Javi on 2026-11-15)**; that order is the order of the pads of PLUG-IN and of the standard tracks: A drums, B KickSyn, C FmBass, D resonator, E sampler, F empty (the granular goes here when it exists), G macro, H MIDI out. The MIDI out is last because it makes no sound of its own, and because the MK3 will eventually also take input: MIDI out and sound in. The order of work is drums and resonator (done), sampler (stage 1 done), granular.
+The factory eight, confirmed by Javi on 2026-11-14 (all exist since 2026-11-16). **They are ordered from the most guttural to the most refined, drums first, the leads next to last and the MIDI out last (decided by Javi on 2026-11-15)**; that order is the order of the pads of PLUG-IN and of the standard tracks: A drums, B KickSyn, C FmBass, D resonator, E sampler, F empty (the granular goes here when it exists), G macro, H MIDI out. The MIDI out is last because it makes no sound of its own, and because the MK3 will eventually also take input: MIDI out and sound in. The order of work is drums and resonator (done), sampler (stage 1 done), granular.
 
 | # | Instrument | Idea | Status |
 | :-- | :-- | :-- | :-- |
@@ -100,7 +103,7 @@ The factory eight, confirmed by Javi on 2026-11-14 (all but the granular exist).
 | 3 | **FmBass** | Two-operator FM bass | ✓ |
 | 4 | **resonator** | Plucked strings and struck bells, four voices | ✓ |
 | 5 | **sampler** | Play sounds: eight that come with it and the player's own (SAMPLING records them) | ◐ |
-| 6 | **granular** | Granular on a sample (from Clouds / Beads) | ○ |
+| 6 | **granular** | Granular on a sample (the grain scheduler of Clouds, MIT, rewritten in Rust) | ✓ |
 | 7 | **macro** | 24 engines in one (from Plaits): the leads | ✓ |
 | 8 | **MidiOutBridge** | The track out to an external synth (later also sound in) | ✓ |
 
@@ -161,7 +164,7 @@ An empty place of the player's in FILE opens a **new empty project** (the standa
 | sampler | Written for OP-8 | OP-8's |
 | macro | The engines of Plaits (24 in the vendored set), with OP-8's own pages and drawing | MIT |
 | midi out | Written for OP-8 | OP-8's |
-| granular (to build) | The granular ideas of Clouds / Beads (Mutable Instruments) | MIT |
+| granular | The granular player of Clouds (Mutable Instruments), rewritten in Rust for a stored sound: how grains are scheduled (regular or random, with a dead zone), the window of a grain, the cut-down of a grain that would run past the end, the gain that follows how many sound, and the interpolation that gets cheaper as grains get busy; the bank of sounds (shared with the sampler), the pages, the drawing and the pitch from held notes are OP-8's | MIT (Clouds; notice in `crates/op8-cartridges/src/granular.rs`) |
 
 Plaits is by Émilie Gillet (Mutable Instruments). The name "Mutable Instruments" is a registered trademark: it appears only in credits, never as the name of an instrument. The manual says all of this in plain words under "What each one is for, and where it comes from" ([the manual](../guide/manual.tpl.html) is generated into the site).
 

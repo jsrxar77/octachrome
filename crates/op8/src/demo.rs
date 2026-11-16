@@ -14,7 +14,7 @@ fn shared(c: impl InstrumentCartridge + 'static) -> Option<SharedCartridge> {
 }
 
 /// The instruments run from the most guttural to the most refined, the order of PLUG-IN: A drums (a kit), B KickSyn,
-/// C FmBass, D resonator, E sampler, F empty (the granular, not built yet), G macro (the leads), H the MIDI out (always last).
+/// C FmBass, D resonator, E sampler, F empty (the granular is chosen in PLUG-IN), G macro (the leads), H the MIDI out (always last).
 pub fn slots() -> (
     [Option<SharedCartridge>; TRACKS],
     rtrb::Consumer<MidiMessage>,

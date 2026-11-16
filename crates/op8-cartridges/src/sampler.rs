@@ -77,6 +77,14 @@ impl Sample {
     pub fn len(&self) -> usize {
         self.data.len()
     }
+    /// The samples (shared, not copied).
+    pub fn data(&self) -> Arc<[f32]> {
+        self.data.clone()
+    }
+    /// (lowest, highest) of each slice of the wave, for a drawing.
+    pub fn peaks(&self) -> &[(f32, f32)] {
+        &self.peaks
+    }
     pub fn is_empty(&self) -> bool {
         self.data.is_empty()
     }

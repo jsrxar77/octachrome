@@ -5,6 +5,7 @@
 pub mod drums;
 pub mod dsp;
 pub mod fm_bass;
+pub mod granular;
 pub mod kick_syn;
 pub mod macro_osc;
 pub mod midi_out;
@@ -16,6 +17,7 @@ pub mod wav;
 
 pub use drums::Drums;
 pub use fm_bass::FmBass;
+pub use granular::Granular;
 pub use kick_syn::KickSyn;
 pub use macro_osc::MacroOsc;
 pub use midi_out::{MidiMessage, MidiOutBridge};
@@ -26,7 +28,7 @@ use op8_cartridge::InstrumentCartridge;
 
 /// Every built-in cartridge, by name, for the slot browser.
 pub fn builtin_names() -> &'static [&'static str] {
-    &["drums", "KickSyn", "FmBass", "resonator", "sampler", "macro"]
+    &["drums", "KickSyn", "FmBass", "resonator", "sampler", "granular", "macro"]
 }
 
 /// Construct a built-in audio cartridge by name. (MidiOutBridge is created
@@ -39,6 +41,7 @@ pub fn create(name: &str) -> Option<Box<dyn InstrumentCartridge>> {
         "drums" => Some(Box::new(Drums::new())),
         "resonator" => Some(Box::new(Resonator::new())),
         "sampler" => Some(Box::new(Sampler::new())),
+        "granular" => Some(Box::new(Granular::new())),
         _ => None,
     }
 }

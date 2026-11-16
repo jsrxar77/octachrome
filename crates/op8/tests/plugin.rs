@@ -36,18 +36,17 @@ fn f_i01_a_pad_puts_the_instrument_on_the_track() {
     assert_eq!(b.ui().main, Main::Instrument, "PLUG-IN again leaves");
 }
 
-// F-I02: an instrument that is not built yet, and an empty place, say so and change nothing.
+// F-I02: an empty place says so and changes nothing.
 #[test]
-fn f_i02_unbuilt_and_empty_places_change_nothing() {
+fn f_i02_empty_places_change_nothing() {
     let mut b = Bench::demo();
     b.press(Button::Group(3));
     b.press(Button::PlugIn);
-    b.tap(pad_of(5)); // the granular: not yet
-    assert_eq!(b.ui().main, Main::Plugin);
-    assert!(b.ui().plug_note.contains("not built"));
     b.tap(pad_of(10)); // an empty place
     assert!(b.ui().plug_note.starts_with("empty"));
+    assert_eq!(b.ui().main, Main::Plugin);
     assert_eq!(name_of(&b, 3).as_deref(), Some("resonator"));
+    assert!(b.ui().plugs[..8].iter().all(|p| p.1), "all eight factory instruments are built");
 }
 
 // F-I03: the MIDI out is one bridge that owns the MIDI queue: choosing it moves it from the track that has it.
@@ -96,4 +95,33 @@ fn f_i05_the_sampler_plays_from_a_step() {
     assert!(b.status().note_count[5].load(std::sync::atomic::Ordering::Relaxed) > before);
     assert!(b.rms_db(0, 1500) > -50.0, "the sound is heard: {} dB", b.rms_db(0, 1500));
     assert!(b.ui().has_second, "it has a second page");
+}
+
+// F-I06: the granular can be chosen like any instrument, plays a cloud from a step, has the two pages `sample, position, size, density`
+// and `tune, texture, spread, level`, draws its sound and the grains, has eight presets in BROWSER, and what SAMPLING records can be its
+// sound: it is heard in the cloud as soon as it is saved.
+#[test]
+fn f_i06_the_granular_plays_a_cloud_from_a_step() {
+    let mut b = Bench::empty();
+    b.press(Button::Group(5));
+    b.press(Button::PlugIn);
+    b.tap(pad_of(5)); // the granular
+    assert_eq!(name_of(&b, 5).as_deref(), Some("granular"));
+    assert_eq!(b.ui().main, Main::Instrument);
+    assert!(b.ui().has_second, "it has a second page");
+    b.run_ms(100);
+    b.capture("f-i06-granular");
+    b.tap(12); // the first step
+    let before = b.status().note_count[5].load(std::sync::atomic::Ordering::Relaxed);
+    b.press(Button::Play);
+    b.run_ms(1500);
+    assert!(b.status().note_count[5].load(std::sync::atomic::Ordering::Relaxed) > before);
+    assert!(b.rms_db(0, 1500) > -50.0, "the cloud is heard: {} dB", b.rms_db(0, 1500));
+    // BROWSER: eight presets that come with it
+    b.press(Button::Stop);
+    b.press(Button::Browser);
+    assert_eq!(b.ui().browse_inst, "granular");
+    assert!(b.ui().browse[..8].iter().all(|c| c.1), "eight presets");
+    b.tap(pad_of(3));
+    assert!(b.ui().browse_note.starts_with("loaded"), "{}", b.ui().browse_note);
 }

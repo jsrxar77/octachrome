@@ -134,7 +134,7 @@ Saved on 2026-11-16, after the batch of section 8. Development goes on first and
 **Development, in the order proposed**
 
 1. Done (2026-11-16): the step inspector's own items: its components and values reached with the focus and the 4D, like every other view (F-N15).
-2. Granular (reuses the sampler); it is an empty place in PLUG-IN until it is built.
+2. Done (2026-11-16): granular, from the grain scheduler of Clouds (MIT) rewritten in Rust, on the sampler's bank of sounds (F-A21, F-I06). Not tried by ear on the unit yet.
 3. Done (2026-11-16): KEYBOARD on a drum kit is PAD MODE (F-K17).
 4. Done (2026-11-16): the basic mixer: a level and a pan for each track, turned with VOLUME held and the knobs (SHIFT for the pan), saved with the project (format version 3) (F-A20, F-K18, F-D20). Still to do: a master compressor, sends, and a page for the MIXER button.
 5. Done (2026-11-16): names for projects and presets (by the day, and a text file the player can edit) and ERASE + a tap, twice, to erase one (F-F08, F-F09, F-K19). **To do, later:** naming on the unit itself: a text screen where the 4D encoder chooses the letter, the pads move the cursor and SHIFT keeps it (names of up to 12 characters); it would be reusable for any other name.

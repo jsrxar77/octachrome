@@ -424,6 +424,9 @@ const CARTS = {
   sampler: { name: "SAMPLER", cat: "SAMPLER",
     params: [["SAMPLE",.5/16,v=>SAMPLE_NAMES[Math.min(15,Math.floor(v*16))]],["START",0,v=>Math.round(v*100)+"%"],["LENGTH",1,v=>Math.round(v*100)+"%"],["TUNE",.5,v=>{const s=Math.round(-12+24*v);return (s>0?"+":"")+s+"st";}],
              ["ATTACK",0,v=>expMap(v,.5,2000).toFixed(0)+"ms"],["RELEASE",.3,v=>expMap(v,5,4000).toFixed(0)+"ms"],["LOOP",0,v=>v<.5?"one shot":"loop"],["LEVEL",.8,v=>Math.round(v*100)+"%"]] },
+  granular: { name: "GRANULAR", cat: "SAMPLER",
+    params: [["SAMPLE",2.5/16,v=>SAMPLE_NAMES[Math.min(15,Math.floor(v*16))]],["POSITION",.3,v=>Math.round(v*100)+"%"],["SIZE",.5,v=>expMap(v,32,512).toFixed(0)+"ms"],["DENSITY",.2,v=>Math.round(v*100)+"%"],
+             ["TUNE",.5,v=>{const s=Math.round(-24+48*v);return (s>0?"+":"")+s+"st";}],["TEXTURE",.6,v=>Math.round(v*100)+"%"],["SPREAD",.5,v=>Math.round(v*100)+"%"],["LEVEL",.8,v=>Math.round(v*100)+"%"]] },
   midi: { name: "MIDIOUTBRIDGE", cat: "MIDI",
     params: [["CHANNEL",0,v=>"CH "+(Math.min(15,Math.floor(v*16))+1)],["TRANSP",.5,v=>{const s=Math.round(-24+48*v);return (s>0?"+":"")+s+"st";}],["VEL",1,v=>Math.round(v*100)+"%"],["CC74",.5,v=>Math.round(v*100)+"%"]] },
 };
@@ -572,6 +575,7 @@ function audition(t, note, vel, throttle) {
   else if (SLOTS[t] === "kick") playKick(t, at, note, vel);
   else if (SLOTS[t] === "resonator") playResonator(t, at, note, vel);
   else if (SLOTS[t] === "sampler") playSampler(t, at, note, vel, 0.2);
+  else if (SLOTS[t] === "granular") playGranular(t, at, note, vel, 0.25);
   else if (SLOTS[t] === "fm") playFm(t, at, note, vel, 0.25);
   else if (SLOTS[t] === "macro") playMacro(t, at, note, vel, 0.25);
 }
@@ -617,6 +621,50 @@ function samplerArt(g, t, p) {
   line(g, xs, cy - amp - 10, xs, cy + amp + 10, KC[5], 2); line(g, xe, cy - amp - 10, xe, cy + amp + 10, KC[6], 2);
   line(g, 170, 206, 310, 206, FAINT, 1); dot(g, 240, 206, 2, DIM); dot(g, 170 + 140 * p[3], 206, 5, KC[7]);
   if (p[6] >= .5) { ring(g, xe, cy - amp - 16, 4, KC[6], 1.5); ring(g, xs, cy - amp - 16, 4, KC[5], 1.5); }
+}
+// granular (crates/op8-cartridges/src/granular.rs): the cloud of a note is worked out as the Rust one does it (the density that is regular below the
+// middle and random above, the dead zone where only a note's own grain sounds, the window from the texture, the gain that follows how many sound) and
+// played as short buffer sources under a window. `GRAINS` remembers them for the drawing.
+const GRAINS = [];
+function granularWindow(shape, n) { // the grain window: a trapezoid for a texture under a half, a raised cosine above it (Grain::window)
+  const c = new Float32Array(n), smooth = shape >= .5 ? (shape - .5) * 2 : 0, slope = shape >= .5 ? 0 : .5 / (shape + .01);
+  for (let i = 0; i < n; i++) { const u = i / (n - 1), tri = u < .5 ? 2 * u : 2 - 2 * u; c[i] = smooth > 0 ? tri + smooth * ((.5 - .5 * Math.cos(Math.PI * tri)) - tri) : Math.min(1, tri * slope); }
+  return c;
+}
+function playGranular(t, time, note, vel, gate) {
+  if (!sampleBank) sampleBank = makeBank();
+  const p = PARAMS[t], i = Math.min(15, Math.floor(p[0] * 16)), data = sampleBank[i]; if (!data || data.length < 64) return;
+  const SR = 48000, d = p[3], overlap = d >= .53 ? (d - .53) * 2.12 : d <= .47 ? (.47 - d) * 2.12 : 0, regular = d < .5, target = 32 * Math.pow(overlap, 3);
+  const ratio = Math.pow(2, ((note - 60) + (p[4] - .5) * 48) / 12);
+  let size = 1536 * Math.pow(2, 4 * p[2]); if (size * ratio > data.length * .5) size = data.length * .5 / ratio;
+  const buf = actx.createBuffer(1, data.length, SR); buf.copyToChannel(data, 0);
+  const start = p[1] * Math.max(0, data.length - size * ratio) / SR, dur = size / SR, win = granularWindow(p[5], 128);
+  const lvl = vel * p[7] * .8 * (target > 2 ? 1 / Math.sqrt(target - 1) : 1) * (1 + (Math.min(2, 1 + 2 * p[5]) - 1) * overlap);
+  const end = time + Math.max(gate, .02), grains = [time];
+  if (target > 0) { const rate = target / (size / SR); let at = time; for (let k = 0; k < 160; k++) { at += regular ? 1 / rate : -Math.log(1 - Math.random()) / rate; if (at >= end) break; grains.push(at); } }
+  grains.forEach(at => {
+    const src = actx.createBufferSource(), g = actx.createGain(), pan = actx.createStereoPanner ? actx.createStereoPanner() : null, spread = (Math.random() - .5) * p[6] * 2;
+    src.buffer = buf; src.playbackRate.value = ratio; g.gain.setValueCurveAtTime(win.map(w => w * lvl), at, dur);
+    if (pan) { pan.pan.value = spread; src.connect(g).connect(pan).connect(trackOut[t]); } else src.connect(g).connect(trackOut[t]);
+    src.start(at, start, dur * ratio + .01); src.stop(at + dur + .02);
+    GRAINS.push({ t0: at, dur, from: start * SR / data.length, span: dur * ratio * SR / data.length, pan: spread, win: p[5], size, track: t });
+  });
+  while (GRAINS.length > 400) GRAINS.shift();
+}
+function granularArt(g, t, p) {
+  if (!sampleBank) sampleBank = makeBank();
+  const i = Math.min(15, Math.floor(p[0] * 16)), data = sampleBank[i], x0 = 30, w = 420, cy = 118, amp = 56;
+  if (!data) { line(g, x0, cy, x0 + w, cy, FAINT, 1); ring(g, 240, cy, 26, FAINT, 2); return; }
+  const len = data.length, size = Math.min(1536 * Math.pow(2, 4 * p[2]), len * .5), reach = Math.max(0, (len - size) / len), at = p[1] * reach;
+  rrect(g, x0, cy - amp - 6, Math.max(w * reach, w * .02), amp * 2 + 12, 6, PANEL); line(g, x0, cy, x0 + w, cy, FAINT, 1);
+  for (let c = 0; c < 240; c++) { const s0 = Math.floor(c * len / 240), s1 = Math.max(s0 + 1, Math.floor((c + 1) * len / 240)); let lo = 0, hi = 0; for (let k = s0; k < s1; k += 4) { const v = data[k]; lo = Math.min(lo, v); hi = Math.max(hi, v); }
+    const x = x0 + c * w / 240; line(g, x, cy - hi * amp, x, cy - lo * amp - .5, x < x0 + w * reach ? TRACK_COLORS[t] : FAINT, 1.6); }
+  const xp = x0 + at * w; line(g, xp, cy - amp - 10, xp, cy + amp + 10, KC[5], 2); line(g, xp, cy + amp + 10, Math.min(x0 + w, xp + size / len * w), cy + amp + 10, KC[6], 2);
+  const now = actx ? actx.currentTime : 0;
+  GRAINS.filter(q => q.track === t && now >= q.t0 && now < q.t0 + q.dur).forEach(q => { // every grain that sounds: a bar where it reads, as tall as its window is open, higher or lower as it sits between the speakers
+    const u = (now - q.t0) / q.dur, tri = u < .5 ? 2 * u : 2 - 2 * u, x = x0 + (q.from + q.span * u) * w, y = cy + q.pan * (amp + 4), half = 3 + 14 * tri;
+    line(g, x, y - half, x, y + half, FG, Math.max(1.5, Math.min(5, q.size / 1536 * 2))); });
+  line(g, 170, 204, 310, 204, FAINT, 1); dot(g, 240, 204, 2, DIM); dot(g, 170 + 140 * p[4], 204, 5, KC[4]);
 }
 function playResonator(t, time, note, vel) {
   const p = PARAMS[t], out = trackOut[t], bells = p[0] >= .5, f = 440 * Math.pow(2, (note - 69) / 12);
@@ -757,6 +805,7 @@ function voice(t, at, note, vel, gate) {
   if (l.target >= 2 && l.depth > 0 && p && l.target - 2 < p.length) { const i = l.target - 2; saved = [i, p[i]]; p[i] = clamp(p[i] + lfoNow(t, at * 1000) * l.depth / 255 * 0.5, 0, 1); }
   else if (l.target === 1 && l.depth > 0) v = vel * (1 - l.depth / 255 * (0.5 - 0.5 * lfoNow(t, at * 1000)));
   if (SLOTS[t] === "sampler") playSampler(t, at, note, v, Math.max(0.02, gate));
+  else if (SLOTS[t] === "granular") playGranular(t, at, note, v, Math.max(0.02, gate));
   else if (SLOTS[t] === "resonator") playResonator(t, at, note, v);
   else if (SLOTS[t] === "kick") playKick(t, at, note, v);
   else if (SLOTS[t] === "fm") playFm(t, at, note, v, Math.max(0.02, gate));
@@ -1461,8 +1510,16 @@ macro   | chords  | 0.604 0.50 0.50 0.50 0.55 0.50 0.00 0.70
 macro   | swarm   | 0.688 0.50 0.60 0.50 0.65 0.50 0.00 0.70
 macro   | pluck   | 0.813 0.50 0.50 0.50 0.40 0.50 0.00 0.80
 macro   | modal   | 0.854 0.50 0.50 0.50 0.50 0.50 0.00 0.80
+granular | cloud   | 0.156 0.30 0.55 0.15 0.50 0.65 0.90 0.75
+granular | dust    | 0.031 0.20 0.20 0.70 0.50 0.40 0.70 0.80
+granular | freeze  | 0.219 0.40 0.70 0.05 0.50 0.85 0.60 0.70
+granular | shimmer | 0.406 0.10 0.45 0.80 0.75 0.80 1.00 0.65
+granular | glitch  | 0.469 0.00 0.10 0.30 0.50 0.15 0.40 0.80
+granular | rumble  | 0.281 0.10 0.60 0.25 0.25 0.70 0.30 0.75
+granular | bells   | 0.094 0.15 0.35 0.65 0.60 0.55 0.80 0.70
+granular | swarm   | 0.344 0.45 0.30 0.85 0.50 0.60 0.50 0.70
 `;
-const PRESET_NAMES = { kick: "KickSyn", fm: "FmBass", resonator: "resonator", drums: "drums", sampler: "sampler", macro: "macro" };
+const PRESET_NAMES = { kick: "KickSyn", fm: "FmBass", resonator: "resonator", drums: "drums", sampler: "sampler", granular: "granular", macro: "macro" };
 function factoryPresets(slot) {
   const inst = PRESET_NAMES[slot]; if (!inst) return [];
   return FACTORY_PRESETS_TEXT.split("\n").filter(l => l.trim() && !l.trim().startsWith("#")).map(l => l.split("|").map(x => x.trim()))
@@ -1494,7 +1551,7 @@ function brRight(g) {
   if (UI.brNote) txt(g, UI.brNote, 30, 236, "mid", FG);
 }
 // ---- PLUG-IN: the instrument of the selected track (Controller::plugin_pad). The factory eight, then eight places for installed ones.
-const FACTORY_INSTRUMENTS = [["drums", "drums", true], ["KickSyn", "kick", true], ["FmBass", "fm", true], ["resonator", "resonator", true], ["sampler", "sampler", true], ["granular", null, false], ["macro", "macro", true], ["midi out", "midi", true]];
+const FACTORY_INSTRUMENTS = [["drums", "drums", true], ["KickSyn", "kick", true], ["FmBass", "fm", true], ["resonator", "resonator", true], ["sampler", "sampler", true], ["granular", "granular", true], ["macro", "macro", true], ["midi out", "midi", true]];
 function plugPad(pad) {
   const slot = padToStep(pad), t = UI.track, f = FACTORY_INSTRUMENTS[slot];
   if (!f) { UI.plugNote = "empty: installed instruments will go here"; return; }
@@ -1853,6 +1910,7 @@ function drawRight(g) {
   else if (slot === "drums") drumsArt(g, t, p);
   else if (slot === "resonator") resonatorArt(g, t, p);
   else if (slot === "sampler") samplerArt(g, t, p);
+  else if (slot === "granular") granularArt(g, t, p);
   else midiArt(g, t, p, accent);
   if (rp < 2) crosshairs(g, 14, 50, 452, 168, DIM);
   const base = rp === 1 ? 4 : 0;
