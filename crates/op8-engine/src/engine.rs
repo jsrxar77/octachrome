@@ -59,6 +59,8 @@ pub enum EngineCommand {
     },
     /// SAMPLING: start recording from a source (what was in `take` is overwritten), or stop with `None`.
     Record(Option<RecSource>),
+    /// SAMPLING, armed: wait for a sound louder than the threshold (0..1) and start recording from just before it.
+    RecordWhenLoud(RecSource, f32),
     /// The audio that comes in (mono, 48 kHz) for `RecSource::Input`. Boxed: the ring is large.
     SetInput(Box<rtrb::Consumer<f32>>),
     /// SAMPLING: play `start..end` of the take (in samples) to hear it; `None` stops it.
@@ -76,6 +78,8 @@ pub enum RecSource {
 
 /// The longest recording: ten seconds, like the longest sample.
 pub const MAX_RECORD: usize = SAMPLE_RATE as usize * 10;
+/// How much before the sound that starts an armed recording is kept: 10 ms.
+const PREROLL: usize = 480;
 
 /// How long an auditioned note is held before it is released.
 const AUDITION_SAMPLES: i32 = (SAMPLE_RATE * 0.25) as i32;
@@ -154,6 +158,10 @@ pub struct Engine {
     peaks: [f32; TRACKS],
     note_counts: [u32; TRACKS],
     rec: Option<RecSource>,
+    /// Armed: the source to record and the level (0..1) that starts it; the last few milliseconds are kept to start just before it.
+    armed: Option<(RecSource, f32)>,
+    preroll: Vec<f32>,
+    preroll_at: usize,
     preview: Option<(usize, usize)>,
     input: Option<rtrb::Consumer<f32>>,
 }
@@ -211,6 +219,9 @@ impl Engine {
             peaks: [0.0; TRACKS],
             note_counts: [0; TRACKS],
             rec: None,
+            armed: None,
+            preroll: vec![0.0; PREROLL],
+            preroll_at: 0,
             preview: None,
             input: None,
         };
@@ -294,6 +305,8 @@ impl Engine {
                 EngineCommand::MasterFilter(v) => self.fx.strip = v.clamp(-1.0, 1.0),
                 EngineCommand::Record(source) => {
                     self.rec = source;
+                    self.armed = None;
+                    self.status.armed.store(false, Relaxed);
                     if source.is_some() {
                         self.preview = None;
                     }
@@ -302,6 +315,17 @@ impl Engine {
                         self.status.rec_peak.store(0, Relaxed);
                     }
                     self.status.recording.store(source.is_some(), Relaxed);
+                }
+                EngineCommand::RecordWhenLoud(source, threshold) => {
+                    self.rec = None;
+                    self.armed = Some((source, threshold.clamp(0.0005, 1.0)));
+                    self.preroll_at = 0;
+                    self.preroll.iter_mut().for_each(|x| *x = 0.0);
+                    self.preview = None;
+                    self.status.rec_len.store(0, Relaxed);
+                    self.status.rec_peak.store(0, Relaxed);
+                    self.status.recording.store(false, Relaxed);
+                    self.status.armed.store(true, Relaxed);
                 }
                 EngineCommand::SetInput(rx) => self.input = Some(*rx),
                 EngineCommand::Preview(r) => self.preview = r.map(|(a, b)| (a as usize, (b as usize).min(MAX_RECORD))),
@@ -473,7 +497,7 @@ impl Engine {
 
     /// SAMPLING: copy the source into `take` while recording; keep the input drained otherwise.
     fn record(&mut self, out_l: &[f32], out_r: &[f32]) {
-        let Some(source) = self.rec else {
+        let Some(source) = self.rec.or(self.armed.map(|a| a.0)) else {
             if let Some(rx) = self.input.as_mut() {
                 while rx.pop().is_ok() {}
             }
@@ -489,6 +513,23 @@ impl Engine {
                 RecSource::Input => self.input.as_mut().and_then(|rx| rx.pop().ok()).unwrap_or(0.0),
             };
             let s = if s.is_finite() { s } else { 0.0 };
+            if let (None, Some((_, threshold))) = (self.rec, self.armed) {
+                // armed: keep the last few milliseconds, and when a sound crosses the threshold start with them
+                self.preroll[self.preroll_at] = s;
+                self.preroll_at = (self.preroll_at + 1) % PREROLL;
+                peak = peak.max(s.abs());
+                if s.abs() >= threshold {
+                    for i in 0..PREROLL {
+                        take[i] = self.preroll[(self.preroll_at + i) % PREROLL];
+                    }
+                    len = PREROLL;
+                    self.rec = Some(source);
+                    self.armed = None;
+                    st.armed.store(false, Relaxed);
+                    st.recording.store(true, Relaxed);
+                }
+                continue;
+            }
             if len < MAX_RECORD {
                 take[len] = s;
                 len += 1;
@@ -918,6 +959,39 @@ mod tests {
             assert!((take[i] - out[i]).abs() < 1e-5, "sample {i}");
         }
         assert!(take[..n].iter().any(|x| x.abs() > 0.05), "it heard the kick");
+    }
+
+    // F-A23: armed, the recording waits for a sound louder than the threshold and starts just before it (ten milliseconds), so that the
+    // beginning of the sound is not cut; stopping disarms it, and nothing is kept while it waits.
+    #[test]
+    fn f_a23_an_armed_recording_starts_at_the_sound() {
+        let (mut e, mut h) = rig();
+        h.seq(Command::ToggleStep { track: 0, step: 0 });
+        render(&mut e, 128);
+        h.send(EngineCommand::RecordWhenLoud(RecSource::Resample, 0.05));
+        render(&mut e, 4800);
+        assert!(h.status.armed.load(Relaxed) && !h.status.recording.load(Relaxed), "it waits");
+        assert_eq!(h.status.rec_len.load(Relaxed), 0, "and keeps nothing while it waits");
+        h.send(EngineCommand::Play);
+        render(&mut e, 4800);
+        assert!(h.status.recording.load(Relaxed) && !h.status.armed.load(Relaxed), "the sound started it");
+        let n = h.status.rec_len.load(Relaxed) as usize;
+        assert!(n > PREROLL && n <= 4800 + PREROLL, "it has the sound and the ten milliseconds before it: {n}");
+        let take = h.status.take.lock().unwrap();
+        assert!(take[0].abs() < 0.05 && take[PREROLL - 1].abs() >= 0.05, "the take begins in silence and the sound is right after: {} {}", take[0], take[PREROLL - 1]);
+        drop(take);
+        h.send(EngineCommand::Record(None));
+        render(&mut e, 128);
+        assert!(!h.status.recording.load(Relaxed));
+        // armed again with nothing playing, then stopped before any sound: it is disarmed
+        h.send(EngineCommand::Stop);
+        render(&mut e, 48_000);
+        h.send(EngineCommand::RecordWhenLoud(RecSource::Resample, 0.05));
+        render(&mut e, 128);
+        assert!(h.status.armed.load(Relaxed));
+        h.send(EngineCommand::Record(None));
+        render(&mut e, 128);
+        assert!(!h.status.armed.load(Relaxed) && !h.status.recording.load(Relaxed));
     }
 
     // F-A17: recording the input takes what comes in and nothing else.

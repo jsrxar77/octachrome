@@ -14,6 +14,8 @@ use op8_gfx::{
 /// Columns of the wave kept for the drawing.
 pub const COLUMNS: usize = 240;
 pub const SOURCES: [&str; 2] = ["input", "resample"];
+/// The level (0..1) a sound must pass to start an armed recording: -36 dB.
+pub const ARM_THRESHOLD: f32 = 0.0158;
 
 /// What SAMPLING shows and edits (the audio itself stays in the engine's `take`).
 #[derive(Clone, Debug)]
@@ -21,6 +23,8 @@ pub struct SamplingView {
     /// 0 = the audio interface's input, 1 = what OP-8 plays.
     pub source: u8,
     pub recording: bool,
+    /// SHIFT + REC: waiting for a sound louder than `ARM_THRESHOLD` to start the recording.
+    pub armed: bool,
     /// Samples in the take.
     pub len: usize,
     /// How loud the input is right now, 0..1 (it falls away between blocks).
@@ -44,6 +48,7 @@ impl Default for SamplingView {
         Self {
             source: 1,
             recording: false,
+            armed: false,
             len: 0,
             level: 0.0,
             start: 0.0,
@@ -89,9 +94,10 @@ pub fn draw_right(fb: &mut FrameBuffer480x272, ui: &crate::UiState) {
     let s = &ui.smp;
     fb.clear(t.bg);
     // the bar: a dot that pulses while it records, the title, the source and the length
-    let pulse = if s.recording { 0.5 + 0.5 * (s.phase * std::f32::consts::TAU * 2.0).sin() } else { 0.0 };
-    fill_circle(fb, 16.0, HEADER_CY, 6.0 + 2.0 * pulse, if s.recording { t.fg } else { t.dim });
-    text_v(fb, if s.recording { "recording" } else { "sampling" }, 30, HEADER_CY as i32, FontSize::Large, t.fg, Align::Left, VAlign::Middle);
+    let busy = s.recording || s.armed;
+    let pulse = if busy { 0.5 + 0.5 * (s.phase * std::f32::consts::TAU * if s.armed { 1.0 } else { 2.0 }).sin() } else { 0.0 };
+    fill_circle(fb, 16.0, HEADER_CY, 6.0 + 2.0 * pulse, if busy { t.fg } else { t.dim });
+    text_v(fb, if s.recording { "recording" } else if s.armed { "waiting for a sound" } else { "sampling" }, 30, HEADER_CY as i32, FontSize::Large, t.fg, Align::Left, VAlign::Middle);
     text_v(fb, &secs(s.seconds()), 464, HEADER_CY as i32, FontSize::Large, t.dim, Align::Right, VAlign::Middle);
 
     // the wave
@@ -123,6 +129,11 @@ pub fn draw_right(fb: &mut FrameBuffer480x272, ui: &crate::UiState) {
     let lv = s.level.clamp(0.0, 1.0).sqrt();
     if lv > 0.0 {
         fill_round_rect(fb, x0, ly, (lw * lv).max(6.0), 6.0, 3.0, if s.level > 0.95 { t.fg } else { t.dim });
+    }
+    if s.armed {
+        // where the sound has to get to for the recording to start
+        let x = x0 + lw * ARM_THRESHOLD.sqrt();
+        fill_round_rect(fb, x - 1.0, ly - 5.0, 2.0, 16.0, 1.0, t.fg);
     }
     if !s.note.is_empty() {
         text_v(fb, &s.note, 30, 208, FontSize::Medium, t.fg, Align::Left, VAlign::Middle);

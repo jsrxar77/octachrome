@@ -208,6 +208,7 @@ impl Bench {
     }
     pub fn set_samples_dir(&mut self, dir: std::path::PathBuf) {
         self.app.ctl.samples_dir = Some(dir);
+        self.app.ctl.watch_samples();
     }
     pub fn set_projects_dir(&mut self, dir: std::path::PathBuf) {
         self.app.ctl.projects_dir = Some(dir);

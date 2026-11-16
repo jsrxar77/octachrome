@@ -422,8 +422,8 @@ const CARTS = {
     params: [["TUNE",.5,v=>{const s=Math.round(-12+24*v);return (s>0?"+":"")+s+"st";}],["DECAY",.45,v=>Math.round(v*100)+"%"],["TONE",.5,v=>Math.round(v*100)+"%"],["SNAP",.5,v=>Math.round(v*100)+"%"],
              ["BODY",.5,v=>Math.round(v*100)+"%"],["LEVEL",.6,v=>Math.round(v*100)+"%"],["PAN",.5,v=>Math.round(v*100)+"%"],["SOUND",.5/8,v=>DRUM_NAMES[Math.min(7,Math.floor(v*8))]]] },
   sampler: { name: "SAMPLER", cat: "SAMPLER",
-    params: [["SAMPLE",.5/16,v=>SAMPLE_NAMES[Math.min(15,Math.floor(v*16))]],["START",0,v=>Math.round(v*100)+"%"],["LENGTH",1,v=>Math.round(v*100)+"%"],["TUNE",.5,v=>{const s=Math.round(-12+24*v);return (s>0?"+":"")+s+"st";}],
-             ["ATTACK",0,v=>expMap(v,.5,2000).toFixed(0)+"ms"],["RELEASE",.3,v=>expMap(v,5,4000).toFixed(0)+"ms"],["LOOP",0,v=>v<.5?"one shot":"loop"],["LEVEL",.8,v=>Math.round(v*100)+"%"]] },
+    params: [["SAMPLE",.5/16,v=>SAMPLE_NAMES[Math.min(15,Math.floor(v*16))]],["START",0,v=>Math.round(v*100)+"%"],["LENGTH",1,v=>Math.round(v*100)+"%"],["TUNE",.5,v=>{const s=Math.round(-24+48*v);return (s>0?"+":"")+s+"st";}],
+             ["ATTACK",0,v=>expMap(v,.5,2000).toFixed(0)+"ms"],["RELEASE",.3,v=>expMap(v,5,4000).toFixed(0)+"ms"],["LOOP",0,v=>LOOP_NAMES[Math.min(3,Math.floor(v*4))]],["LEVEL",.8,v=>Math.round(v*100)+"%"]] },
   granular: { name: "GRANULAR", cat: "SAMPLER",
     params: [["SAMPLE",2.5/16,v=>SAMPLE_NAMES[Math.min(15,Math.floor(v*16))]],["POSITION",.3,v=>Math.round(v*100)+"%"],["SIZE",.5,v=>expMap(v,32,512).toFixed(0)+"ms"],["DENSITY",.2,v=>Math.round(v*100)+"%"],
              ["TUNE",.5,v=>{const s=Math.round(-24+48*v);return (s>0?"+":"")+s+"st";}],["TEXTURE",.6,v=>Math.round(v*100)+"%"],["SPREAD",.5,v=>Math.round(v*100)+"%"],["LEVEL",.8,v=>Math.round(v*100)+"%"]] },
@@ -460,6 +460,14 @@ function initAudio() {
   smpIn = actx.createGain(); smpTap = actx.createScriptProcessor(1024, 1, 1);
   smpIn.connect(smpTap); smpTap.connect(actx.destination); fx.limiter.connect(smpIn);
   smpTap.onaudioprocess = e => {
+    if (SMP.armed && !SMP.rec) { // armed: keep the last ten milliseconds, and start with them when a sound is louder than the threshold
+      const d = e.inputBuffer.getChannelData(0); let pk = 0;
+      for (let i = 0; i < d.length; i++) {
+        SMP.pre[SMP.preAt] = d[i]; SMP.preAt = (SMP.preAt + 1) % 480; pk = Math.max(pk, Math.abs(d[i]));
+        if (Math.abs(d[i]) >= SMP_ARM) { for (let k = 0; k < 480; k++) SMP.buf[k] = SMP.pre[(SMP.preAt + k) % 480]; SMP.len = 480; SMP.armed = false; SMP.rec = true; for (let j = i + 1; j < d.length && SMP.len < SMP_MAX; j++) SMP.buf[SMP.len++] = d[j]; break; }
+      }
+      SMP.level = Math.max(SMP.level, pk); return;
+    }
     if (!SMP.rec) return;
     const d = e.inputBuffer.getChannelData(0); let pk = 0;
     for (let i = 0; i < d.length && SMP.len < SMP_MAX; i++) { SMP.buf[SMP.len++] = d[i]; pk = Math.max(pk, Math.abs(d[i])); }
@@ -580,6 +588,8 @@ function audition(t, note, vel, throttle) {
   else if (SLOTS[t] === "macro") playMacro(t, at, note, vel, 0.25);
 }
 // sampler (crates/op8-cartridges/src/sampler.rs): the eight sounds that come with it, made the same way (the twin has no folder of the player's own).
+const LOOP_NAMES = ["one shot", "loop", "slices 8", "slices 16"]; // Sampler: `loop` is also the slices
+const loopMode = p => Math.min(3, Math.floor(p[6] * 4)), sliceCount = p => [0, 0, 8, 16][loopMode(p)];
 const SAMPLE_NAMES = ["pluck", "bell", "pad", "voice", "thump", "sweep", "glass", "glitch", "user 1", "user 2", "user 3", "user 4", "user 5", "user 6", "user 7", "user 8"];
 let sampleBank = null;
 function makeBank() {
@@ -602,9 +612,12 @@ function playSampler(t, time, note, vel, gate) {
   if (!sampleBank) sampleBank = makeBank();
   const p = PARAMS[t], i = Math.min(15, Math.floor(p[0] * 16)), data = sampleBank[i]; if (!data) return;
   const buf = actx.createBuffer(1, data.length, 48000); buf.copyToChannel(data, 0);
-  const [a, b] = sampleWindow(p, data.length), src = actx.createBufferSource(), g = actx.createGain();
-  src.buffer = buf; src.playbackRate.value = Math.pow(2, (-12 + 24 * p[3] + note - 60) / 12);
-  const atk = expMap(p[4], .5, 2000) / 1000, rel = expMap(p[5], 5, 4000) / 1000, loop = p[6] >= .5, lvl = vel * p[7] * .8, dur = (b - a) / 48000 / src.playbackRate.value;
+  let [a, b] = sampleWindow(p, data.length), tune = -24 + 48 * p[3], n = sliceCount(p);
+  if (n) { const k = (((note - 48) % n) + n) % n, w = (b - a) / n; [a, b] = [a + k * w, a + (k + 1) * w]; } // slices: the note chooses one, it keeps its own pitch
+  else tune += note - 60;
+  const src = actx.createBufferSource(), g = actx.createGain();
+  src.buffer = buf; src.playbackRate.value = Math.pow(2, tune / 12);
+  const atk = expMap(p[4], .5, 2000) / 1000, rel = expMap(p[5], 5, 4000) / 1000, loop = loopMode(p) === 1, lvl = vel * p[7] * .8, dur = (b - a) / 48000 / src.playbackRate.value;
   g.gain.setValueAtTime(0, time); g.gain.linearRampToValueAtTime(lvl, time + atk);
   if (loop) { src.loop = true; src.loopStart = a / 48000; src.loopEnd = b / 48000; const off = time + Math.max(gate, .02); g.gain.setValueAtTime(lvl, off); g.gain.linearRampToValueAtTime(0, off + rel); src.start(time, a / 48000); src.stop(off + rel + .02); }
   else { const fade = Math.max(time + atk, time + dur - rel); g.gain.setValueAtTime(lvl, fade); g.gain.linearRampToValueAtTime(0, time + dur); src.start(time, a / 48000, (b - a) / 48000); }
@@ -620,7 +633,8 @@ function samplerArt(g, t, p) {
     const x = x0 + c * w / 240; line(g, x, cy - hi * amp, x, cy - lo * amp - .5, (x + w / 240 > xs && x < xe) ? TRACK_COLORS[t] : FAINT, 1.6); }
   line(g, xs, cy - amp - 10, xs, cy + amp + 10, KC[5], 2); line(g, xe, cy - amp - 10, xe, cy + amp + 10, KC[6], 2);
   line(g, 170, 206, 310, 206, FAINT, 1); dot(g, 240, 206, 2, DIM); dot(g, 170 + 140 * p[3], 206, 5, KC[7]);
-  if (p[6] >= .5) { ring(g, xe, cy - amp - 16, 4, KC[6], 1.5); ring(g, xs, cy - amp - 16, 4, KC[5], 1.5); }
+  if (sliceCount(p)) for (let k = 1; k < sliceCount(p); k++) { const x = xs + (xe - xs) * k / sliceCount(p); line(g, x, cy - amp - 6, x, cy + amp + 6, KC[6], 1); } // slices: a tick between each
+  if (loopMode(p) === 1) { ring(g, xe, cy - amp - 16, 4, KC[6], 1.5); ring(g, xs, cy - amp - 16, 4, KC[5], 1.5); }
 }
 // granular (crates/op8-cartridges/src/granular.rs): the cloud of a note is worked out as the Rust one does it (the density that is regular below the
 // middle and random above, the dead zone where only a note's own grain sounds, the window from the texture, the gain that follows how many sound) and
@@ -882,7 +896,7 @@ function setMode(m) {
 // Main modes: CHANNEL composes (sequencer left, instrument right); SETTINGS
 // takes both screens for the machine's settings (theme for now).
 const THEME_IDS = ["matte", "glossy", "chrome"];
-function setMain(m) { UI.grabbed = false; UI.focus = m === "file" ? { k: "cell", i: UI.fileLast ?? 0 } : m === "plugin" ? { k: "cell", i: Math.max(0, plugCells().cur) } : m === "instrument" ? { k: "track", i: UI.track } : { k: "cell", i: 0 }; if (m === "browser") { UI.brNote = ""; UI.brLast = null; } if (UI.main === "sampling" && m !== "sampling") SMP.rec = false; if (m === "sampling") SMP.note = ""; UI.main = m; UI.inspect = null; inspectorPad = null; if (m === "file") { UI.fileNote = ""; } if (m === "plugin") UI.plugNote = ""; }
+function setMain(m) { UI.grabbed = false; UI.focus = m === "file" ? { k: "cell", i: UI.fileLast ?? 0 } : m === "plugin" ? { k: "cell", i: Math.max(0, plugCells().cur) } : m === "instrument" ? { k: "track", i: UI.track } : { k: "cell", i: 0 }; if (m === "browser") { UI.brNote = ""; UI.brLast = null; } if (UI.main === "sampling" && m !== "sampling") { SMP.rec = false; SMP.armed = false; } if (m === "sampling") SMP.note = ""; UI.main = m; UI.inspect = null; inspectorPad = null; if (m === "file") { UI.fileNote = ""; } if (m === "plugin") UI.plugNote = ""; }
 function themeStep(d) { LOOK.theme = THEME_IDS[((THEME_IDS.indexOf(LOOK.theme) + d) % 3 + 3) % 3]; applyLook(); }
 function groupPress(g) {
   if (UI.main === "settings") return;
@@ -1396,11 +1410,13 @@ function filePad(pad) {
 // in one of the sampler's eight places of its own (the top two rows of pads); the bottom two rows listen to the part.
 const SMP_MAX = 480000;
 let smpIn = null, smpTap = null, smpMic = null;
-const SMP = { source: 1, rec: false, buf: new Float32Array(SMP_MAX), len: 0, start: 0, end: 1, fade: .05, level: 0, note: "", saved: Array(8).fill(false) };
+const SMP_ARM = 0.0158; // -36 dB: the sound that starts an armed recording (op8-ui SAMPLING_ARM_THRESHOLD)
+const SMP = { source: 1, rec: false, armed: false, pre: new Float32Array(480), preAt: 0, buf: new Float32Array(SMP_MAX), len: 0, start: 0, end: 1, fade: .05, level: 0, note: "", saved: Array(8).fill(false) };
 function smpToggleRec() {
   initAudio();
-  if (SMP.rec) { SMP.rec = false; return; }
-  const go = () => { SMP.len = 0; SMP.start = 0; SMP.end = 1; SMP.note = ""; SMP.rec = true; };
+  if (SMP.rec || SMP.armed) { SMP.rec = false; SMP.armed = false; return; }
+  const arm = UI.shift; // SHIFT + REC waits for a sound; REC alone starts at once
+  const go = () => { SMP.len = 0; SMP.start = 0; SMP.end = 1; SMP.note = ""; SMP.preAt = 0; SMP.pre.fill(0); SMP.rec = !arm; SMP.armed = arm; if (arm) UI.shift = false; };
   if (SMP.source === 1) { try { smpMic && smpMic.disconnect(); } catch (e) {} fx.limiter.connect(smpIn); go(); return; }
   fx.limiter.disconnect(smpIn);
   const open = st => { smpMic = smpMic || actx.createMediaStreamSource(st); smpMic.connect(smpIn); go(); };
@@ -1416,7 +1432,7 @@ function smpKept() {
   return d;
 }
 function smpPad(pad) {
-  if (SMP.rec) { SMP.note = "stop recording first (REC)"; return; }
+  if (SMP.rec || SMP.armed) { SMP.note = "stop recording first (REC)"; return; }
   const d = smpKept(); if (!d) { SMP.note = "nothing recorded yet (REC)"; return; }
   const slot = padToStep(pad);
   if (slot >= 8) { initAudio(); const b = actx.createBuffer(1, d.length, 48000); b.copyToChannel(d, 0); const s = actx.createBufferSource(), g = actx.createGain(); g.gain.value = .8; s.buffer = b; s.connect(g).connect(master); s.start(); return; }
@@ -1426,18 +1442,19 @@ function smpPad(pad) {
 function smpKnob(k, delta) {
   if (k < 4 || k > 7) return;
   const d = delta / 800;
-  if (k === 4) { if (!SMP.rec) SMP.source = delta > 0 ? 1 : 0; }
+  if (k === 4) { if (!SMP.rec && !SMP.armed) SMP.source = delta > 0 ? 1 : 0; }
   else if (k === 5) SMP.start = clamp(SMP.start + d, 0, Math.max(0, SMP.end - .01));
   else if (k === 6) SMP.end = clamp(SMP.end + d, Math.min(1, SMP.start + .01), 1);
   else SMP.fade = clamp(SMP.fade + d, 0, 1);
 }
 function smpLeft(g) { pickLeft("sampling", [...Array.from({ length: 8 }, (_, i) => ["user " + (i + 1), SMP.saved[i]]), ...Array.from({ length: 8 }, () => ["listen", SMP.len > 0])], null)(g); }
-function smpTickLevel() { SMP.level *= SMP.rec ? .97 : .9; }
+function smpTickLevel() { SMP.level *= SMP.rec || SMP.armed ? .97 : .9; }
 function smpRight(g) {
   const sec = v => v.toFixed(2) + "s", ph = (performance.now() % 2000) / 2000, secs = SMP.len / 48000;
   fill(g, 0, 0, 480, 272, BG);
-  dot(g, 16, 15, 6 + (SMP.rec ? 2 * (.5 + .5 * Math.sin(ph * 4 * Math.PI)) : 0), SMP.rec ? FG : DIM);
-  txt(g, SMP.rec ? "recording" : "sampling", 30, 6, "mid", FG); txt(g, sec(secs), 464, 6, "mid", DIM, "right");
+  const busy = SMP.rec || SMP.armed;
+  dot(g, 16, 15, 6 + (busy ? 2 * (.5 + .5 * Math.sin(ph * (SMP.armed ? 2 : 4) * Math.PI)) : 0), busy ? FG : DIM);
+  txt(g, SMP.rec ? "recording" : SMP.armed ? "waiting for a sound" : "sampling", 30, 6, "mid", FG); txt(g, sec(secs), 464, 6, "mid", DIM, "right");
   const x0 = 30, w = 420, cy = 108, amp = 52; line(g, x0, cy, x0 + w, cy, FAINT, 1);
   if (SMP.len === 0) dot(g, x0 + ph * w, cy, 4, DIM);
   else {
@@ -1452,6 +1469,7 @@ function smpRight(g) {
     if (SMP.rec) { const x = x0 + w * Math.min(1, SMP.len / SMP_MAX); line(g, x, cy - amp - 12, x, cy + amp + 12, FG, 2); }
   }
   rrect(g, x0, 186, 420, 6, 3, FAINT); const lv = Math.sqrt(Math.min(1, SMP.level)); if (lv > 0) rrect(g, x0, 186, Math.max(6, 420 * lv), 6, 3, DIM);
+  if (SMP.armed) fill(g, x0 + 420 * Math.sqrt(SMP_ARM) - 1, 181, 2, 16, FG); // where the sound has to get to for the recording to start
   if (SMP.note) txt(g, SMP.note, 30, 200, "m", FG);
   const [a, b] = smpWindow();
   [["source", ["input", "resample"][SMP.source]], ["start", sec(a / 48000)], ["end", sec(b / 48000)], ["fade", Math.round(SMP.fade * 100) + "ms"]]
@@ -1496,11 +1514,11 @@ drums   | lofi   | 0.35 0.45 0.20 0.15 0.55 - - -
 drums   | hard   | 0.60 0.30 0.70 0.90 0.50 - - -
 sampler | pluck  | 0.031 0.00 1.00 0.50 0.00 0.20 0.00 0.80
 sampler | bell   | 0.094 0.00 1.00 0.50 0.00 0.35 0.00 0.80
-sampler | pad    | 0.156 0.15 0.65 0.50 0.60 0.70 1.00 0.70
+sampler | pad    | 0.156 0.15 0.65 0.50 0.60 0.70 0.40 0.70
 sampler | voice  | 0.219 0.00 1.00 0.50 0.05 0.40 0.00 0.80
-sampler | thump  | 0.281 0.00 0.50 0.45 0.00 0.20 0.00 0.85
+sampler | thump  | 0.281 0.00 0.50 0.475 0.00 0.20 0.00 0.85
 sampler | sweep  | 0.344 0.45 0.55 0.50 0.05 0.50 0.00 0.70
-sampler | glass  | 0.406 0.10 0.50 0.50 0.10 0.60 1.00 0.70
+sampler | glass  | 0.406 0.10 0.50 0.50 0.10 0.60 0.40 0.70
 sampler | tick   | 0.469 0.00 0.15 0.50 0.00 0.10 0.00 0.80
 macro   | lead    | 0.021 0.50 0.60 0.40 0.50 0.50 0.00 0.80
 macro   | strings | 0.271 0.50 0.50 0.50 0.70 0.50 0.00 0.75
@@ -2286,7 +2304,7 @@ function updateLeds() {
     bPads: composing && UI.mode === "pads" ? 2 : 1, bKeys: composing && UI.mode === "keys" ? 2 : 1,
     bChannel: composing ? 2 : 1, bSettings: UI.main === "settings" ? 2 : 1, bFile: UI.main === "file" ? 2 : 1, bPlug: UI.main === "plugin" ? 2 : 1, bSampling: UI.main === "sampling" ? 2 : 1, bBrowser: UI.main === "browser" ? 2 : 1, bShift: UI.shift ? 2 : 1,
     bMute: composing ? (UI.mute ? 2 : 1) : 0, bErase: composing ? (UI.erase ? 2 : 1) : 0,
-    bStop: S.playing ? 1 : 2, bRestart: 1, bRec: composing ? (UI.rec ? 2 : 1) : UI.main === "sampling" ? (SMP.rec ? 2 : 1) : 0, bTap: composing ? (UI.metro ? 2 : 1) : 0, bTempo: composing ? (UI.held === "tempo" ? 2 : 1) : 0, bSwing: composing ? (UI.held === "swing" ? 2 : 1) : 0, bVolume: composing ? (UI.held === "volume" ? 2 : 1) : 0, bFixed: composing ? (UI.fixed ? 2 : 1) : 0, jogL: !composing || UI.mode === "keys" ? 1 : 0, jogR: !composing || UI.mode === "keys" ? 1 : 0,
+    bStop: S.playing ? 1 : 2, bRestart: 1, bRec: composing ? (UI.rec ? 2 : 1) : UI.main === "sampling" ? (SMP.rec || SMP.armed ? 2 : 1) : 0, bTap: composing ? (UI.metro ? 2 : 1) : 0, bTempo: composing ? (UI.held === "tempo" ? 2 : 1) : 0, bSwing: composing ? (UI.held === "swing" ? 2 : 1) : 0, bVolume: composing ? (UI.held === "volume" ? 2 : 1) : 0, bFixed: composing ? (UI.fixed ? 2 : 1) : 0, jogL: !composing || UI.mode === "keys" ? 1 : 0, jogR: !composing || UI.mode === "keys" ? 1 : 0,
     sb1: composing ? (UI.mode === "step" && UI.inspect == null && UI.leftPage === "steps" ? 2 : 1) : 0, sb2: composing ? (UI.inspect != null ? 2 : 1) : 0,
     sb3: composing ? (stepsOpen && UI.leftPage === "players" ? 2 : 1) : 0, sb4: composing ? (stepsOpen && UI.leftPage === "bar" ? 2 : 1) : 0,
     sb5: composing ? (rp === 0 ? 2 : 1) : 0, sb6: composing && second ? (rp === 1 ? 2 : 1) : 0,

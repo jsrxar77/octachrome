@@ -9,7 +9,10 @@
 //! Page 1 chooses and cuts the sound (`sample`, `start`, `length`, `tune`); page 2 shapes how it
 //! begins and ends (`attack`, `release`, `loop`, `level`). One shot: the sound plays through and
 //! fades over the last `release`. Loop: it repeats between `start` and the end of `length` for as
-//! long as the note is held, and fades over `release` when it is let go.
+//! long as the note is held, and fades over `release` when it is let go. Slices (8 or 16): the part between
+//! `start` and the end of `length` is cut into equal slices and a note plays one of them, as a kit made of
+//! the sound: C3 (48) is the first slice, the next note the next one, and the notes repeat round after the last
+//! slice; the slices keep their own pitch (`tune` moves them all).
 
 use crate::ui;
 use op8_cartridge::{
@@ -23,7 +26,7 @@ use std::sync::Arc;
 const VOICES: usize = 8;
 const PLACES: usize = 16;
 const FACTORY: usize = 8;
-const STATE_VERSION: u8 = 1;
+const STATE_VERSION: u8 = 2;
 /// Columns of the waveform kept for the drawing.
 const COLUMNS: usize = 240;
 /// A window never gets shorter than this many samples.
@@ -33,13 +36,13 @@ const NAMES: [&str; PLACES] = [
     "pluck", "bell", "pad", "voice", "thump", "sweep", "glass", "glitch", "user 1", "user 2", "user 3",
     "user 4", "user 5", "user 6", "user 7", "user 8",
 ];
-const LOOP_NAMES: [&str; 2] = ["one shot", "loop"];
+const LOOP_NAMES: [&str; 4] = ["one shot", "loop", "slices 8", "slices 16"];
 
 const PARAMS: [ParamDescriptor; 4] = [
     ParamDescriptor::new("SAMPLE", 0.5 / PLACES as f32, ParamUnit::Choice(&NAMES)),
     ParamDescriptor::new("START", 0.0, ParamUnit::Percent),
     ParamDescriptor::new("LENGTH", 1.0, ParamUnit::Percent),
-    ParamDescriptor::new("TUNE", 0.5, ParamUnit::Semitones { min: -12.0, max: 12.0 }),
+    ParamDescriptor::new("TUNE", 0.5, ParamUnit::Semitones { min: -24.0, max: 24.0 }),
 ];
 const SECONDARY: [ParamDescriptor; 4] = [
     ParamDescriptor::new("ATTACK", 0.0, ParamUnit::Millis { min: 0.5, max: 2000.0 }),
@@ -243,20 +246,26 @@ pub fn recording_file(place: usize) -> String {
     format!("rec-{}.wav", place + 1)
 }
 
+/// A WAV file of the player's folder that was read, and the sound in it.
+pub struct Found {
+    pub path: PathBuf,
+    pub sample: Sample,
+}
+
 /// The WAV files of a folder as the eight places of the player's own. A file called `rec-N.wav` (what
 /// SAMPLING saves) is place N; the others fill the places that are left, in the order of their names.
-/// A place with nothing is an empty sample.
-pub fn load_folder(dir: &Path) -> Vec<Sample> {
-    let mut places: Vec<Option<Sample>> = vec![None; PLACES - FACTORY];
-    let Ok(rd) = std::fs::read_dir(dir) else { return fill(places) };
+/// A place with nothing is `None`; a file that cannot be read does not use up a place.
+pub fn scan_folder(dir: &Path) -> Vec<Option<Found>> {
+    let mut places: Vec<Option<Found>> = (0..PLACES - FACTORY).map(|_| None).collect();
+    let Ok(rd) = std::fs::read_dir(dir) else { return places };
     let mut files: Vec<PathBuf> = rd
         .filter_map(|e| e.ok().map(|e| e.path()))
         .filter(|p| p.extension().is_some_and(|x| x.eq_ignore_ascii_case("wav")))
         .collect();
     files.sort();
-    let read = |p: &PathBuf| -> Option<Sample> {
+    let read = |p: &PathBuf| -> Option<Found> {
         let data = crate::wav::parse(&std::fs::read(p).ok()?)?;
-        Some(Sample::new(p.file_stem()?.to_string_lossy().to_string(), data))
+        Some(Found { path: p.clone(), sample: Sample::new(p.file_stem()?.to_string_lossy().to_string(), data) })
     };
     let mut others = Vec::new();
     for p in &files {
@@ -268,10 +277,14 @@ pub fn load_folder(dir: &Path) -> Vec<Sample> {
     }
     let mut others = others.into_iter();
     for slot in places.iter_mut().filter(|s| s.is_none()) {
-        // a file that cannot be read does not use up a place
         *slot = others.by_ref().find_map(read);
     }
-    fill(places)
+    places
+}
+
+/// The sounds of the player's own places (empty ones where there is nothing).
+pub fn load_folder(dir: &Path) -> Vec<Sample> {
+    fill(scan_folder(dir).into_iter().map(|f| f.map(|f| f.sample)).collect())
 }
 
 fn fill(places: Vec<Option<Sample>>) -> Vec<Sample> {
@@ -345,6 +358,24 @@ impl Sampler {
         choice_index(self.values[0], PLACES)
     }
 
+    /// What the `loop` knob chose: play once, loop, or cut the window into this many slices.
+    fn slices(&self) -> Option<usize> {
+        match choice_index(self.values[6], LOOP_NAMES.len()) {
+            2 => Some(8),
+            3 => Some(16),
+            _ => None,
+        }
+    }
+
+    fn looping(&self) -> bool {
+        choice_index(self.values[6], LOOP_NAMES.len()) == 1
+    }
+
+    /// The semitones `tune` adds: -24 to +24.
+    fn tune_semitones(&self) -> f32 {
+        -24.0 + 48.0 * self.values[3]
+    }
+
     /// The window of the chosen sound that plays: `start` to `start + length` of what is left.
     fn window(&self, len: usize) -> (f64, f64) {
         let len = len as f64;
@@ -356,8 +387,15 @@ impl Sampler {
     fn note_on(&mut self, note: u8, velocity: f32) {
         let i = self.chosen();
         let Some(sample) = self.bank.get(i).filter(|s| !s.is_empty()) else { return };
-        let (start, end) = self.window(sample.len());
-        let st = -12.0 + 24.0 * self.values[3] + (note as f32 - 60.0);
+        let (mut start, mut end) = self.window(sample.len());
+        let mut st = self.tune_semitones() + (note as f32 - 60.0);
+        if let Some(n) = self.slices() {
+            // a kit made of the sound: the note chooses the slice and the slice keeps its own pitch
+            let k = (note as i32 - 48).rem_euclid(n as i32) as f64;
+            let width = (end - start) / n as f64;
+            (start, end) = (start + k * width, start + (k + 1.0) * width);
+            st = self.tune_semitones();
+        }
         self.clock += 1;
         let slot = self.voices.iter().position(|v| !v.active).unwrap_or_else(|| (0..VOICES).min_by_key(|&k| self.voices[k].age).unwrap_or(0));
         self.voices[slot] = Voice {
@@ -367,7 +405,7 @@ impl Sampler {
             step: 2f64.powf(st as f64 / 12.0),
             start,
             end,
-            looped: self.values[6] >= 0.5,
+            looped: self.looping(),
             gain: velocity,
             env: 0.0,
             releasing: false,
@@ -515,7 +553,14 @@ impl InstrumentCartridge for Sampler {
             let x = x0 + (v.pos as f32 / s.len() as f32) * w;
             line_aa(frame, x, cy - amp - 12.0, x, cy + amp + 12.0, 2.0, t.fg);
         }
-        if self.values[6] >= 0.5 {
+        if let Some(n) = self.slices() {
+            // slices: a tick between each, and the one that sounds is the lit one
+            for k in 1..n {
+                let x = xs + (xe - xs) * k as f32 / n as f32;
+                line_aa(frame, x, cy - amp - 6.0, x, cy + amp + 6.0, 1.0, knob(6));
+            }
+        }
+        if self.looping() {
             // loop: two small arrows turning round, over the ends of the window
             ring(frame, xe, cy - amp - 16.0, 4.0, 1.5, knob(6));
             ring(frame, xs, cy - amp - 16.0, 4.0, 1.5, knob(5));
@@ -527,7 +572,16 @@ impl InstrumentCartridge for Sampler {
         state::encode_f32s(STATE_VERSION, &self.values)
     }
     fn load_state(&mut self, data: &[u8]) {
-        state::decode_f32s(STATE_VERSION, data, &mut self.values);
+        if state::decode_f32s(STATE_VERSION, data, &mut self.values) {
+            return;
+        }
+        // version 1: `tune` was ±12 semitones and `loop` was off or on; the same sound as before
+        let mut old = self.values;
+        if state::decode_f32s(1, data, &mut old) {
+            old[3] = 0.25 + 0.5 * old[3];
+            old[6] = if old[6] >= 0.5 { 0.375 } else { 0.0 };
+            self.values = old;
+        }
     }
 }
 
@@ -620,7 +674,7 @@ mod tests {
     fn a_loop_keeps_going_while_the_key_is_held_and_fades_when_it_is_let_go() {
         let mut s = Sampler::with_user(vec![]);
         choose(&mut s, 2); // the pad
-        s.set_parameter(6, 1.0); // loop
+        s.set_parameter(6, 0.375); // loop
         s.set_parameter(2, 0.1); // a short window
         s.set_parameter(5, 0.3);
         let out = play(&mut s, 60, Some(60_000), 400);
@@ -704,6 +758,67 @@ mod tests {
         assert!(!s.load_sample(8, vec![0.1; 10]), "there are eight places, not nine");
         let out = play(&mut s, 60, None, 20);
         assert!(out.iter().any(|x| x.abs() > 0.05), "it plays what was put there");
+    }
+
+    fn slice_sound(s: &mut Sampler, note: u8) -> Vec<f32> {
+        s.set_parameter(5, 0.0); // a short release
+        play(s, note, None, 80)
+    }
+
+    // F-A22: with `loop` on slices the window is cut in equal parts and a note plays one of them, at its own pitch; C3 is the first, the
+    // notes go round after the last, and the length of what sounds is a slice.
+    #[test]
+    fn slices_make_a_kit_of_the_sound() {
+        let mut s = Sampler::with_user(vec![]);
+        choose(&mut s, 1); // the bell, 2 s = 96 000 samples
+        s.set_parameter(2, 1.0);
+        s.set_parameter(6, 0.625); // slices 8
+        assert_eq!(s.slices(), Some(8));
+        let len = s.window(s.bank[1].len()).1 - s.window(s.bank[1].len()).0;
+        let slice = len / 8.0;
+        let first = slice_sound(&mut s, 48);
+        assert!((last_sound(&first) as f64 - slice).abs() < 700.0, "a slice is an eighth of the window: {} of {slice}", last_sound(&first));
+        let mut s2 = Sampler::with_user(vec![]);
+        choose(&mut s2, 1);
+        s2.set_parameter(2, 1.0);
+        s2.set_parameter(6, 0.625);
+        let third = slice_sound(&mut s2, 50);
+        assert_ne!(first[..4000], third[..4000], "another note is another slice");
+        let mut s3 = Sampler::with_user(vec![]);
+        choose(&mut s3, 1);
+        s3.set_parameter(2, 1.0);
+        s3.set_parameter(6, 0.625);
+        let again = slice_sound(&mut s3, 56); // the ninth: round to the first
+        assert_eq!(first, again, "after the eighth the notes go round");
+        // the slices keep their pitch whatever the note: no key tracking
+        let mut s4 = Sampler::with_user(vec![]);
+        choose(&mut s4, 1);
+        s4.set_parameter(2, 1.0);
+        s4.set_parameter(6, 0.875); // slices 16
+        assert_eq!(s4.slices(), Some(16));
+        let a = slice_sound(&mut s4, 48);
+        assert!((last_sound(&a) as f64 - len / 16.0).abs() < 700.0, "sixteen: a sixteenth");
+    }
+
+    // F-A22: `tune` goes two octaves either way, and a project saved before (tune of ±12, loop on or off) sounds the same.
+    #[test]
+    fn tune_has_two_octaves_either_way_and_old_states_still_mean_the_same() {
+        let mut s = Sampler::with_user(vec![]);
+        choose(&mut s, 1);
+        s.set_parameter(5, 0.0);
+        s.set_parameter(3, 1.0); // +24 semitones: two octaves up: a quarter of the time
+        let up = play(&mut s, 60, None, 400);
+        assert!((last_sound(&up) as f64 - s.bank[1].len() as f64 / 4.0).abs() < 700.0, "{}", last_sound(&up));
+        // version 1: tune 0.75 was +6 semitones, loop 1.0 was on
+        let mut old = vec![1u8];
+        for v in [0.2f32, 0.0, 1.0, 0.75, 0.0, 0.3, 1.0, 0.8] {
+            old.extend_from_slice(&v.to_le_bytes());
+        }
+        let mut t = Sampler::with_user(vec![]);
+        t.load_state(&old);
+        assert!((t.tune_semitones() - 6.0).abs() < 1e-4, "the same +6: {}", t.tune_semitones());
+        assert!(t.looping() && t.slices().is_none(), "the loop is still a loop");
+        assert_eq!(t.save_state()[0], STATE_VERSION, "and it is saved as the new version");
     }
 
     // F-A16

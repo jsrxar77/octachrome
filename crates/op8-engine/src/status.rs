@@ -25,6 +25,8 @@ pub struct EngineStatus {
     /// SAMPLING: true while the engine is recording, how many samples are in `take`, and the
     /// loudest sample of the last block (f32 bits).
     pub recording: AtomicBool,
+    /// SAMPLING, armed: waiting for a sound louder than the threshold; `rec_peak` then follows the level of the source.
+    pub armed: AtomicBool,
     pub rec_len: AtomicU32,
     pub rec_peak: AtomicU32,
     /// What was recorded (mono, 48 kHz). Sized once, so the audio thread never allocates; only the
