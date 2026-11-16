@@ -56,7 +56,7 @@ impl<S: ControlSurface> App<S> {
             last_dump_ms: None,
             log_events: false,
             logged_playing: false,
-            logged_main: (op8_ui::Main::Instrument, op8_gfx::ThemeId::Matte),
+            logged_main: (op8_ui::Main::Instrument, op8_gfx::ThemeId::Chrome),
             settings_path: None,
             no_leds: false,
         }
@@ -82,11 +82,10 @@ impl<S: ControlSurface> App<S> {
             self.ctl.handle(ev, &mut self.handle, now_ms);
         }
         self.ctl.tick(&mut self.handle, now_ms);
-        if std::mem::take(&mut self.ctl.theme_changed) {
+        let changed = std::mem::take(&mut self.ctl.theme_changed) | std::mem::take(&mut self.ctl.settings_changed);
+        if changed {
             if let Some(path) = &self.settings_path {
-                let settings = crate::settings::Settings {
-                    theme: op8_gfx::theme_id(),
-                };
+                let settings = crate::settings::Settings { theme: op8_gfx::theme_id(), ..self.ctl.settings.clone() };
                 if let Err(e) = settings.save(path) {
                     eprintln!("settings: could not save {}: {e}", path.display());
                 }

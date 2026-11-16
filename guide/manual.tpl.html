@@ -4,7 +4,7 @@
 <link rel="icon" href="brand/op8-mark.svg" type="image/svg+xml">
 <link rel="stylesheet" href="site.css">
 <!--SOCIAL-->
-<meta name="description" content="The OP-8 manual: how the machine works, twenty-one recipes you can follow from the first minute, and every button.">
+<meta name="description" content="The OP-8 manual: how the machine works, twenty-two recipes you can follow from the first minute, and every button.">
 <style>
 @font-face{font-family:Jost;font-weight:300;src:url(fonts/Jost-Light.ttf)}
 @font-face{font-family:Jost;font-weight:400;src:url(fonts/Jost-Regular.ttf)}
@@ -380,7 +380,8 @@ __PIECE_ROWS__
   <p class="goal">Pick a theme.</p>
   <ol class="steps">
     <li><div>Press <kbd>SETTINGS</kbd>. Both screens become the settings: a card for each theme on the left, the eight knob colours on the right.</div></li>
-    <li><div>Turn the 4D encoder (or push it left and right). The theme changes at once, on the screens <i>and</i> on every light of the unit. There are three, in this order: <b>matte</b>, the one OP-8 starts with and the one this manual is drawn in, is soft and chalky; <b>glossy</b> is bright and saturated; <b>chrome</b> is one range from violet to blue.</div></li>
+    <li><div>Turn the 4D encoder (or push it left and right). The theme changes at once, on the screens <i>and</i> on every light of the unit. There are three, in this order: <b>chrome</b>, the one OP-8 starts with, is one range from violet to blue; <b>matte</b>, the one this manual is drawn in, is soft and chalky; <b>glossy</b> is bright and saturated.</div></li>
+    <li><div>The four buttons over the left screen name the <b>pages</b> of settings: <b>theme</b> (this one), <b>audio</b>, <b>midi</b> and <b>light</b> (recipe 22).</div></li>
     <li><div>Press <kbd>CHANNEL</kbd> (or <kbd>SETTINGS</kbd> again) to go back to composing. The theme is remembered the next time you start OP-8.</div></li>
   </ol>
   <figure><div class="pair"><img src="img/r14-settings-left.png" alt="Settings: the three themes."><img src="img/r14-glossy-left.png" alt="The left screen once the glossy theme is chosen."></div><figcaption>The three themes, and the same left screen after choosing <b>glossy</b>. While settings is open the pads and knobs do nothing; <kbd>PLAY</kbd>, <kbd>STOP</kbd> and <kbd>RESTART</kbd> still do.</figcaption></figure>
@@ -498,6 +499,22 @@ __PIECE_ROWS__
   <p class="next"><b>Try next:</b> record a drum loop from the demo, slice it in 16, and play the slices from the steps of another track in a new order.</p>
 </div>
 
+<div class="recipe" id="r22">
+  <h3>22 <span>SETTINGS: AUDIO, MIDI AND LIGHT</span></h3>
+  <p class="goal">Choose where the sound goes, which MIDI port plays, and how bright the unit is, without restarting.</p>
+  <ol class="steps">
+    <li><div>Press <kbd>SETTINGS</kbd>. The four buttons over the left screen are its pages. Press <kbd>2</kbd> (<b>audio</b>): the left screen lists the <b>outputs</b>, the first being <b>automatic</b> (the MK3's own if it is there, else the system's); the one that is open says <b>in use</b>. The right screen lists the <b>inputs</b> (what <kbd>SAMPLING</kbd> listens to) and the size of the <b>audio block</b>.</div></li>
+    <li><div>Turn the 4D encoder: the frame goes down the outputs, then to the inputs and the block. <b>Push</b> to choose. A new output opens at once (there is a moment of silence while it does) and is remembered for the next time. If it cannot be opened the line at the bottom says so and OP-8 keeps the automatic one: the machine is never left without sound.</div></li>
+    <li><div><b>Audio block:</b> 64, 128 or 256 frames. A smaller block answers faster and asks more of the machine; 128 is a good start, and on a Raspberry Pi 5 you can try 64. If you hear clicks, go up.</div></li>
+    <li><div>Press <kbd>3</kbd> (<b>midi</b>): the ports that can play a synth outside, one to a row. Push one to use it. <b>play a note</b> sends a short middle C on channel 1, to hear whether what you plugged in answers; <b>silence all</b> stops any note that is stuck.</div></li>
+    <li><div>Press <kbd>4</kbd> (<b>light</b>): four steps for the <b>screen</b> (25, 50, 75 and 100 %) and three levels for the <b>pads</b>. They are a <b>share of what the USB supply allows</b>, so 100 % is never brighter than the unit can take: a backlight that is too bright resets a MK3 that is fed too little (behind a hub, for example). It changes while you choose.</div></li>
+  </ol>
+  <figure><div class="pair"><img src="img/r22-audio-left.png" alt="The audio page: the outputs."><img src="img/r22-audio-right.png" alt="The audio page: the inputs and the audio block."></div><figcaption>Audio: the outputs on the left, the inputs and the block on the right.</figcaption></figure>
+  <figure><div class="pair"><img src="img/r22-midi-right.png" alt="The midi page: a test note and silence."><img src="img/r22-light-left.png" alt="The light page: the steps of the screen and of the pads."></div><figcaption>Left: the two buttons of the midi page. Right: the steps of the light.</figcaption></figure>
+  <div class="callout"><p>All of this is kept in <code>~/.config/op8/settings</code>, a few lines of text: <code>audio_out=</code>, <code>audio_in=</code>, <code>midi_out=</code>, <code>buffer=</code>, <code>screen=</code> and <code>pads=</code> (only what is not the default). The environment variables of the command line (<code>OP8_AUDIO_DEVICE</code> and the like) win over it.</p></div>
+  <p class="next"><b>Try next:</b> plug a second sound card in and choose it as the output; or turn the screen down to 50 % and the pads to 2 for a dark room.</p>
+</div>
+
 <h2 id="ideas">The ideas behind it</h2>
 <p class="sub">Short, so you can keep them in your head.</p>
 
@@ -573,7 +590,7 @@ __PRESET_ROWS__
   <tr><td>Their names</td><td>a <code>.name</code> file next to each: <code>user-1.name</code> …</td><td>written when you save (the day); change it with any text editor</td></tr>
   <tr><td>Your presets</td><td><code>presets/&lt;instrument&gt;/user-1.preset</code> …</td><td><kbd>BROWSER</kbd>, then <kbd>SHIFT</kbd> and a pad of the bottom two rows (recipe 17)</td></tr>
   <tr><td>Your mix</td><td>inside the project file</td><td>Hold <kbd>VOLUME</kbd> and turn the knobs, then save with <kbd>FILE</kbd> (recipes 19 and 12)</td></tr>
-  <tr><td>The look</td><td><code>settings</code></td><td><kbd>SETTINGS</kbd> and the 4D encoder (recipe 14)</td></tr>
+  <tr><td>The look, the audio, the MIDI port and the light</td><td><code>settings</code></td><td><kbd>SETTINGS</kbd> and the 4D encoder (recipes 14 and 22)</td></tr>
 </table>
 
 <h2 id="help">If something is odd</h2>

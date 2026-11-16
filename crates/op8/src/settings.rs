@@ -14,17 +14,44 @@ use std::{
     path::{Path, PathBuf},
 };
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+/// What the player chose in SETTINGS. A device is `None` for "automatic": the MK3's own if it is there, else the system's.
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Settings {
     pub theme: ThemeId,
+    /// The audio output, by (a part of) its name.
+    pub audio_out: Option<String>,
+    /// The audio input SAMPLING listens to.
+    pub audio_in: Option<String>,
+    /// Frames per audio block: 64, 128 or 256 (`None`: 128, or `OP8_BUFFER`).
+    pub buffer: Option<u32>,
+    /// The MIDI output port.
+    pub midi_out: Option<String>,
+    /// The screen backlight as a step of what the supply allows: 1 to 4 (25, 50, 75 and 100 %).
+    pub screen: u8,
+    /// The highest level of the pad LEDs: 1 to 3.
+    pub pads: u8,
 }
 
 impl Default for Settings {
     fn default() -> Self {
-        Self {
-            theme: ThemeId::Matte,
-        }
+        Self { theme: ThemeId::Chrome, audio_out: None, audio_in: None, buffer: None, midi_out: None, screen: SCREEN_STEPS, pads: 3 }
     }
+}
+
+/// The backlight steps, as shares of what the supply allows: the last is the whole of it, never more.
+pub const SCREEN_STEPS: u8 = 4;
+/// The audio block sizes the player can choose from.
+pub const BUFFERS: [u32; 3] = [64, 128, 256];
+
+/// The share of the allowed backlight for a step (1..=4): a quarter, a half, three quarters and all of it.
+pub fn screen_share(step: u8) -> f32 {
+    step.clamp(1, SCREEN_STEPS) as f32 / SCREEN_STEPS as f32
+}
+
+/// The light to ask of the surface: the theme's, with the player's steps put on it (a share of the backlight and a cap on the pad LEDs).
+/// It is a share of what the supply allows, so it can only be less, never more.
+pub fn effective_light(theme: op8_gfx::Light, screen: u8, pads: u8) -> op8_gfx::Light {
+    op8_gfx::Light { backlight: theme.backlight * screen_share(screen), led_level: theme.led_level.min(pads.clamp(1, 3)), mono: theme.mono }
 }
 
 /// The theme a name stands for; the names `-t` and `OP8_THEME` accept.
@@ -54,17 +81,45 @@ impl Settings {
             let Some((key, value)) = line.split_once('=') else {
                 continue;
             };
-            if key.trim() == "theme" {
-                if let Some(id) = theme_from_name(value) {
-                    s.theme = id;
+            let (key, value) = (key.trim(), value.trim());
+            let name = || Some(value.to_string()).filter(|v| !v.is_empty() && v != "auto");
+            match key {
+                "theme" => {
+                    if let Some(id) = theme_from_name(value) {
+                        s.theme = id;
+                    }
                 }
+                "audio_out" => s.audio_out = name(),
+                "audio_in" => s.audio_in = name(),
+                "midi_out" => s.midi_out = name(),
+                "buffer" => s.buffer = value.parse().ok().filter(|b| BUFFERS.contains(b)),
+                "screen" => s.screen = value.parse().ok().filter(|v| (1..=SCREEN_STEPS).contains(v)).unwrap_or(s.screen),
+                "pads" => s.pads = value.parse().ok().filter(|v| (1..=3).contains(v)).unwrap_or(s.pads),
+                _ => {}
             }
         }
         s
     }
 
+    /// The file: the theme always, and the rest only where it is not the default (so a file that is only a theme stays one line).
     pub fn render(&self) -> String {
-        format!("theme={}\n", theme_name(self.theme))
+        let d = Self::default();
+        let mut out = format!("theme={}\n", theme_name(self.theme));
+        for (key, value) in [("audio_out", &self.audio_out), ("audio_in", &self.audio_in), ("midi_out", &self.midi_out)] {
+            if let Some(v) = value {
+                out.push_str(&format!("{key}={v}\n"));
+            }
+        }
+        if let Some(b) = self.buffer {
+            out.push_str(&format!("buffer={b}\n"));
+        }
+        if self.screen != d.screen {
+            out.push_str(&format!("screen={}\n", self.screen));
+        }
+        if self.pads != d.pads {
+            out.push_str(&format!("pads={}\n", self.pads));
+        }
+        out
     }
 
     /// Settings from `path`; the defaults if it is missing or unreadable.
@@ -110,7 +165,7 @@ mod tests {
     #[test]
     fn round_trips_every_theme() {
         for id in ThemeId::ALL {
-            let s = Settings { theme: id };
+            let s = Settings { theme: id, ..Settings::default() };
             assert_eq!(Settings::parse(&s.render()), s, "{id:?}");
         }
     }
@@ -156,9 +211,7 @@ mod tests {
         let path = dir.join("nested").join("settings");
         let _ = std::fs::remove_dir_all(&dir);
         assert_eq!(Settings::load(&path), Settings::default(), "missing file");
-        let s = Settings {
-            theme: ThemeId::Chrome,
-        };
+        let s = Settings { theme: ThemeId::Matte, ..Settings::default() };
         s.save(&path).expect("save");
         assert_eq!(Settings::load(&path), s);
         assert!(!path.with_extension("tmp").exists(), "temp file left behind");
@@ -168,9 +221,38 @@ mod tests {
     // F-D17
     #[test]
     fn matte_is_the_default_and_comes_first() {
-        assert_eq!(Settings::default().theme, ThemeId::Matte);
-        assert_eq!(ThemeId::ALL[0], ThemeId::Matte);
-        assert_eq!(ThemeId::Matte.next(), ThemeId::Glossy, "the order is matte, glossy, chrome");
-        assert_eq!(ThemeId::Chrome.next(), ThemeId::Matte);
+        assert_eq!(Settings::default().theme, ThemeId::Chrome);
+        assert_eq!(ThemeId::ALL[0], ThemeId::Chrome);
+        assert_eq!(ThemeId::Chrome.next(), ThemeId::Matte, "the order is chrome, matte, glossy");
+        assert_eq!(ThemeId::Glossy.next(), ThemeId::Chrome);
+    }
+
+    // F-C13: the devices, the buffer, the backlight step and the pad level are kept in the file; a file that is only a theme stays one line,
+    // "auto" or nothing is automatic, and a value that makes no sense is the default.
+    #[test]
+    fn the_devices_and_the_light_are_kept_in_the_file() {
+        let s = Settings {
+            theme: ThemeId::Glossy,
+            audio_out: Some("Maschine MK3".into()),
+            audio_in: Some("Scarlett 2i2".into()),
+            buffer: Some(64),
+            midi_out: Some("Maschine".into()),
+            screen: 2,
+            pads: 1,
+        };
+        let text = s.render();
+        assert_eq!(Settings::parse(&text), s, "{text}");
+        assert_eq!(Settings { theme: ThemeId::Matte, ..Settings::default() }.render(), "theme=matte\n", "only what is not the default is written");
+        let d = Settings::default();
+        for bad in ["audio_out=\n", "audio_out=auto\n", "buffer=100\n", "buffer=x\n", "screen=0\n", "screen=9\n", "pads=4\n", "pads=\n"] {
+            assert_eq!(Settings::parse(bad), d, "{bad:?}");
+        }
+        assert_eq!(Settings::parse("screen=3\nbuffer=256\n").screen, 3);
+        // the light is the theme's, with the steps put on it, and never more than the theme asked
+        let theme = op8_gfx::Light { backlight: 0.8, led_level: 3, mono: 0.9 };
+        let l = effective_light(theme, 2, 2);
+        assert!((l.backlight - 0.4).abs() < 1e-6 && l.led_level == 2 && l.mono == 0.9);
+        assert_eq!(effective_light(theme, SCREEN_STEPS, 3), theme, "the last step is all of it");
+        assert_eq!(effective_light(op8_gfx::Light { backlight: 1.0, led_level: 2, mono: 1.0 }, 4, 3).led_level, 2, "a cap is never raised");
     }
 }

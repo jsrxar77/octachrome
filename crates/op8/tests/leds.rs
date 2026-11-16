@@ -109,8 +109,10 @@ fn f_l09_buttons_are_dark_faint_or_strong() {
     assert!(strong(&b, Button::Settings) && faint(&b, Button::ChannelMidi), "settings has the focus");
     assert!(off(&b, Button::Mute) && off(&b, Button::Erase), "nothing to mute or erase in settings");
     assert!(faint(&b, Button::JogLeft), "◀ ▶ choose the theme");
-    for n in 1..=8u8 {
-        assert!(off(&b, Button::Screen(n)), "the screen buttons do nothing in settings");
+    // the four pages are the buttons 1 to 4 (the open one strong), the buttons of the right screen do nothing
+    assert!(strong(&b, Button::Screen(1)) && faint(&b, Button::Screen(2)) && faint(&b, Button::Screen(3)) && faint(&b, Button::Screen(4)), "the pages of settings");
+    for n in 5..=8u8 {
+        assert!(off(&b, Button::Screen(n)), "the buttons of the right screen do nothing in settings");
     }
     assert!(!off(&b, Button::Play) && !off(&b, Button::Restart) && !off(&b, Button::Stop), "the transport still works");
 }

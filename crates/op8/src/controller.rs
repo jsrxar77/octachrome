@@ -167,6 +167,49 @@ pub struct Controller {
     punch_base: f32,
     /// Set when the encoder changes the theme; the app saves it and clears this.
     pub theme_changed: bool,
+    /// What the player chose in SETTINGS (the devices, the buffer, the light; the theme is `op8_gfx::theme_id()`). Whoever starts the
+    /// machine puts the saved settings here before the first frame.
+    pub settings: crate::settings::Settings,
+    /// Set when something of `settings` changed; the app saves it and clears this.
+    pub settings_changed: bool,
+    /// What SETTINGS asks of the hardware, for whoever can reach it (the main loop of the unit) to do and answer with
+    /// [`Controller::devices_listed`].
+    pub requests: Vec<Request>,
+}
+
+/// Something SETTINGS asks of the audio, the MIDI port or the surface: the controller does not hold them.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Request {
+    /// Look at the audio outputs and inputs and the MIDI ports, and what is open now.
+    ListDevices,
+    /// Use this audio output (`None`: automatic), and reopen the stream.
+    AudioOut(Option<String>),
+    AudioIn(Option<String>),
+    /// Use this many frames in each audio block.
+    Buffer(u32),
+    /// Use this MIDI output port (`None`: automatic).
+    MidiPort(Option<String>),
+    /// Play a short note on the MIDI port, to hear whether what is plugged in answers.
+    MidiTest,
+    /// Silence everything on the MIDI port.
+    MidiPanic,
+}
+
+/// What the hardware has, as it answers [`Request::ListDevices`] and the requests that change it.
+#[derive(Clone, Debug, Default)]
+pub struct DeviceList {
+    pub outs: Vec<String>,
+    pub ins: Vec<String>,
+    pub ports: Vec<String>,
+    pub out_now: String,
+    pub in_now: String,
+    pub port_now: String,
+    /// What the audio stream says it has (`48 kHz · 2 ch · buffer 128`).
+    pub stream_now: String,
+    /// What the supply allows (`the host gives the MK3 480 mA: limited…`).
+    pub supply: String,
+    /// What to tell the player, if anything.
+    pub note: Option<String>,
 }
 
 #[derive(Default, Clone, Copy)]
@@ -198,7 +241,7 @@ impl Controller {
             ControlEvent::Pad { pad, event } if self.ui.main == Main::Browser => self.browser_pad(pad, event, h),
             ControlEvent::Knob { index, delta } if self.ui.main == Main::Sampling => self.sampling_knob(index as usize, delta, h),
             ControlEvent::Pad { .. } | ControlEvent::Knob { .. } if self.ui.main != Main::Instrument => {}
-            ControlEvent::Encoder { delta } if self.ui.main == Main::Settings => {
+            ControlEvent::Encoder { delta } if self.ui.main == Main::Settings && self.ui.settings.page == 0 => {
                 self.step_theme(delta)
             }
             // the 4D encoder moves the focus (or turns the value that is grabbed) wherever there are items to reach
@@ -364,6 +407,8 @@ impl Controller {
             Button::JogLeft if self.ui.main == Main::Settings => self.step_theme(-1),
             Button::JogRight if self.ui.main == Main::Settings => self.step_theme(1),
             // Screen buttons: 1 = step view, 2 = components of the first step, 5 = sound, 6 = shape.
+            // the four pages of settings are the buttons over the left screen
+            Button::Screen(n @ 1..=4) if self.ui.main == Main::Settings => self.set_settings_page(n - 1),
             Button::Screen(1) if self.ui.main == Main::Instrument => self.set_mode(Mode::Step, h),
             Button::Screen(3) if self.ui.main == Main::Instrument => self.open_left(LeftPage::Players, h),
             Button::Screen(4) if self.ui.main == Main::Instrument => self.open_left(LeftPage::Bar, h),
@@ -480,6 +525,7 @@ impl Controller {
         let Some(item) = op8_ui::nav_focused(&self.ui) else { return };
         match item.kind {
             NavKind::Value(_) => self.ui.grabbed = !self.ui.grabbed,
+            NavKind::Pick(n) => self.settings_pick(n as usize),
             // a component of the inspector: grab it (turning changes its kind, as knob 4 does) or let go
             NavKind::Comp(i) => {
                 self.ui.comp_cursor = i as usize;
@@ -1190,6 +1236,14 @@ impl Controller {
         // the player may have copied WAV files into the folder: the sounds that are new are put in the instruments that play
         let news = if matches!(m, Main::Plugin | Main::Sampling) && self.ui.main != m { self.rescan_samples(h) } else { 0 };
         let heard = |n: usize| if n == 0 { String::new() } else { format!("loaded {n} {} from the folder", if n == 1 { "sound" } else { "sounds" }) };
+        if m == Main::Settings {
+            // the pages that show devices look at them when settings opens
+            self.ui.settings.note.clear();
+            self.sync_settings_view();
+            if matches!(self.ui.settings.page, 1 | 2) {
+                self.requests.push(Request::ListDevices);
+            }
+        }
         if m == Main::Plugin {
             self.refresh_plugs(h);
             self.ui.plug_note = heard(news);
@@ -1216,6 +1270,7 @@ impl Controller {
             Main::Plugin => NavKind::Cell(self.ui.plug_current.unwrap_or(0) as u8),
             // composing: on the track you are working on
             Main::Instrument => NavKind::Track(self.ui.track as u8),
+            Main::Settings => NavKind::Pick(0),
             _ => NavKind::Cell(0),
         };
         self.ui.inspect_step = None;
@@ -1231,7 +1286,85 @@ impl Controller {
         if next != theme_id() {
             set_theme(next);
             self.theme_changed = true;
+            self.settings_changed = true;
         }
+    }
+
+    /// Open a page of settings (0 theme, 1 audio, 2 midi, 3 light). The pages that show devices ask for the lists.
+    fn set_settings_page(&mut self, page: u8) {
+        self.ui.settings.page = page.min(3);
+        self.ui.settings.note.clear();
+        self.ui.grabbed = false;
+        self.ui.focus = NavKind::Pick(0);
+        self.sync_settings_view();
+        if matches!(page, 1 | 2) {
+            self.requests.push(Request::ListDevices);
+        }
+    }
+
+    /// The choices that are kept, as the pages show them: the entry of each list that is chosen (0 is automatic), the block, the steps of
+    /// the light.
+    fn sync_settings_view(&mut self) {
+        let (s, v) = (&self.settings, &mut self.ui.settings);
+        let at = |list: &[String], want: &Option<String>| want.as_ref().and_then(|w| list.iter().position(|n| n.contains(w.as_str()))).map_or(0, |i| i + 1);
+        v.out_sel = at(&v.outs, &s.audio_out);
+        v.in_sel = at(&v.ins, &s.audio_in);
+        v.port_sel = at(&v.ports, &s.midi_out);
+        v.buffer = s.buffer.unwrap_or(128);
+        v.screen = s.screen;
+        v.pads = s.pads;
+    }
+
+    /// What the hardware answered: the lists and what is open.
+    pub fn devices_listed(&mut self, d: DeviceList) {
+        let v = &mut self.ui.settings;
+        (v.outs, v.ins, v.ports) = (d.outs, d.ins, d.ports);
+        (v.out_now, v.in_now, v.port_now, v.stream_now) = (d.out_now, d.in_now, d.port_now, d.stream_now);
+        if !d.supply.is_empty() {
+            v.supply = d.supply;
+        }
+        if let Some(note) = d.note {
+            v.note = note;
+        }
+        self.sync_settings_view();
+    }
+
+    /// Push on a choice of the open page of settings: use that device, that block, that step of the light, or do what the button says.
+    fn settings_pick(&mut self, n: usize) {
+        use crate::settings::BUFFERS;
+        let name = |list: &[String], row: usize| (row > 0).then(|| list.get(row - 1).cloned()).flatten();
+        match (self.ui.settings.page, n) {
+            (1, 0..=7) => {
+                self.settings.audio_out = name(&self.ui.settings.outs, n);
+                self.requests.push(Request::AudioOut(self.settings.audio_out.clone()));
+                self.ui.settings.note = "opening it…".into();
+            }
+            (1, 8..=11) => {
+                self.settings.audio_in = name(&self.ui.settings.ins, n - 8);
+                self.requests.push(Request::AudioIn(self.settings.audio_in.clone()));
+                self.ui.settings.note = "it opens when SAMPLING needs it".into();
+            }
+            (1, 16..=18) => {
+                let b = BUFFERS[n - 16];
+                self.settings.buffer = Some(b);
+                self.requests.push(Request::Buffer(b));
+                self.ui.settings.note = "reopening the audio…".into();
+            }
+            (2, 0..=7) => {
+                self.settings.midi_out = name(&self.ui.settings.ports, n);
+                self.requests.push(Request::MidiPort(self.settings.midi_out.clone()));
+                self.ui.settings.note = "opening it…".into();
+            }
+            (2, 8) => self.requests.push(Request::MidiTest),
+            (2, 9) => self.requests.push(Request::MidiPanic),
+            (3, 0..=3) => self.settings.screen = n as u8 + 1,
+            (3, 4..=6) => self.settings.pads = n as u8 - 3,
+            _ => return,
+        }
+        if !matches!((self.ui.settings.page, n), (2, 8 | 9)) {
+            self.settings_changed = true;
+        }
+        self.sync_settings_view();
     }
 
     fn step_pad(&mut self, pad: u8, ev: PadEvent, h: &mut EngineHandle, now: u64) {

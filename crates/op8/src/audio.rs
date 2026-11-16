@@ -12,6 +12,10 @@
 //! * `OP8_AUDIO_INPUT` — substring of the input device name (SAMPLING). Default: the
 //!   Maschine MK3's own interface if present, else the system default.
 //! * `OP8_BUFFER` — frames per callback, default 128 (try 64 on a Pi 5).
+//!
+//! What the player chooses in SETTINGS (`audio_out`, `audio_in`, `buffer`) is held in [`Prefs`] and read when a stream is opened; the
+//! environment variables win over it. A device that is not there, or that cannot be opened, falls back to the automatic choice, and
+//! [`Audio::now`] says what is really open.
 
 use anyhow::{anyhow, Context, Result};
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
@@ -26,6 +30,37 @@ use std::{
 };
 
 const SCRATCH: usize = 4096;
+
+/// The player's choices from SETTINGS, for the streams to read when they open.
+#[derive(Clone, Debug, Default)]
+pub struct Prefs {
+    pub out: Option<String>,
+    pub input: Option<String>,
+    pub buffer: Option<u32>,
+}
+
+static PREFS: Mutex<Prefs> = Mutex::new(Prefs { out: None, input: None, buffer: None });
+
+fn prefs() -> Prefs {
+    PREFS.lock().map(|p| p.clone()).unwrap_or_default()
+}
+
+/// Use these choices the next time a stream opens (see [`Audio::restart`] and [`AudioIn::restart`]).
+pub fn set_prefs(p: Prefs) {
+    if let Ok(mut g) = PREFS.lock() {
+        *g = p;
+    }
+}
+
+/// The names of the audio outputs the system has.
+pub fn list_outputs() -> Vec<String> {
+    cpal::default_host().output_devices().map(|d| d.filter_map(|d| d.name().ok()).collect()).unwrap_or_default()
+}
+
+/// The names of the audio inputs the system has.
+pub fn list_inputs() -> Vec<String> {
+    cpal::default_host().input_devices().map(|d| d.filter_map(|d| d.name().ok()).collect()).unwrap_or_default()
+}
 /// How often a missing or failed stream is tried again.
 const RETRY: Duration = Duration::from_secs(1);
 /// After a running stream dies the device has usually just reset; reopening it
@@ -40,6 +75,10 @@ pub struct AudioOut {
 }
 
 impl AudioOut {
+    fn describe_stream(&self) -> String {
+        format!("48 kHz · {} ch · buffer {}", self.channels, self.buffer)
+    }
+
     fn describe(&self) -> String {
         format!(
             "audio: {} · {} ch · 48 kHz · buffer {}",
@@ -83,6 +122,15 @@ impl<S> Keeper<S> {
     /// The flag a stream's error callback sets when it dies.
     pub fn failed_flag(&self) -> Arc<AtomicBool> {
         self.failed.clone()
+    }
+
+    /// Let go of the stream and open another at the next tick, at once: the player chose another device.
+    pub fn restart(&mut self) {
+        self.current = None;
+        self.last_try = None;
+        self.last_error = None;
+        self.not_before = None;
+        self.failed.store(false, Relaxed);
     }
 
     pub fn current(&self) -> Option<&S> {
@@ -148,6 +196,16 @@ impl Audio {
         }
     }
 
+    /// Close the stream and open it again with what SETTINGS chose (see [`set_prefs`]).
+    pub fn restart(&mut self) {
+        self.keeper.restart();
+    }
+
+    /// What is open: the device and the stream's own account of itself.
+    pub fn now(&self) -> Option<(String, String)> {
+        self.keeper.current().map(|o| (o.device.clone(), o.describe_stream()))
+    }
+
     /// Opens the stream, reopens it after a failure, and returns a line to
     /// print when something changed.
     pub fn keep_alive(&mut self) -> Option<String> {
@@ -161,8 +219,20 @@ impl Audio {
 }
 
 fn start(engine: Arc<Mutex<Engine>>, failed: Arc<AtomicBool>) -> Result<AudioOut> {
+    let chosen = std::env::var("OP8_AUDIO_DEVICE").ok().or_else(|| prefs().out);
+    match open_output(engine.clone(), failed.clone(), chosen.as_deref()) {
+        // the device the player chose cannot be opened: the automatic one, so that the machine is never left without sound
+        Err(e) if chosen.is_some() => {
+            eprintln!("audio: {:?} did not open ({e:#}); using the automatic one", chosen.unwrap_or_default());
+            open_output(engine, failed, None)
+        }
+        other => other,
+    }
+}
+
+fn open_output(engine: Arc<Mutex<Engine>>, failed: Arc<AtomicBool>, want: Option<&str>) -> Result<AudioOut> {
     let host = cpal::default_host();
-    let want = std::env::var("OP8_AUDIO_DEVICE").ok();
+    let want = want.map(str::to_string);
     let mut devices: Vec<cpal::Device> = host
         .output_devices()
         .context("listing audio outputs")?
@@ -186,6 +256,7 @@ fn start(engine: Arc<Mutex<Engine>>, failed: Arc<AtomicBool>) -> Result<AudioOut
     let frames: u32 = std::env::var("OP8_BUFFER")
         .ok()
         .and_then(|s| s.parse().ok())
+        .or(prefs().buffer)
         .unwrap_or(128);
     let mut config = cpal::StreamConfig {
         channels,
@@ -279,12 +350,27 @@ pub struct AudioIn {
     keeper: Keeper<cpal::Stream>,
     tx: Arc<Mutex<rtrb::Producer<f32>>>,
     rx: Option<Box<rtrb::Consumer<f32>>>,
+    /// The name of the device that is open (written when the stream starts).
+    name: Arc<Mutex<Option<String>>>,
 }
 
 impl AudioIn {
     pub fn new() -> Self {
         let (tx, rx) = rtrb::RingBuffer::new(48_000);
-        Self { keeper: Keeper::new(), tx: Arc::new(Mutex::new(tx)), rx: Some(Box::new(rx)) }
+        Self { keeper: Keeper::new(), tx: Arc::new(Mutex::new(tx)), rx: Some(Box::new(rx)), name: Arc::new(Mutex::new(None)) }
+    }
+
+    /// Close the input and open it again with what SETTINGS chose (it opens when SAMPLING needs it).
+    pub fn restart(&mut self) {
+        self.keeper.restart();
+        if let Ok(mut n) = self.name.lock() {
+            *n = None;
+        }
+    }
+
+    /// The input that is open, if SAMPLING has opened one.
+    pub fn now(&self) -> Option<String> {
+        self.name.lock().ok().and_then(|n| n.clone())
     }
 
     /// The end of the ring that the engine reads (once).
@@ -294,8 +380,8 @@ impl AudioIn {
 
     /// Opens the input stream if there is none, and reopens it after a failure.
     pub fn keep_alive(&mut self) -> Option<String> {
-        let tx = self.tx.clone();
-        let change = self.keeper.tick(Instant::now(), |failed| start_input(tx, failed.clone()))?;
+        let (tx, name) = (self.tx.clone(), self.name.clone());
+        let change = self.keeper.tick(Instant::now(), |failed| start_input(tx, failed.clone(), name))?;
         Some(match change {
             Change::Started => "audio input: open".to_string(),
             Change::Failed(e) => format!("audio input: {e}; trying again"),
@@ -309,15 +395,18 @@ impl Default for AudioIn {
     }
 }
 
-fn start_input(tx: Arc<Mutex<rtrb::Producer<f32>>>, failed: Arc<AtomicBool>) -> Result<cpal::Stream> {
+fn start_input(tx: Arc<Mutex<rtrb::Producer<f32>>>, failed: Arc<AtomicBool>, name: Arc<Mutex<Option<String>>>) -> Result<cpal::Stream> {
     let host = cpal::default_host();
-    let want = std::env::var("OP8_AUDIO_INPUT").ok();
+    let want = std::env::var("OP8_AUDIO_INPUT").ok().or_else(|| prefs().input);
     let mut devices: Vec<cpal::Device> = host.input_devices().context("listing audio inputs")?.collect();
     let pick = |name: &str| devices.iter().position(|d| d.name().is_ok_and(|n| n.contains(name)));
     let device = match want.as_deref().and_then(pick).or_else(|| pick("Maschine")) {
         Some(i) => devices.swap_remove(i),
         None => host.default_input_device().ok_or_else(|| anyhow!("no audio input device"))?,
     };
+    if let Ok(mut n) = name.lock() {
+        *n = device.name().ok();
+    }
     let default = device.default_input_config().context("querying input config")?;
     let channels = default.channels();
     let config = cpal::StreamConfig {

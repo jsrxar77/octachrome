@@ -128,7 +128,7 @@ canvas.lcd {
     <h1>OP-8 Twin</h1>
     <p>Gemelo de la Maschine MK3 con el motor OP-8: las mismas pantallas de 480×272, los mismos controles y un secuenciador con polimetría, Step Components, Brain y Punch-in FX. Tocá PLAY para escuchar.</p>
     <div class="look">
-      <span>tema</span><button data-look="theme" data-v="matte">matte</button><button data-look="theme" data-v="glossy">glossy</button><button data-look="theme" data-v="chrome">chrome</button>
+      <span>tema</span><button data-look="theme" data-v="chrome">chrome</button><button data-look="theme" data-v="matte">matte</button><button data-look="theme" data-v="glossy">glossy</button>
     </div>
   </header>
 
@@ -895,7 +895,7 @@ function setMode(m) {
 }
 // Main modes: CHANNEL composes (sequencer left, instrument right); SETTINGS
 // takes both screens for the machine's settings (theme for now).
-const THEME_IDS = ["matte", "glossy", "chrome"];
+const THEME_IDS = ["chrome", "matte", "glossy"]; // chrome is the default (Javi, 2026-11-16), then matte and glossy
 function setMain(m) { UI.grabbed = false; UI.focus = m === "file" ? { k: "cell", i: UI.fileLast ?? 0 } : m === "plugin" ? { k: "cell", i: Math.max(0, plugCells().cur) } : m === "instrument" ? { k: "track", i: UI.track } : { k: "cell", i: 0 }; if (m === "browser") { UI.brNote = ""; UI.brLast = null; } if (UI.main === "sampling" && m !== "sampling") { SMP.rec = false; SMP.armed = false; } if (m === "sampling") SMP.note = ""; UI.main = m; UI.inspect = null; inspectorPad = null; if (m === "file") { UI.fileNote = ""; } if (m === "plugin") UI.plugNote = ""; }
 function themeStep(d) { LOOK.theme = THEME_IDS[((THEME_IDS.indexOf(LOOK.theme) + d) % 3 + 3) % 3]; applyLook(); }
 function groupPress(g) {
@@ -1068,6 +1068,7 @@ function navItems() {
   const cell = i => ({ k: "cell", i, s: 0, x: 12 + (i % 4) * 114, y: 44 + Math.floor(i / 4) * 48, w: 108, h: 42 });
   if (["file", "plugin", "browser"].includes(UI.main)) return Array.from({ length: 16 }, (_, i) => cell(i));
   if (UI.main === "sampling") return [...Array.from({ length: 16 }, (_, i) => cell(i)), ...Array.from({ length: 4 }, (_, k) => ({ k: "value", i: 4 + k, s: 1, x: 60 + k * 120 - 52, y: 224, w: 104, h: 42 }))];
+  if (UI.main === "settings") return settingsItems();
   if (UI.main !== "instrument") return [];
   const slot = SLOTS[UI.track], second = slot && CARTS[slot].params.length > 4;
   const NAMES = ["step", "components", "players", "bar", "sound", "shape", "fx", "mod"], cv = document.createElement("canvas").getContext("2d");
@@ -1104,7 +1105,8 @@ function navTurn(d) {
 function navPush() {
   const items = navItems(); const it = items[navIndex(items)]; if (!it) return;
   const padOf = i => [...Array(16).keys()].find(q => padToStep(q) === i);
-  if (it.k === "value") UI.grabbed = !UI.grabbed;
+  if (it.k === "pick") settingsPick(it.i);
+  else if (it.k === "value") UI.grabbed = !UI.grabbed;
   else if (it.k === "comp") { UI.compCursor = it.i; UI.grabbed = !UI.grabbed; } // grab it: turning changes its kind, as knob 4 does
   else if (it.k === "sound") { PARAMS[UI.track][7] = (it.i + .5) / 8; drumsSync(UI.track, 7); DRUMS.hit[it.i] = 1; if (actx) playDrums(UI.track, actx.currentTime, 60 + it.i, .9); } // the kit's sound is parameter 7, what the knob `sound` sets
   else if (it.k === "strip") $("sb" + (it.i + 1)).click();
@@ -1124,7 +1126,7 @@ function navRing(g, screen) {
 }
 function jogOctave(d) { UI.octave = clamp(UI.octave + d, -2, 4); UI.down.fill(false); }
 function jog(d) {
-  if (UI.main === "settings") { themeStep(d); return; }
+  if (UI.main === "settings" && SET.page === 0) { themeStep(d); return; }
   if (navOn() && !UI.held) { navTurn(d); return; }
   if (UI.held === "swing") { P.swing = clamp(P.swing + d * 0.005, 0.5, 0.75); return; }
   if (UI.held === "volume") { VOL = clamp(VOL + d * 0.01, 0, 1); if (master) master.gain.value = 0.8 * VOL; return; }
@@ -1164,7 +1166,7 @@ const THEMES = {
 };
 let BG, FG, DIM, FAINT, KC, PANEL, REC, FONT;
 const prefs = (() => { try { return JSON.parse(localStorage.getItem("op8-look") || "{}"); } catch { return {}; } })();
-const LOOK = { theme: THEMES[prefs.theme] ? prefs.theme : "matte" };
+const LOOK = { theme: THEMES[prefs.theme] ? prefs.theme : "chrome", screen: [1, 2, 3, 4].includes(prefs.screen) ? prefs.screen : 4, pads: [1, 2, 3].includes(prefs.pads) ? prefs.pads : 3 };
 function applyLook() {
   const t = THEMES[LOOK.theme];
   BG = t.bg; FG = t.fg; DIM = t.dim; FAINT = t.faint; KC = t.knobs; PANEL = t.panel; REC = t.rec;
@@ -1175,6 +1177,7 @@ function applyLook() {
     mid: '400 21px "Jost", sans-serif', big: '300 34px "Jost", sans-serif', huge: '300 62px "Jost", sans-serif' };
   if (document.fonts) Object.values(FONT).forEach(x => document.fonts.load(x).catch(() => {}));
   try { localStorage.setItem("op8-look", JSON.stringify(LOOK)); } catch {}
+  document.querySelectorAll("canvas.lcd").forEach(c => c.style.filter = "brightness(" + (0.25 + 0.75 * lightShare()).toFixed(2) + ")"); // the backlight step dims the twin's screens
   document.querySelectorAll("[data-look]").forEach(b => b.classList.toggle("on", LOOK[b.dataset.look] === b.dataset.v));
   document.querySelectorAll(".knob-dot").forEach((d, i) => d.style.color = KC[i]);
 }
@@ -1265,7 +1268,40 @@ function touchOverlay(g, cells, base) {
 // outlined. Right: the 8 encoder colours as dials and the track colours, in the
 // active theme. The theme applies live, so the screens themselves are the
 // preview. Nothing is shown for a control that does nothing here (rule 11).
-function settingsBar(g, title) { dot(g, 16, 15, 6, FG); txt(g, title, 30, 6, "mid", FG); }
+function settingsBar(g, title, cy = 15) { dot(g, 16, cy, 6, FG); txt(g, title, 30, cy - 9, "mid", FG); }
+// ---- settings in four pages (crates/op8-ui/src/settings.rs, Controller::settings_pick): theme, audio, midi, light. The twin has no devices: it
+// lists some for the look, and what is chosen is only remembered; the light (the backlight step and the pad level) does dim the twin.
+const SET = { page: 0, outs: ["Maschine MK3", "MacBook Pro Speakers", "USB Audio"], ins: ["Maschine MK3", "Scarlett 2i2"], ports: ["Maschine MK3 MIDI", "IAC Driver Bus 1"], out: 0, inp: 0, port: 0, buffer: 128, note: "" };
+const PAGES = ["theme", "audio", "midi", "light"], BUFFERS = [64, 128, 256];
+const listLen = (n, screen) => Math.min(1 + n, screen === 0 ? 8 : 4);
+function pickRect(page, n) { // [screen, x, y, w, h]
+  if ((page === 1 || page === 2) && n < 8) return [0, 12, 52 + n * 26, 456, 24];
+  if (page === 1 && n >= 8 && n < 12) return [1, 12, 40 + (n - 8) * 26, 456, 24];
+  if (page === 1 && n >= 16 && n < 19) return [1, 12 + (n - 16) * 152, 176, 144, 30];
+  if (page === 2 && n === 8) return [1, 12, 60, 224, 36];
+  if (page === 2 && n === 9) return [1, 244, 60, 224, 36];
+  if (page === 3 && n < 4) return [0, 12 + n * 114, 72, 108, 60];
+  if (page === 3 && n >= 4 && n < 7) return [0, 12 + (n - 4) * 152, 176, 144, 70];
+  return [0, 0, 0, 0, 0];
+}
+function settingsItems() {
+  const ids = SET.page === 1 ? [...Array(listLen(SET.outs.length, 0)).keys(), ...Array.from({ length: listLen(SET.ins.length, 1) }, (_, i) => 8 + i), 16, 17, 18]
+    : SET.page === 2 ? [...Array(listLen(SET.ports.length, 0)).keys(), 8, 9] : SET.page === 3 ? [...Array(7).keys()] : [];
+  return ids.map(n => { const [sc, x, y, w, h] = pickRect(SET.page, n); return { k: "pick", i: n, s: sc, x, y, w, h }; });
+}
+function settingsPage(n) { SET.page = n; SET.note = ""; UI.grabbed = false; UI.focus = { k: "pick", i: 0 }; }
+function settingsPick(n) {
+  const pg = SET.page, name = (list, r) => r > 0 ? list[r - 1] : null;
+  if (pg === 1 && n < 8) { SET.out = n; SET.note = "opening it… (the twin has no audio devices)"; }
+  else if (pg === 1 && n < 12) { SET.inp = n - 8; SET.note = "it opens when SAMPLING needs it"; }
+  else if (pg === 1) { SET.buffer = BUFFERS[n - 16]; SET.note = "reopening the audio… (not in the twin)"; }
+  else if (pg === 2 && n < 8) { SET.port = n; SET.note = "opening it… (the twin has no MIDI ports)"; }
+  else if (pg === 2 && n === 8) SET.note = "a note goes out of the port (not in the twin)";
+  else if (pg === 2 && n === 9) SET.note = "everything silenced";
+  else if (pg === 3 && n < 4) { LOOK.screen = n + 1; applyLook(); }
+  else if (pg === 3) { LOOK.pads = n - 3; applyLook(); }
+}
+const lightShare = () => (LOOK.screen || 4) / 4;
 // ---- FILE: projects (crates/op8/src/factory.rs and projectfile.rs). The factory eight, and the player's eight kept in localStorage.
 const FILE_NAMES = ["house", "boom bap", "dub", "polyrhythm", "acid", "electro", "ambient", "breaks"];
 // The eight pieces that come with the machine (crates/op8/src/factory.rs): the same steps, components, chords, effects and LFOs.
@@ -1620,28 +1656,73 @@ function fileRight(g) {
   [["tap a pad", "opens it"], ["shift + tap", "saves into your slots"], ["erase + tap twice", "erases one of yours"]].forEach(([a, b], i) => { txt(g, a, 30, 76 + i * 50, "mid", FG); txt(g, b, 30, 102 + i * 50, "m", DIM); });
   if (UI.fileNote) txt(g, UI.fileNote, 30, 236, "mid", FG);
 }
+function listRows(g, list, chosen, screen, pageNow) {
+  const rows = listLen(list.length, screen), base = screen === 0 ? 0 : 8;
+  for (let r = 0; r < rows; r++) {
+    const [, x, y, w, h] = pickRect(SET.page, base + r), on = r === chosen, name = r === 0 ? "automatic" : list[r - 1];
+    rrect(g, x, y, w, h, 6, on ? PANEL : BG); rrect(g, x + .5, y + .5, w - 1, h - 1, 6, on ? DIM : FAINT, 1);
+    if (on) dot(g, x + 14, y + h / 2, 4, FG);
+    txt(g, name.length > 40 ? name.slice(0, 39) + "…" : name, x + 28, y + h / 2, "m", on ? FG : DIM, "left", "middle");
+    if (r === 0 ? pageNow : name === pageNow) txt(g, r === 0 ? pageNow : "in use", x + w - 10, y + h / 2, "s", DIM, "right", "middle");
+  }
+}
+function setButton(g, [, x, y, w, h], label, on) { if (on) rrect(g, x, y, w, h, 8, PANEL); rrect(g, x + .5, y + .5, w - 1, h - 1, 8, on ? FG : FAINT, on ? 2 : 1); txt(g, label, x + w / 2, y + h / 2, "m", on ? FG : DIM, "center", "middle"); }
 function settingsLeft(g) {
   fill(g, 0, 0, 480, 272, BG);
-  settingsBar(g, "settings");
-  if (S.playing) { g.fillStyle = FG; g.beginPath(); g.moveTo(460, 8); g.lineTo(470, 14); g.lineTo(460, 20); g.fill(); } else fill(g, 460, 9, 10, 10, DIM);
-  const W = 136, H = 160, GAP = 18, X0 = (480 - (3 * W + 2 * GAP)) / 2, Y = 62;
-  THEME_IDS.forEach((id, n) => {
-    const t = THEMES[id], x = X0 + n * (W + GAP), on = id === LOOK.theme;
-    rrect(g, x, Y, W, H, 8, t.panel);
-    rrect(g, x + 1, Y + 1, W - 2, H - 2, 8, on ? FG : FAINT, on ? 2 : 1);
-    t.brand.forEach((c, i) => rrect(g, x + 14 + (i % 4) * 28, Y + 20 + Math.floor(i / 4) * 18, 24, 13, 3, c));
-    const tw = W - 28;
-    rrect(g, x + 14, Y + 72, tw, 5, 2, t.faint); rrect(g, x + 14, Y + 72, Math.max(4, tw * t.light.backlight), 5, 2, t.fg);
-    for (let l = 0; l < 3; l++) rrect(g, x + 14 + l * 16, Y + 90, 12, 12, 3, l < t.light.led ? t.fg : t.faint);
-    txt(g, t.name, x + W / 2, Y + 128, "m", on ? FG : DIM, "center");
-  });
+  buttonStrip(g, PAGES.map((n, i) => [n, SET.page === i]));
+  settingsBar(g, SET.page === 0 ? "settings" : PAGES[SET.page], 37);
+  if (S.playing) { g.fillStyle = FG; g.beginPath(); g.moveTo(460, 30); g.lineTo(470, 36); g.lineTo(460, 42); g.fill(); } else fill(g, 460, 31, 10, 10, DIM);
+  if (SET.page === 1) listRows(g, SET.outs, SET.out, 0, SET.outs[0]);
+  else if (SET.page === 2) listRows(g, SET.ports, SET.port, 0, SET.ports[0]);
+  else if (SET.page === 3) {
+    txt(g, "screen", 16, 60, "s", DIM, "left", "middle");
+    for (let k = 0; k < 4; k++) { const r = pickRect(3, k), on = (LOOK.screen || 4) === k + 1, [, x, y, w, h] = r;
+      rrect(g, x + .5, y + .5, w - 1, h - 1, 8, on ? FG : FAINT, on ? 2 : 1); rrect(g, x + 12, y + 18, w - 24, 6, 3, FAINT); rrect(g, x + 12, y + 18, (w - 24) * (k + 1) / 4, 6, 3, on ? FG : DIM);
+      txt(g, 25 * (k + 1) + "%", x + w / 2, y + 42, "m", on ? FG : DIM, "center", "middle"); }
+    txt(g, "pads", 16, 160, "s", DIM, "left", "middle");
+    for (let k = 0; k < 3; k++) { const [, x, y, w, h] = pickRect(3, 4 + k), on = (LOOK.pads || 3) === k + 1;
+      rrect(g, x + .5, y + .5, w - 1, h - 1, 8, on ? FG : FAINT, on ? 2 : 1);
+      for (let l = 0; l < 3; l++) rrect(g, x + 36 + l * 24, y + 12, 16, 16, 4, l <= k ? (on ? FG : DIM) : FAINT);
+      txt(g, String(k + 1), x + w / 2, y + 52, "m", on ? FG : DIM, "center", "middle"); }
+  } else {
+    const W = 136, H = 160, GAP = 18, X0 = (480 - (3 * W + 2 * GAP)) / 2, Y = 62;
+    THEME_IDS.forEach((id, n) => {
+      const t = THEMES[id], x = X0 + n * (W + GAP), on = id === LOOK.theme;
+      rrect(g, x, Y, W, H, 8, t.panel);
+      rrect(g, x + 1, Y + 1, W - 2, H - 2, 8, on ? FG : FAINT, on ? 2 : 1);
+      t.brand.forEach((c, i) => rrect(g, x + 14 + (i % 4) * 28, Y + 20 + Math.floor(i / 4) * 18, 24, 13, 3, c));
+      const tw = W - 28;
+      rrect(g, x + 14, Y + 72, tw, 5, 2, t.faint); rrect(g, x + 14, Y + 72, Math.max(4, tw * t.light.backlight), 5, 2, t.fg);
+      for (let l = 0; l < 3; l++) rrect(g, x + 14 + l * 16, Y + 90, 12, 12, 3, l < t.light.led ? t.fg : t.faint);
+      txt(g, t.name, x + W / 2, Y + 128, "m", on ? FG : DIM, "center");
+    });
+  }
+  navRing(g, 0);
 }
 function settingsRight(g) {
   fill(g, 0, 0, 480, 272, BG);
-  settingsBar(g, "theme");
-  const v = [0.35, 0.7, 0.5, 0.85, 0.45, 0.75, 0.3, 0.6];
-  for (let i = 0; i < 8; i++) dial(g, 60 + (i % 4) * 120, 96 + Math.floor(i / 4) * 66, 20, v[i], KC[i]);
-  TRACK_COLORS.forEach((c, i) => dot(g, 240 + (i - 3.5) * 40, 224, 8, c));
+  if (SET.page === 1) {
+    settingsBar(g, "input");
+    listRows(g, SET.ins, SET.inp, 1, SET.ins[0]);
+    txt(g, "audio block", 16, 160, "s", DIM, "left", "middle");
+    BUFFERS.forEach((b, k) => setButton(g, pickRect(1, 16 + k), String(b), SET.buffer === b));
+    txt(g, "48 kHz · 2 ch · buffer " + SET.buffer, 16, 226, "m", DIM, "left", "middle");
+  } else if (SET.page === 2) {
+    settingsBar(g, "midi");
+    ["play a note", "silence all"].forEach((l, k) => setButton(g, pickRect(2, 8 + k), l, false));
+    txt(g, "the port that is open", 16, 120, "s", DIM, "left", "middle"); txt(g, SET.ports[0], 16, 142, "m", FG, "left", "middle");
+  } else if (SET.page === 3) {
+    settingsBar(g, "light");
+    ["the twin is a simulation: the supply allows", "all of it (a real MK3 may allow less)."].forEach((l, i) => txt(g, l, 16, 70 + i * 22, "m", FG, "left", "middle"));
+    txt(g, "the screen and the pads are never", 16, 160, "s", DIM, "left", "middle"); txt(g, "brighter than that: a step is a share of it", 16, 178, "s", DIM, "left", "middle");
+  } else {
+    settingsBar(g, "theme");
+    const v = [0.35, 0.7, 0.5, 0.85, 0.45, 0.75, 0.3, 0.6];
+    for (let i = 0; i < 8; i++) dial(g, 60 + (i % 4) * 120, 96 + Math.floor(i / 4) * 66, 20, v[i], KC[i]);
+    TRACK_COLORS.forEach((c, i) => dot(g, 240 + (i - 3.5) * 40, 224, 8, c));
+  }
+  if (SET.note) txt(g, SET.note.length > 44 ? SET.note.slice(0, 43) + "…" : SET.note, 16, 254, "m", FG, "left", "middle");
+  navRing(g, 1);
 }
 
 // ---- left screen ----
@@ -2233,10 +2314,10 @@ $("bBrowser").addEventListener("click", () => setMain(UI.main === "browser" ? "i
 $("bSampling").addEventListener("click", () => setMain(UI.main === "sampling" ? "instrument" : "sampling"));
 $("bFile").addEventListener("click", () => setMain(UI.main === "file" ? "instrument" : "file"));
 $("bPlug").addEventListener("click", () => setMain(UI.main === "plugin" ? "instrument" : "plugin"));
-$("sb1").addEventListener("click", () => { if (UI.main === "instrument") setMode("step"); }); // setMode also goes back to the steps
-$("sb2").addEventListener("click", () => { if (UI.main === "instrument") { setMode("step"); UI.inspect = 0; UI.compCursor = 0; UI.focus = { k: "comp", i: 0 }; } });
-$("sb3").addEventListener("click", () => openLeft("players"));
-$("sb4").addEventListener("click", () => openLeft("bar"));
+$("sb1").addEventListener("click", () => { if (UI.main === "settings") settingsPage(0); else if (UI.main === "instrument") setMode("step"); }); // setMode also goes back to the steps
+$("sb2").addEventListener("click", () => { if (UI.main === "settings") settingsPage(1); else if (UI.main === "instrument") { setMode("step"); UI.inspect = 0; UI.compCursor = 0; UI.focus = { k: "comp", i: 0 }; } });
+$("sb3").addEventListener("click", () => { if (UI.main === "settings") settingsPage(2); else openLeft("players"); });
+$("sb4").addEventListener("click", () => { if (UI.main === "settings") settingsPage(3); else openLeft("bar"); });
 $("sb5").addEventListener("click", () => { if (UI.main === "instrument") UI.page = 0; });
 $("sb6").addEventListener("click", () => { if (UI.main === "instrument") UI.page = 1; });
 $("sb7").addEventListener("click", () => { if (UI.main === "instrument") UI.page = 2; });
@@ -2290,7 +2371,7 @@ function updateLeds() {
     } else {
       const lit = punchState.slot === pad; c = lit ? "#ffffff" : color; lvl = lit ? 1 : .22;
     }
-    padEls[pad].style.setProperty("--glow", c); padEls[pad].style.setProperty("--lvl", lvl);
+    padEls[pad].style.setProperty("--glow", c); padEls[pad].style.setProperty("--lvl", lvl * (LOOK.pads || 3) / 3); // the pad level of SETTINGS caps the LEDs
   }
   groupEls.forEach((b, g) => { b.classList.toggle("sel", g === UI.track); b.classList.toggle("flash", UI.activity[g] > 0); b.style.opacity = P.tracks[g].muted ? .45 : 1; });
   $("bPlay").classList.toggle("on", S.playing);
@@ -2305,8 +2386,8 @@ function updateLeds() {
     bChannel: composing ? 2 : 1, bSettings: UI.main === "settings" ? 2 : 1, bFile: UI.main === "file" ? 2 : 1, bPlug: UI.main === "plugin" ? 2 : 1, bSampling: UI.main === "sampling" ? 2 : 1, bBrowser: UI.main === "browser" ? 2 : 1, bShift: UI.shift ? 2 : 1,
     bMute: composing ? (UI.mute ? 2 : 1) : 0, bErase: composing ? (UI.erase ? 2 : 1) : 0,
     bStop: S.playing ? 1 : 2, bRestart: 1, bRec: composing ? (UI.rec ? 2 : 1) : UI.main === "sampling" ? (SMP.rec || SMP.armed ? 2 : 1) : 0, bTap: composing ? (UI.metro ? 2 : 1) : 0, bTempo: composing ? (UI.held === "tempo" ? 2 : 1) : 0, bSwing: composing ? (UI.held === "swing" ? 2 : 1) : 0, bVolume: composing ? (UI.held === "volume" ? 2 : 1) : 0, bFixed: composing ? (UI.fixed ? 2 : 1) : 0, jogL: !composing || UI.mode === "keys" ? 1 : 0, jogR: !composing || UI.mode === "keys" ? 1 : 0,
-    sb1: composing ? (UI.mode === "step" && UI.inspect == null && UI.leftPage === "steps" ? 2 : 1) : 0, sb2: composing ? (UI.inspect != null ? 2 : 1) : 0,
-    sb3: composing ? (stepsOpen && UI.leftPage === "players" ? 2 : 1) : 0, sb4: composing ? (stepsOpen && UI.leftPage === "bar" ? 2 : 1) : 0,
+    sb1: composing ? (UI.mode === "step" && UI.inspect == null && UI.leftPage === "steps" ? 2 : 1) : UI.main === "settings" ? (SET.page === 0 ? 2 : 1) : 0, sb2: composing ? (UI.inspect != null ? 2 : 1) : UI.main === "settings" ? (SET.page === 1 ? 2 : 1) : 0,
+    sb3: composing ? (stepsOpen && UI.leftPage === "players" ? 2 : 1) : UI.main === "settings" ? (SET.page === 2 ? 2 : 1) : 0, sb4: composing ? (stepsOpen && UI.leftPage === "bar" ? 2 : 1) : UI.main === "settings" ? (SET.page === 3 ? 2 : 1) : 0,
     sb5: composing ? (rp === 0 ? 2 : 1) : 0, sb6: composing && second ? (rp === 1 ? 2 : 1) : 0,
     sb7: composing ? (rp === 2 ? 2 : 1) : 0, sb8: composing ? (rp === 3 ? 2 : 1) : 0,
   };

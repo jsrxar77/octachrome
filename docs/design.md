@@ -32,11 +32,11 @@ What each MK3 button does is in its own document: **[buttons.md](buttons.md)**. 
 
 ## 2. Colour
 
-Three themes, three characters, in this order: **matte** (the default) is softer and chalky, **glossy** is strong and bright, and **chrome** is monochrome: one range (violet drifting to blue, strong to soft) with white last. Every theme has exactly **eight** colours, always in an order that recalls the rainbow, and they are chosen for what the MK3's LEDs can show: 16 hues in 3 levels on the pads and group keys, one colour on every other button. The logic is the same in all three; only the palette changes. The hex values are ours, not measured from the devices.
+Three themes, three characters, in this order since 2026-11-16: **chrome** (the default of the unit and the twin; the guide and the manual are drawn in matte) is monochrome: one range (violet drifting to blue, strong to soft) with white last; **matte** is softer and chalky and **glossy** is strong and bright. Every theme has exactly **eight** colours, always in an order that recalls the rainbow, and they are chosen for what the MK3's LEDs can show: 16 hues in 3 levels on the pads and group keys, one colour on every other button. The logic is the same in all three; only the palette changes. The hex values are ours, not measured from the devices.
 
 ### 2.1 Encoder colours
 
-| Encoder | matte (default) | glossy | chrome |
+| Encoder | matte | glossy | chrome (default) |
 | :-- | :-- | :-- | :-- |
 | 1 | `#3B8EBA` steel blue | `#0099FF` blue | `#D633FF` violet-magenta |
 | 2 | `#D9822B` ochre | `#00E56A` green | `#A442FF` violet |
@@ -229,14 +229,14 @@ Decided with Javi on 2026-11-16: while VOLUME is held, the eight knobs are the *
 
 ### Settings view
 
-Settings is a **main mode** (SETTINGS button; see [buttons.md](buttons.md)): it takes **both** screens, and the rule that the left is time and the right is sound is suspended while it is open. Composing (CHANNEL) is the other main mode. Each setting is a page that uses both screens: the left shows the choices, the right shows what they mean. Today there is one page, the theme.
+Settings is a **main mode** (SETTINGS button; see [buttons.md](buttons.md)): it takes **both** screens, and the rule that the left is time and the right is sound is suspended while it is open. Composing (CHANNEL) is the other main mode. **Four pages**, decided with Javi on 2026-11-16, chosen with the four screen buttons over the left screen, which are named in the strip like any other (`theme`, `audio`, `midi`, `light`; the open one is the lit one; the buttons over the right screen do nothing here and name nothing). Each page uses both screens: the left shows the choices, the right shows what they mean. The left screen has the strip on top and its title and transport mark under it (a dot and the page name at the height of the header; the right screen has the title at the top).
 
-- **Top bar** of both screens: a `fg` dot and the lowercase title (`settings` on the left, the page name on the right). The left screen keeps a small transport mark at its right edge (a play triangle, or a dim square when stopped), because PLAY still works.
-- **Left, the theme:** one theme card for each theme, side by side; the active one has a 2 px `fg` outline.
-- **Right, the theme:** the eight encoder colours as dials, in the active theme, and under them the eight track colours.
-- **The theme applies at once**, to everything on screen, so the two screens are their own preview. There is no confirm step; the choice is saved as it is made.
-- **Nothing is drawn for a control that does nothing here** (rule 11): no footer, no page dots while there is a single page. The pads go dark.
-- The 4D encoder (turn, or ◀ ▶) changes the value, wrapping from the last to the first.
+- **`theme`** (opens first): **left**, one theme card for each theme, side by side, in the order chrome, matte, glossy; the active one has a 2 px `fg` outline. **Right**, the eight encoder colours as dials, in the active theme, and under them the eight track colours. The 4D turns through the themes, wrapping, and ◀ ▶ do too; the theme applies at once, to everything on screen, so the two screens are their own preview. No confirm step; the choice is saved as it is made. Chrome is the theme the unit starts in (Javi, 2026-11-16).
+- **`audio`:** **left**, the audio outputs, one to a row of 456 × 24 px (at most eight, `automatic` first): the chosen one has an `fg` dot and a `panel` fill, the one that is open is tagged `in use` at the right (`automatic` shows the name of what it resolved to). **Right** (`input`), the inputs the same way (at most four), then `audio block` with three buttons (64, 128, 256 frames, the chosen one outlined and filled) and under them what the stream says it has (`48 kHz · 2 ch · buffer 128`). A device that is not there or cannot be opened falls back to the automatic one and the line at the bottom says so.
+- **`midi`:** **left**, the MIDI output ports the same way. **Right**, two buttons, `play a note` (a note on channel 1 that ends by itself, to hear whether what is plugged in answers) and `silence all` (all sound off and all notes off on the sixteen channels), and under them the port that is open.
+- **`light`:** **left**, `screen`: four steps of backlight (25, 50, 75 and 100 %), each a box with a bar that fills up to its share and the number, and `pads`: three levels of the pad LEDs, each a box with three squares lit up to the level and the number; the chosen ones outlined in `fg`. **Right**, what the supply allows (the line `power:` says) and that the screen and the pads are never brighter than that: a step is a **share of what the supply allows and of what the theme asks, never more** (`op8::settings::effective_light`), because a backlight that is too bright resets a MK3 that is fed too little. The step applies at once.
+- **Choosing.** On the pages with choices the focus (the frame) is on the first choice; the 4D turns it along them (left screen first, then the right), its arrows move it across the screens, and a push chooses: a device is asked for and opened at once, kept in the settings file, and the line at the bottom of the right screen says what happened. The pads, knobs and groups do nothing here.
+- **Nothing is drawn for a control that does nothing here** (rule 11): no footer, no page dots. The pads go dark.
 
 ## 5. Components
 
