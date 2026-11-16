@@ -2,7 +2,7 @@
 //! `op8 run` on first boot and by `op8 sim`.
 
 use op8_cartridge::InstrumentCartridge;
-use op8_cartridges::{Drums, FmBass, KickSyn, MacroOsc, MidiMessage, MidiOutBridge, Resonator, Sampler};
+use op8_cartridges::{Drums, FmBass, Granular, KickSyn, MacroOsc, MidiMessage, MidiOutBridge, Resonator, Sampler};
 use op8_engine::{Engine, EngineHandle, SharedCartridge};
 use op8_seq::{Project, Step, StepComponent, TRACKS};
 use std::sync::{Arc, Mutex};
@@ -14,7 +14,7 @@ fn shared(c: impl InstrumentCartridge + 'static) -> Option<SharedCartridge> {
 }
 
 /// The instruments run from the most guttural to the most refined, the order of PLUG-IN: A drums (a kit), B KickSyn,
-/// C FmBass, D resonator, E sampler, F empty (the granular is chosen in PLUG-IN), G macro (the leads), H the MIDI out (always last).
+/// C FmBass, D resonator, E sampler, F granular, G macro (the leads), H the MIDI out (always last).
 pub fn slots() -> (
     [Option<SharedCartridge>; TRACKS],
     rtrb::Consumer<MidiMessage>,
@@ -26,6 +26,7 @@ pub fn slots() -> (
     s[2] = shared(FmBass::new());
     s[3] = shared(Resonator::new());
     s[4] = shared(Sampler::new());
+    s[5] = shared(Granular::new());
     s[6] = shared(MacroOsc::new());
     s[7] = shared(bridge);
     (s, midi_rx)

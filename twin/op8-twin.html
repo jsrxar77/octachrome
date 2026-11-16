@@ -430,9 +430,9 @@ const CARTS = {
   midi: { name: "MIDIOUTBRIDGE", cat: "MIDI",
     params: [["CHANNEL",0,v=>"CH "+(Math.min(15,Math.floor(v*16))+1)],["TRANSP",.5,v=>{const s=Math.round(-24+48*v);return (s>0?"+":"")+s+"st";}],["VEL",1,v=>Math.round(v*100)+"%"],["CC74",.5,v=>Math.round(v*100)+"%"]] },
 };
-// the instruments run from the most guttural to the most refined, the order of PLUG-IN: drums, kick, bass, resonator, sampler, (granular), the leads (macro), and the MIDI out last
+// the instruments run from the most guttural to the most refined, the order of PLUG-IN: drums, kick, bass, resonator, sampler, granular, the leads (macro), and the MIDI out last
 let VOL = 1; // master volume
-const SLOTS = ["drums", "kick", "fm", "resonator", "sampler", null, "macro", "midi"];
+const SLOTS = ["drums", "kick", "fm", "resonator", "sampler", "granular", "macro", "midi"];
 const PARAMS = SLOTS.map(s => s ? CARTS[s].params.map(p => p[1]) : null);
 // the knobs edit the chosen drum sound: keep its values in step with PARAMS
 function drumsSync(t, i) {
@@ -1256,11 +1256,11 @@ function settingsBar(g, title) { dot(g, 16, 15, 6, FG); txt(g, title, 30, 6, "mi
 const FILE_NAMES = ["house", "boom bap", "dub", "polyrhythm", "acid", "electro", "ambient", "breaks"];
 // The eight pieces that come with the machine (crates/op8/src/factory.rs): the same steps, components, chords, effects and LFOs.
 const KICK = 1, SNARE = 2, CHAT = 4, OHAT = 8, TOM = 16, CLAP = 32, RIM = 64, CRASH = 128;
-const PIECE_PRESETS = [ // by track A to H, and the share of each instrument's level that the piece keeps
-  [["", "punch", "round", "steel", "", "", "chords", ""], 0.85], [["", "soft", "sub", "nylon", "voice", "", "", ""], 1.0],
-  [["", "boom", "sub", "bell", "", "", "swarm", ""], 0.8], [["", "soft", "", "harp", "bell", "", "strings", ""], 1.0],
-  [["", "tight", "acid", "", "", "", "", ""], 0.5], [["", "click", "growl", "", "", "", "chip", ""], 0.65],
-  [["", "", "", "glass", "pad", "", "strings", ""], 1.0], [["", "hard", "growl", "muted", "tick", "", "", ""], 1.0]];
+const PIECE_PRESETS = [ // by track A to H, and the share of each instrument's level that the piece keeps (the same as PRESETS in factory.rs)
+  [["", "punch", "round", "steel", "", "shimmer", "chords", ""], 0.85], [["", "soft", "sub", "nylon", "voice", "rumble", "", ""], 1.0],
+  [["", "boom", "sub", "bell", "", "dust", "swarm", ""], 0.8], [["", "soft", "", "harp", "bell", "bells", "strings", ""], 1.0],
+  [["", "tight", "acid", "", "", "swarm", "", ""], 0.5], [["", "click", "growl", "", "", "glitch", "chip", ""], 0.65],
+  [["", "", "", "glass", "pad", "cloud", "strings", ""], 1.0], [["", "hard", "growl", "muted", "tick", "glitch", "", ""], 1.0]];
 function brainOf(key, scale, kind, degrees) { return { key, scale, mode: 1, len: degrees.length, live: null, prog: Array.from({ length: 8 }, (_, k) => ({ degree: degrees[k] || 0, kind, length: 16 })) }; }
 function factoryProject(i) {
   const p = demoProject();
@@ -1330,7 +1330,7 @@ function factoryProject(i) {
 // the standard tracks, in the order of PLUG-IN: A drums, B kick, C fm, D resonator, E sampler, F empty (the granular), G macro, H MIDI out
 function applyPiece(i) {
   const [names, gain] = PIECE_PRESETS[i];
-  SLOTS.splice(0, 8, "drums", "kick", "fm", "resonator", "sampler", null, "macro", "midi");
+  SLOTS.splice(0, 8, "drums", "kick", "fm", "resonator", "sampler", "granular", "macro", "midi");
   SLOTS.forEach((s, t) => {
     PARAMS[t] = s ? CARTS[s].params.map(q => q[1]) : null;
     if (!s) return;

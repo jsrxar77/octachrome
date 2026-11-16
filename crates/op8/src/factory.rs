@@ -1,7 +1,7 @@
 //! The eight projects that always ship (the top two rows of the FILE pads): eight short pieces in eight
 //! styles, so that the first thing anyone hears is what the machine can do. Each is made only with the
 //! factory instruments and their presets, on the standard tracks (A drums, B KickSyn, C FmBass, D resonator,
-//! E MIDI out, F macro, G sampler), so it always loads.
+//! E sampler, F granular, G macro, H MIDI out), so it always loads.
 
 use crate::projectfile::ProjectFile;
 use op8_seq::{
@@ -48,7 +48,7 @@ fn inst(name: &str, preset: &str, gain: f32) -> Option<(String, Vec<u8>)> {
 /// The instruments of a piece, by track: the standard layout, with a preset on each that plays and the level of each brought by `gain`
 /// (the pieces are about as loud as each other).
 fn instruments(presets: [&str; 8], gain: f32) -> Vec<Option<(String, Vec<u8>)>> {
-    let names = [Some("drums"), Some("KickSyn"), Some("FmBass"), Some("resonator"), Some("sampler"), None, Some("macro"), Some("MidiOutBridge")];
+    let names = [Some("drums"), Some("KickSyn"), Some("FmBass"), Some("resonator"), Some("sampler"), Some("granular"), Some("macro"), Some("MidiOutBridge")];
     names.iter().zip(presets).map(|(n, p)| n.and_then(|n| inst(n, p, gain))).collect()
 }
 
@@ -286,14 +286,14 @@ pub fn project(i: usize) -> Project {
 
 /// The presets of each piece, by track A to H (`""`: as it comes), and how much of the level of its instruments it keeps.
 const PRESETS: [([&str; 8], f32); 8] = [
-    (["", "punch", "round", "steel", "", "", "chords", ""], 0.85),
-    (["", "soft", "sub", "nylon", "voice", "", "", ""], 1.0),
-    (["", "boom", "sub", "bell", "", "", "swarm", ""], 0.8),
-    (["", "soft", "", "harp", "bell", "", "strings", ""], 1.0),
-    (["", "tight", "acid", "", "", "", "", ""], 0.5),
-    (["", "click", "growl", "", "", "", "chip", ""], 0.65),
-    (["", "", "", "glass", "pad", "", "strings", ""], 1.0),
-    (["", "hard", "growl", "muted", "tick", "", "", ""], 1.0),
+    (["", "punch", "round", "steel", "", "shimmer", "chords", ""], 0.85),
+    (["", "soft", "sub", "nylon", "voice", "rumble", "", ""], 1.0),
+    (["", "boom", "sub", "bell", "", "dust", "swarm", ""], 0.8),
+    (["", "soft", "", "harp", "bell", "bells", "strings", ""], 1.0),
+    (["", "tight", "acid", "", "", "swarm", "", ""], 0.5),
+    (["", "click", "growl", "", "", "glitch", "chip", ""], 0.65),
+    (["", "", "", "glass", "pad", "cloud", "strings", ""], 1.0),
+    (["", "hard", "growl", "muted", "tick", "glitch", "", ""], 1.0),
 ];
 
 /// A new, empty project: the standard instruments as they come and nothing in the steps (a tap on an empty place of FILE).
