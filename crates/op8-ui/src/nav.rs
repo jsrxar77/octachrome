@@ -4,7 +4,7 @@
 //! item that holds a value can be grabbed (push), turned, and let go (push). The list and the drawing share this one place, so
 //! what can be reached and what is drawn cannot drift apart.
 
-use crate::theme::{BUTTON_CX, FOOTER_COL, FOOTER_Y};
+use crate::theme::{FOOTER_COL, FOOTER_Y};
 use crate::{Main, Mode, UiState};
 use op8_gfx::{
     knob,
@@ -56,9 +56,10 @@ impl Default for NavKind {
     }
 }
 
-/// A screen button's box: the capsule is centred on its physical button.
-pub fn strip_rect(n: usize) -> (f32, f32, f32, f32) {
-    (BUTTON_CX[n % 4] as f32 - 52.0, 1.0, 104.0, 22.0)
+/// A screen button's box: the capsule that is drawn for its label (`strip_capsule`), centred on its physical button.
+pub fn strip_rect(n: usize, label: &str) -> (f32, f32, f32, f32) {
+    let (x, w, h) = crate::theme::strip_capsule(n % 4, label);
+    (x, 1.0, w, h)
 }
 
 /// A track's dot in the header of the left screen.
@@ -101,7 +102,9 @@ pub fn items(ui: &UiState) -> Vec<NavItem> {
         Main::Instrument if ui.inspect_step.is_none() => {
             let buttons = crate::screen_buttons(ui);
             let strip = |range: std::ops::Range<usize>, screen: u8| {
-                range.filter(|&n| buttons[n].is_some()).map(move |n| NavItem { kind: NavKind::Strip(n as u8), screen, rect: strip_rect(n) }).collect::<Vec<_>>()
+                range
+                    .filter_map(|n| buttons[n].map(|(name, _)| NavItem { kind: NavKind::Strip(n as u8), screen, rect: strip_rect(n, name) }))
+                    .collect::<Vec<_>>()
             };
             let mut v = strip(0..4, 0);
             v.extend((0..8).map(|t| NavItem { kind: NavKind::Track(t as u8), screen: 0, rect: track_rect(t) }));
@@ -166,16 +169,39 @@ pub fn move_dir(items: &[NavItem], cur: usize, dx: i32, dy: i32) -> usize {
 /// The ring of the focus: a frame round the item in the colour of knob 1; grabbed, it is white and thicker. It does not move by itself:
 /// a still screen sends nothing to the MK3.
 pub fn draw_ring(fb: &mut FrameBuffer480x272, it: &NavItem, ui: &UiState) {
-    let (x, y, w, h) = it.rect;
-    // grabbed: a value in the hand, or the effect of PERFORM that is sounding on this very place
-    let sounding = matches!((ui.mode, it.kind, ui.punch), (Mode::Punch, NavKind::Cell(c), Some((s, _))) if s == punch_slot(c as usize));
-    let (col, wd) = if ui.grabbed || sounding { (theme().fg, 3.5) } else { (knob(0), 2.5) };
+    let (col, wd) = ring_style(it, ui);
     // a track is a small round capsule: the ring hugs its edge (the chosen one is bigger)
     if let NavKind::Track(t) = it.kind {
+        let (x, y, w, h) = it.rect;
         let r = if t as usize == ui.track { 10.0 } else { 8.0 };
         return ring(fb, x + w / 2.0, y + h / 2.0, r, wd, col);
     }
-    stroke_round_rect(fb, x - 3.0, y - 3.0, w + 6.0, h + 6.0, 11.0, wd, col);
+    let (x, y, w, h, r) = ring_box(it);
+    stroke_round_rect(fb, x, y, w, h, r, wd, col);
+}
+
+/// Colour and width of the ring: a grabbed value, or the effect of PERFORM that is sounding on this very place, is `fg` and thick.
+fn ring_style(it: &NavItem, ui: &UiState) -> (op8_gfx::Rgb565, f32) {
+    let sounding = matches!((ui.mode, it.kind, ui.punch), (Mode::Punch, NavKind::Cell(c), Some((s, _))) if s == punch_slot(c as usize));
+    if ui.grabbed || sounding {
+        (theme().fg, 3.5)
+    } else {
+        (knob(0), 2.5)
+    }
+}
+
+/// The box the ring is stroked in (the stroke stays inside it), and its corner radius. A screen button is a capsule at the very top of
+/// the screen, so its ring is drawn on the capsule's own edge and not outside it; any other box gets the ring 3 px outside, pushed in
+/// where that would leave the screen. Nothing of the ring is ever off the screen.
+pub fn ring_box(it: &NavItem) -> (f32, f32, f32, f32, f32) {
+    let (x, y, w, h) = it.rect;
+    if matches!(it.kind, NavKind::Strip(_)) {
+        return (x, y, w, h, h / 2.0);
+    }
+    let (bx, by, bw, bh) = (x - 3.0, y - 3.0, w + 6.0, h + 6.0);
+    let (sw, sh) = (op8_gfx::WIDTH as f32, op8_gfx::HEIGHT as f32);
+    let (nx, ny) = (bx.clamp(0.0, sw - bw), by.clamp(0.0, sh - bh));
+    (nx, ny, bw, bh, 11.0)
 }
 
 #[cfg(test)]

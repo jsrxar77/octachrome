@@ -23,7 +23,7 @@ pub use color::Rgb565;
 pub use dirty::{DirtyTracker, DirtyUpdate};
 pub use draw::*;
 pub use framebuffer::{FrameBuffer480x272, Rect, HEIGHT, WIDTH};
-pub use theme::{knob, Light, set_theme, theme, theme_id, theme_of, Theme, ThemeId};
+pub use theme::{knob, Light, set_theme, theme, theme_id, theme_of, readable, Theme, ThemeId, MIN_INK_CONTRAST};
 
 /// Re-export so cartridges can draw without adding their own dependency.
 pub use embedded_graphics as eg;

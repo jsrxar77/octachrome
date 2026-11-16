@@ -218,6 +218,26 @@ pub fn knob(i: usize) -> Rgb565 {
     theme().knobs[i % 8]
 }
 
+/// The least contrast text may have over its fill (docs/design.md rule on ink over colour).
+pub const MIN_INK_CONTRAST: f32 = 4.5;
+
+/// A colour to fill with and the ink to write on it, so that the ink always reads: on an emissive screen a saturated mid-tone
+/// (the orange or red of a track) washes out dark ink, so such a fill is darkened until the theme's `fg` has contrast
+/// [`MIN_INK_CONTRAST`] over it; a fill light enough that the theme's `bg` has that contrast already keeps its colour and gets `bg` ink.
+pub fn readable(fill: Rgb565) -> (Rgb565, Rgb565) {
+    let t = theme();
+    if fill.contrast(t.bg) >= MIN_INK_CONTRAST * 1.8 {
+        return (fill, t.bg);
+    }
+    let mut k = 1.0;
+    let mut f = fill;
+    while f.contrast(t.fg) < MIN_INK_CONTRAST && k > 0.05 {
+        k -= 0.03;
+        f = fill.scale(k);
+    }
+    (f, t.fg)
+}
+
 #[cfg(test)]
 mod brand_tests {
     use super::*;

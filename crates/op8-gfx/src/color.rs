@@ -39,6 +39,22 @@ impl Rgb565 {
         Self::new(m(r0, r1), m(g0, g1), m(b0, b1))
     }
 
+    /// Relative luminance (WCAG): 0 black, 1 white.
+    pub fn luminance(self) -> f32 {
+        let (r, g, b) = self.to_rgb888();
+        let lin = |c: u8| {
+            let c = c as f32 / 255.0;
+            if c <= 0.03928 { c / 12.92 } else { ((c + 0.055) / 1.055).powf(2.4) }
+        };
+        0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b)
+    }
+
+    /// Contrast ratio between two colours (WCAG): 1 for the same, 21 for black on white.
+    pub fn contrast(self, other: Self) -> f32 {
+        let (a, b) = (self.luminance(), other.luminance());
+        (a.max(b) + 0.05) / (a.min(b) + 0.05)
+    }
+
     /// Darken by a factor in 0..=1 (0 = black).
     pub fn scale(self, k: f32) -> Self {
         Self::BLACK.lerp(self, k)
