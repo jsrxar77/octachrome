@@ -110,6 +110,8 @@ pub struct UiState {
     pub inspect_step: Option<u8>,
     /// Which component slot knob 4 edits in the inspector (len = "add new").
     pub comp_cursor: usize,
+    /// How many components the step in the inspector has (the controller keeps it: the list of the 4D's items depends on it).
+    pub comp_count: usize,
     pub knob_touch: [bool; 8],
     /// Right screen page: 0 = sound, 1 = shape (the second page of the instrument), 2 = fx, 3 = mod.
     pub right_page: usize,
@@ -183,7 +185,8 @@ pub struct UiState {
 pub fn pad_note(ui: &UiState, p: &op8_seq::Project, pad: u8) -> Option<u8> {
     let pad = pad as i32;
     let n = match ui.mode {
-        Mode::Pads if ui.lane.is_some() => (pad < 8).then_some(op8_seq::step::KIT_BASE_NOTE as i32 + pad)?,
+        // on a drum kit KEYBOARD is PAD MODE: the eight sounds, a chromatic scale of them would mean nothing
+        Mode::Pads | Mode::Keys if ui.lane.is_some() => (pad < 8).then_some(op8_seq::step::KIT_BASE_NOTE as i32 + pad)?,
         Mode::Pads => {
             let iv = p.brain.scale.intervals();
             48 + p.brain.key as i32 + iv[(pad % 7) as usize] as i32 + 12 * (pad / 7)
@@ -396,8 +399,8 @@ mod tests {
         for main in [Main::Instrument, Main::File, Main::Plugin, Main::Browser, Main::Sampling] {
             for mode in modes {
                 for page in [LeftPage::Steps, LeftPage::Players, LeftPage::Bar] {
-                    for (has_second, lane) in [(false, None), (true, None), (true, Some(0))] {
-                        let ui = UiState { main, mode, left_page: page, has_second, lane, ..Default::default() };
+                    for (has_second, lane, inspect_step) in [(false, None, None), (true, None, None), (true, Some(0), None), (true, None, Some(0))] {
+                        let ui = UiState { main, mode, left_page: page, has_second, lane, inspect_step, comp_count: 5, ..Default::default() };
                         let labels = [strip_labels(&ui, 0), strip_labels(&ui, 1)];
                         for it in nav::items(&ui) {
                             let (x, y, w, h, _) = nav::ring_box(&it);

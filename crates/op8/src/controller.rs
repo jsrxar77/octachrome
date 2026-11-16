@@ -341,8 +341,8 @@ impl Controller {
                 self.set_main(to, h);
             }
             Button::ChannelMidi => self.set_main(Main::Instrument, h),
-            Button::JogLeft if self.ui.main == Main::Instrument && self.ui.mode == Mode::Keys => self.shift_octave(-1, h),
-            Button::JogRight if self.ui.main == Main::Instrument && self.ui.mode == Mode::Keys => self.shift_octave(1, h),
+            Button::JogLeft if self.ui.main == Main::Instrument && self.ui.mode == Mode::Keys && self.ui.lane.is_none() => self.shift_octave(-1, h),
+            Button::JogRight if self.ui.main == Main::Instrument && self.ui.mode == Mode::Keys && self.ui.lane.is_none() => self.shift_octave(1, h),
             Button::JogLeft if self.nav_active() => self.nav_dir(-1, 0, h),
             Button::JogRight if self.nav_active() => self.nav_dir(1, 0, h),
             Button::JogUp if self.nav_active() => self.nav_dir(0, -1, h),
@@ -360,6 +360,7 @@ impl Controller {
                 self.set_mode(Mode::Step, h);
                 self.ui.inspect_step = Some(0);
                 self.ui.comp_cursor = 0;
+                self.ui.focus = NavKind::Comp(0);
             }
             Button::Screen(5) if self.ui.main == Main::Instrument => self.ui.right_page = 0,
             Button::Screen(6) if self.ui.main == Main::Instrument => self.ui.right_page = 1,
@@ -419,6 +420,9 @@ impl Controller {
             }
         }
         if self.ui.grabbed {
+            if let NavKind::Comp(_) = self.ui.focus {
+                self.knob(3, delta * DETENT, h, self.now);
+            }
             if let NavKind::Value(k) = self.ui.focus {
                 if self.ui.main == Main::Sampling {
                     self.sampling_knob(k as usize, delta * DETENT, h);
@@ -433,6 +437,14 @@ impl Controller {
         if let Some(it) = items.get(at) {
             self.ui.focus = it.kind;
         }
+        self.sync_comp_cursor();
+    }
+
+    /// In the step inspector the focus on a component is the component cursor (what knob 4 edits).
+    fn sync_comp_cursor(&mut self) {
+        if let (NavKind::Comp(i), Some(_)) = (self.ui.focus, self.ui.inspect_step) {
+            self.ui.comp_cursor = i as usize;
+        }
     }
 
     /// The arrows of the 4D encoder: across the screens (a grabbed value is let go first).
@@ -443,19 +455,20 @@ impl Controller {
         if let Some(it) = items.get(at) {
             self.ui.focus = it.kind;
         }
+        self.sync_comp_cursor();
     }
 
     /// Push the 4D encoder: do what tapping the item would (a place or a pad is the pad itself, a screen button is that button, a track
     /// is its group button; SHIFT does what SHIFT does to them), or grab or let go of a value.
     fn nav_push(&mut self, h: &mut EngineHandle) {
-        // the inspector opened from the grid is closed by a push
-        if self.ui.main == Main::Instrument && self.ui.inspect_step.is_some() && self.inspector_pad.is_none() {
-            self.ui.inspect_step = None;
-            return;
-        }
         let Some(item) = op8_ui::nav_focused(&self.ui) else { return };
         match item.kind {
             NavKind::Value(_) => self.ui.grabbed = !self.ui.grabbed,
+            // a component of the inspector: grab it (turning changes its kind, as knob 4 does) or let go
+            NavKind::Comp(i) => {
+                self.ui.comp_cursor = i as usize;
+                self.ui.grabbed = !self.ui.grabbed;
+            }
             NavKind::Sound(i) => {
                 // the kit's sound is parameter 7 (what the knob `sound` sets): choose it and hear it
                 h.send(EngineCommand::SetParam { track: self.ui.track as u8, index: 7, value: (i as f32 + 0.5) / 8.0 });
@@ -476,6 +489,7 @@ impl Controller {
                     if self.held.shift && self.ui.mode == Mode::Step {
                         self.ui.inspect_step = Some(c);
                         self.ui.comp_cursor = 0;
+                        self.ui.focus = NavKind::Comp(0);
                         self.ui.left_page = LeftPage::Steps;
                         return;
                     }
@@ -1579,7 +1593,23 @@ impl Controller {
                 self.ui.left_page = LeftPage::Steps;
                 self.ui.inspect_step = Some(Self::pad_to_step(pad));
                 self.ui.comp_cursor = 0;
+                self.ui.focus = NavKind::Comp(0);
             }
+        }
+        // what the 4D's list depends on: how many components the inspected step has; and when the inspector is closed the focus
+        // is not on one of them any more
+        self.ui.comp_count = self.inspected(h).map_or(0, |s| s.components.len());
+        if let (NavKind::Comp(i), Some(_)) = (self.ui.focus, self.ui.inspect_step) {
+            // a component taken away leaves the focus on the `+` at the end of the stack
+            let last = self.ui.comp_count.min(MAX_COMPONENTS - 1);
+            if i as usize > last {
+                self.ui.focus = NavKind::Comp(last as u8);
+                self.ui.comp_cursor = last;
+            }
+        }
+        if self.ui.inspect_step.is_none() && matches!(self.ui.focus, NavKind::Comp(_)) {
+            self.ui.focus = NavKind::Cell(0);
+            self.ui.grabbed = false;
         }
         for t in 0..TRACKS {
             let n = h.status.note_count[t].load(Relaxed);

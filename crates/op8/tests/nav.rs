@@ -202,8 +202,9 @@ fn f_n08_pushing_does_what_tapping_does() {
     b.press(Button::JogPush);
     b.button_up(Button::Shift);
     assert_eq!(b.ui().inspect_step, Some(1), "SHIFT + push opens the step");
+    focus_on(&mut b, NavKind::Strip(0)); // `step`
     b.press(Button::JogPush);
-    assert_eq!(b.ui().inspect_step, None, "and push closes it");
+    assert_eq!(b.ui().inspect_step, None, "and the step button closes it");
 }
 
 // F-N09: a value of a footer is grabbed with push, turned, and let go: the knob under it does what turning it does.
@@ -238,6 +239,7 @@ fn f_n10_the_arrows_cross_the_screens_and_keyboard_keeps_its_octave() {
     assert!(matches!(f, NavKind::Value(k) if k >= 4), "right of the left footer is the right footer: {f:?}");
     b.press(Button::JogLeft);
     assert!(matches!(b.ui().focus, NavKind::Value(k) if k < 4));
+    b.press(Button::Group(1)); // not a drum kit: there KEYBOARD is PAD MODE (F-K17) and ◀ ▶ move the focus
     b.press(Button::Keyboard);
     let before = b.ui().focus;
     let oct = b.ui().octave;
@@ -316,4 +318,61 @@ fn f_n14_the_sounds_of_a_kit_can_be_chosen_with_the_4d() {
     b.press(Button::Group(1)); // KickSyn
     b.run_ms(100);
     assert_eq!(sounds(&b), 0, "an instrument that is not a kit has no sounds to choose");
+}
+
+// F-N15: the step inspector has its own items: the focus opens on its first component, visits the components and the `+`, and a
+// component is grabbed with push and turned to change its kind (what knob 4 does); the footer values (note, velocity, gate) are
+// reached and grabbed like any other.
+#[test]
+fn f_n15_the_step_inspector_can_be_reached_with_the_4d() {
+    use op8_ui::NavKind;
+    let mut b = Bench::demo();
+    b.press(Button::Group(1)); // a track with a kick
+    focus_on(&mut b, NavKind::Cell(1));
+    b.button_down(Button::Shift);
+    b.press(Button::JogPush);
+    b.button_up(Button::Shift);
+    b.run_ms(50);
+    assert_eq!(b.ui().inspect_step, Some(1));
+    assert_eq!(b.ui().focus, NavKind::Comp(0), "it opens on the first place of the stack, the `+` of an empty one");
+    let comps = |b: &Bench| op8_ui::nav_items(b.ui()).iter().filter(|i| matches!(i.kind, NavKind::Comp(_))).count();
+    assert_eq!(comps(&b), 1);
+    b.press(Button::JogPush); // grab the `+`
+    b.encoder(2);
+    b.run_ms(50);
+    assert_eq!(b.project().tracks[1].steps[1].components.len(), 1, "turning a grabbed `+` adds a component");
+    assert_eq!(comps(&b), 2, "and there is a new `+` after it");
+    b.press(Button::JogPush); // let go
+    assert!(!b.ui().grabbed);
+    // the velocity under the left screen: grab it, turn it
+    focus_on(&mut b, NavKind::Value(1));
+    let v = b.project().tracks[1].steps[1].velocity;
+    b.press(Button::JogPush);
+    b.encoder(2);
+    assert_ne!(b.project().tracks[1].steps[1].velocity, v, "the footer values edit the step");
+    b.press(Button::JogPush);
+    // and the cursor of the component follows the focus
+    focus_on(&mut b, NavKind::Comp(1));
+    assert_eq!(b.ui().comp_cursor, 1);
+}
+
+// F-K17: on a drum kit KEYBOARD is PAD MODE: the pads are the eight sounds (not a chromatic scale), ◀ ▶ do not change an octave (they
+// move the focus) and the left screen says so; on another instrument KEYBOARD stays chromatic.
+#[test]
+fn f_k17_keyboard_on_a_drum_kit_is_pad_mode() {
+    let mut b = Bench::demo();
+    b.press(Button::Keyboard);
+    b.run_ms(100);
+    assert_eq!(b.ui().mode, op8_ui::Mode::Keys);
+    let notes: Vec<_> = (0..16u8).map(|p| op8_ui::pad_note(b.ui(), b.project(), p)).collect();
+    assert_eq!(notes.iter().filter(|n| n.is_some()).count(), 8, "eight sounds");
+    assert_eq!(notes[0], Some(60), "the kick on the first pad");
+    let oct = b.ui().octave;
+    b.press(Button::JogRight);
+    assert_eq!(b.ui().octave, oct, "no octave on a kit");
+    b.capture("f-k17-keyboard-kit");
+    b.press(Button::Group(1)); // KickSyn: chromatic
+    b.run_ms(50);
+    let n: Vec<_> = (0..16u8).map(|p| op8_ui::pad_note(b.ui(), b.project(), p)).collect();
+    assert_eq!(n.iter().filter(|n| n.is_some()).count(), 16);
 }

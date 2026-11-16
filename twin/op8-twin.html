@@ -844,8 +844,8 @@ function groupPress(g) {
 // pads 1-8 are the eight sounds; on any other instrument the pads climb the Brain's scale. KEYBOARD is chromatic from C3.
 function padNote(pad) {
   const kit = SLOTS[UI.track] === "drums";
+  if (kit && (UI.mode === "pads" || UI.mode === "keys")) return pad < 8 ? 60 + pad : null; // on a drum kit KEYBOARD is PAD MODE
   if (UI.mode === "pads") {
-    if (kit) return pad < 8 ? 60 + pad : null;
     const iv = SCALES[P.brain.scale][1]; return 48 + P.brain.key + iv[pad % 7] + 12 * Math.floor(pad / 7);
   }
   if (UI.mode === "keys") { const n = 48 + 12 * UI.octave + pad; return n >= 0 && n <= 127 ? n : null; }
@@ -1001,14 +1001,15 @@ function navItems() {
   const cell = i => ({ k: "cell", i, s: 0, x: 12 + (i % 4) * 114, y: 44 + Math.floor(i / 4) * 48, w: 108, h: 42 });
   if (["file", "plugin", "browser"].includes(UI.main)) return Array.from({ length: 16 }, (_, i) => cell(i));
   if (UI.main === "sampling") return [...Array.from({ length: 16 }, (_, i) => cell(i)), ...Array.from({ length: 4 }, (_, k) => ({ k: "value", i: 4 + k, s: 1, x: 60 + k * 120 - 52, y: 224, w: 104, h: 42 }))];
-  if (UI.main !== "instrument" || UI.inspect != null) return [];
+  if (UI.main !== "instrument") return [];
   const slot = SLOTS[UI.track], second = slot && CARTS[slot].params.length > 4;
   const NAMES = ["step", "components", "players", "bar", "sound", "shape", "fx", "mod"], cv = document.createElement("canvas").getContext("2d");
   const strip = (n, s) => { const [x, w] = stripCapsule(cv, n % 4, NAMES[n]); return { k: "strip", i: n, s, x, y: 1, w, h: 22 }; }, has = n => n !== 5 || second;
   const v = [0, 1, 2, 3].map(n => strip(n, 0));
   for (let t = 0; t < 8; t++) v.push({ k: "track", i: t, s: 0, x: 338 + t * 18 - 9, y: 29, w: 18, h: 18 });
   // the pads on the left screen: the steps' grid (unless a page covers it), the notes' grid, or PERFORM's sixteen effects (bigger); Brain draws none
-  if (UI.mode === "punch") for (let c = 0; c < 16; c++) v.push({ k: "grid", i: c, s: 0, x: 12 + (c % 4) * 116, y: 52 + Math.floor(c / 4) * 42, w: 108, h: 36 });
+  if (UI.inspect != null) { const n = Math.min(P.tracks[UI.track].steps[UI.inspect].comps.length + 1, 6); for (let c = 0; c < n; c++) v.push({ k: "comp", i: c, s: 0, x: 160 + (c % 3) * 104, y: 54 + Math.floor(c / 3) * 60, w: 96, h: 52 }); } // the step inspector draws its components where the grid is
+  else if (UI.mode === "punch") for (let c = 0; c < 16; c++) v.push({ k: "grid", i: c, s: 0, x: 12 + (c % 4) * 116, y: 52 + Math.floor(c / 4) * 42, w: 108, h: 36 });
   else if (UI.mode === "pads" || UI.mode === "keys" || (UI.mode === "step" && UI.leftPage === "steps")) for (let c = 0; c < 16; c++) v.push({ k: "grid", i: c, s: 0, x: 262 + (c % 4) * 42, y: 50 + Math.floor(c / 4) * 42, w: 37, h: 37 });
   for (let k = 0; k < 4; k++) v.push({ k: "value", i: k, s: 0, x: k * 120 + 6, y: 227, w: 108, h: 42 });
   [4, 5, 6, 7].filter(has).forEach(n => v.push(strip(n, 1)));
@@ -1019,7 +1020,7 @@ function navItems() {
 }
 const navOn = () => navItems().length > 0;
 function navIndex(items) { const n = items.findIndex(it => it.k === UI.focus.k && it.i === UI.focus.i); return n < 0 ? 0 : n; }
-function navSet(it) { if (it) UI.focus = { k: it.k, i: it.i }; }
+function navSet(it) { if (it) { UI.focus = { k: it.k, i: it.i }; if (it.k === "comp") UI.compCursor = it.i; } } // in the inspector the focus on a component is the cursor of knob 4
 function navMove(dx, dy) {
   UI.grabbed = false; const items = navItems(), at = it => [it.x + it.w / 2 + it.s * 520, it.y + it.h / 2], cur = navIndex(items), f = items[cur] && at(items[cur]); let best = null;
   if (!f) return;
@@ -1030,18 +1031,18 @@ function navTurn(d) {
   const items = navItems(); if (!items.length) return;
   // an effect of PERFORM is sounding: the wheel is its intensity (the pad's pressure); the arrows still move the focus
   if (UI.main === "instrument" && UI.mode === "punch" && UI.focus.k === "grid" && punchState.slot != null) { const v = clamp(punchState.amount + d * 0.04, 0, 1); setPunch(punchState.slot, v); return; }
-  if (UI.grabbed) { if (UI.focus.k === "value") { if (UI.main === "sampling") smpKnob(UI.focus.i, d * DETENT); else knob(UI.focus.i, d * DETENT); } return; }
+  if (UI.grabbed) { if (UI.focus.k === "comp") knob(3, d * DETENT); if (UI.focus.k === "value") { if (UI.main === "sampling") smpKnob(UI.focus.i, d * DETENT); else knob(UI.focus.i, d * DETENT); } return; }
   navSet(items[((navIndex(items) + d) % items.length + items.length) % items.length]);
 }
 function navPush() {
-  if (UI.main === "instrument" && UI.inspect != null && inspectorPad == null) { UI.inspect = null; return; }
   const items = navItems(); const it = items[navIndex(items)]; if (!it) return;
   const padOf = i => [...Array(16).keys()].find(q => padToStep(q) === i);
   if (it.k === "value") UI.grabbed = !UI.grabbed;
+  else if (it.k === "comp") { UI.compCursor = it.i; UI.grabbed = !UI.grabbed; } // grab it: turning changes its kind, as knob 4 does
   else if (it.k === "sound") { PARAMS[UI.track][7] = (it.i + .5) / 8; drumsSync(UI.track, 7); DRUMS.hit[it.i] = 1; if (actx) playDrums(UI.track, actx.currentTime, 60 + it.i, .9); } // the kit's sound is parameter 7, what the knob `sound` sets
   else if (it.k === "strip") $("sb" + (it.i + 1)).click();
   else if (it.k === "track") groupPress(it.i);
-  else if (it.k === "grid" && UI.shift && UI.mode === "step") { UI.inspect = it.i; UI.compCursor = 0; UI.leftPage = "steps"; UI.shift = false; }
+  else if (it.k === "grid" && UI.shift && UI.mode === "step") { UI.inspect = it.i; UI.compCursor = 0; UI.focus = { k: "comp", i: 0 }; UI.leftPage = "steps"; UI.shift = false; }
   else if (it.k === "grid" && UI.mode === "punch") { const slot = padOf(it.i); if (punchState.slot === slot) setPunch(null, 0); else { punchState.base = .5; setPunch(slot, .5); } }
   else if (it.k === "grid") { padDown(padOf(it.i), .8); padUp(padOf(it.i)); }
   else padDown(padOf(it.i), .8);
@@ -1061,18 +1062,20 @@ function jog(d) {
   if (UI.held === "swing") { P.swing = clamp(P.swing + d * 0.005, 0.5, 0.75); return; }
   if (UI.held === "volume") { VOL = clamp(VOL + d * 0.01, 0, 1); if (master) master.gain.value = 0.8 * VOL; return; }
   if (UI.held === "tempo") { P.bpm = clamp(P.bpm + d * (UI.shift ? 0.1 : 1), 20, 300); return; }
-  if (UI.mode === "keys") { UI.octave = clamp(UI.octave + d, -2, 4); UI.down.fill(false); return; }
+  if (UI.mode === "keys" && SLOTS[UI.track] !== "drums") { UI.octave = clamp(UI.octave + d, -2, 4); UI.down.fill(false); return; }
   if (UI.inspect != null) {
     const s = P.tracks[UI.track].steps[UI.inspect];
     UI.compCursor = clamp(UI.compCursor + d, 0, Math.min(s.comps.length, 5));
   } // the tempo is only turned while TEMPO is held (above)
 }
 function controllerTick() {
+  if (UI.inspect != null && UI.focus.k === "comp") { const last = Math.min(P.tracks[UI.track].steps[UI.inspect].comps.length, 5); if (UI.focus.i > last) { UI.focus = { k: "comp", i: last }; UI.compCursor = last; } } // a component taken away leaves the focus on the `+`
+  if (UI.inspect == null && UI.focus && UI.focus.k === "comp") { UI.focus = { k: "grid", i: 0 }; UI.grabbed = false; }
   if (UI.main === "sampling") smpTickLevel();
   if (UI.mode === "step" && inspectorPad == null) {
     const now = performance.now();
     for (let p = 0; p < 16; p++) if (padDownAt[p] != null && now - padDownAt[p] >= 300) {
-      inspectorPad = p; UI.leftPage = "steps"; UI.inspect = padToStep(p); UI.compCursor = 0; break;
+      inspectorPad = p; UI.leftPage = "steps"; UI.inspect = padToStep(p); UI.compCursor = 0; UI.focus = { k: "comp", i: 0 }; break;
     }
   }
   for (let t = 0; t < 8; t++) {
@@ -1738,10 +1741,10 @@ function playView(g, accent) {
     const x = 262 + (pad % 4) * 42, y = 50 + (3 - Math.floor(pad / 4)) * 42, n = padNote(pad), down = UI.down[pad];
     if (n == null) { rrect(g, x + .5, y + .5, 36, 36, 6, FAINT, 1); continue; }
     if (down) rrect(g, x, y, 37, 37, 6, FG); else { rrect(g, x, y, 37, 37, 6, mix(accent, 0.30)); rrect(g, x + .5, y + .5, 36, 36, 6, mix(accent, 0.6), 1); }
-    txt(g, kit && UI.mode === "pads" ? SOUND_LABELS[n - 60] : noteName(n), x + 18.5, y + 18.5, "s", down ? BG : FG, "center", "middle");
+    txt(g, kit ? SOUND_LABELS[n - 60] : noteName(n), x + 18.5, y + 18.5, "s", down ? BG : FG, "center", "middle");
   }
-  const title = UI.mode === "keys" ? "C" + (3 + UI.octave) : kit ? "kit" : NOTE_NAMES[P.brain.key];
-  const sub = UI.mode === "keys" ? "keyboard" : kit ? "eight sounds" : SCALES[P.brain.scale][0].toLowerCase() + " scale";
+  const title = kit ? "kit" : UI.mode === "keys" ? "C" + (3 + UI.octave) : NOTE_NAMES[P.brain.key];
+  const sub = kit ? (UI.mode === "keys" ? "keyboard: eight sounds" : "eight sounds") : UI.mode === "keys" ? "keyboard" : SCALES[P.brain.scale][0].toLowerCase() + " scale";
   txt(g, title, 30, 66, "huge", accent); txt(g, sub, 30, 140, "mid", DIM);
 }
 function punchView(g, accent) {
@@ -2110,7 +2113,7 @@ $("bSampling").addEventListener("click", () => setMain(UI.main === "sampling" ? 
 $("bFile").addEventListener("click", () => setMain(UI.main === "file" ? "instrument" : "file"));
 $("bPlug").addEventListener("click", () => setMain(UI.main === "plugin" ? "instrument" : "plugin"));
 $("sb1").addEventListener("click", () => { if (UI.main === "instrument") setMode("step"); }); // setMode also goes back to the steps
-$("sb2").addEventListener("click", () => { if (UI.main === "instrument") { setMode("step"); UI.inspect = 0; UI.compCursor = 0; } });
+$("sb2").addEventListener("click", () => { if (UI.main === "instrument") { setMode("step"); UI.inspect = 0; UI.compCursor = 0; UI.focus = { k: "comp", i: 0 }; } });
 $("sb3").addEventListener("click", () => openLeft("players"));
 $("sb4").addEventListener("click", () => openLeft("bar"));
 $("sb5").addEventListener("click", () => { if (UI.main === "instrument") UI.page = 0; });
@@ -2125,7 +2128,7 @@ $("jogP").addEventListener("click", () => { if (navOn()) navPush(); });
 document.addEventListener("keydown", e => {
   if (!navOn() || (document.activeElement && document.activeElement !== document.body)) return;
   const k = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[e.key];
-  if (k && k[0] && UI.main === "instrument" && UI.mode === "keys") { e.preventDefault(); jogOctave(k[0]); } // in KEYBOARD ◀ ▶ are the octave
+  if (k && k[0] && UI.main === "instrument" && UI.mode === "keys" && SLOTS[UI.track] !== "drums") { e.preventDefault(); jogOctave(k[0]); } // in KEYBOARD ◀ ▶ are the octave
   else if (k) { e.preventDefault(); navMove(k[0], k[1]); } else if (e.key === "Enter") { e.preventDefault(); navPush(); }
 });
 // Modifiers latch on click (a mouse can't hold two buttons). Shift and Mute
