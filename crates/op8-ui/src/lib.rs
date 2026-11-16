@@ -110,6 +110,8 @@ pub struct UiState {
     pub inspect_step: Option<u8>,
     /// Which component slot knob 4 edits in the inspector (len = "add new").
     pub comp_cursor: usize,
+    /// The mix, (level, pan) of each track, for the footers that show it while VOLUME is held (the controller keeps it).
+    pub mix: [(u8, u8); 8],
     /// How many components the step in the inspector has (the controller keeps it: the list of the 4D's items depends on it).
     pub comp_count: usize,
     pub knob_touch: [bool; 8],

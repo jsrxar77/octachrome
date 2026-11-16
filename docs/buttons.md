@@ -79,7 +79,8 @@ They are the modules of the current mode, like M1–M4 on the OP-XY. Their name 
 | FOLLOW · Shift: grid | Follow playback | bar | Recording quantisation | ○ |
 | TEMPO + 4D encoder | Tempo | tempo | While TEMPO is held, the 4D encoder turns the tempo (Shift = fine) and the left screen shows it big. Without a button held the encoder does not turn the tempo any more: it moves the focus ([design.md §4](design.md)) | ✓ |
 | SWING + 4D encoder | Swing | tempo (swing) | While SWING is held, the 4D encoder turns the global swing and the left screen shows it big | ✓ |
-| VOLUME + 4D encoder | Volume | volume | While VOLUME is held, the 4D encoder turns the master volume and the left screen shows it big. (A track's volume with a group held is still to do) | ◐ |
+| VOLUME + 4D encoder | Volume | volume | While VOLUME is held, the 4D encoder turns the master volume (the number at the top right of the mix) | ✓ |
+| VOLUME + knobs 1–8 · SHIFT | A track's volume and pan | mixer | **The mix** (2026-11-16): while VOLUME is held both screens show it (eight faders and pans on the left, the four tracks of each knob under each screen); knob 1 to 8 is the level of track A to H, and with SHIFT held its pan. A turn of one detent moves four of 127. Saved with the project | ✓ |
 | SHIFT | Secondary functions | shift | Secondary functions (rule 12) | ✓ |
 
 ## 6. Other controls

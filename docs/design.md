@@ -218,6 +218,15 @@ Decided with Javi on 2026-11-15: **every view that has things to choose has a fo
 - **The tempo** is no longer turned by the 4D by itself: hold TEMPO and turn (SWING and VOLUME work the same way). In settings the 4D turns through the themes, and in the step inspector the focus is on its components (above).
 - **Where it applies:** everywhere there is something to choose: FILE, PLUG-IN, BROWSER, SAMPLING and composing (settings keeps its own: the encoder turns through the themes). With KEYBOARD ◀ ▶ stay the octave (except on a drum kit, where KEYBOARD is PAD MODE: the eight sounds, no octave); the turn and ▲ ▼ move the focus.
 
+### Mix view (VOLUME held)
+
+Decided with Javi on 2026-11-16: while VOLUME is held, the eight knobs are the **mix** of the eight tracks (knob 1 is track A … knob 8 is track H, left to right across both screens), and SHIFT turns them into the pans. It takes the area of the left screen between the strip and the footer, and replaces the footers of both screens, because while VOLUME is held the knobs are not the knobs of the page.
+
+- **Left, in the area:** the word `mix` (`pan` while SHIFT is held) in `dim` at the top left, and the master volume (which the 4D encoder turns) at the top right in `fg`, with `master` under it. Eight columns 56 px apart (centres at x = 44 … 436): a **fader** 20 × 100 px (a `faint` slot, filled from the bottom in the colour of the track; `faint` if the track is muted; at 40 % of its colour while SHIFT is held), under it the **pan**: a 44 px `faint` line with a tick at the centre and a 5 px marker (`dim`, or `fg` while SHIFT is held), and under that the letter of the track (`fg` for the track that is open, `dim` for the others).
+- **Footers:** four cells under each screen, each the letter of a track in its colour and its value in `fg`: the level as a percentage, or while SHIFT is held `C`, `L` and a number, or `R` and a number. Knobs 1 to 4 are under the left screen (A to D) and 5 to 8 under the right (E to H).
+- **No focus ring** is drawn while VOLUME is held: the 4D turns the master volume, and nothing is to be chosen.
+- **The engine:** a track's level plays as `level / 127` (never above 1; the default, 102, is the 0.8 every track had before) and its pan as a balance: the centre (64) is unity on both sides and the far side fades to nothing at the edge, so a hard pan is one speaker only. The mix is kept in the project (`Track::level`, `Track::pan`; format version 3).
+
 ### Settings view
 
 Settings is a **main mode** (SETTINGS button; see [buttons.md](buttons.md)): it takes **both** screens, and the rule that the left is time and the right is sound is suspended while it is open. Composing (CHANNEL) is the other main mode. Each setting is a page that uses both screens: the left shows the choices, the right shows what they mean. Today there is one page, the theme.

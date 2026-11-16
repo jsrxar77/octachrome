@@ -348,6 +348,8 @@ function ensureTrack(tr) {
   tr.pl = tr.pl || { mode: 0, chord: 0, speed: 2, oct: 1 };
   tr.fx = tr.fx || { kind: 0, a: 128, b: 110, c: 90 };
   tr.lfo = tr.lfo || { shape: 0, rate: 110, depth: 128, target: 0 };
+  if (tr.level == null) tr.level = 102; // the mix (Track::level, Track::pan): 0..127, the pan 64 in the centre
+  if (tr.pan == null) tr.pan = 64;
   return tr;
 }
 const lfoHz = l => 0.05 * Math.pow(400, l.rate / 255);
@@ -438,7 +440,7 @@ function drumsSync(t, i) {
 if (SLOTS[0] === "drums") PARAMS[0][7] = .5 / 8;
 const recentMidi = [];
 
-let actx = null, master = null, trackOut = [], analysers = [], fx = {};
+let actx = null, master = null, trackOut = [], trackPan = [], analysers = [], fx = {};
 function initAudio() {
   if (actx) return;
   actx = new (window.AudioContext || window.webkitAudioContext)({ latencyHint: "interactive", sampleRate: 48000 });
@@ -465,11 +467,12 @@ function initAudio() {
   for (let t = 0; t < 8; t++) {
     const g = actx.createGain(); g.gain.value = 0.8;
     const an = actx.createAnalyser(); an.fftSize = 2048;
-    const tin = actx.createGain(), tout = actx.createGain();
-    g.connect(an); an.connect(tin); tin.connect(tout); tout.connect(master);
+    const tin = actx.createGain(), tout = actx.createGain(), pn = actx.createStereoPanner ? actx.createStereoPanner() : null;
+    g.connect(an); an.connect(tin); tin.connect(tout); if (pn) tout.connect(pn).connect(master); else tout.connect(master); trackPan.push(pn);
     TFX.push({ in: tin, out: tout, nodes: [], kind: 0, params: {} });
     trackOut.push(g); analysers.push(an);
   }
+  for (let t = 0; t < 8; t++) mixApply(t);
   const nb = actx.createBuffer(1, 4800, 48000), d = nb.getChannelData(0);
   for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
   fx.noise = nb;
@@ -913,6 +916,7 @@ function padUp(pad) {
   else if (punchState.slot === pad) setPunch(null, 0);
 }
 function knob(k, delta) {
+  if (UI.held === "volume" && UI.main === "instrument") { mixKnob(k, delta); return; } // VOLUME held: the eight knobs are the mix (SHIFT: the pans)
   if (UI.main === "sampling") { smpKnob(k, delta); return; }
   if (UI.main === "settings") return;
   if (k >= 4 && UI.page === 2) { fxKnob(k, delta); return; }
@@ -1048,7 +1052,7 @@ function navPush() {
   else padDown(padOf(it.i), .8);
 }
 function navRing(g, screen) {
-  if (UI.focus == null) return; const items = navItems(), it = items[navIndex(items)]; if (!it || it.s !== screen) return;
+  if (UI.focus == null || UI.held === "volume") return; const items = navItems(), it = items[navIndex(items)]; if (!it || it.s !== screen) return;
   const sounding = UI.mode === "punch" && it.k === "grid" && punchState.slot === [...Array(16).keys()].find(q => padToStep(q) === it.i), hold = UI.grabbed || sounding;
   if (it.k === "track") { g.beginPath(); g.arc(it.x + it.w / 2, it.y + it.h / 2, it.i === UI.track ? 10 : 8, 0, Math.PI * 2); g.strokeStyle = KC[0]; g.lineWidth = 2.5; g.stroke(); return; } // a track is a round capsule: the ring hugs its edge
   if (it.k === "strip") { const w = hold ? 3.5 : 2.5; rrect(g, it.x + w / 2, it.y + w / 2, it.w - w, it.h - w, 11 - w / 2, hold ? FG : KC[0], w); return; } // a capsule at the very top: the ring is on its own edge (the stroke is centred, so the box is inset by half of it)
@@ -1291,7 +1295,28 @@ function applyPiece(i) {
 function blankProject() { const p = factoryProject(0); p.tracks.forEach(t => { t.steps = Array.from({ length: 16 }, () => newStep()); t.length = 16; t.kit = false; t.link = false; t.pl = null; t.fx = null; t.lfo = null; ensureTrack(t); }); p.bpm = 120; p.swing = .5; p.brain = brainOf(0, 0, "triad", [0, 5, 3, 4]); return p; }
 const userKey = n => "op8-user-" + n;
 function fileSlots() { return Array.from({ length: 16 }, (_, i) => i < 8 ? [FILE_NAMES[i], true] : (localStorage.getItem(userKey(i - 7)) ? ["user " + (i - 7), true] : ["", false])); }
-function loadProject(src) { const q = JSON.parse(JSON.stringify(src)); P.tracks = q.tracks.map(ensureTrack); P.bpm = q.bpm; P.swing = q.swing; P.brain = q.brain; if (actx) for (let t = 0; t < 8; t++) fxApply(t, true); }
+// the mix (Engine: level / 127 as the gain, a balance for the pan: the centre is unity, the far side fades to nothing at the edge)
+function mixApply(t) { if (!actx || !trackOut[t]) return; const tr = P.tracks[t]; trackOut[t].gain.value = tr.level / 127; if (trackPan[t]) trackPan[t].pan.value = clamp((tr.pan - 64) / 63, -1, 1); }
+function mixKnob(k, delta) { const n = detents(k, delta); if (!n || k >= 8) return; const tr = P.tracks[k]; if (UI.shift) tr.pan = clamp(tr.pan + n * 4, 0, 127); else tr.level = clamp(tr.level + n * 4, 0, 127); mixApply(k); }
+function mixView(g) {
+  fill(g, 0, 24, 480, 200, BG);
+  txt(g, UI.shift ? "pan" : "mix", 20, 38, "l", DIM, "left", "middle"); txt(g, Math.round(VOL * 100) + "%", 460, 38, "l", FG, "right", "middle"); txt(g, "master", 460, 56, "s", DIM, "right", "middle");
+  P.tracks.forEach((tr, i) => {
+    const cx = 44 + i * 56, col = tr.muted ? FAINT : TRACK_COLORS[i], top = 62, h = 100, fh = Math.max(2, h * tr.level / 127);
+    rrect(g, cx - 10, top, 20, h, 4, FAINT); rrect(g, cx - 10, top + h - fh, 20, fh, 4, UI.shift ? mix(col, .4) : col);
+    fill(g, cx - 22, 182, 44, 1, FAINT); fill(g, cx, 178, 1, 9, DIM); dot(g, cx + (tr.pan - 64) / 64 * 22, 182.5, 5, UI.shift ? FG : DIM);
+    txt(g, String.fromCharCode(65 + i), cx, 206, "m", i === UI.track ? FG : DIM, "center", "middle");
+  });
+}
+function mixFooter(g, first) {
+  fill(g, 0, 224, 480, 48, BG);
+  for (let k = 0; k < 4; k++) {
+    const i = first + k, tr = P.tracks[i], cx = 60 + 120 * k;
+    const v = UI.shift ? (tr.pan === 64 ? "C" : tr.pan < 64 ? "L" + (64 - tr.pan) : "R" + (tr.pan - 64)) : Math.round(tr.level * 100 / 127) + "%";
+    txt(g, String.fromCharCode(65 + i), cx - 34, 248, "l", TRACK_COLORS[i], "center", "middle"); txt(g, v, cx - 18, 248, "l", FG, "left", "middle");
+  }
+}
+function loadProject(src) { const q = JSON.parse(JSON.stringify(src)); P.tracks = q.tracks.map(ensureTrack); P.bpm = q.bpm; P.swing = q.swing; P.brain = q.brain; if (actx) for (let t = 0; t < 8; t++) { fxApply(t, true); mixApply(t); } }
 function filePad(pad) {
   const slot = padToStep(pad); UI.fileLast = slot;
   if (UI.shift) {
@@ -1547,8 +1572,9 @@ function drawLeft(g) {
   else { if (P.tracks[UI.track].kit) lanesView(g, accent); else rings(g); padGrid(g, accent); }
   const cells = leftFooter();
   footer(g, cells);
-  if (UI.held) {
-    // TEMPO, SWING or VOLUME is held: what the encoder turns, big
+  if (UI.held === "volume") { mixView(g); mixFooter(g, 0); }
+  else if (UI.held) {
+    // TEMPO or SWING is held: what the encoder turns, big
     fill(g, 0, 20, 480, 204, BG);
     txt(g, UI.held, 240, 80, "mid", DIM, "center", "middle");
     txt(g, UI.held === "tempo" ? P.bpm.toFixed(1) : UI.held === "swing" ? Math.round(P.swing * 100) + "%" : Math.round(VOL * 100) + "%", 240, 140, "huge", FG, "center", "middle");
@@ -1815,6 +1841,7 @@ function drawRight(g) {
   const cells = rp === 2 ? fxFooter(t) : rp === 3 ? lfoFooter(t) : [0, 1, 2, 3].map(i => { const d = cart.params[base + i]; return d ? [d[0], d[2](p[base + i]), p[base + i]] : ["", "", 0]; });
   footer(g, cells, 4);
   touchOverlay(g, cells, 4);
+  if (UI.held === "volume" && UI.main === "instrument") mixFooter(g, 4);
 }
 // ---- pages of buttons 3, 4, 7 and 8 (design.md §4): the same drawings as op8-ui/src/pages.rs ----
 function fxFooter(t) {

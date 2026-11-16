@@ -198,6 +198,8 @@ impl Controller {
                 Mode::Punch => self.punch_pad(pad, event, h),
                 Mode::Pads | Mode::Keys => self.play_pad(pad, event, h),
             },
+            // VOLUME held: the eight knobs are the mix, one for each track (SHIFT: the pan)
+            ControlEvent::Knob { index, delta } if self.ui.held == Some(op8_ui::Held::Volume) => self.mixer_knob(index as usize, delta, h),
             ControlEvent::Knob { index, delta } => self.knob(index as usize, delta, h, now_ms),
             ControlEvent::KnobTouch { index, touched } => {
                 if let Some(t) = self.ui.knob_touch.get_mut(index as usize) {
@@ -1354,6 +1356,23 @@ impl Controller {
     }
 
     /// Turn raw knob delta into whole detents, keeping the remainder.
+    /// The mix: while VOLUME is held, knob `k` is the level of track `k` (A to H), or with SHIFT its pan. A turn of one detent is
+    /// four steps of 127 (a pan of one detent is the same, so the centre is reached in sixteen).
+    fn mixer_knob(&mut self, k: usize, delta: i32, h: &mut EngineHandle) {
+        let n = self.detents(k, delta);
+        if n == 0 || k >= TRACKS {
+            return;
+        }
+        let t = h.project.tracks[k];
+        if self.held.shift {
+            let pan = (t.pan as i32 + n * 4).clamp(0, 127) as u8;
+            h.seq(Command::SetPan { track: k as u8, pan });
+        } else {
+            let level = (t.level as i32 + n * 4).clamp(0, 127) as u8;
+            h.seq(Command::SetLevel { track: k as u8, level });
+        }
+    }
+
     fn detents(&mut self, k: usize, delta: i32) -> i32 {
         self.knob_accum[k] += delta;
         let n = self.knob_accum[k] / DETENT;
@@ -1599,6 +1618,7 @@ impl Controller {
         // what the 4D's list depends on: how many components the inspected step has; and when the inspector is closed the focus
         // is not on one of them any more
         self.ui.comp_count = self.inspected(h).map_or(0, |s| s.components.len());
+        self.ui.mix = std::array::from_fn(|i| (h.project.tracks[i].level, h.project.tracks[i].pan));
         if let (NavKind::Comp(i), Some(_)) = (self.ui.focus, self.ui.inspect_step) {
             // a component taken away leaves the focus on the `+` at the end of the stack
             let last = self.ui.comp_count.min(MAX_COMPONENTS - 1);

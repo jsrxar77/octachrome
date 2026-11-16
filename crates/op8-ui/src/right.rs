@@ -18,7 +18,10 @@ pub fn draw_right(
     params: &[f32; 8],
 ) {
     draw_right_view(fb, ui, cartridge, params);
-    if let Some(it) = crate::nav::focused(ui).filter(|it| it.screen == 1 && ui.main == crate::Main::Instrument) {
+    if ui.main == crate::Main::Instrument && ui.held == Some(crate::Held::Volume) {
+        return crate::left::mixer_footer(fb, ui, 4);
+    }
+    if let Some(it) = crate::nav::focused(ui).filter(|it| it.screen == 1 && ui.main == crate::Main::Instrument && ui.held != Some(crate::Held::Volume)) {
         crate::nav::draw_ring(fb, &it, ui);
     }
 }
