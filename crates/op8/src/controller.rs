@@ -456,6 +456,11 @@ impl Controller {
         let Some(item) = op8_ui::nav_focused(&self.ui) else { return };
         match item.kind {
             NavKind::Value(_) => self.ui.grabbed = !self.ui.grabbed,
+            NavKind::Sound(i) => {
+                // the kit's sound is parameter 7 (what the knob `sound` sets): choose it and hear it
+                h.send(EngineCommand::SetParam { track: self.ui.track as u8, index: 7, value: (i as f32 + 0.5) / 8.0 });
+                h.send(EngineCommand::Audition { track: self.ui.track as u8, note: op8_seq::step::KIT_BASE_NOTE + i, velocity: 0.9 });
+            }
             NavKind::Strip(n) => {
                 self.button(Button::Screen(n + 1), true, h);
                 self.button(Button::Screen(n + 1), false, h);

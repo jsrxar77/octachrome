@@ -156,6 +156,7 @@ fn focus_on(b: &mut Bench, kind: op8_ui::NavKind) {
 fn f_n07_composing_has_a_focus_that_visits_everything() {
     use op8_ui::NavKind;
     let mut b = Bench::demo();
+    b.press(Button::Group(1)); // KickSyn: a drum kit has its eight sounds to visit too (F-N14)
     b.run_ms(100);
     let start = b.ui().focus;
     let mut seen = std::collections::HashSet::new();
@@ -293,4 +294,26 @@ fn f_n12_push_engages_an_effect_and_the_wheel_is_its_intensity() {
     assert!(b.ui().punch.is_some());
     b.press(Button::Step);
     assert_eq!(b.ui().punch, None, "leaving PERFORM lets it go");
+}
+
+// F-N14: a drum kit draws its eight sounds on the right screen and the 4D reaches them: the focus visits them, pushing one chooses it
+// (the same as the `sound` knob: the screen shows it large, the lane of the steps is its) and plays it; another instrument has none.
+#[test]
+fn f_n14_the_sounds_of_a_kit_can_be_chosen_with_the_4d() {
+    use op8_ui::NavKind;
+    let mut b = Bench::demo();
+    b.run_ms(100);
+    let sounds = |b: &Bench| op8_ui::nav_items(b.ui()).iter().filter(|i| matches!(i.kind, NavKind::Sound(_))).count();
+    assert_eq!(sounds(&b), 8, "the drums, track A");
+    assert_eq!(b.ui().lane, Some(0));
+    focus_on(&mut b, NavKind::Sound(5));
+    let before = b.screen_hash(Screen::Right);
+    b.press(Button::JogPush);
+    b.run_ms(100);
+    assert_eq!(b.ui().lane, Some(5), "the sixth sound is the chosen one");
+    assert_ne!(b.screen_hash(Screen::Right), before, "and the right screen shows it");
+    assert_eq!(b.ui().focus, NavKind::Sound(5), "the focus stays on it");
+    b.press(Button::Group(1)); // KickSyn
+    b.run_ms(100);
+    assert_eq!(sounds(&b), 0, "an instrument that is not a kit has no sounds to choose");
 }

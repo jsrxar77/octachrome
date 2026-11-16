@@ -396,8 +396,8 @@ mod tests {
         for main in [Main::Instrument, Main::File, Main::Plugin, Main::Browser, Main::Sampling] {
             for mode in modes {
                 for page in [LeftPage::Steps, LeftPage::Players, LeftPage::Bar] {
-                    for has_second in [false, true] {
-                        let ui = UiState { main, mode, left_page: page, has_second, ..Default::default() };
+                    for (has_second, lane) in [(false, None), (true, None), (true, Some(0))] {
+                        let ui = UiState { main, mode, left_page: page, has_second, lane, ..Default::default() };
                         let labels = [strip_labels(&ui, 0), strip_labels(&ui, 1)];
                         for it in nav::items(&ui) {
                             let (x, y, w, h, _) = nav::ring_box(&it);
