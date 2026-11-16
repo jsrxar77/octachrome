@@ -152,6 +152,8 @@ pub struct UiState {
     /// The slot last touched in FILE, and a line saying what happened.
     pub file_last: Option<usize>,
     pub file_note: String,
+    /// The place of FILE or BROWSER that ERASE has marked and that the next touch erases (drawn in red).
+    pub confirm: Option<usize>,
     /// TEMPO, SWING or VOLUME is held: the 4D encoder turns it and the left screen shows it big.
     pub held: Option<Held>,
     /// The metronome is on (SHIFT + TAP).

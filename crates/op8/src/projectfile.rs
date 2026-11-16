@@ -117,6 +117,50 @@ pub fn user_path(dir: &Path, slot: usize) -> PathBuf {
     dir.join(format!("user-{}.op8p", slot + 1))
 }
 
+/// The name of a saved project or preset lives in a small text file next to it (`user-1.op8p` → `user-1.name`): the unit writes
+/// one when it saves, and a player can write or change one with any editor. A place without one is called `user N`.
+pub fn name_path(path: &Path) -> PathBuf {
+    path.with_extension("name")
+}
+
+/// The name saved with a file, if it has one: the first line, trimmed, at most 14 characters.
+pub fn read_name(path: &Path) -> Option<String> {
+    let text = std::fs::read_to_string(name_path(path)).ok()?;
+    let name: String = text.lines().next()?.trim().chars().take(14).collect();
+    (!name.is_empty()).then_some(name)
+}
+
+pub fn write_name(path: &Path, name: &str) {
+    let _ = std::fs::write(name_path(path), format!("{name}\n"));
+}
+
+/// Erase a saved project or preset and its name. `true` if the file was there and is gone.
+pub fn erase(path: &Path) -> bool {
+    let _ = std::fs::remove_file(name_path(path));
+    std::fs::remove_file(path).is_ok()
+}
+
+/// Today as the unit names what it saves: `16 nov` (UTC: the unit has no clock of its own to ask for the local day).
+pub fn today() -> String {
+    let secs = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_secs());
+    day_label(secs / 86_400)
+}
+
+/// `16 nov` for a day counted from 1970-01-01 (civil-from-days, Howard Hinnant's algorithm).
+pub fn day_label(days: u64) -> String {
+    let z = days as i64 + 719_468;
+    let era = z.div_euclid(146_097);
+    let doe = z.rem_euclid(146_097);
+    let yoe = (doe - doe / 1460 + doe / 36_524 - doe / 146_096) / 365;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let day = doy - (153 * mp + 2) / 5 + 1;
+    let month = if mp < 10 { mp + 3 } else { mp - 9 };
+    let _ = era;
+    const MONTHS: [&str; 12] = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
+    format!("{day} {}", MONTHS[(month - 1) as usize])
+}
+
 pub fn save(path: &Path, f: &ProjectFile) -> std::io::Result<()> {
     if let Some(dir) = path.parent() {
         std::fs::create_dir_all(dir)?;
@@ -149,5 +193,18 @@ mod tests {
         let mut other = bytes.clone();
         other[4] = 99;
         assert!(ProjectFile::decode(&other).is_none(), "another version");
+    }
+}
+
+#[cfg(test)]
+mod name_tests {
+    use super::*;
+
+    #[test]
+    fn days_are_named_as_the_unit_writes_them() {
+        assert_eq!(day_label(0), "1 jan");
+        assert_eq!(day_label(20_408), "16 nov"); // 2025-11-16
+        assert_eq!(day_label(19_782), "29 feb"); // 2024-02-29
+        assert_eq!(day_label(20_453), "31 dec"); // 2025-12-31
     }
 }

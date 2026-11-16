@@ -380,13 +380,16 @@ impl Controller {
 
     /// Look at the player's folder: which of the eight user slots hold a project.
     fn refresh_files(&mut self) {
+        self.ui.confirm = None;
         self.ui.files = (0..16)
             .map(|i| {
                 if i < 8 {
                     (crate::factory::NAMES[i].to_string(), true)
                 } else {
-                    let has = self.projects_dir.as_ref().is_some_and(|d| crate::projectfile::user_path(d, i - 8).is_file());
-                    (if has { format!("user {}", i - 7) } else { String::new() }, has)
+                    let path = self.projects_dir.as_ref().map(|d| crate::projectfile::user_path(d, i - 8));
+                    let has = path.as_ref().is_some_and(|p| p.is_file());
+                    let name = path.as_deref().and_then(crate::projectfile::read_name).unwrap_or_else(|| format!("user {}", i - 7));
+                    (if has { name } else { String::new() }, has)
                 }
             })
             .collect();
@@ -544,6 +547,7 @@ impl Controller {
 
     /// The sixteen presets of the selected track's instrument: the top eight come with it (`presets.txt`), the bottom eight are the player's files.
     fn refresh_browser(&mut self, h: &EngineHandle) {
+        self.ui.confirm = None;
         let name = self.instrument_name(h);
         self.ui.browse_inst = name.clone().unwrap_or_else(|| "empty track".into());
         let factory = name.as_deref().map(op8_cartridges::presets::factory).unwrap_or_default();
@@ -552,8 +556,9 @@ impl Controller {
                 if i < 8 {
                     return factory.get(i).map_or((String::new(), false), |p| (p.0.clone(), true));
                 }
-                let has = name.as_ref().and_then(|n| self.preset_file(n, i)).is_some_and(|p| p.is_file());
-                (format!("user {}", i - 7), has)
+                let file = name.as_ref().and_then(|n| self.preset_file(n, i));
+                let has = file.as_ref().is_some_and(|p| p.is_file());
+                (file.as_deref().and_then(crate::projectfile::read_name).unwrap_or_else(|| format!("user {}", i - 7)), has)
             })
             .collect();
     }
@@ -570,6 +575,16 @@ impl Controller {
         self.pad_down_at[pad as usize] = Some(0);
         let slot = Self::pad_to_step(pad) as usize;
         self.ui.browse_last = Some(slot);
+        if self.held.erase {
+            let file = self.instrument_name(h).and_then(|n| if slot >= 8 { self.preset_file(&n, slot) } else { None });
+            let (note, done) = self.erase_place(slot, file, "preset");
+            self.ui.browse_note = note;
+            if done {
+                self.refresh_browser(h);
+            }
+            return;
+        }
+        self.ui.confirm = None;
         let track = self.ui.track;
         let (Some(name), Some(cart)) = (self.instrument_name(h), h.slots[track].clone()) else {
             self.ui.browse_note = "this track has no instrument (PLUG-IN)".into();
@@ -609,7 +624,12 @@ impl Controller {
                 .and_then(|_| std::fs::write(&tmp, &bytes))
                 .and_then(|_| std::fs::rename(&tmp, &file));
             self.ui.browse_note = match wrote {
-                Ok(()) => format!("saved in user {}", slot - 7),
+                Ok(()) => {
+                    if crate::projectfile::read_name(&file).is_none() {
+                        crate::projectfile::write_name(&file, &crate::projectfile::today());
+                    }
+                    format!("saved in user {}", slot - 7)
+                }
                 Err(e) => format!("could not save: {e}"),
             };
             self.refresh_browser(h);
@@ -835,6 +855,16 @@ impl Controller {
         self.pad_down_at[pad as usize] = Some(0);
         let slot = Self::pad_to_step(pad) as usize; // reading order: the top two rows are the factory projects
         self.ui.file_last = Some(slot);
+        if self.held.erase {
+            let path = (slot >= 8).then(|| self.projects_dir.as_ref().map(|d| crate::projectfile::user_path(d, slot - 8))).flatten();
+            let (note, done) = self.erase_place(slot, path, "project");
+            self.ui.file_note = note;
+            if done {
+                self.refresh_files();
+            }
+            return;
+        }
+        self.ui.confirm = None;
         if self.held.shift {
             if slot < 8 {
                 self.ui.file_note = "the factory projects stay as they are".into();
@@ -845,8 +875,15 @@ impl Controller {
                 return;
             };
             let f = crate::projectfile::ProjectFile::capture(h);
-            self.ui.file_note = match crate::projectfile::save(&crate::projectfile::user_path(dir, slot - 8), &f) {
-                Ok(()) => format!("saved in user {}", slot - 7),
+            let path = crate::projectfile::user_path(dir, slot - 8);
+            self.ui.file_note = match crate::projectfile::save(&path, &f) {
+                Ok(()) => {
+                    // named by the day and the tempo, unless the player has named it already (the name is a text file next to it)
+                    if crate::projectfile::read_name(&path).is_none() {
+                        crate::projectfile::write_name(&path, &format!("{} {:.0}", crate::projectfile::today(), h.project.bpm));
+                    }
+                    format!("saved in user {}", slot - 7)
+                }
                 Err(e) => format!("could not save: {e}"),
             };
             self.refresh_files();
@@ -877,6 +914,27 @@ impl Controller {
                 self.pad_down_at[pad as usize] = None;
             }
         }
+    }
+
+    /// ERASE held and a pad of FILE or BROWSER: the player's own places are erased, but only on the second touch of the same one (the
+    /// first marks it, in red, and says so; any other touch lets it be). Returns what to say and whether something was erased.
+    fn erase_place(&mut self, slot: usize, path: Option<std::path::PathBuf>, what: &str) -> (String, bool) {
+        if slot < 8 {
+            self.ui.confirm = None;
+            return (format!("the {what}s that come with it stay as they are"), false);
+        }
+        let Some(path) = path.filter(|p| p.is_file()) else {
+            self.ui.confirm = None;
+            return ("nothing to erase there".into(), false);
+        };
+        if self.ui.confirm == Some(slot) {
+            self.ui.confirm = None;
+            let name = crate::projectfile::read_name(&path).unwrap_or_else(|| format!("user {}", slot - 7));
+            return if crate::projectfile::erase(&path) { (format!("erased {name}"), true) } else { ("could not erase it".into(), false) };
+        }
+        self.ui.confirm = Some(slot);
+        let name = crate::projectfile::read_name(&path).unwrap_or_else(|| format!("user {}", slot - 7));
+        (format!("erase {name}? touch it again"), false)
     }
 
     /// After a project opens, put the screens on something: the first track that has steps, its first page, and on a kit the sound

@@ -353,6 +353,8 @@ __PIECE_ROWS__
   <ol class="steps">
     <li><div>Press <kbd>FILE</kbd>. Sixteen places: eight factory pieces on top (house, boom bap, dub, polyrhythm, acid, electro, ambient, breaks; see <a href="#pieces">listen to them</a>) and eight places of yours below. A tap on an empty place of yours opens a new empty project.</div></li>
     <li><div>Hold <kbd>SHIFT</kbd> and tap one of the empty bottom places. The right screen says <b>saved in user 1</b>.</div></li>
+    <li><div>The place now carries a name, the day you saved and the tempo (<b>16 nov 122</b>). Saving again in the same place keeps its name. To give it one of your own, open the small text file next to the project, <code>~/.config/op8/projects/user-1.name</code>, write the name in it (up to 14 characters) and press <kbd>FILE</kbd> again.</div></li>
+    <li><div>To get rid of one: hold <kbd>ERASE</kbd> and tap the place. It turns red and says <b>erase?</b>; hold <kbd>ERASE</kbd> and tap the <b>same</b> place again and it is gone. Any other tap leaves it as it was. The factory projects and the empty places are never touched.</div></li>
     <li><div>Whenever you want it back: <kbd>FILE</kbd>, tap that place. The project, the instruments and every knob come back as you left them, and the screens go back to composing.</div></li>
   </ol>
   <figure><div class="pair one"><img src="img/r12-file-left.png" alt="FILE: the factory projects and empty places."></div><figcaption>The eight factory projects on top, your eight places below (empty ones are dim).</figcaption></figure>
@@ -423,6 +425,7 @@ __PIECE_ROWS__
     <li><div>Tap a pad of the top two rows. The knobs of the instrument take the preset's values and you hear a note with the new sound; the line on the right says <b>loaded</b> and its name. Press <kbd>BROWSER</kbd> again to go back and play, or tap another preset to compare. Every instrument has its own eight (the list is in <a href="#presets">the instruments</a>).</div></li>
     <li><div>Make your own: go back (<kbd>BROWSER</kbd>), turn the knobs of both pages (<kbd>5</kbd> and <kbd>6</kbd>) until it sounds right, press <kbd>BROWSER</kbd>, hold <kbd>SHIFT</kbd> and tap a pad of the <b>bottom</b> two rows. Every knob of the instrument is saved in that place. It stays on disk, so it is there next time you start OP-8. The presets that come with the instrument cannot be written over.</div></li>
     <li><div>Turn the knobs somewhere else, press <kbd>BROWSER</kbd> and tap the pad you saved: the knobs return to what you kept.</div></li>
+    <li><div>A preset you save is named by the day, and you can erase it the same way as a project: hold <kbd>ERASE</kbd> and tap the place twice (the presets that come with the instrument are never touched). To rename it, write in the <code>.name</code> file next to it in <code>presets/&lt;instrument&gt;/</code>.</div></li>
     <li><div>Presets belong to their instrument: the ones you save for the kick are not offered on the bass. A preset of the <b>drums</b> shapes the sound that is chosen and leaves the choice alone. A preset of the <b>sampler</b> also remembers which sound it had and how you cut it. The <b>midi out</b> has none: its knobs are channel, transpose, velocity and cc74.</div></li>
   </ol>
   <figure><div class="pair"><img src="img/r17-factory-left.png" alt="BROWSER on the kick: the eight presets that come with it."><img src="img/r17-saved-left.png" alt="BROWSER after saving into user 1."></div><figcaption>Left: the kick's eight presets in the top two rows. Right: after saving into <b>user 1</b>, which is now filled.</figcaption></figure>
@@ -534,6 +537,7 @@ __PRESET_ROWS__
   <tr><th>What</th><th>Where</th><th>How it gets there</th></tr>
   <tr><td>Your projects</td><td><code>projects/user-1.op8p</code> to <code>user-8.op8p</code></td><td><kbd>FILE</kbd>, then <kbd>SHIFT</kbd> and a pad of the bottom two rows (recipe 12)</td></tr>
   <tr><td>Your sounds</td><td><code>samples/rec-1.wav</code> to <code>rec-8.wav</code>, and any other WAV file</td><td><kbd>SAMPLING</kbd> (recipe 16), or copy files in before starting</td></tr>
+  <tr><td>Their names</td><td>a <code>.name</code> file next to each: <code>user-1.name</code> …</td><td>written when you save (the day); change it with any text editor</td></tr>
   <tr><td>Your presets</td><td><code>presets/&lt;instrument&gt;/user-1.preset</code> …</td><td><kbd>BROWSER</kbd>, then <kbd>SHIFT</kbd> and a pad of the bottom two rows (recipe 17)</td></tr>
   <tr><td>Your mix</td><td>inside the project file</td><td>Hold <kbd>VOLUME</kbd> and turn the knobs, then save with <kbd>FILE</kbd> (recipes 19 and 12)</td></tr>
   <tr><td>The look</td><td><code>settings</code></td><td><kbd>SETTINGS</kbd> and the 4D encoder (recipe 14)</td></tr>
@@ -564,7 +568,7 @@ __PRESET_ROWS__
   <li><b>More of sampling.</b> <kbd>SAMPLING</kbd> records mono, up to ten seconds, and starts when you press <kbd>REC</kbd> (no threshold or count-in yet); the cut cannot be moved while the sound plays. The granular instrument is not built yet.</li>
   <li><b>More of the mixer.</b> Level and pan of each track are there (recipe 19). A master compressor, sends and a page of its own for the <kbd>MIXER</kbd> button are planned.</li>
   <li><b>Recording chords and knob movements.</b> <kbd>REC</kbd> writes notes and drum hits. Automation (<kbd>AUTO</kbd>) and a count-in are planned. The LFO of button <kbd>8</kbd> already moves knobs by itself.</li>
-  <li><b>Naming and deleting</b> projects and presets. The presets that come with the instruments are a first set and will be tuned on the unit.</li>
+  <li><b>Naming on the unit.</b> What you save is named by the day (a project also by its tempo), and you can rename it by editing the small <code>.name</code> file next to it (recipe 12). Typing a name on the unit itself is planned. The presets that come with the instruments are a first set and will be tuned on the unit.</li>
   <li><b>Solo</b>, <b>duplicate</b>, <b>select</b> and <b>variation</b> buttons.</li>
 </ul>
 <p>The order in which these arrive is in <a href="{{DOCS}}/roadmap.md">docs/roadmap.md</a>. The reference above says <i>works today</i>, <i>partly</i> or <i>planned</i> for each button.</p>

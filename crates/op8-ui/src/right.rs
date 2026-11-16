@@ -40,7 +40,7 @@ fn draw_right_view(
     }
     if ui.main == crate::Main::Browser {
         let title = format!("browser · {}", ui.browse_inst);
-        return crate::files::pick_right(fb, &title, &[("tap a pad", "loads that preset"), ("shift + tap", "saves the knobs into your presets")], &ui.browse_note);
+        return crate::files::pick_right(fb, &title, &[("tap a pad", "loads that preset"), ("shift + tap", "saves the knobs into your presets"), ("erase + tap twice", "erases one of yours")], &ui.browse_note);
     }
     if ui.main == crate::Main::Sampling {
         return crate::sampling::draw_right(fb, ui);

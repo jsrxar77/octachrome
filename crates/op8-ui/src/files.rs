@@ -46,8 +46,16 @@ pub fn pick_left(fb: &mut FrameBuffer480x272, ui: &crate::UiState, st: &EngineSt
         }
         let col = if last { t.fg } else if has { t.dim } else { t.faint };
         stroke_round_rect(fb, x, y, CELL_W, CELL_H, 8.0, if last { 2.0 } else { 1.0 }, col);
-        let label = if name.is_empty() { "empty".to_string() } else { name };
-        text_v(fb, &label, (x + CELL_W / 2.0) as i32, (y + CELL_H / 2.0) as i32, FontSize::Medium, if has { t.fg } else { t.dim }, Align::Center, VAlign::Middle);
+        let marked = ui.confirm == Some(i);
+        // the place ERASE has marked is red, with the ink that reads on red
+        let (label, ink) = if marked {
+            let (fill, ink) = op8_gfx::readable(t.rec);
+            fill_round_rect(fb, x, y, CELL_W, CELL_H, 8.0, fill);
+            ("erase?".to_string(), ink)
+        } else {
+            (if name.is_empty() { "empty".to_string() } else { name }, if has { t.fg } else { t.dim })
+        };
+        text_v(fb, &label, (x + CELL_W / 2.0) as i32, (y + CELL_H / 2.0) as i32, FontSize::Medium, ink, Align::Center, VAlign::Middle);
     }
     if let Some(it) = crate::nav::focused(ui).filter(|it| it.screen == 0) {
         crate::nav::draw_ring(fb, &it, ui);
@@ -55,7 +63,7 @@ pub fn pick_left(fb: &mut FrameBuffer480x272, ui: &crate::UiState, st: &EngineSt
 }
 
 pub fn draw_right(fb: &mut FrameBuffer480x272, ui: &crate::UiState) {
-    pick_right(fb, "projects", &[("tap a pad", "opens it"), ("shift + tap", "saves into your slots")], &ui.file_note);
+    pick_right(fb, "projects", &[("tap a pad", "opens it"), ("shift + tap", "saves into your slots"), ("erase + tap twice", "erases one of yours")], &ui.file_note);
 }
 
 /// The right screen of a picker: its title, what the pads do, and what just happened.
@@ -64,11 +72,11 @@ pub fn pick_right(fb: &mut FrameBuffer480x272, title: &str, lines: &[(&str, &str
     fb.clear(t.bg);
     bar(fb, title);
     for (i, (a, b)) in lines.iter().enumerate() {
-        let y = 90 + i as i32 * 56;
+        let y = 76 + i as i32 * 50;
         text_v(fb, a, 30, y, FontSize::Large, t.fg, Align::Left, VAlign::Middle);
         text_v(fb, b, 30, y + 24, FontSize::Medium, t.dim, Align::Left, VAlign::Middle);
     }
     if !note.is_empty() {
-        text_v(fb, note, 30, 220, FontSize::Large, t.fg, Align::Left, VAlign::Middle);
+        text_v(fb, note, 30, 236, FontSize::Large, t.fg, Align::Left, VAlign::Middle);
     }
 }
