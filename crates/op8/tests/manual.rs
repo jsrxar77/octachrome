@@ -308,7 +308,7 @@ fn recipe_10_perform() {
 fn recipe_11_choose_an_instrument() {
     let _one_at_a_time = serial();
     let mut b = Bench::empty();
-    b.press(Button::Group(5)); // F is empty
+    b.press(Button::Group(5)); // F: the granular, which the resonator replaces
     b.press(Button::PlugIn);
     b.run_ms(100);
     b.capture("r11-plugin");
@@ -563,9 +563,10 @@ fn recipe_19_the_mix() {
 fn recipe_20_granular_a_cloud_from_a_sound() {
     let _one_at_a_time = serial();
     let mut b = Bench::demo();
-    b.press(Button::Group(5)); // F, empty
+    b.press(Button::Group(5)); // F: the granular is there already
+    assert_eq!(b.instrument(5).as_deref(), Some("granular"));
     b.press(Button::PlugIn);
-    b.tap(pad(6)); // the granular, the sixth of the eight
+    b.tap(pad(6)); // choosing it again changes nothing
     assert_eq!(b.instrument(5).as_deref(), Some("granular"));
     b.press(Button::Keyboard);
     b.strike_at(0, 0.9); // hold a pad

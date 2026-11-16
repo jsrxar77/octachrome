@@ -125,3 +125,29 @@ fn f_i06_the_granular_plays_a_cloud_from_a_step() {
     b.tap(pad_of(3));
     assert!(b.ui().browse_note.starts_with("loaded"), "{}", b.ui().browse_note);
 }
+
+// F-I07: the standard tracks hold the eight instruments in the order of PLUG-IN, from the most guttural to the most refined, with the MIDI out
+// last: A drums, B KickSyn, C FmBass, D resonator, E sampler, F granular, G macro, H MIDI out. The unit starts so, and so does every project
+// that comes with it and a new empty one.
+#[test]
+fn f_i07_the_standard_tracks_hold_the_eight_instruments_in_order() {
+    let order = ["drums", "KickSyn", "FmBass", "resonator", "sampler", "granular", "macro", "MidiOutBridge"];
+    let check = |b: &Bench, what: &str| {
+        for (t, name) in order.iter().enumerate() {
+            assert_eq!(b.instrument(t).as_deref(), Some(*name), "{what}: track {t}");
+        }
+    };
+    check(&Bench::demo(), "the unit as it starts");
+    check(&Bench::empty(), "the empty rig");
+    let mut b = Bench::demo();
+    for slot in 0..8 {
+        b.press(Button::File);
+        b.tap(pad_of(slot));
+        b.run_ms(50);
+        check(&b, &format!("factory project {slot}"));
+    }
+    b.press(Button::File);
+    b.tap(pad_of(10)); // an empty place of the player's: a new empty project
+    b.run_ms(50);
+    check(&b, "a new empty project");
+}
