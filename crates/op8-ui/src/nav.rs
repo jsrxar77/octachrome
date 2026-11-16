@@ -29,6 +29,8 @@ pub enum NavKind {
     Strip(u8),
     Track(u8),
     Value(u8),
+    /// One of the eight sounds of a drum kit, drawn on the right screen: pushing chooses it.
+    Sound(u8),
 }
 
 /// Something that can have the focus: what it is, on which screen (0 left, 1 right) and its box in that screen's pixels.
@@ -83,6 +85,11 @@ pub fn punch_slot(c: usize) -> usize {
     (3 - c / 4) * 4 + c % 4
 }
 
+/// One of the eight sounds of a drum kit as the drums draw them on the right screen: a 4 × 2 grid of keys.
+pub fn sound_rect(i: usize) -> (f32, f32, f32, f32) {
+    (24.0 + (i % 4) as f32 * 60.0, 76.0 + (i / 4) as f32 * 60.0, 52.0, 52.0)
+}
+
 /// One of the four values of a footer, under its screen.
 pub fn footer_rect(col: usize) -> (f32, f32, f32, f32) {
     (col as f32 * FOOTER_COL as f32 + 6.0, FOOTER_Y as f32 + 3.0, FOOTER_COL as f32 - 12.0, 42.0)
@@ -120,6 +127,10 @@ pub fn items(ui: &UiState) -> Vec<NavItem> {
             }
             v.extend((0..4).map(|k| NavItem { kind: NavKind::Value(k as u8), screen: 0, rect: footer_rect(k) }));
             v.extend(strip(4..8, 1));
+            // a drum kit draws its eight sounds on the right screen (its pages sound and shape): they can be chosen from there
+            if ui.lane.is_some() && crate::right_page(ui) < 2 {
+                v.extend((0..8).map(|i| NavItem { kind: NavKind::Sound(i as u8), screen: 1, rect: sound_rect(i) }));
+            }
             v.extend((0..4).map(|k| NavItem { kind: NavKind::Value(4 + k as u8), screen: 1, rect: footer_rect(k) }));
             v
         }

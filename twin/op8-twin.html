@@ -1012,6 +1012,8 @@ function navItems() {
   else if (UI.mode === "pads" || UI.mode === "keys" || (UI.mode === "step" && UI.leftPage === "steps")) for (let c = 0; c < 16; c++) v.push({ k: "grid", i: c, s: 0, x: 262 + (c % 4) * 42, y: 50 + Math.floor(c / 4) * 42, w: 37, h: 37 });
   for (let k = 0; k < 4; k++) v.push({ k: "value", i: k, s: 0, x: k * 120 + 6, y: 227, w: 108, h: 42 });
   [4, 5, 6, 7].filter(has).forEach(n => v.push(strip(n, 1)));
+  // a drum kit draws its eight sounds on the right screen (its pages sound and shape): they can be chosen from there
+  if (SLOTS[UI.track] === "drums" && UI.page < 2) for (let i = 0; i < 8; i++) v.push({ k: "sound", i, s: 1, x: 24 + (i % 4) * 60, y: 76 + Math.floor(i / 4) * 60, w: 52, h: 52 });
   for (let k = 0; k < 4; k++) v.push({ k: "value", i: 4 + k, s: 1, x: k * 120 + 6, y: 227, w: 108, h: 42 });
   return v;
 }
@@ -1036,6 +1038,7 @@ function navPush() {
   const items = navItems(); const it = items[navIndex(items)]; if (!it) return;
   const padOf = i => [...Array(16).keys()].find(q => padToStep(q) === i);
   if (it.k === "value") UI.grabbed = !UI.grabbed;
+  else if (it.k === "sound") { PARAMS[UI.track][7] = (it.i + .5) / 8; drumsSync(UI.track, 7); DRUMS.hit[it.i] = 1; if (actx) playDrums(UI.track, actx.currentTime, 60 + it.i, .9); } // the kit's sound is parameter 7, what the knob `sound` sets
   else if (it.k === "strip") $("sb" + (it.i + 1)).click();
   else if (it.k === "track") groupPress(it.i);
   else if (it.k === "grid" && UI.shift && UI.mode === "step") { UI.inspect = it.i; UI.compCursor = 0; UI.leftPage = "steps"; UI.shift = false; }
