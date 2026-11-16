@@ -55,7 +55,7 @@ pub fn light(ui: &UiState, c: &Context, b: Button) -> Light {
         Tap => if composing { state(ui.metronome) } else { Light::Off },
         Tempo | Swing | Volume => if composing { Light::Dim } else { Light::Off },
         FixedVel => if composing { state(ui.fixed_vel) } else { Light::Off },
-        Rec => if composing { state(ui.rec) } else if ui.main == Main::Sampling { state(ui.smp.recording) } else { Light::Off },
+        Rec => if composing { state(ui.rec) } else if ui.main == Main::Sampling { state(ui.smp.recording || ui.smp.armed) } else { Light::Off },
         // Going back to composing, or into settings
         ChannelMidi => state(composing),
         Settings => state(ui.main == Main::Settings),

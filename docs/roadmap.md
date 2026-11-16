@@ -139,7 +139,7 @@ Saved on 2026-11-16, after the batch of section 8. Development goes on first and
 4. Done (2026-11-16): the basic mixer: a level and a pan for each track, turned with VOLUME held and the knobs (SHIFT for the pan), saved with the project (format version 3) (F-A20, F-K18, F-D20). Still to do: a master compressor, sends, and a page for the MIXER button.
 5. Done (2026-11-16): names for projects and presets (by the day, and a text file the player can edit) and ERASE + a tap, twice, to erase one (F-F08, F-F09, F-K19). **To do, later:** naming on the unit itself: a text screen where the 4D encoder chooses the letter, the pads move the cursor and SHIFT keeps it (names of up to 12 characters); it would be reusable for any other name.
 6. PATTERN, SCENE and ARRANGER.
-7. The sampler's gaps: hot-load of copied WAVs, a record threshold and count-in, slices, the root note.
+7. Done (2026-11-16): the sampler's gaps: copied WAVs are loaded when SAMPLING or PLUG-IN opens (F-A24), SHIFT + REC waits for the sound (F-A23), slices on the `loop` knob and `tune` of ± 24, which is also the root note (F-A22). Left: the count-in (with REC, item 8), cutting slices at the hits, and moving the cut while it plays.
 8. SETTINGS: audio, MIDI and brightness as pages. REC: the count-in.
 
 **To try on the unit, all together**

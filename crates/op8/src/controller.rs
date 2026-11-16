@@ -96,6 +96,14 @@ pub fn track_led_colors(id: op8_gfx::ThemeId) -> [NiColor; TRACKS] {
     }
 }
 
+/// A file of the player's samples folder as it was: where, how big, when it changed.
+type SampleStamp = (std::path::PathBuf, u64, std::time::SystemTime);
+
+fn stamp_of(path: &std::path::Path) -> Option<SampleStamp> {
+    let m = std::fs::metadata(path).ok()?;
+    Some((path.to_path_buf(), m.len(), m.modified().unwrap_or(std::time::UNIX_EPOCH)))
+}
+
 /// The factory instruments in the order of the PLUG-IN pads (the top two rows), from the most guttural to the
 /// most refined: the name shown, the name the registry knows, and whether it exists yet.
 pub const FACTORY_INSTRUMENTS: [(&str, &str, bool); 8] = [
@@ -125,6 +133,9 @@ pub struct Controller {
     pub projects_dir: Option<std::path::PathBuf>,
     /// Where SAMPLING saves what it records (`rec-1.wav` … `rec-8.wav`), if anywhere.
     pub samples_dir: Option<std::path::PathBuf>,
+    /// What the player's folder looked like when its sounds were last put in the instruments: for each of the eight places the file, its
+    /// size and when it changed. A place whose file is another one now is loaded again (see `rescan_samples`).
+    sample_stamps: Vec<Option<SampleStamp>>,
     /// Where the player's presets are saved, one folder per instrument (`<name>/user-1.preset` …), if anywhere.
     pub presets_dir: Option<std::path::PathBuf>,
     /// How many samples of the take the drawing of its wave was made from.
@@ -657,6 +668,40 @@ impl Controller {
         self.audition(h, note, 0.9);
     }
 
+    /// Remember what the samples folder looks like now, without loading anything: the instruments were just made from it (or the player's
+    /// folder was just chosen). Whatever changes in it after this is what `rescan_samples` puts in.
+    pub fn watch_samples(&mut self) {
+        let found = self.samples_dir.as_deref().map(op8_cartridges::sampler::scan_folder).unwrap_or_default();
+        self.sample_stamps = (0..8).map(|k| found.get(k).and_then(|f| f.as_ref()).and_then(|f| stamp_of(&f.path))).collect();
+    }
+
+    /// Look at the samples folder again and put in the instruments the sounds that are new or changed since the last look: the player can
+    /// copy WAV files in while OP-8 runs. A place whose file is gone becomes empty. Returns how many places were filled or emptied.
+    fn rescan_samples(&mut self, h: &mut EngineHandle) -> usize {
+        let Some(dir) = self.samples_dir.clone() else { return 0 };
+        let found = op8_cartridges::sampler::scan_folder(&dir);
+        self.sample_stamps.resize(8, None);
+        let mut changed = 0;
+        for (k, f) in found.into_iter().enumerate().take(8) {
+            let stamp = f.as_ref().and_then(|f| stamp_of(&f.path));
+            if stamp == self.sample_stamps[k] {
+                continue;
+            }
+            let data = f.map_or_else(Vec::new, |f| f.sample.data().to_vec());
+            for c in h.slots.iter().flatten() {
+                if let Ok(mut c) = c.lock() {
+                    c.load_sample(k, data.clone());
+                }
+            }
+            self.sample_stamps[k] = stamp;
+            changed += 1;
+        }
+        if changed > 0 {
+            self.refresh_samples();
+        }
+        changed
+    }
+
     /// Which of the eight places of the player's own have a recording file.
     fn refresh_samples(&mut self) {
         let dir = self.samples_dir.clone();
@@ -667,16 +712,24 @@ impl Controller {
 
     /// REC in SAMPLING: start recording from the chosen source, or stop.
     fn toggle_record(&mut self, h: &mut EngineHandle) {
-        if self.ui.smp.recording {
+        if self.ui.smp.recording || self.ui.smp.armed {
             h.send(EngineCommand::Record(None));
             self.ui.smp.recording = false;
+            self.ui.smp.armed = false;
             return;
         }
         let source = if self.ui.smp.source == 0 { op8_engine::RecSource::Input } else { op8_engine::RecSource::Resample };
-        h.send(EngineCommand::Record(Some(source)));
+        // SHIFT + REC waits for a sound; REC alone starts at once
+        let arm = self.held.shift;
+        if arm {
+            h.send(EngineCommand::RecordWhenLoud(source, op8_ui::SAMPLING_ARM_THRESHOLD));
+        } else {
+            h.send(EngineCommand::Record(Some(source)));
+        }
         // the take starts again: the part that is kept is all of it
         let s = &mut self.ui.smp;
-        (s.recording, s.len, s.start, s.end, s.peaks, s.note) = (true, 0, 0.0, 1.0, Vec::new(), String::new());
+        (s.recording, s.len, s.start, s.end, s.peaks, s.note) = (!arm, 0, 0.0, 1.0, Vec::new(), String::new());
+        s.armed = arm;
         self.smp_drawn = 0;
     }
 
@@ -687,9 +740,10 @@ impl Controller {
         s.phase = (now_ms % 2000) as f32 / 2000.0;
         let was = s.recording;
         s.recording = st.recording.load(Relaxed);
+        s.armed = st.armed.load(Relaxed);
         s.len = st.rec_len.load(Relaxed) as usize;
         let peak = st.rec_peak();
-        s.level = if s.recording { peak.max(s.level * 0.9) } else { s.level * 0.9 };
+        s.level = if s.recording || s.armed { peak.max(s.level * 0.9) } else { s.level * 0.9 };
         if was && !s.recording && s.len > 0 {
             s.note = if s.len >= op8_engine::MAX_RECORD { "ten seconds: that is all it keeps".into() } else { String::new() };
         }
@@ -710,7 +764,7 @@ impl Controller {
         let n = if k == 4 { self.detents(k, delta) } else { 0 };
         let s = &mut self.ui.smp;
         match k {
-            4 if !s.recording => s.source = (s.source as i32 + n).clamp(0, 1) as u8,
+            4 if !s.recording && !s.armed => s.source = (s.source as i32 + n).clamp(0, 1) as u8,
             5 => s.start = (s.start + d).clamp(0.0, (s.end - 0.01).max(0.0)),
             6 => s.end = (s.end + d).clamp((s.start + 0.01).min(1.0), 1.0),
             7 => s.fade = (s.fade + d).clamp(0.0, 1.0),
@@ -748,7 +802,7 @@ impl Controller {
         if !matches!(ev, PadEvent::Press | PadEvent::Strike(_)) {
             return;
         }
-        if self.ui.smp.recording {
+        if self.ui.smp.recording || self.ui.smp.armed {
             self.ui.smp.note = "stop recording first (REC)".into();
             return;
         }
@@ -781,6 +835,9 @@ impl Controller {
                 c.load_sample(slot, data.clone());
             }
         }
+        // what was just written is what the instruments have: a later look at the folder does not load it again
+        self.sample_stamps.resize(8, None);
+        self.sample_stamps[slot] = stamp_of(&file);
         self.refresh_samples();
         self.ui.smp.note = format!("saved in user {}", slot + 1);
     }
@@ -1130,9 +1187,12 @@ impl Controller {
             self.refresh_files();
             self.ui.file_note.clear();
         }
+        // the player may have copied WAV files into the folder: the sounds that are new are put in the instruments that play
+        let news = if matches!(m, Main::Plugin | Main::Sampling) && self.ui.main != m { self.rescan_samples(h) } else { 0 };
+        let heard = |n: usize| if n == 0 { String::new() } else { format!("loaded {n} {} from the folder", if n == 1 { "sound" } else { "sounds" }) };
         if m == Main::Plugin {
             self.refresh_plugs(h);
-            self.ui.plug_note.clear();
+            self.ui.plug_note = heard(news);
         }
         if self.ui.main == Main::Sampling && m != Main::Sampling {
             // leaving: whatever was recording or playing stops (the take stays for when it comes back)
@@ -1146,7 +1206,7 @@ impl Controller {
         }
         if m == Main::Sampling {
             self.refresh_samples();
-            self.ui.smp.note.clear();
+            self.ui.smp.note = heard(news);
         }
         self.ui.main = m;
         // the focus starts on something sensible: where you were, or the first place

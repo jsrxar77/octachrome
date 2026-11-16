@@ -441,6 +441,20 @@ fn recipe_16_record_your_own_sound() {
     b.press(Button::Sampling);
     b.run_ms(300);
     b.capture("r16-waiting");
+    // SHIFT + REC waits for the sound (here the music is stopped, so there is none); the music starting is what starts it
+    b.press(Button::Stop);
+    b.run_ms(3000);
+    b.button_down(Button::Shift);
+    b.press(Button::Rec);
+    b.button_up(Button::Shift);
+    b.run_ms(100);
+    assert!(b.ui().smp.armed && !b.ui().smp.recording);
+    b.capture("r16-armed");
+    b.press(Button::Play);
+    b.run_ms(600);
+    assert!(b.ui().smp.recording && !b.ui().smp.armed, "the sound started it");
+    b.press(Button::Rec);
+    b.run_ms(100);
     b.press(Button::Rec);
     b.run_ms(2000);
     b.press(Button::Rec);
@@ -582,4 +596,23 @@ fn recipe_20_granular_a_cloud_from_a_sound() {
     assert!(b.ui().browse[..8].iter().all(|c| c.1), "eight presets");
     b.tap(pad(4));
     assert!(b.ui().browse_note.starts_with("loaded"), "{}", b.ui().browse_note);
+}
+
+// F-G04
+#[test]
+fn recipe_21_slices_a_kit_made_of_a_sound() {
+    let _one_at_a_time = serial();
+    let mut b = Bench::empty();
+    b.press(Button::Group(4)); // E: the sampler
+    b.knob(4, 100); // the bell
+    b.press(Button::Screen(6)); // shape
+    b.knob(6, 500); // loop: slices 8
+    b.run_ms(100);
+    assert_eq!(b.param(4, 6), 0.625);
+    b.capture("r21-slices");
+    b.press(Button::Keyboard);
+    b.strike_at(0, 0.9); // C3: the first slice
+    b.run_ms(300);
+    assert!(b.rms_db(0, b.now_ms()) > -60.0, "a slice is heard");
+    b.release(0);
 }

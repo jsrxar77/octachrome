@@ -169,6 +169,7 @@ fn run(mut script: Option<Script>, theme_given: bool) -> Result<()> {
     }
     app.ctl.projects_dir = op8::projectfile::default_dir();
     app.ctl.samples_dir = op8_cartridges::sampler::default_dir();
+    app.ctl.watch_samples();
     app.ctl.presets_dir = op8::controller::default_presets_dir();
     app.log_events = std::env::var_os("OP8_LOG_EVENTS").is_some();
     app.no_leds = std::env::var_os("OP8_NO_LEDS").is_some();
