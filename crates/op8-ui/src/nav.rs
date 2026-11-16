@@ -8,7 +8,7 @@ use crate::theme::{BUTTON_CX, FOOTER_COL, FOOTER_Y};
 use crate::{Main, Mode, UiState};
 use op8_gfx::{
     knob,
-    paint::stroke_round_rect,
+    paint::{ring, stroke_round_rect},
     theme, FrameBuffer480x272,
 };
 
@@ -71,6 +71,17 @@ pub fn grid_rect(c: usize) -> (f32, f32, f32, f32) {
     (262.0 + (c % 4) as f32 * 42.0, 50.0 + (c / 4) as f32 * 42.0, 37.0, 37.0)
 }
 
+/// An effect of PERFORM: the sixteen are drawn full width, one per pad, in reading order (cell `c` is the pad that is `c`-th in reading
+/// order, like the grid), so it is not where the grid of the other modes is.
+pub fn punch_rect(c: usize) -> (f32, f32, f32, f32) {
+    (12.0 + (c % 4) as f32 * 116.0, 52.0 + (c / 4) as f32 * 42.0, 108.0, 36.0)
+}
+
+/// The effect (the pad number, which is also its slot) that cell `c`, counted in reading order, is in PERFORM: pad 0 is bottom-left.
+pub fn punch_slot(c: usize) -> usize {
+    (3 - c / 4) * 4 + c % 4
+}
+
 /// One of the four values of a footer, under its screen.
 pub fn footer_rect(col: usize) -> (f32, f32, f32, f32) {
     (col as f32 * FOOTER_COL as f32 + 6.0, FOOTER_Y as f32 + 3.0, FOOTER_COL as f32 - 12.0, 42.0)
@@ -94,9 +105,15 @@ pub fn items(ui: &UiState) -> Vec<NavItem> {
             };
             let mut v = strip(0..4, 0);
             v.extend((0..8).map(|t| NavItem { kind: NavKind::Track(t as u8), screen: 0, rect: track_rect(t) }));
-            // the grid is on the left screen unless a page of buttons 3 and 4 covers it
-            if ui.mode != Mode::Step || ui.left_page == crate::LeftPage::Steps {
-                v.extend((0..CELLS).map(|c| NavItem { kind: NavKind::Cell(c as u8), screen: 0, rect: grid_rect(c) }));
+            // the pads are on the left screen: the grid of the steps (unless a page of buttons 3 and 4 covers it), the grid of the
+            // notes, or the sixteen effects of PERFORM, which are drawn bigger; Brain draws no pads, so it lists none
+            match ui.mode {
+                Mode::Step if ui.left_page == crate::LeftPage::Steps => {
+                    v.extend((0..CELLS).map(|c| NavItem { kind: NavKind::Cell(c as u8), screen: 0, rect: grid_rect(c) }))
+                }
+                Mode::Pads | Mode::Keys => v.extend((0..CELLS).map(|c| NavItem { kind: NavKind::Cell(c as u8), screen: 0, rect: grid_rect(c) })),
+                Mode::Punch => v.extend((0..CELLS).map(|c| NavItem { kind: NavKind::Cell(c as u8), screen: 0, rect: punch_rect(c) })),
+                _ => {}
             }
             v.extend((0..4).map(|k| NavItem { kind: NavKind::Value(k as u8), screen: 0, rect: footer_rect(k) }));
             v.extend(strip(4..8, 1));
@@ -148,9 +165,16 @@ pub fn move_dir(items: &[NavItem], cur: usize, dx: i32, dy: i32) -> usize {
 
 /// The ring of the focus: a frame round the item in the colour of knob 1; grabbed, it is white and thicker. It does not move by itself:
 /// a still screen sends nothing to the MK3.
-pub fn draw_ring(fb: &mut FrameBuffer480x272, it: &NavItem, grabbed: bool) {
+pub fn draw_ring(fb: &mut FrameBuffer480x272, it: &NavItem, ui: &UiState) {
     let (x, y, w, h) = it.rect;
-    let (col, wd) = if grabbed { (theme().fg, 3.5) } else { (knob(0), 2.5) };
+    // grabbed: a value in the hand, or the effect of PERFORM that is sounding on this very place
+    let sounding = matches!((ui.mode, it.kind, ui.punch), (Mode::Punch, NavKind::Cell(c), Some((s, _))) if s == punch_slot(c as usize));
+    let (col, wd) = if ui.grabbed || sounding { (theme().fg, 3.5) } else { (knob(0), 2.5) };
+    // a track is a small round capsule: the ring hugs its edge (the chosen one is bigger)
+    if let NavKind::Track(t) = it.kind {
+        let r = if t as usize == ui.track { 10.0 } else { 8.0 };
+        return ring(fb, x + w / 2.0, y + h / 2.0, r, wd, col);
+    }
     stroke_round_rect(fb, x - 3.0, y - 3.0, w + 6.0, h + 6.0, 11.0, wd, col);
 }
 

@@ -291,8 +291,16 @@ fn recipe_10_perform() {
     b.strip(Some(0.2)); // the Smart Strip: a filter on everything
     b.run_ms(200);
     b.strip(None);
-    b.press(Button::Perform); // back to the steps
+    // with the 4D encoder: push keeps an effect going, turning is its intensity, push again stops it
+    b.press(Button::JogPush);
+    assert!(b.ui().punch.is_some());
+    b.encoder(3);
+    b.press(Button::JogPush);
+    assert!(b.ui().punch.is_none());
+    b.press(Button::JogPush);
+    b.press(Button::Perform); // back to the steps: it stops
     assert_eq!(b.ui().mode, op8_ui::Mode::Step);
+    assert!(b.ui().punch.is_none());
 }
 
 // F-G04

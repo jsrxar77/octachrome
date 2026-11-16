@@ -47,7 +47,7 @@ They are the modules of the current mode, like M1–M4 on the OP-XY. Their name 
 | KEYBOARD | Chromatic pads | keyboard | Pads = a chromatic keyboard from C3 that plays the track's instrument while a pad is held. 4D encoder ◀ ▶ (or knob 1) = octave (the − and + of the OP-XY). Pressing KEYBOARD again goes back to STEP. Not recorded yet (REC) | ✓ |
 | CHORDS | Chord mode | players (chords) / brain | **Brain**: chord progression. Pads = degrees; holding one = live chord, and the chord **sounds on the selected track's instrument** for as long as the pad is held (a drum kit has no chords). Pressing CHORDS again goes back to STEP | ✓ |
 | PAD MODE | Pads as sounds | (tracks) | The pads play the track's instrument by hand. On a drum kit pads 1–8 are the eight sounds and pads 9–16 are free; on any other instrument the pads climb the Brain's scale from its key. Pressing PAD MODE again goes back to STEP. Not recorded yet (REC) | ✓ |
-| PERFORM · Shift: choose | Perform FX on the Smart Strip | punch-in fx | **Punch-in FX**: each pad an effect, pressure is the intensity. Pressing PERFORM again goes back to STEP | ✓ |
+| PERFORM · Shift: choose | Perform FX on the Smart Strip | punch-in fx | **Punch-in FX**: each pad an effect, pressure is the intensity. With the 4D encoder: the focus visits the sixteen effects, push engages one and keeps it, turning is its intensity, push again lets it go. Pressing PERFORM again goes back to STEP | ✓ |
 | NOTE REPEAT · Shift: arp | Repeat and arpeggiator | players (arp) | Repeat the held note; with Shift, arpeggiator | ○ (today it opens Punch) |
 | FIXED VEL | Fixed velocity | — | Toggles a fixed velocity (100): the pads in PAD MODE, KEYBOARD and CHORDS play at it and REC writes it, whatever the strike | ✓ |
 
@@ -91,6 +91,6 @@ They are the modules of the current mode, like M1–M4 on the OP-XY. Their name 
 | Touching a knob | Large overlay with its parameter | ✓ |
 | 4D encoder: turn | **Moves the focus** along the things to choose in the view that is open (FILE, PLUG-IN, BROWSER, SAMPLING, and composing: screen buttons, tracks, pads of the grid and the values under the screens); with a value grabbed it turns the value. In settings: the theme. In the inspector: the component cursor. It never turns the tempo by itself: only while TEMPO is held (2026-11-15) | ✓ |
 | 4D encoder: ◀ ▶ ▲ ▼ | Move the focus across the screens, to the nearest item that way (the right screen is to the right of the left one). In settings ◀ ▶: previous and next theme; with KEYBOARD, ◀ ▶: the octave | ✓ |
-| 4D encoder: push | Does what tapping the focused item does (SHIFT + push, what SHIFT + tap does); on a value, grabs it (turn changes it, push lets go); in the step inspector it closes it | ✓ |
+| 4D encoder: push | Does what tapping the focused item does (SHIFT + push, what SHIFT + tap does); on a value, grabs it (turn changes it, push lets go); on an effect of PERFORM, engages it and keeps it (turn is its intensity, push lets it go); in the step inspector it closes it | ✓ |
 | Smart Strip | Per PITCH, MOD or PERFORM: pitch bend, modulation or punch-in intensity. Today: master filter | ◐ |
 | PITCH / MOD / NOTES | Smart Strip mode | ○ |

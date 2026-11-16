@@ -409,6 +409,15 @@ impl Controller {
 
     /// Turn the 4D encoder: along the list, or the value that is grabbed.
     fn nav_turn(&mut self, delta: i32, h: &mut EngineHandle) {
+        // an effect of PERFORM is sounding: the wheel is its intensity (what the pressure of the pad is); the arrows still move
+        if self.ui.main == Main::Instrument && self.ui.mode == Mode::Punch && matches!(self.ui.focus, NavKind::Cell(_)) {
+            if let Some((slot, v)) = self.ui.punch {
+                let v = (v + delta as f32 * 0.04).clamp(0.0, 1.0);
+                self.ui.punch = Some((slot, v));
+                h.send(EngineCommand::PunchIntensity(v));
+                return;
+            }
+        }
         if self.ui.grabbed {
             if let NavKind::Value(k) = self.ui.focus {
                 if self.ui.main == Main::Sampling {
@@ -463,6 +472,18 @@ impl Controller {
                         self.ui.inspect_step = Some(c);
                         self.ui.comp_cursor = 0;
                         self.ui.left_page = LeftPage::Steps;
+                        return;
+                    }
+                    // an effect of PERFORM is engaged and kept (the wheel is then its intensity); a second push lets it go
+                    if self.ui.mode == Mode::Punch {
+                        let slot = op8_ui::nav_punch_slot(c as usize);
+                        if self.ui.punch.map(|(s, _)| s) == Some(slot) {
+                            self.ui.punch = None;
+                            h.send(EngineCommand::Punch(None, 0.0));
+                        } else {
+                            self.ui.punch = Some((slot, 0.5));
+                            h.send(EngineCommand::Punch(Some(PUNCH_SLOTS[slot].0), 0.5));
+                        }
                         return;
                     }
                     let now = self.now;
@@ -1014,6 +1035,10 @@ impl Controller {
         self.ui.mode = m;
         self.ui.inspect_step = None;
         self.inspector_pad = None;
+        // PERFORM is played on its sixteen effects: the focus starts on one (unless it already is on a pad)
+        if m == Mode::Punch && !matches!(self.ui.focus, NavKind::Cell(_)) {
+            self.ui.focus = NavKind::Cell(0);
+        }
     }
 
     /// Change the main mode (docs/buttons.md §1). Entering settings lets go of
