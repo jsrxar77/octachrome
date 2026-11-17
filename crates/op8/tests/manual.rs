@@ -741,6 +741,8 @@ fn recipe_22_settings_audio_midi_and_light() {
         outs: vec!["Maschine MK3".into(), "MacBook Pro Speakers".into(), "USB Audio".into()],
         ins: vec!["Maschine MK3".into(), "Scarlett 2i2".into()],
         ports: vec!["Maschine MK3 MIDI".into(), "IAC Driver Bus 1".into()],
+        midi_ins: vec!["Maschine MK3 MIDI".into(), "Keystation 49".into()],
+        midi_in_now: String::new(),
         out_now: "Maschine MK3".into(),
         in_now: "Maschine MK3".into(),
         port_now: "Maschine MK3 MIDI".into(),

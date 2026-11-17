@@ -25,6 +25,8 @@ fn devices() -> DeviceList {
         outs: vec!["Maschine MK3".into(), "MacBook Pro Speakers".into(), "USB Audio".into()],
         ins: vec!["Maschine MK3".into(), "Scarlett 2i2".into()],
         ports: vec!["Maschine MK3 MIDI".into(), "IAC Driver Bus 1".into()],
+        midi_ins: vec!["Maschine MK3 MIDI".into(), "Keystation 49".into()],
+        midi_in_now: String::new(),
         out_now: "Maschine MK3".into(),
         in_now: "Maschine MK3".into(),
         port_now: "Maschine MK3 MIDI".into(),
@@ -158,10 +160,10 @@ fn f_c11_the_midi_page_chooses_the_port_and_tests_it() {
     b.run_ms(50);
     assert!(saved(&path).contains("midi_out=IAC Driver Bus 1"), "{}", saved(&path));
     let before = saved(&path);
-    focus_on(&mut b, NavKind::Pick(8));
+    focus_on(&mut b, NavKind::Pick(12));
     b.press(Button::JogPush);
     assert_eq!(b.app.ctl.requests.last(), Some(&Request::MidiTest));
-    focus_on(&mut b, NavKind::Pick(9));
+    focus_on(&mut b, NavKind::Pick(13));
     b.press(Button::JogPush);
     assert_eq!(b.app.ctl.requests.last(), Some(&Request::MidiPanic));
     b.run_ms(50);
@@ -220,7 +222,7 @@ fn f_c16_the_midi_page_turns_the_clock_on_and_off() {
     assert!(b.sync_log.iter().any(|x| x.1 == 0xF8), "the clock goes out");
     b.press(Button::Settings);
     b.press(Button::Screen(3));
-    focus_on(&mut b, NavKind::Pick(10));
+    focus_on(&mut b, NavKind::Pick(14));
     b.press(Button::JogPush);
     b.run_ms(100);
     assert!(!b.ui().settings.midi_clock);

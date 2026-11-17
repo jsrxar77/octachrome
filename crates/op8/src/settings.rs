@@ -26,6 +26,10 @@ pub struct Settings {
     pub buffer: Option<u32>,
     /// The MIDI output port.
     pub midi_out: Option<String>,
+    /// The MIDI input port that plays the unit (`None`: no input is open).
+    pub midi_in: Option<String>,
+    /// What a note that comes in plays: `false`, the selected track; `true`, the track of its MIDI channel (1 to 8 are A to H).
+    pub midi_by_channel: bool,
     /// MIDI clock out: start, 24 clocks to the quarter note and stop on the MIDI port while the sequencer runs.
     pub midi_clock: bool,
     /// The screen backlight as a step of what the supply allows: 1 to 4 (25, 50, 75 and 100 %).
@@ -36,7 +40,7 @@ pub struct Settings {
 
 impl Default for Settings {
     fn default() -> Self {
-        Self { theme: ThemeId::Chrome, audio_out: None, audio_in: None, buffer: None, midi_out: None, midi_clock: true, screen: SCREEN_STEPS, pads: 3 }
+        Self { theme: ThemeId::Chrome, audio_out: None, audio_in: None, buffer: None, midi_out: None, midi_in: None, midi_by_channel: false, midi_clock: true, screen: SCREEN_STEPS, pads: 3 }
     }
 }
 
@@ -94,6 +98,8 @@ impl Settings {
                 "audio_out" => s.audio_out = name(),
                 "audio_in" => s.audio_in = name(),
                 "midi_out" => s.midi_out = name(),
+                "midi_in" => s.midi_in = name(),
+                "midi_channels" => s.midi_by_channel = value == "on",
                 "midi_clock" => {
                     s.midi_clock = match value {
                         "off" | "0" | "false" => false,
@@ -114,13 +120,16 @@ impl Settings {
     pub fn render(&self) -> String {
         let d = Self::default();
         let mut out = format!("theme={}\n", theme_name(self.theme));
-        for (key, value) in [("audio_out", &self.audio_out), ("audio_in", &self.audio_in), ("midi_out", &self.midi_out)] {
+        for (key, value) in [("audio_out", &self.audio_out), ("audio_in", &self.audio_in), ("midi_out", &self.midi_out), ("midi_in", &self.midi_in)] {
             if let Some(v) = value {
                 out.push_str(&format!("{key}={v}\n"));
             }
         }
         if let Some(b) = self.buffer {
             out.push_str(&format!("buffer={b}\n"));
+        }
+        if self.midi_by_channel {
+            out.push_str("midi_channels=on\n");
         }
         if self.midi_clock != d.midi_clock {
             out.push_str(&format!("midi_clock={}\n", if self.midi_clock { "on" } else { "off" }));
@@ -249,6 +258,8 @@ mod tests {
             audio_in: Some("Scarlett 2i2".into()),
             buffer: Some(64),
             midi_out: Some("Maschine".into()),
+            midi_in: Some("Keystation".into()),
+            midi_by_channel: true,
             midi_clock: false,
             screen: 2,
             pads: 1,

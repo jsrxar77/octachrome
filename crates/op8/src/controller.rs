@@ -151,6 +151,8 @@ pub struct Controller {
     smp_drawn: usize,
     /// NAME: the file that is being named and the view it came from (it goes back there).
     name_target: Option<(std::path::PathBuf, Main)>,
+    /// The notes that came in by MIDI and are down: (channel, note) and the track each one sounds on.
+    midi_held: std::collections::HashMap<(u8, u8), u8>,
     /// The fractions of a step the compressor's knobs have turned and not yet applied.
     comp_accum: [f32; op8_seq::COMP_PARAMS],
     eq_accum: [f32; op8_seq::EQ_PARAMS],
@@ -206,6 +208,8 @@ pub enum Request {
     Buffer(u32),
     /// Use this MIDI output port (`None`: automatic).
     MidiPort(Option<String>),
+    /// Open this MIDI input (`None`: close it).
+    MidiIn(Option<String>),
     /// Play a short note on the MIDI port, to hear whether what is plugged in answers.
     MidiTest,
     /// Silence everything on the MIDI port.
@@ -218,9 +222,11 @@ pub struct DeviceList {
     pub outs: Vec<String>,
     pub ins: Vec<String>,
     pub ports: Vec<String>,
+    pub midi_ins: Vec<String>,
     pub out_now: String,
     pub in_now: String,
     pub port_now: String,
+    pub midi_in_now: String,
     /// What the audio stream says it has (`48 kHz · 2 ch · buffer 128`).
     pub stream_now: String,
     /// What the supply allows (`the host gives the MK3 480 mA: limited…`).
@@ -1411,6 +1417,8 @@ impl Controller {
         v.out_sel = at(&v.outs, &s.audio_out);
         v.in_sel = at(&v.ins, &s.audio_in);
         v.port_sel = at(&v.ports, &s.midi_out);
+        v.midi_in_sel = at(&v.midi_ins, &s.midi_in);
+        v.midi_by_channel = s.midi_by_channel;
         v.buffer = s.buffer.unwrap_or(128);
         v.screen = s.screen;
         v.pads = s.pads;
@@ -1420,8 +1428,8 @@ impl Controller {
     /// What the hardware answered: the lists and what is open.
     pub fn devices_listed(&mut self, d: DeviceList) {
         let v = &mut self.ui.settings;
-        (v.outs, v.ins, v.ports) = (d.outs, d.ins, d.ports);
-        (v.out_now, v.in_now, v.port_now, v.stream_now) = (d.out_now, d.in_now, d.port_now, d.stream_now);
+        (v.outs, v.ins, v.ports, v.midi_ins) = (d.outs, d.ins, d.ports, d.midi_ins);
+        (v.out_now, v.in_now, v.port_now, v.midi_in_now, v.stream_now) = (d.out_now, d.in_now, d.port_now, d.midi_in_now, d.stream_now);
         if !d.supply.is_empty() {
             v.supply = d.supply;
         }
@@ -1457,9 +1465,18 @@ impl Controller {
                 self.requests.push(Request::MidiPort(self.settings.midi_out.clone()));
                 self.ui.settings.note = "opening it…".into();
             }
-            (2, 8) => self.requests.push(Request::MidiTest),
-            (2, 9) => self.requests.push(Request::MidiPanic),
-            (2, 10) => {
+            (2, 8..=11) => {
+                self.settings.midi_in = name(&self.ui.settings.midi_ins, n - 8);
+                self.requests.push(Request::MidiIn(self.settings.midi_in.clone()));
+                self.ui.settings.note = "opening it…".into();
+            }
+            (2, 12) => self.requests.push(Request::MidiTest),
+            (2, 13) => self.requests.push(Request::MidiPanic),
+            (2, 15) => {
+                self.settings.midi_by_channel = !self.settings.midi_by_channel;
+                self.ui.settings.note = if self.settings.midi_by_channel { "channels 1 to 8 play A to H" } else { "notes play the selected track" }.into();
+            }
+            (2, 14) => {
                 self.settings.midi_clock = !self.settings.midi_clock;
                 h.send(EngineCommand::MidiClock(self.settings.midi_clock));
                 self.ui.settings.note = if self.settings.midi_clock { "the clock goes out on the port" } else { "no clock on the port" }.into();
@@ -1468,7 +1485,7 @@ impl Controller {
             (3, 4..=6) => self.settings.pads = n as u8 - 3,
             _ => return,
         }
-        if !matches!((self.ui.settings.page, n), (2, 8 | 9)) {
+        if !matches!((self.ui.settings.page, n), (2, 12 | 13)) {
             self.settings_changed = true;
         }
         self.sync_settings_view();
@@ -1797,6 +1814,60 @@ impl Controller {
         self.ui.naming = op8_ui::NameView::new(format!("{what} user {}", slot - 7), &current);
         self.name_target = Some((path, from));
         self.set_main(Main::Name, h);
+    }
+
+    /// A message from the MIDI input. Notes play the selected track, or the track of their channel (1 to 8 are A to H) when the player chose
+    /// that; they are written by REC like the pads' (on the selected track). Three controllers mix the track they are sent to: 7 is its
+    /// level, 10 its pan and 91 its send to the reverb. 120 and 123 let go of every note that is held.
+    pub fn midi_in(&mut self, msg: &[u8], h: &mut EngineHandle) {
+        let Some(&status) = msg.first() else { return };
+        let (kind, channel) = (status & 0xF0, status & 0x0F);
+        let target = if self.settings.midi_by_channel {
+            if channel as usize >= TRACKS {
+                return;
+            }
+            channel as usize
+        } else {
+            self.ui.track
+        };
+        let data = |i: usize| msg.get(i).copied().unwrap_or(0) & 0x7F;
+        match kind {
+            0x90 if data(2) > 0 => {
+                let (note, velocity) = (data(1), self.pad_velocity(data(2) as f32 / 127.0));
+                // a note that is already down is let go before it sounds again
+                if let Some(old) = self.midi_held.insert((channel, note), target as u8) {
+                    h.send(EngineCommand::LiveNote { track: old, note, velocity: 0.0, on: false });
+                }
+                h.send(EngineCommand::LiveNote { track: target as u8, note, velocity, on: true });
+                if target == self.ui.track {
+                    self.record(h, note, velocity);
+                }
+            }
+            0x80 | 0x90 => {
+                let note = data(1);
+                if let Some(track) = self.midi_held.remove(&(channel, note)) {
+                    h.send(EngineCommand::LiveNote { track, note, velocity: 0.0, on: false });
+                }
+            }
+            0xB0 => match data(1) {
+                7 => {
+                    h.seq(Command::SetLevel { track: target as u8, level: data(2) });
+                }
+                10 => {
+                    h.seq(Command::SetPan { track: target as u8, pan: data(2) });
+                }
+                91 => {
+                    h.seq(Command::SetSend { track: target as u8, bus: 1, value: data(2) });
+                }
+                120 | 123 => {
+                    for ((_, note), track) in self.midi_held.drain() {
+                        h.send(EngineCommand::LiveNote { track, note, velocity: 0.0, on: false });
+                    }
+                }
+                _ => {}
+            },
+            _ => {}
+        }
     }
 
     /// The 4D encoder in NAME: the letter under the cursor (SHIFT: ten at a time).
