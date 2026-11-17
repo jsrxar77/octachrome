@@ -44,6 +44,7 @@ Each fact lives in exactly one of them. If a fact is needed elsewhere, link to i
 - **Absolute dates** (`2026-11-13`), never "today" or "last week".
 - **Links** between documents are relative (`[design.md](design.md)`), paths to code are in backticks.
 - **Truth over tidiness.** If the code and a document disagree, find out which is right. `design.md` rules over the code; for every other document the code and the tests are the evidence.
+- **Button lights.** A button is lit if and only if it has a function in the current context; a toggle is strong when on and faint again when pressed again. When a doc describes a button gaining behaviour, check its light is covered (`lights::all()`, `F-L09`) and say so if not ([design.md](../../../docs/design.md) §2.6).
 - **Both screens animate.** Never write that either screen is static.
 
 ## Procedure

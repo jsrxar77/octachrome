@@ -166,6 +166,9 @@ A project file (`crates/op8/src/projectfile.rs`) is `OP8P`, a version byte, the 
 
 **Decisions**
 
+- **Closing OP-8 leaves the MK3 clean (Javi, 2026-11-17).** On Ctrl-C, SIGTERM or closing the terminal, `op8 run` turns every LED off, paints both screens black, lets go of the screens and resets the device on USB as replugging it would (`App::shutdown`, `reset_usb`), so it is not left showing the last thing played. The reset on the real MK3 is manual review (F-H08).
+- **A button is lit if and only if it has a function in the current context (Javi, 2026-11-17).** A toggle goes strong when pressed and faint again when pressed again (KEYBOARD, CHORDS). Lights are applied only to the buttons in `lights::all()`: a button missing from that list stays dark on the unit even if the table says otherwise (PATTERN, SCENE, ARRANGER, MIXER, BROWSER and SAMPLING were dark for that reason until this date). Rule: [design.md §2.6](design.md).
+
 - **Licence MIT or Apache-2.0.** No GPL dependencies are added. Encdr, autotel/maschine-mk3-linux and Deckard are GPL: from the MK3 protocol only the facts were taken, not the code. Surge XT and Vital are GPL and stay out unless Javi decides otherwise.
 - **Mutable Instruments synthesis engines (MIT).** Javi chose to start there. The code can be used, but **without the module names**, because they are trademarks: the Plaits one is called "macro", the Rings one will be called "resonator", and so on. Credit goes in the vendor README.
 - **Eight and eight (2026-11-13).** 8 factory instruments plus 8 places for installed ones, and 8 factory projects plus 8 of the player's own: the 16 pads ([instruments.md §7](instruments.md)). The factory set is confirmed: drums, KickSyn, FmBass, resonator, sampler, granular, macro and the MIDI out last (2026-11-15); the standard tracks A to H follow that order (F stays empty until the granular exists). Everything exists but the granular ([roadmap.md](roadmap.md)).
@@ -216,6 +219,7 @@ CI (`.github/workflows/ci.yml`) runs on Linux (tests, clippy, the simulator and 
 - No memory is allocated on the audio thread. Instruments must pass the contract tests in `op8-cartridges/src/lib.rs`.
 - Tests that touch the global theme use `THEME_LOCK` (`op8-ui`) so they do not fail when run in parallel.
 - To vendor third-party code: copy it unchanged, with its licence and a README of origin, as in `crates/op8-plaits/vendor/`.
+- Every button that gains a function gets its light in the same change (`lights::all()` + `lights::light` + a check in `F-L09` + the twin): lit if and only if it has a function in the context, strong while a toggle is on ([design.md §2.6](design.md)).
 - Both screens animate. Never assume either one is still.
 
 ## 13. Related projects

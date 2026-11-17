@@ -137,8 +137,11 @@ fn f_i07_the_standard_tracks_hold_the_eight_instruments_in_order() {
             assert_eq!(b.instrument(t).as_deref(), Some(*name), "{what}: track {t}");
         }
     };
-    check(&Bench::demo(), "the unit as it starts");
+    check(&Bench::demo(), "the demo rig");
     check(&Bench::empty(), "the empty rig");
+    let start = Bench::new(op8::demo::start_rig());
+    check(&start, "the unit as it starts");
+    assert!(start.project().tracks.iter().all(|t| t.is_empty()), "and it starts with nothing in the steps");
     let mut b = Bench::demo();
     for slot in 0..8 {
         b.press(Button::File);

@@ -31,14 +31,18 @@ fn with_shift(b: &mut Bench, button: Button) {
 
 // F-G04
 #[test]
-fn recipe_01_hear_the_demo() {
+fn recipe_01_hear_a_piece() {
     let _one_at_a_time = serial();
-    let mut b = Bench::demo();
+    let mut b = Bench::empty();
     b.run_ms(100);
     b.capture("r01-start");
+    b.press(Button::File);
+    b.tap(pad(1)); // house
+    b.run_ms(100);
+    assert_eq!(b.ui().main, op8_ui::Main::Instrument, "loading goes back to composing");
     b.press(Button::Play);
     b.run_ms(2500);
-    assert!(b.rms_db(1500, 2500) > -40.0, "the demo sounds");
+    assert!(b.rms_db(1500, 2500) > -40.0, "the piece sounds");
     b.capture("r01-playing");
     // hold MUTE and tap group B: the kick goes quiet
     b.button_down(Button::Mute);

@@ -122,10 +122,23 @@ fn audio_prefs(s: &op8::settings::Settings) -> op8::audio::Prefs {
     op8::audio::Prefs { out: s.audio_out.clone(), input: s.audio_in.clone(), buffer: s.buffer }
 }
 
+/// Set by Ctrl-C, SIGTERM or closing the terminal: `run` then leaves the MK3 clean and ends.
+#[cfg(feature = "mk3")]
+static QUIT: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+#[cfg(feature = "mk3")]
+extern "C" fn on_quit(_: libc::c_int) {
+    QUIT.store(true, std::sync::atomic::Ordering::Relaxed);
+}
+
 #[cfg(feature = "mk3")]
 fn run(mut script: Option<Script>, theme_given: bool) -> Result<()> {
     use std::sync::{atomic::AtomicBool, Arc};
-    let (engine, mut handle, midi_rx) = demo::rig();
+    for sig in [libc::SIGINT, libc::SIGTERM, libc::SIGHUP] {
+        // SAFETY: the handler only stores into an atomic.
+        unsafe { libc::signal(sig, on_quit as extern "C" fn(libc::c_int) as libc::sighandler_t) };
+    }
+    let (engine, mut handle, midi_rx) = demo::start_rig();
     let midi_sync = handle.take_midi_sync();
     let stop = Arc::new(AtomicBool::new(false));
     // What the player chose in SETTINGS (the devices, the block, the light): read before anything is opened.
@@ -204,7 +217,7 @@ fn run(mut script: Option<Script>, theme_given: bool) -> Result<()> {
     // theme or the surface changes.
     // The player's steps of backlight and pad level are put on it (a share of what the supply allows, never more).
     let mut lit: Option<(op8_gfx::ThemeId, u8, u8)> = None;
-    loop {
+    while !QUIT.load(std::sync::atomic::Ordering::Relaxed) {
         let want = (op8_gfx::theme_id(), app.ctl.settings.screen, app.ctl.settings.pads);
         if lit != Some(want) {
             let _ = app.surface.set_look(op8::settings::effective_light(op8_gfx::theme().light, want.1, want.2));
@@ -329,7 +342,7 @@ fn run(mut script: Option<Script>, theme_given: bool) -> Result<()> {
                 wait.as_secs()
             );
             std::thread::sleep(wait);
-            loop {
+            while !QUIT.load(std::sync::atomic::Ordering::Relaxed) {
                 if let Ok(s) = open_mk3() {
                     if s.has_screens() {
                         app.surface = s;
@@ -345,6 +358,16 @@ fn run(mut script: Option<Script>, theme_given: bool) -> Result<()> {
         }
         pacer.wait();
     }
+    // The player closed OP-8: nothing of what was being played stays on the MK3. Every LED off and
+    // both screens black, then the screens are let go (their last frames are flushed on drop) and the
+    // device is reset as replugging it would, so it comes back as it was before OP-8.
+    println!("closing: leaving the MK3 clean");
+    let _ = app.shutdown();
+    drop(app);
+    if let Err(e) = op8_hw::mk3::reset_usb() {
+        eprintln!("MK3 reset: {e} (it stays dark; `op8 usb-reset` or replugging does it)");
+    }
+    Ok(())
 }
 
 #[cfg(not(feature = "mk3"))]

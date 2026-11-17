@@ -2909,6 +2909,8 @@ function frame() {
   drawLeft(lcdL); drawRight(lcdR); if (UI.main === "instrument") { navRing(lcdL, 0); navRing(lcdR, 1); } updateLeds();
   requestAnimationFrame(frame);
 }
+// the unit starts empty (demo::start_rig): the eight instruments as they come and nothing in the steps; a piece is loaded from FILE
+loadProject(blankProject()); applyPiece(0); PARAMS.forEach((q, t) => { if (q && SLOTS[t] !== "drums") { const d = CARTS[SLOTS[t]].params.map(z => z[1]); q.splice(0, q.length, ...d); } });
 requestAnimationFrame(frame);
 document.querySelectorAll("[data-look]").forEach(b => b.addEventListener("click", () => { LOOK[b.dataset.look] = b.dataset.v; applyLook(); }));
 applyLook();

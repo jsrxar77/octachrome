@@ -3,7 +3,7 @@
 use crate::{bench::encode_png, controller::Controller};
 use op8_engine::EngineHandle;
 use op8_gfx::{DirtyTracker, FrameBuffer480x272};
-use op8_hw::{ControlEvent, ControlSurface, HwResult, LedFrame, Screen};
+use op8_hw::{ControlEvent, ControlSurface, HwResult, LedFrame, Rect, Screen};
 use std::path::PathBuf;
 
 /// How often the dump files are rewritten, in milliseconds.
@@ -60,6 +60,18 @@ impl<S: ControlSurface> App<S> {
             settings_path: None,
             no_leds: false,
         }
+    }
+
+    /// Leave the controller as it was before OP-8 touched it: every LED off and both screens black,
+    /// not whatever was last shown. Called when the program ends.
+    pub fn shutdown(&mut self) -> HwResult<()> {
+        self.leds.clear();
+        self.surface.write_leds(&self.leds)?;
+        let black = FrameBuffer480x272::new();
+        for screen in [Screen::Left, Screen::Right] {
+            self.surface.write_screen(screen, &black, &[Rect::FULL])?;
+        }
+        Ok(())
     }
 
     /// Queue an event as if the surface had reported it.

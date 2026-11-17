@@ -156,6 +156,8 @@ Saved on 2026-11-16, after the batch of section 8, and kept current since. Devel
 
 20. Done (2026-11-17): the three that item 19 left: the top bar of composing says the shown pattern and the step of the song that plays (`p2>3 s3`), the mutes a playing song's scene sets are drawn and lit (`EngineStatus::muted`), and SHIFT + a tap in ARRANGER puts a step in front of the one tapped (F-K27). Not tried on the unit.
 
+21. Done (2026-11-17): the unit starts empty (`demo::start_rig`: the eight standard instruments and nothing in the steps) and a piece is loaded from FILE; the manual and the twin follow (F-I07). The simulator (`op8 sim`) and the bench still use the demo project.
+
 **To try on the unit, all together**
 
 - The audio input and SAMPLING; BROWSER and the factory presets; the eight pieces; the focus of the 4D everywhere (PERFORM included, and the 4 % step of its intensity turn); ink over colour and the rings at the edges (F-D19, F-N13); the sounds of a kit chosen with the 4D (F-N14); the themes.
