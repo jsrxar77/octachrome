@@ -587,7 +587,7 @@ mod tests {
         p.tracks[0].steps[3] = Step::on(40)
             .with(StepComponent::Ratchet(3))
             .with(StepComponent::Delay(5));
-        let mut a = Sequencer::new(p, SR);
+        let mut a = Sequencer::new(p.clone(), SR);
         let mut b = Sequencer::new(p, SR);
         a.play();
         b.play();
@@ -605,7 +605,7 @@ mod tests {
                 .with(StepComponent::RandomNote(12));
         }
         let go = || {
-            let mut s = Sequencer::new(p, SR);
+            let mut s = Sequencer::new(p.clone(), SR);
             s.play();
             run(&mut s, 300_000, 128)
         };
@@ -838,13 +838,13 @@ mod tests {
         let mut p = Project::default();
         p.tracks[0].steps[0] = Step::on(60);
         p.tracks[0].players = Players { mode: PlayMode::Chord, chord: ChordType::Minor, speed: 0, octaves: 1 };
-        let mut seq = Sequencer::new(p, SR);
+        let mut seq = Sequencer::new(p.clone(), SR);
         seq.play();
         let log = run(&mut seq, 3_000, 64);
         assert_eq!(notes_of(&log, 0), [(0, 60), (0, 63), (0, 67)]);
         // strummed: the notes follow one another inside the step
         p.tracks[0].players.speed = 4;
-        let mut seq = Sequencer::new(p, SR);
+        let mut seq = Sequencer::new(p.clone(), SR);
         seq.play();
         let log = run(&mut seq, 6_000, 64);
         let n = notes_of(&log, 0);
@@ -860,7 +860,7 @@ mod tests {
         p.tracks[0].steps[0] = Step::on(60);
         p.tracks[0].steps[1] = Step::on(60);
         p.tracks[0].players = Players { mode: PlayMode::Up, speed: 1, ..Default::default() }; // three notes per step
-        let mut seq = Sequencer::new(p, SR);
+        let mut seq = Sequencer::new(p.clone(), SR);
         seq.play();
         let log = run(&mut seq, 12_000, 64);
         let n = notes_of(&log, 0);
@@ -922,7 +922,7 @@ mod tests {
         log
     }
 
-    // F-S12
+    // F-S15
     #[test]
     fn a_pattern_that_is_asked_for_plays_from_the_start_of_the_next_loop() {
         let mut p = Project::default();
@@ -941,7 +941,7 @@ mod tests {
         assert_eq!(seq.project.current[0], 1);
     }
 
-    // F-S12
+    // F-S15
     #[test]
     fn shift_makes_it_play_at_once_and_a_stopped_sequencer_plays_what_is_shown() {
         let mut p = Project::default();
@@ -966,7 +966,7 @@ mod tests {
         assert!(at.len() == 2 && at[1].1 == 38 && at[1].0 >= 10_000 && at[1].0 < 30_000, "{at:?}");
     }
 
-    // F-S12
+    // F-S15
     #[test]
     fn a_pattern_with_another_length_starts_from_its_first_step() {
         let mut p = Project::default();
@@ -984,7 +984,7 @@ mod tests {
         assert_eq!(&at[1..4], &[(96_000, 50), (96_000 + 18_000, 50), (96_000 + 36_000, 50)]);
     }
 
-    // F-S12
+    // F-S15
     #[test]
     fn copying_and_clearing_a_pattern() {
         let mut p = Project::default();

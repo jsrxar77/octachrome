@@ -246,7 +246,7 @@ impl Engine {
             last_beat: 0,
             audition: [None; TRACKS],
             live: Default::default(),
-            seq: Sequencer::new(project, SAMPLE_RATE),
+            seq: Sequencer::new(project.clone(), SAMPLE_RATE),
             slots: slots.clone(),
             rx,
             garbage: gtx,
@@ -725,7 +725,7 @@ impl EngineHandle {
             _ => None,
         };
         let loaded = match &cmd {
-            EngineCommand::LoadProject(p) => Some(**p),
+            EngineCommand::LoadProject(p) => Some((**p).clone()),
             _ => None,
         };
         let master = if let EngineCommand::MasterVolume(v) = &cmd { Some(v.clamp(0.0, 1.0)) } else { None };

@@ -25,7 +25,7 @@
   [["FIXED VEL",232,31,"n","Fixed velocity"],["PAD MODE",275,31,"y","The pads play the instrument: a kit's eight sounds, or the scale"],["KEYBOARD",325,40,"y","Chromatic keyboard; the 4D encoder ◀ ▶ moves the octave"],["CHORDS",373,40,"y","Brain: pads are chord degrees"],["STEP",425,42,"y","Pads are the 16 steps"]]
     .forEach(b => add(b[0], R(b[1], 203, b[2], 12), b[3], b[4]));
   // column left of the pads
-  [["SCENE",224,"n","16 scenes on the pads"],["PATTERN",245,"n","16 patterns on the pads"],["EVENTS",275,"n","Components of the selected step"],["VARIATION",299,"n","Random variation"],["DUPLICATE",324,"n","Copy a step, pattern or track"],["SELECT",346,"n","Choose without sounding"],["SOLO",369,"n","Isolate a track"],["MUTE",392,"y","Hold + a group to mute the track"]]
+  [["SCENE",224,"n","16 scenes on the pads"],["PATTERN",245,"y","16 patterns of the track on the pads: tap to play one, hold and tap to copy"],["EVENTS",275,"n","Components of the selected step"],["VARIATION",299,"n","Random variation"],["DUPLICATE",324,"n","Copy a step, pattern or track"],["SELECT",346,"n","Choose without sounding"],["SOLO",369,"n","Isolate a track"],["MUTE",392,"y","Hold + a group to mute the track"]]
     .forEach(b => add(b[0], R(232, b[1], 31, 19), b[2], b[3]));
   // PITCH / MOD / PERFORM / NOTES
   [["PITCH","n","Smart Strip bends pitch"],["MOD","n","Smart Strip sends modulation"],["PERFORM","y","Punch-in FX: pressure is the amount"],["NOTES","n","Smart Strip plays notes"]]

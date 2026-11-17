@@ -279,7 +279,7 @@ impl MasterEq {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Project {
     pub tracks: [Track; TRACKS],
     pub brain: Brain,
@@ -296,7 +296,7 @@ pub struct Project {
     pub sends: MasterSends,
     /// The patterns of each track. The one that is shown and edited, `current`, is in the track itself (its steps, length, division and
     /// kit); the others are here, and the place of `current` here is always an empty one.
-    pub stored: [[Pattern; PATTERNS]; TRACKS],
+    pub stored: Box<[[Pattern; PATTERNS]; TRACKS]>,
     /// Which pattern of each track is shown and edited.
     pub current: [u8; TRACKS],
 }
@@ -312,7 +312,7 @@ impl Default for Project {
             comp: MasterComp::default(),
             eq: MasterEq::default(),
             sends: MasterSends::default(),
-            stored: [[Pattern::default(); PATTERNS]; TRACKS],
+            stored: Box::new([[Pattern::default(); PATTERNS]; TRACKS]),
             current: [0; TRACKS],
         }
     }
