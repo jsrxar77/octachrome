@@ -118,21 +118,31 @@ pub struct MasterComp {
     pub release: u8,
     pub makeup: u8,
     pub mix: u8,
+    /// Which track the compressor listens to: 0 is the mix itself, 1..=8 a track (its sound brings the whole mix down). Of 0..=255.
+    pub side: u8,
 }
 
 /// How many settings the master compressor has.
-pub const COMP_PARAMS: usize = 6;
+pub const COMP_PARAMS: usize = 7;
+
+/// The track the compressor listens to for a side-chain setting (`None` is the mix itself): 0..=255 is cut in nine.
+pub fn side_track(v: u8) -> Option<usize> {
+    match v as usize * 9 / 256 {
+        0 => None,
+        n => Some(n - 1),
+    }
+}
 
 impl Default for MasterComp {
     fn default() -> Self {
-        Self { threshold: 255, ratio: 102, attack: 128, release: 128, makeup: 0, mix: 255 }
+        Self { threshold: 255, ratio: 102, attack: 128, release: 128, makeup: 0, mix: 255, side: 0 }
     }
 }
 
 impl MasterComp {
-    /// Setting `i` (threshold, ratio, attack, release, makeup, mix), 0..=255.
+    /// Setting `i` (threshold, ratio, attack, release, makeup, mix, side-chain), 0..=255.
     pub fn get(&self, i: usize) -> u8 {
-        [self.threshold, self.ratio, self.attack, self.release, self.makeup, self.mix].get(i).copied().unwrap_or(0)
+        [self.threshold, self.ratio, self.attack, self.release, self.makeup, self.mix, self.side].get(i).copied().unwrap_or(0)
     }
     pub fn set(&mut self, i: usize, v: u8) {
         match i {
@@ -142,6 +152,7 @@ impl MasterComp {
             3 => self.release = v,
             4 => self.makeup = v,
             5 => self.mix = v,
+            6 => self.side = v,
             _ => {}
         }
     }
@@ -159,21 +170,31 @@ pub struct MasterSends {
     pub size: u8,
     /// How bright the reverb is (high: bright; low: the highs die first).
     pub tone: u8,
+    /// Where each send is taken from: from 128 up it is before the level and the pan of the track (pre-fader), under it after them.
+    pub tap_a: u8,
+    pub tap_b: u8,
 }
 
 /// How many settings the sends have.
-pub const SENDS_PARAMS: usize = 4;
+pub const SENDS_PARAMS: usize = 6;
+
+impl MasterSends {
+    /// Whether the send to bus `bus` (0 delay, 1 reverb) is taken before the track's level and pan.
+    pub fn is_pre(&self, bus: usize) -> bool {
+        (if bus == 0 { self.tap_a } else { self.tap_b }) >= 128
+    }
+}
 
 impl Default for MasterSends {
     fn default() -> Self {
-        Self { time: 100, feedback: 100, size: 150, tone: 128 }
+        Self { time: 100, feedback: 100, size: 150, tone: 128, tap_a: 0, tap_b: 0 }
     }
 }
 
 impl MasterSends {
-    /// Setting `i` (time, feedback, size, tone), 0..=255.
+    /// Setting `i` (time, feedback, size, tone, delay tap, reverb tap), 0..=255.
     pub fn get(&self, i: usize) -> u8 {
-        [self.time, self.feedback, self.size, self.tone].get(i).copied().unwrap_or(0)
+        [self.time, self.feedback, self.size, self.tone, self.tap_a, self.tap_b].get(i).copied().unwrap_or(0)
     }
     pub fn set(&mut self, i: usize, v: u8) {
         match i {
@@ -181,6 +202,8 @@ impl MasterSends {
             1 => self.feedback = v,
             2 => self.size = v,
             3 => self.tone = v,
+            4 => self.tap_a = v,
+            5 => self.tap_b = v,
             _ => {}
         }
     }

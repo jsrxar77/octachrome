@@ -64,6 +64,8 @@ pub struct FmBass {
     sub_phase: f32,
     hz: f32,
     target_hz: f32,
+    /// The pitch wheel as a ratio of frequency (1 is centre).
+    bend: f32,
     velocity: f32,
     stack: [u8; STACK],
     stack_len: usize,
@@ -91,6 +93,7 @@ impl FmBass {
             sub_phase: 0.0,
             hz: 55.0,
             target_hz: 55.0,
+            bend: 1.0,
             velocity: 1.0,
             stack: [0; STACK],
             stack_len: 0,
@@ -173,10 +176,11 @@ impl InstrumentCartridge for FmBass {
             let s = if self.env.is_active() {
                 self.hz = self.target_hz + (self.hz - self.target_hz) * glide_c;
                 let a = self.env.next();
-                self.mod_phase = (self.mod_phase + self.hz * ratio / SAMPLE_RATE).fract();
+                let hz = self.hz * self.bend;
+                self.mod_phase = (self.mod_phase + hz * ratio / SAMPLE_RATE).fract();
                 let m = sine(self.mod_phase) * index * (0.25 + 0.75 * self.index_env);
-                self.car_phase = (self.car_phase + self.hz / SAMPLE_RATE).fract();
-                self.sub_phase = (self.sub_phase + self.hz * 0.5 / SAMPLE_RATE).fract();
+                self.car_phase = (self.car_phase + hz / SAMPLE_RATE).fract();
+                self.sub_phase = (self.sub_phase + hz * 0.5 / SAMPLE_RATE).fract();
                 self.index_env *= index_c;
                 let c = sine(self.car_phase + m / std::f32::consts::TAU);
                 (c * (1.0 - sub * 0.5) + sine(self.sub_phase) * sub * 0.6)
@@ -205,6 +209,9 @@ impl InstrumentCartridge for FmBass {
     }
     fn parameter_value(&self, index: usize) -> Option<f32> {
         self.values.get(index).copied()
+    }
+    fn set_pitch_bend(&mut self, semitones: f32) {
+        self.bend = 2f32.powf(semitones / 12.0);
     }
     fn all_notes_off(&mut self) {
         self.stack_len = 0;

@@ -19,6 +19,8 @@ pub const PARAMS_PER_SLOT: usize = 8;
 pub enum EngineCommand {
     Seq(Command),
     Play,
+    /// Start from a tick (96 to the quarter note) instead of the top: what a song position pointer from outside asks for.
+    PlayFrom(u64),
     Stop,
     SetParam {
         track: u8,
@@ -45,6 +47,8 @@ pub enum EngineCommand {
         velocity: f32,
         on: bool,
     },
+    /// The pitch wheel of a keyboard on a track's instrument: bend by `semitones` (0 is centre). An instrument with no pitch ignores it.
+    PitchBend { track: u8, semitones: f32 },
     /// The master volume, 0.0..=1.0 (VOLUME + the 4D encoder).
     MasterVolume(f32),
     /// The metronome clicks on every beat while the sequencer runs (SHIFT + TAP).
@@ -175,6 +179,8 @@ pub struct Engine {
     eq: crate::eq::Eq,
     sends: crate::sends::Sends,
     /// What the tracks send to the delay and to the reverb in this block.
+    /// The sound of the track the compressor listens to (its side-chain), after its level and pan.
+    side: [Box<[f32]>; 2],
     bus_a: [Box<[f32]>; 2],
     bus_b: [Box<[f32]>; 2],
     midi_clock: bool,
@@ -260,6 +266,7 @@ impl Engine {
             comp: crate::comp::Compressor::new(SAMPLE_RATE),
             eq: crate::eq::Eq::new(SAMPLE_RATE),
             sends: crate::sends::Sends::new(SAMPLE_RATE),
+            side: [vec![0.0; MAX_BLOCK].into_boxed_slice(), vec![0.0; MAX_BLOCK].into_boxed_slice()],
             bus_a: [vec![0.0; MAX_BLOCK].into_boxed_slice(), vec![0.0; MAX_BLOCK].into_boxed_slice()],
             bus_b: [vec![0.0; MAX_BLOCK].into_boxed_slice(), vec![0.0; MAX_BLOCK].into_boxed_slice()],
             midi_clock: true,
@@ -291,6 +298,7 @@ impl Engine {
             match cmd {
                 EngineCommand::Seq(c) => self.seq.apply(&c),
                 EngineCommand::Play => self.seq.play(),
+                EngineCommand::PlayFrom(tick) => self.seq.play_from(tick),
                 EngineCommand::Stop => {
                     self.seq.stop();
                     self.fx.engage(None, 0.0);
@@ -318,6 +326,11 @@ impl Engine {
                     if let Some(q) = self.live.get_mut(track as usize) {
                         let ev = if on { op8_cartridge::NoteEvent::on(0, note, velocity.clamp(0.0, 1.0)) } else { op8_cartridge::NoteEvent::off(0, note) };
                         q.push(ev);
+                    }
+                }
+                EngineCommand::PitchBend { track, semitones } => {
+                    if let Some(Ok(mut c)) = self.slots.get(track as usize).and_then(|s| s.as_ref()).map(|s| s.lock()) {
+                        c.set_pitch_bend(semitones);
                     }
                 }
                 EngineCommand::MasterVolume(v) => self.master = v.clamp(0.0, 1.0),
@@ -442,7 +455,8 @@ impl Engine {
         self.sync_time += n as u64;
         out_l.fill(0.0);
         out_r.fill(0.0);
-        for b in self.bus_a.iter_mut().chain(self.bus_b.iter_mut()) {
+        let side_track = op8_seq::side_track(self.seq.project.comp.side);
+        for b in self.bus_a.iter_mut().chain(self.bus_b.iter_mut()).chain(self.side.iter_mut()) {
             b[..n].fill(0.0);
         }
 
@@ -518,16 +532,22 @@ impl Engine {
             let bal = ((pan as f32 - 64.0) / 63.0).clamp(-1.0, 1.0);
             let (gl, gr) = ((1.0 - bal.max(0.0)) * vol, (1.0 + bal.min(0.0)) * vol);
             let (sa, sb) = (self.seq.project.tracks[t].send_a as f32 / 127.0, self.seq.project.tracks[t].send_b as f32 / 127.0);
+            let (pre_a, pre_b) = (self.seq.project.sends.is_pre(0), self.seq.project.sends.is_pre(1));
             let mut peak = self.peaks[t] * 0.9;
             for i in 0..n {
                 let (a, b) = (l[i] * gl, r[i] * gr);
                 out_l[i] += a;
                 out_r[i] += b;
-                // what goes to the sends is taken after the level and the pan
-                self.bus_a[0][i] += a * sa;
-                self.bus_a[1][i] += b * sa;
-                self.bus_b[0][i] += a * sb;
-                self.bus_b[1][i] += b * sb;
+                // what goes to the sends is taken after the level and the pan, or (pre-fader) before them
+                let (xa, xb) = (if pre_a { (l[i], r[i]) } else { (a, b) }, if pre_b { (l[i], r[i]) } else { (a, b) });
+                self.bus_a[0][i] += xa.0 * sa;
+                self.bus_a[1][i] += xa.1 * sa;
+                self.bus_b[0][i] += xb.0 * sb;
+                self.bus_b[1][i] += xb.1 * sb;
+                if side_track == Some(t) {
+                    self.side[0][i] = a;
+                    self.side[1][i] = b;
+                }
                 peak = peak.max(a.abs()).max(b.abs());
             }
             self.peaks[t] = peak;
@@ -541,7 +561,8 @@ impl Engine {
         self.fx.process(out_l, out_r, spt);
         // the EQ and then the compressor of the master sit after the performance effects, before the metronome and the master volume
         self.eq.process(out_l, out_r, &self.seq.project.eq);
-        self.comp.process(out_l, out_r, &self.seq.project.comp);
+        let side = side_track.map(|_| (&self.side[0][..n], &self.side[1][..n]));
+        self.comp.process(out_l, out_r, side, &self.seq.project.comp);
         self.status.comp_reduction.store(self.comp.block_gr.to_bits(), Relaxed);
         self.status.comp_input.store(self.comp.block_in_db.to_bits(), Relaxed);
         // The metronome: a short click at the start of every beat while playing, a higher one on the bar.
@@ -639,6 +660,7 @@ impl Engine {
     fn publish(&self, started: Instant, frames: usize) {
         let s = &self.status;
         s.playing.store(self.seq.is_playing(), Relaxed);
+        s.tick.store(self.seq.song_tick() as u32, Relaxed);
         for t in 0..TRACKS {
             s.playhead[t].store(self.seq.playhead(t).step, Relaxed);
             s.phase[t].store((self.seq.step_phase(t) * 255.0) as u8, Relaxed);
@@ -708,7 +730,7 @@ impl EngineHandle {
         let master = if let EngineCommand::MasterVolume(v) = &cmd { Some(v.clamp(0.0, 1.0)) } else { None };
         let metro = if let EngineCommand::Metronome(on) = &cmd { Some(*on) } else { None };
         let play = match &cmd {
-            EngineCommand::Play => Some(true),
+            EngineCommand::Play | EngineCommand::PlayFrom(_) => Some(true),
             EngineCommand::Stop => Some(false),
             _ => None,
         };

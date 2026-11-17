@@ -15,7 +15,11 @@ use crate::{
 /// Version 4 adds the master compressor after the tracks; an older file still opens (it is then at its defaults, which do nothing).
 /// Version 5 adds the master EQ after the compressor; an older file still opens (it is then flat).
 /// Version 6 adds the two sends of each track and the settings of the sends' effects after the EQ; an older file still opens (nothing is sent).
-pub const VERSION: u8 = 6;
+pub const VERSION: u8 = 7;
+
+/// How many compressor and sends settings versions 4 to 6 wrote: later ones are appended at the end, so those files still open.
+const COMP_V4: usize = 6;
+const SENDS_V6: usize = 4;
 
 struct W(Vec<u8>);
 impl W {
@@ -171,7 +175,7 @@ pub fn encode(p: &Project) -> Vec<u8> {
             }
         }
     }
-    for i in 0..crate::COMP_PARAMS {
+    for i in 0..COMP_V4 {
         w.u8(p.comp.get(i));
     }
     for i in 0..crate::EQ_PARAMS {
@@ -181,7 +185,14 @@ pub fn encode(p: &Project) -> Vec<u8> {
         w.u8(t.send_a);
         w.u8(t.send_b);
     }
-    for i in 0..crate::SENDS_PARAMS {
+    for i in 0..SENDS_V6 {
+        w.u8(p.sends.get(i));
+    }
+    // version 7: the side-chain of the compressor and where the two sends are taken from
+    for i in COMP_V4..crate::COMP_PARAMS {
+        w.u8(p.comp.get(i));
+    }
+    for i in SENDS_V6..crate::SENDS_PARAMS {
         w.u8(p.sends.get(i));
     }
     w.0
@@ -261,7 +272,7 @@ pub fn decode(data: &[u8]) -> Option<Project> {
         *t = tr;
     }
     if version >= 4 {
-        for i in 0..crate::COMP_PARAMS {
+        for i in 0..COMP_V4 {
             let v = r.u8()?;
             p.comp.set(i, v);
         }
@@ -277,7 +288,17 @@ pub fn decode(data: &[u8]) -> Option<Project> {
             t.send_a = r.u8()?.min(127);
             t.send_b = r.u8()?.min(127);
         }
-        for i in 0..crate::SENDS_PARAMS {
+        for i in 0..SENDS_V6 {
+            let v = r.u8()?;
+            p.sends.set(i, v);
+        }
+    }
+    if version >= 7 {
+        for i in COMP_V4..crate::COMP_PARAMS {
+            let v = r.u8()?;
+            p.comp.set(i, v);
+        }
+        for i in SENDS_V6..crate::SENDS_PARAMS {
             let v = r.u8()?;
             p.sends.set(i, v);
         }
@@ -290,12 +311,14 @@ mod tests {
     use super::*;
 
     /// What version 6 adds at the end: two bytes of sends for each track and the settings of the effects.
-    const SENDS_BYTES: usize = 2 * TRACKS + crate::SENDS_PARAMS;
+    const SENDS_BYTES: usize = 2 * TRACKS + SENDS_V6;
+    /// What version 7 adds after that: the side-chain setting and the two taps.
+    const V7_BYTES: usize = (crate::COMP_PARAMS - COMP_V4) + (crate::SENDS_PARAMS - SENDS_V6);
 
     /// The bytes of a version 3 file for `p`: the current ones without the compressor at the end.
     fn as_version_3(p: &Project) -> Vec<u8> {
         let mut v = encode(p);
-        v.truncate(v.len() - crate::COMP_PARAMS - crate::EQ_PARAMS - SENDS_BYTES);
+        v.truncate(v.len() - COMP_V4 - crate::EQ_PARAMS - SENDS_BYTES - V7_BYTES);
         v[0] = 3;
         v
     }
@@ -323,11 +346,11 @@ mod tests {
         p.tracks[1].lfo = Lfo { shape: LfoShape::Saw, rate: 33, depth: 250, target: 4 };
         p.tracks[2].level = 31;
         p.tracks[2].pan = 120;
-        p.comp = crate::MasterComp { threshold: 90, ratio: 200, attack: 10, release: 250, makeup: 77, mix: 128 };
+        p.comp = crate::MasterComp { threshold: 90, ratio: 200, attack: 10, release: 250, makeup: 77, mix: 128, side: 150 };
         p.eq = crate::MasterEq { low: 10, mid: 200, freq: 33, high: 250 };
         p.tracks[4].send_a = 90;
         p.tracks[4].send_b = 127;
-        p.sends = crate::MasterSends { time: 7, feedback: 200, size: 33, tone: 250 };
+        p.sends = crate::MasterSends { time: 7, feedback: 200, size: 33, tone: 250, tap_a: 200, tap_b: 30 };
         let bytes = encode(&p);
         let q = decode(&bytes).expect("decodes");
         assert_eq!(q, p);
@@ -387,7 +410,7 @@ mod tests {
         let mut p = Project::default();
         p.comp.threshold = 70;
         let mut v = encode(&p);
-        v.truncate(v.len() - crate::EQ_PARAMS - SENDS_BYTES);
+        v.truncate(v.len() - crate::EQ_PARAMS - SENDS_BYTES - V7_BYTES);
         v[0] = 4;
         let q = decode(&v).expect("a version 4 file opens");
         assert_eq!(q, p);
@@ -400,11 +423,24 @@ mod tests {
         let mut p = Project::default();
         p.eq.low = 30;
         let mut v = encode(&p);
-        v.truncate(v.len() - SENDS_BYTES);
+        v.truncate(v.len() - SENDS_BYTES - V7_BYTES);
         v[0] = 5;
         let q = decode(&v).expect("a version 5 file opens");
         assert_eq!(q, p);
         assert!(q.tracks.iter().all(|t| t.send_a == 0 && t.send_b == 0));
+    }
+
+    // F-F01
+    #[test]
+    fn a_version_6_file_still_opens_with_no_side_chain_and_the_sends_after_the_fader() {
+        let mut p = Project::default();
+        p.sends.time = 3;
+        let mut v = encode(&p);
+        v.truncate(v.len() - V7_BYTES);
+        v[0] = 6;
+        let q = decode(&v).expect("a version 6 file opens");
+        assert_eq!(q, p);
+        assert_eq!((q.comp.side, q.sends.tap_a, q.sends.tap_b), (0, 0, 0));
     }
 
     // F-F01

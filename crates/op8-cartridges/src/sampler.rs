@@ -398,6 +398,8 @@ pub struct Sampler {
     bank: Vec<Sample>,
     voices: [Voice; VOICES],
     clock: u64,
+    /// The pitch wheel as a ratio of speed (1 is centre): the sounds that are playing speed up and slow down with it.
+    bend: f64,
     scope: crate::dsp::Scope,
 }
 
@@ -425,7 +427,7 @@ impl Sampler {
         for (i, p) in PARAMS.iter().chain(SECONDARY.iter()).enumerate() {
             values[i] = p.default;
         }
-        Self { values, bank, voices: [Voice::default(); VOICES], clock: 0, scope: crate::dsp::Scope::new(4) }
+        Self { values, bank, voices: [Voice::default(); VOICES], clock: 0, bend: 1.0, scope: crate::dsp::Scope::new(4) }
     }
 
     fn chosen(&self) -> usize {
@@ -576,13 +578,17 @@ impl InstrumentCartridge for Sampler {
                 let a = data.get(i).copied().unwrap_or(0.0);
                 let b = data.get(i + 1).copied().unwrap_or(0.0);
                 mix += (a + (b - a) * f) * v.env * v.gain;
-                v.pos += v.step;
+                v.pos += v.step * self.bend;
             }
             let s = (mix * level).tanh();
             output_l[k] = s;
             output_r[k] = s;
             self.scope.push(s);
         }
+    }
+
+    fn set_pitch_bend(&mut self, semitones: f32) {
+        self.bend = 2f64.powf(semitones as f64 / 12.0);
     }
 
     fn parameters(&self) -> &[ParamDescriptor; 4] {

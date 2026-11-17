@@ -15,6 +15,8 @@ An instrument is a piece of code that fulfils the `InstrumentCartridge` contract
 | **Drawing** | An animated graphic that shows what the sound does, in the central area of the right screen | Uses the colours of knobs 5–8 for what those knobs move |
 | **State** | Save and load its values (presets and parameter locks) | A list of numbers, versioned |
 
+An instrument that has a pitch can also bend it (2026-11-17): `set_pitch_bend(semitones)` is the wheel of a keyboard that plays it by MIDI (±2 at the ends; 0 is the centre), and it is optional, like the rest of what an instrument can add. FM bass, macro, resonator, sampler and granular bend, the MIDI out sends the wheel on, and the drums and the kick have no pitch to bend.
+
 The track's effect and modulation (buttons 7 and 8) are not the instrument's: they are the same for all, which keeps each instrument simple. The effect is one of delay, reverb, chorus, filter or drive; the LFO can move any of the instrument's eight knobs, so what an instrument offers to move is exactly its parameter list.
 
 ## 2. Rules for an instrument

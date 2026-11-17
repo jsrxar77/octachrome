@@ -715,6 +715,20 @@ fn recipe_23_the_mixer_and_the_compressor() {
     b.press(Button::Screen(6));
     b.knob(4, 200);
     assert!(b.project().comp.makeup > 40);
+    b.knob(6, 120); // the side-chain: it listens to a track
+    assert!(op8_seq::side_track(b.project().comp.side).is_some());
+    b.run_ms(100);
+    b.capture("r23-side-chain");
+    b.knob(6, -400); // and back to the mix
+    assert!(op8_seq::side_track(b.project().comp.side).is_none());
+    b.press(Button::Screen(8));
+    b.press(Button::Screen(8)); // the taps of the sends
+    assert_eq!(b.ui().mixer.page, 4);
+    b.knob(4, 500);
+    assert!(b.project().sends.is_pre(0));
+    b.run_ms(100);
+    b.capture("r23-taps");
+    b.knob(4, -500);
     b.press(Button::Screen(7)); // the EQ
     b.knob(4, 140); // low up
     b.knob(5, -180); // mid down

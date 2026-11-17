@@ -174,7 +174,7 @@ mod tests {
     #[test]
     fn the_delay_repeats_in_time_with_the_tempo_and_dies_away() {
         // an eighth at 120 bpm is a quarter of a second: 12 000 samples
-        let s = MasterSends { time: 70, feedback: 128, size: 0, tone: 255 }; // time index 1: an eighth
+        let s = MasterSends { time: 70, feedback: 128, size: 0, tone: 255, tap_a: 0, tap_b: 0 }; // time index 1: an eighth
         assert_eq!(delay_index(s.time), 1);
         let mut fx = Sends::new(RATE);
         let (l, r) = run(&mut fx, &click(60_000), &vec![0.0; 60_000], &s, 120.0);
@@ -197,7 +197,7 @@ mod tests {
     fn the_reverb_rings_and_a_bigger_room_rings_longer() {
         let ring = |size: u8, tone: u8| {
             let mut fx = Sends::new(RATE);
-            let st = MasterSends { time: 0, feedback: 0, size, tone };
+            let st = MasterSends { time: 0, feedback: 0, size, tone, tap_a: 0, tap_b: 0 };
             let (l, r) = run(&mut fx, &vec![0.0; 96_000], &click(96_000), &st, 120.0);
             let energy = |a: usize, b: usize| l[a..b].iter().chain(r[a..b].iter()).map(|x| x * x).sum::<f32>();
             (energy(0, 24_000), energy(48_000, 96_000))
@@ -213,7 +213,7 @@ mod tests {
         // is, and it builds up to about 4.6 and no further; the master's soft clip is after it)
         let mut fx = Sends::new(RATE);
         let loud: Vec<f32> = (0..96_000).map(|i| (i as f32 * 0.01).sin()).collect();
-        let (l, _) = run(&mut fx, &vec![0.0; 96_000], &loud, &MasterSends { time: 0, feedback: 0, size: 255, tone: 255 }, 120.0);
+        let (l, _) = run(&mut fx, &vec![0.0; 96_000], &loud, &MasterSends { time: 0, feedback: 0, size: 255, tone: 255, tap_a: 0, tap_b: 0 }, 120.0);
         assert!(l.iter().all(|x| x.is_finite() && x.abs() < 8.0), "it stays in bounds");
     }
 

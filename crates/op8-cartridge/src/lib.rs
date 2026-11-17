@@ -199,6 +199,10 @@ pub trait InstrumentCartridge: Send + Sync {
         false
     }
 
+    /// The pitch wheel of a keyboard: bend every note by `semitones` (positive up, 0 is centre) until it comes back to 0. An instrument
+    /// with no pitch to bend (drums) ignores it.
+    fn set_pitch_bend(&mut self, _semitones: f32) {}
+
     /// Silence every voice immediately (transport stop, panic).
     fn all_notes_off(&mut self) {}
 }

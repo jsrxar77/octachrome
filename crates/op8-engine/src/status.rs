@@ -9,6 +9,8 @@ use std::sync::{
 #[derive(Default)]
 pub struct EngineStatus {
     pub playing: AtomicBool,
+    /// The tick the sequencer has reached (96 to the quarter note, counted from the start).
+    pub tick: AtomicU32,
     pub playhead: [AtomicU8; TRACKS],
     /// How far into its step each track is, 0..=255 (the fraction of the step that has passed).
     pub phase: [AtomicU8; TRACKS],

@@ -9,6 +9,7 @@ pub mod backoff;
 pub mod bench;
 #[cfg(feature = "audio")]
 pub mod audio;
+pub mod clockin;
 pub mod controller;
 pub mod demo;
 pub mod factory;

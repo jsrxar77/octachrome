@@ -139,10 +139,11 @@ pub fn open_port(_: Option<&str>) -> anyhow::Result<Box<dyn MidiPort>> {
 
 // ---- MIDI in ------------------------------------------------------------------------------------------------------------------------
 
-/// A MIDI input that is open: messages come out of `rx` as whole messages (a status byte and its data), until it is dropped. Real-time
-/// messages (the clock and the rest of 0xF8 to 0xFF) and system exclusive are left out.
+/// A MIDI input that is open: messages come out of `rx` as whole messages (a status byte and its data) with the time they came in, in
+/// microseconds from any fixed moment (only the differences mean something), until it is dropped. Of the real-time messages the clock,
+/// start, continue and stop come as one byte each; the rest, and system exclusive, are left out.
 pub struct MidiIn {
-    pub rx: std::sync::mpsc::Receiver<Vec<u8>>,
+    pub rx: std::sync::mpsc::Receiver<(Vec<u8>, u64)>,
     pub name: String,
     /// What keeps the port open: the connection, or the thread that reads the node (stopped when this is dropped).
     _keep: Box<dyn std::any::Any + Send>,
@@ -160,12 +161,14 @@ impl Parser {
     /// Feed one byte; a whole message comes back when it is complete.
     pub fn push(&mut self, b: u8) -> Option<Vec<u8>> {
         if b >= 0xF8 {
-            return None; // real time: it may fall in the middle of anything and means nothing here
+            // real time: it may fall in the middle of anything and does not disturb it; only the clock and the transport are wanted
+            return matches!(b, 0xF8 | 0xFA | 0xFB | 0xFC).then(|| vec![b]);
         }
         if b >= 0x80 {
             self.data.clear();
             self.skipping = b == 0xF0; // system exclusive runs until the byte that ends it
-            self.status = if b >= 0xF0 { 0 } else { b };
+            // the song position pointer (two data bytes) is wanted; the rest of the system messages are not
+            self.status = if b == 0xF2 || b < 0xF0 { b } else { 0 };
             return None;
         }
         if self.skipping || self.status == 0 {
@@ -179,6 +182,9 @@ impl Parser {
         if self.data.len() == need {
             let mut m = vec![self.status];
             m.append(&mut self.data);
+            if self.status == 0xF2 {
+                self.status = 0; // a system message has no running status
+            }
             return Some(m);
         }
         None
@@ -208,13 +214,14 @@ pub fn open_input(want: &str) -> anyhow::Result<MidiIn> {
         .spawn(move || {
             use std::io::Read;
             let (mut parser, mut buf) = (Parser::default(), [0u8; 64]);
+            let t0 = std::time::Instant::now();
             while !flag.load(Ordering::Relaxed) {
                 match f.read(&mut buf) {
                     Ok(0) => thread::sleep(Duration::from_millis(2)),
                     Ok(n) => {
                         for &b in &buf[..n] {
                             if let Some(m) = parser.push(b) {
-                                if tx.send(m).is_err() {
+                                if tx.send((m, t0.elapsed().as_micros() as u64)).is_err() {
                                     return;
                                 }
                             }
@@ -260,10 +267,10 @@ pub fn open_input(want: &str) -> anyhow::Result<MidiIn> {
         .connect(
             &port,
             "op8-in",
-            move |_, bytes, _| {
+            move |stamp, bytes, _| {
                 for &b in bytes {
                     if let Some(m) = parser.push(b) {
-                        let _ = tx.send(m);
+                        let _ = tx.send((m, stamp));
                     }
                 }
             },
@@ -401,13 +408,14 @@ mod tests {
     fn the_parser_makes_whole_messages_of_a_stream() {
         let mut p = Parser::default();
         let mut got = Vec::new();
-        // a note on, the clock in the middle of the next one, running status (no status byte), a program change, a sysex, then a note off
-        for b in [0x90, 60, 100, 0xF8, 0x3E, 0xF8, 0x64, 0xC1, 5, 0xF0, 1, 2, 3, 0xF7, 0x80, 60, 0] {
+        // a note on, the clock in the middle of the next one, running status (no status byte), a program change, a sysex, then a note off;
+        // the active sensing (0xFE) is left out, and a song position pointer comes whole and does not leave a running status behind
+        for b in [0x90, 60, 100, 0xF8, 0x3E, 0xFE, 0xF8, 0x64, 0xC1, 5, 0xF0, 1, 2, 3, 0xF7, 0xF2, 8, 1, 9, 9, 0x80, 60, 0] {
             if let Some(m) = p.push(b) {
                 got.push(m);
             }
         }
-        assert_eq!(got, vec![vec![0x90, 60, 100], vec![0x90, 0x3E, 0x64], vec![0xC1, 5], vec![0x80, 60, 0]]);
+        assert_eq!(got, vec![vec![0x90, 60, 100], vec![0xF8], vec![0xF8], vec![0x90, 0x3E, 0x64], vec![0xC1, 5], vec![0xF2, 8, 1], vec![0x80, 60, 0]]);
         assert_eq!(p.push(0x20), None, "data with no status is dropped");
     }
 

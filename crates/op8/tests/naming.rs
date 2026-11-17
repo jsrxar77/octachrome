@@ -155,3 +155,52 @@ fn f_n17_a_preset_is_named_and_the_screens_move() {
     assert!(b.ui().browse_note.contains("named k"), "{}", b.ui().browse_note);
     let _ = std::fs::remove_dir_all(&d);
 }
+
+// F-N18: SELECT held and a pad of SAMPLING names the recording kept in that place (a place with no recording says so), push saves the name
+// next to the file and goes back to SAMPLING, whose cell shows it; an empty name takes it away.
+#[test]
+fn f_n18_a_recording_is_named_on_the_unit() {
+    let d = dir("recording");
+    std::fs::create_dir_all(&d).unwrap();
+    let mut b = Bench::demo();
+    b.set_samples_dir(d.clone());
+    b.press(Button::Play);
+    b.run_ms(300);
+    b.press(Button::Sampling);
+    b.press(Button::Rec);
+    b.run_ms(1000);
+    b.press(Button::Rec);
+    b.run_ms(100);
+    b.press(Button::Stop);
+    b.tap(pad_of(2)); // saved in user 3
+    assert!(b.ui().smp.note.contains("saved in user 3"), "{}", b.ui().smp.note);
+    // a place with nothing in it
+    select_tap(&mut b, pad_of(5));
+    assert_eq!(b.ui().main, Main::Sampling, "nothing to name there");
+    assert!(b.ui().smp.note.contains("nothing there to name"), "{}", b.ui().smp.note);
+    let before = b.screen_hash(Screen::Left);
+    select_tap(&mut b, pad_of(2));
+    assert_eq!(b.ui().main, Main::Name);
+    assert!(b.ui().naming.what.contains("recording user 3"), "{}", b.ui().naming.what);
+    for c in ['k', 'i', 'c', 'k'] {
+        letter(&mut b, c);
+        b.press(Button::JogRight);
+    }
+    b.press(Button::JogPush);
+    assert_eq!(b.ui().main, Main::Sampling);
+    assert_eq!(b.ui().smp.names[2], "kick");
+    assert!(b.ui().smp.note.contains("named kick"), "{}", b.ui().smp.note);
+    b.run_ms(100);
+    assert_ne!(b.screen_hash(Screen::Left), before, "the cell shows the name");
+    b.capture("f-n18-named-recording");
+    assert_eq!(std::fs::read_to_string(d.join("rec-3.name")).unwrap().trim(), "kick");
+    // and an empty name takes it away
+    select_tap(&mut b, pad_of(2));
+    for _ in 0..12 {
+        b.tap(pad_of(12)); // clear
+    }
+    b.press(Button::JogPush);
+    assert!(b.ui().smp.names[2].is_empty());
+    assert!(!d.join("rec-3.name").exists());
+    let _ = std::fs::remove_dir_all(&d);
+}

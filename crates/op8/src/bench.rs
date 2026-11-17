@@ -131,6 +131,12 @@ impl Bench {
         app.ctl.midi_in(msg, &mut app.handle);
     }
 
+    /// The same, with the time it came in (microseconds from any fixed moment), as the input thread stamps it: what the clock measures.
+    pub fn midi_in_at(&mut self, msg: &[u8], at_us: u64) {
+        let Self { app, .. } = self;
+        app.ctl.midi_in_at(msg, at_us, &mut app.handle);
+    }
+
     // ---- input, as the MK3 would send it -------------------------------------
 
     pub fn send(&mut self, e: ControlEvent) {
@@ -314,6 +320,13 @@ impl Bench {
     /// Largest absolute sample on either channel, linear.
     pub fn peak(&self, from_ms: u64, to_ms: u64) -> f32 {
         10f32.powf(self.peak_db(from_ms, to_ms) / 20.0)
+    }
+
+    /// How many times the mono mix crosses zero going up in the range: a measure of the pitch of a steady sound.
+    pub fn zero_crossings(&self, from_ms: u64, to_ms: u64) -> usize {
+        let r = self.range(from_ms, to_ms);
+        let m = |i: usize| (self.audio_l[i] + self.audio_r[i]) * 0.5;
+        r.clone().skip(1).filter(|&i| m(i - 1) < 0.0 && m(i) >= 0.0).count()
     }
 
     /// True when nothing above −90 dBFS came out in the range.
