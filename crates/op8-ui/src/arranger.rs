@@ -40,7 +40,7 @@ pub fn draw_right(fb: &mut FrameBuffer480x272, ui: &crate::UiState) {
     text_v(fb, &l1, 30, 76, FontSize::Large, t.fg, Align::Left, VAlign::Middle);
     text_v(fb, &l2, 30, 100, FontSize::Medium, t.dim, Align::Left, VAlign::Middle);
     text_v(fb, "tap a pad", 30, 140, FontSize::Large, t.fg, Align::Left, VAlign::Middle);
-    text_v(fb, "chooses a step; erase + tap takes it out", 30, 164, FontSize::Medium, t.dim, Align::Left, VAlign::Middle);
+    text_v(fb, "chooses a step; shift + tap puts one in; erase + tap takes it out", 30, 164, FontSize::Medium, t.dim, Align::Left, VAlign::Middle);
     if !ui.arr_note.is_empty() {
         text_v(fb, &ui.arr_note, 30, 208, FontSize::Medium, t.fg, Align::Left, VAlign::Middle);
     }

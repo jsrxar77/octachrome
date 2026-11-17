@@ -1187,6 +1187,12 @@ impl Controller {
                 if self.held.erase && (slot as usize) < h.project.song.len as usize {
                     h.seq(Command::RemoveSongStep { index: slot });
                     self.ui.arr_note = format!("step {} taken out", slot + 1);
+                } else if self.held.shift && (slot as usize) <= h.project.song.len as usize && h.project.song.len > 0 {
+                    // a step in front of the one tapped: a copy of it (of the last one, on the free place after the end)
+                    let from = (slot as usize).min(h.project.song.len as usize - 1);
+                    let s = h.project.song.steps[from];
+                    h.seq(Command::InsertSongStep { index: slot, scene: s.scene, bars: s.bars });
+                    self.ui.arr_note = format!("step {} put in", slot + 1);
                 } else {
                     self.ui.arr_note.clear();
                 }
@@ -2667,7 +2673,7 @@ impl Controller {
                 1
             } else if self.ui.activity[t] > 0 || t == tr {
                 3
-            } else if h.project.tracks[t].muted {
+            } else if h.status.muted(t, h.project.tracks[t].muted) {
                 0
             } else {
                 1

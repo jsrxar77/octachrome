@@ -509,6 +509,8 @@ pub enum Command {
     SetSongStep { index: u8, scene: u8, bars: u8 },
     /// Take a step out of the song; the ones after it move up.
     RemoveSongStep { index: u8 },
+    /// Put a step in the song at `index`; the ones from there on move down (the last one is lost if the song is full).
+    InsertSongStep { index: u8, scene: u8, bars: u8 },
     /// Make the sequencer follow the song, or not.
     SetSongOn(bool),
 }
@@ -577,6 +579,15 @@ impl Project {
                     self.song.steps.copy_within(i + 1..n, i);
                     self.song.steps[n - 1] = SongStep::default();
                     self.song.len -= 1;
+                }
+            }
+            InsertSongStep { index, scene, bars } => {
+                let (i, n) = (index as usize, self.song.len as usize);
+                if i <= n && i < SONG_STEPS {
+                    let end = (n + 1).min(SONG_STEPS);
+                    self.song.steps.copy_within(i..end - 1, i + 1);
+                    self.song.steps[i] = SongStep { scene: scene.min(SCENES as u8 - 1), bars: bars.clamp(1, 16) };
+                    self.song.len = end as u8;
                 }
             }
             SetSongOn(on) => self.song.on = on,
