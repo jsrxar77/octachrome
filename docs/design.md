@@ -32,7 +32,7 @@ What each MK3 button does is in its own document: **[buttons.md](buttons.md)**. 
 
 ## 2. Colour
 
-Three themes, three characters, in this order since 2026-11-16: **chrome** (the default of the unit and the twin; the guide and the manual are drawn in matte) is monochrome: one range (violet drifting to blue, strong to soft) with white last; **matte** is softer and chalky and **glossy** is strong and bright. Every theme has exactly **eight** colours, always in an order that recalls the rainbow, and they are chosen for what the MK3's LEDs can show: 16 hues in 3 levels on the pads and group keys, one colour on every other button. The logic is the same in all three; only the palette changes. The hex values are ours, not measured from the devices.
+Three themes, three characters, in this order since 2026-11-16: **chrome** (the default of the unit and the twin, and the theme of the pictures of the manual since 2026-11-17; the page of the guide and the manual keeps matte colours) is monochrome: one range (violet drifting to blue, strong to soft) with white last; **matte** is softer and chalky and **glossy** is strong and bright. Every theme has exactly **eight** colours, always in an order that recalls the rainbow, and they are chosen for what the MK3's LEDs can show: 16 hues in 3 levels on the pads and group keys, one colour on every other button. The logic is the same in all three; only the palette changes. The hex values are ours, not measured from the devices.
 
 ### 2.1 Encoder colours
 

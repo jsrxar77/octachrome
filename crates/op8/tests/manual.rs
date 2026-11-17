@@ -10,11 +10,11 @@ use std::sync::atomic::Ordering::Relaxed;
 const NOTCH: i32 = 40;
 
 /// The theme is global, and a recipe changes it: the recipes run one at a time so that no picture comes out in the wrong theme. The
-/// manual is drawn in matte (the unit itself starts in chrome since 2026-11-16), so each recipe starts with matte.
+/// manual is drawn in chrome, the theme the unit starts in (Javi, 2026-11-17; before that it was matte), so each recipe starts with chrome.
 static SERIAL: std::sync::Mutex<()> = std::sync::Mutex::new(());
 fn serial() -> std::sync::MutexGuard<'static, ()> {
     let guard = SERIAL.lock().unwrap_or_else(|e| e.into_inner());
-    op8_gfx::set_theme(op8_gfx::ThemeId::Matte);
+    op8_gfx::set_theme(op8_gfx::ThemeId::Chrome);
     guard
 }
 
@@ -413,11 +413,17 @@ fn recipe_14_the_look() {
     b.run_ms(100);
     b.capture("r14-settings");
     let before = op8_gfx::theme_id();
-    b.encoder(1);
-    assert_ne!(op8_gfx::theme_id(), before, "the 4D encoder changes the theme at once");
+    // turn the 4D until glossy is the theme (each notch changes it at once), take the picture, and turn back
+    let mut notches = 0;
+    while op8_gfx::theme_id() != op8_gfx::ThemeId::Glossy {
+        b.encoder(1);
+        notches += 1;
+        assert_ne!(op8_gfx::theme_id(), before, "the 4D encoder changes the theme at once");
+        assert!(notches <= 3, "glossy is within three notches");
+    }
     b.run_ms(100);
     b.capture("r14-glossy");
-    b.encoder(-1);
+    b.encoder(-notches);
     assert_eq!(op8_gfx::theme_id(), before);
     b.press(Button::ChannelMidi);
     assert_eq!(b.ui().main, op8_ui::Main::Instrument);
