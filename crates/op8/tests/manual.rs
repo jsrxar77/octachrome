@@ -791,6 +791,33 @@ fn recipe_25_scenes() {
 
 // F-G04
 #[test]
+fn recipe_26_song() {
+    let _one_at_a_time = serial();
+    let mut b = Bench::demo();
+    b.press(Button::Scene);
+    b.button_down(Button::Shift);
+    b.tap(pad(1));
+    b.tap(pad(2));
+    b.button_up(Button::Shift);
+    b.press(Button::Arranger);
+    assert_eq!(b.ui().main, op8_ui::Main::Arranger);
+    b.tap(pad(1));
+    b.knob(4, 40);
+    b.tap(pad(2));
+    b.knob(4, 40);
+    b.knob(4, 40);
+    b.knob(5, -40);
+    b.knob(6, 40);
+    b.press(Button::Play);
+    b.run_ms(300);
+    b.capture("r26-song");
+    assert!(b.project().song.on && b.project().song.len == 2);
+    b.press(Button::Arranger);
+    assert_eq!(b.ui().main, op8_ui::Main::Instrument);
+}
+
+// F-G04
+#[test]
 fn recipe_22_settings_audio_midi_and_light() {
     use op8::controller::{DeviceList, Request};
     use op8_ui::NavKind;

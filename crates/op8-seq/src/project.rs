@@ -301,6 +301,26 @@ pub struct Project {
     pub current: [u8; TRACKS],
     /// The sixteen scenes: each one remembers which pattern every track shows and which tracks are muted.
     pub scenes: [Scene; SCENES],
+    /// The song: a chain of scenes.
+    pub song: Song,
+}
+
+/// How many steps a song has at most.
+pub const SONG_STEPS: usize = 16;
+
+/// One step of the song: which scene, and for how many bars it lasts.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct SongStep {
+    pub scene: u8,
+    pub bars: u8,
+}
+
+/// The song: the scenes one after another, each for some bars; at the end it goes back to the first. `on` makes the sequencer follow it.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct Song {
+    pub on: bool,
+    pub len: u8,
+    pub steps: [SongStep; SONG_STEPS],
 }
 
 /// How many scenes a project keeps.
@@ -329,6 +349,7 @@ impl Default for Project {
             stored: Box::new([[Pattern::default(); PATTERNS]; TRACKS]),
             current: [0; TRACKS],
             scenes: [Scene::default(); SCENES],
+            song: Song::default(),
         }
     }
 }
@@ -483,6 +504,13 @@ pub enum Command {
     /// Bring a scene back: every track's pattern is asked for (it plays from the track's next loop) and the mutes are set at once.
     /// An empty scene does nothing.
     LaunchScene { index: u8 },
+    /// Set a step of the song (scene 0 to 15, bars 1 to 16). A step past the end adds it, with the ones between it and the end set to
+    /// the first scene for four bars.
+    SetSongStep { index: u8, scene: u8, bars: u8 },
+    /// Take a step out of the song; the ones after it move up.
+    RemoveSongStep { index: u8 },
+    /// Make the sequencer follow the song, or not.
+    SetSongOn(bool),
 }
 
 impl Project {
@@ -533,6 +561,25 @@ impl Project {
                     self.scenes[index as usize] = Scene { used: true, pattern: self.current, mute };
                 }
             }
+            SetSongStep { index, scene, bars } => {
+                let i = index as usize;
+                if i < SONG_STEPS {
+                    for k in self.song.len as usize..i {
+                        self.song.steps[k] = SongStep { scene: 0, bars: 4 };
+                    }
+                    self.song.steps[i] = SongStep { scene: scene.min(SCENES as u8 - 1), bars: bars.clamp(1, 16) };
+                    self.song.len = self.song.len.max(index + 1);
+                }
+            }
+            RemoveSongStep { index } => {
+                let (i, n) = (index as usize, self.song.len as usize);
+                if i < n {
+                    self.song.steps.copy_within(i + 1..n, i);
+                    self.song.steps[n - 1] = SongStep::default();
+                    self.song.len -= 1;
+                }
+            }
+            SetSongOn(on) => self.song.on = on,
             ClearScene { index } => {
                 if (index as usize) < SCENES {
                     self.scenes[index as usize] = Scene::default();

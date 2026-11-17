@@ -22,7 +22,7 @@ pub mod sequencer;
 pub mod step;
 
 pub use brain::{Brain, BrainMode, Chord, ChordKind, ChordSlot, Scale};
-pub use project::{side_track, Pattern, Scene, PATTERNS, SCENES, Command, Division, MasterComp, MasterEq, MasterSends, Project, Track, COMP_PARAMS, EQ_PARAMS, SENDS_PARAMS};
+pub use project::{side_track, Pattern, Scene, Song, SongStep, PATTERNS, SCENES, SONG_STEPS, Command, Division, MasterComp, MasterEq, MasterSends, Project, Track, COMP_PARAMS, EQ_PARAMS, SENDS_PARAMS};
 pub use rack::{ChordType, FxKind, Lfo, LfoShape, PlayMode, Players, TrackFx, LFO_TARGETS};
 pub use sequencer::{BlockEvents, ParamEvent, Playhead, Sequencer, SyncEvent, SyncKind};
 pub use step::{Components, ResolvedStep, Step, StepComponent};

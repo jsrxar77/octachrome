@@ -64,6 +64,7 @@ pub fn light(ui: &UiState, c: &Context, b: Button) -> Light {
         PlugIn => state(ui.main == Main::Plugin),
         Pattern => state(ui.main == Main::Pattern),
         Scene => state(ui.main == Main::Scene),
+        Arranger => state(ui.main == Main::Arranger),
         Sampling => state(ui.main == Main::Sampling),
         Browser => state(ui.main == Main::Browser),
         // The pad-mode buttons all work from settings too (they go back to composing).

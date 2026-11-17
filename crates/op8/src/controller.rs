@@ -270,6 +270,8 @@ impl Controller {
             ControlEvent::Pad { pad, event } if self.ui.main == Main::Plugin => self.plugin_pad(pad, event, h),
             ControlEvent::Pad { pad, event } if self.ui.main == Main::Pattern => self.pattern_pad(pad, event, h),
             ControlEvent::Pad { pad, event } if self.ui.main == Main::Scene => self.scene_pad(pad, event, h),
+            ControlEvent::Pad { pad, event } if self.ui.main == Main::Arranger => self.arranger_pad(pad, event, h),
+            ControlEvent::Knob { index, delta } if self.ui.main == Main::Arranger => self.arranger_knob(index as usize, delta, h),
             ControlEvent::Pad { pad, event } if self.ui.main == Main::Sampling => self.sampling_pad(pad, event, h),
             ControlEvent::Pad { pad, event } if self.ui.main == Main::Browser => self.browser_pad(pad, event, h),
             ControlEvent::Pad { pad, event } if self.ui.main == Main::Name => self.name_pad(pad, event, h),
@@ -443,6 +445,10 @@ impl Controller {
             }
             Button::Pattern => {
                 let to = if self.ui.main == Main::Pattern { Main::Instrument } else { Main::Pattern };
+                self.set_main(to, h);
+            }
+            Button::Arranger => {
+                let to = if self.ui.main == Main::Arranger { Main::Instrument } else { Main::Arranger };
                 self.set_main(to, h);
             }
             Button::Scene => {
@@ -667,6 +673,7 @@ impl Controller {
                         Main::Plugin => self.plugin_pad(pad, ev, h),
                         Main::Pattern => self.pattern_pad(pad, ev, h),
                         Main::Scene => self.scene_pad(pad, ev, h),
+                        Main::Arranger => self.arranger_pad(pad, ev, h),
                         Main::Browser => self.browser_pad(pad, ev, h),
                         Main::Sampling => self.sampling_pad(pad, ev, h),
                         _ => {}
@@ -1159,6 +1166,71 @@ impl Controller {
         }
     }
 
+    /// ARRANGER: the step that is chosen (where the 4D is).
+    fn arranger_sel(&self) -> usize {
+        match self.ui.focus {
+            NavKind::Cell(i) => i as usize,
+            _ => 0,
+        }
+    }
+
+    /// ARRANGER: a tap chooses a step of the song (the knobs then set it); ERASE + a tap takes it out and the ones after it move up.
+    fn arranger_pad(&mut self, pad: u8, ev: PadEvent, h: &mut EngineHandle) {
+        let slot = Self::pad_to_step(pad);
+        match ev {
+            PadEvent::Press | PadEvent::Strike(_) => {
+                if self.pad_down_at[pad as usize].is_some() {
+                    return;
+                }
+                self.pad_down_at[pad as usize] = Some(0);
+                self.ui.focus = NavKind::Cell(slot);
+                if self.held.erase && (slot as usize) < h.project.song.len as usize {
+                    h.seq(Command::RemoveSongStep { index: slot });
+                    self.ui.arr_note = format!("step {} taken out", slot + 1);
+                } else {
+                    self.ui.arr_note.clear();
+                }
+            }
+            PadEvent::Release => self.pad_down_at[pad as usize] = None,
+            PadEvent::Pressure(_) => {}
+        }
+    }
+
+    /// ARRANGER, the knobs under the right screen: 5 the scene of the chosen step (a free one is added), 6 its bars, 7 whether the song is
+    /// followed (turn right: on, left: off).
+    fn arranger_knob(&mut self, k: usize, delta: i32, h: &mut EngineHandle) {
+        if !(4..7).contains(&k) {
+            return;
+        }
+        let n = self.detents(k, delta);
+        if n == 0 {
+            return;
+        }
+        let sel = self.arranger_sel();
+        let song = h.project.song;
+        match k {
+            6 => {
+                let on = n > 0;
+                h.seq(Command::SetSongOn(on));
+                self.ui.arr_note = if on { "the song is followed".into() } else { "the song is not followed".into() };
+            }
+            _ => {
+                let exists = sel < song.len as usize;
+                let cur = if exists { song.steps[sel] } else { op8_seq::SongStep { scene: 0, bars: 4 } };
+                let (mut scene, mut bars) = (cur.scene as i32, cur.bars as i32);
+                if exists {
+                    if k == 4 {
+                        scene = (scene + n).clamp(0, op8_seq::SCENES as i32 - 1);
+                    } else {
+                        bars = (bars + n).clamp(1, 16);
+                    }
+                }
+                h.seq(Command::SetSongStep { index: sel as u8, scene: scene as u8, bars: bars as u8 });
+                self.ui.arr_note = if exists { String::new() } else { format!("step {} put in", sel + 1) };
+            }
+        }
+    }
+
     /// FILE: a pad opens the project in its slot; SHIFT + a pad of the player's slots saves into it.
     fn file_pad(&mut self, pad: u8, ev: PadEvent, h: &mut EngineHandle) {
         if !matches!(ev, PadEvent::Press | PadEvent::Strike(_)) || self.pad_down_at[pad as usize].is_some() {
@@ -1477,6 +1549,9 @@ impl Controller {
         if m == Main::Scene {
             self.ui.scene_note.clear();
         }
+        if m == Main::Arranger {
+            self.ui.arr_note.clear();
+        }
         if m == Main::Browser {
             self.refresh_browser(h);
             self.ui.browse_note.clear();
@@ -1494,6 +1569,7 @@ impl Controller {
             Main::Plugin => NavKind::Cell(self.ui.plug_current.unwrap_or(0) as u8),
             Main::Pattern => NavKind::Cell(h.project.current[self.ui.track]),
             Main::Scene => NavKind::Cell(self.ui.scene_last.unwrap_or(0) as u8),
+            Main::Arranger => NavKind::Cell(0),
             // composing: on the track you are working on
             Main::Instrument => NavKind::Track(self.ui.track as u8),
             Main::Settings => NavKind::Pick(0),
@@ -2348,6 +2424,12 @@ impl Controller {
     /// activity LEDs.
     pub fn tick(&mut self, h: &mut EngineHandle, now_ms: u64) {
         self.ui.master = h.master;
+        if self.ui.main == Main::Arranger {
+            let s = &h.project.song;
+            self.ui.arr.steps = s.steps[..s.len as usize].iter().map(|x| (x.scene, x.bars)).collect();
+            self.ui.arr.on = s.on;
+            self.ui.arr.sel = self.arranger_sel();
+        }
         if self.ui.main == Main::Mixer {
             let m = &mut self.ui.mixer;
             m.comp = h.project.comp;
@@ -2407,7 +2489,7 @@ impl Controller {
             let note = self.audition_note(h);
             h.send(EngineCommand::Audition { track: self.ui.track as u8, note, velocity: 0.9 });
         }
-        if self.ui.mode == Mode::Step && self.inspector_pad.is_none() {
+        if self.ui.main == Main::Instrument && self.ui.mode == Mode::Step && self.inspector_pad.is_none() {
             if let Some((pad, _)) = self
                 .pad_down_at
                 .iter()
@@ -2510,6 +2592,14 @@ impl Controller {
                 } else {
                     out.set_pad(pad, NiColor::White, if has { 2 } else { 1 });
                 }
+            }
+        }
+        if self.ui.main == Main::Arranger {
+            let step = h.status.song_step.load(Relaxed) as usize;
+            for pad in 0..16u8 {
+                let slot = Self::pad_to_step(pad) as usize;
+                let level = if playing && step == slot { 3 } else if slot < h.project.song.len as usize { 2 } else { 1 };
+                out.set_pad(pad, NiColor::White, level);
             }
         }
         if self.ui.main == Main::Scene {

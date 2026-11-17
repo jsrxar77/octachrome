@@ -14,6 +14,8 @@ pub struct EngineStatus {
     pub playhead: [AtomicU8; TRACKS],
     /// Which pattern of each track is playing.
     pub pattern: [AtomicU8; TRACKS],
+    /// The step of the song that plays, 255 when the song is not being followed.
+    pub song_step: AtomicU8,
     /// How far into its step each track is, 0..=255 (the fraction of the step that has passed).
     pub phase: [AtomicU8; TRACKS],
     /// Incremented on every note-on, per track (drives activity LEDs).
