@@ -394,7 +394,7 @@ __PIECE_ROWS__
     <li><div>Press group <kbd>E</kbd>: the <b>sampler</b> is there already (it is the fifth instrument in <kbd>PLUG-IN</kbd>, between the resonator and the synth, and track E).</div></li>
     <li><div>The right screen draws the <b>wave</b> of the sound. Turn <b>knob 5, sample</b>, one click: the next sound (the bell), and you hear it. In order: pluck, bell, pad, voice, thump, sweep, glass, glitch, and then <b>user 1</b> to <b>user 8</b>, which are your own files (see below).</div></li>
     <li><div><b>Knob 6, start</b>, moves the first mark, in the colour of knob 6: the sound begins later. <b>Knob 7, length</b>, moves the second mark, in the colour of knob 7: it stops sooner. Only the part between the marks is lit and only that part plays. <b>Knob 8, tune</b>, moves it up or down by up to two octaves (+24 or −24 semitones); it is also how you tell the sampler what note a recording was made in: a sound recorded on an E plays in tune on C4 with <b>tune</b> at −4.</div></li>
-    <li><div>Press <kbd>6</kbd> (<kbd>shape</kbd>) for the second page: <b>attack</b> (how slowly it fades in), <b>release</b> (how long the fade at the end is), <b>loop</b> and <b>level</b>. Turn <b>knob 7, loop</b>, one notch to <b>loop</b>: the lit part now repeats for as long as you hold a key, and fades when you let go. Two more notches are <b>slices 8</b> and <b>slices 16</b> (recipe 21).</div></li>
+    <li><div>Press <kbd>6</kbd> (<kbd>shape</kbd>) for the second page: <b>attack</b> (how slowly it fades in), <b>release</b> (how long the fade at the end is), <b>loop</b> and <b>level</b>. Turn <b>knob 7, loop</b>, one notch to <b>loop</b>: the lit part now repeats for as long as you hold a key, and fades when you let go. Further on are <b>slices 8</b>, <b>slices 16</b> and <b>hits</b> (recipe 21).</div></li>
     <li><div>Press <kbd>KEYBOARD</kbd> and play. The sound plays at its own pitch on C4, which on the default octave is the top-left pad (the bottom-left pad is C3, an octave lower), and it rises and falls with the pad. Up to eight keys at once.</div></li>
   </ol>
   <figure><div class="pair"><img src="img/r15-bell-right.png" alt="The sampler with the bell chosen."><img src="img/r15-shape-right.png" alt="The second page of the sampler."></div><figcaption>Left: the wave of the bell with its two marks. Right: the second page, with the loop on and the marks turned into rings.</figcaption></figure>
@@ -492,12 +492,16 @@ __PIECE_ROWS__
   <p class="goal">Cut a sound into equal parts and play each one from a pad or a step.</p>
   <ol class="steps">
     <li><div>Press group <kbd>E</kbd> (the sampler) and choose a sound with a beat in it: record a bar of the demo with <kbd>SAMPLING</kbd> (recipe 16) and save it, or use the <b>glitch</b>, which has four hits.</div></li>
-    <li><div>Press <kbd>6</kbd> (<kbd>shape</kbd>) and turn <b>knob 7, loop</b>, to <b>slices 8</b> (three notches from <b>one shot</b>). The wave now has seven ticks across it: the part between <b>start</b> and <b>length</b>, cut into eight equal parts.</div></li>
+    <li><div>Press <kbd>6</kbd> (<kbd>shape</kbd>) and turn <b>knob 7, loop</b>, to <b>slices 8</b> (the third of the five names of the knob: <b>one shot</b>, <b>loop</b>, <b>slices 8</b>, <b>slices 16</b>, <b>hits</b>). The wave now has seven ticks across it: the part between <b>start</b> and <b>length</b>, cut into eight equal parts.</div></li>
     <li><div>Press <kbd>KEYBOARD</kbd> and tap the pads. The bottom-left pad (C3) is the first slice, the next pad the second, and so on; with eight slices the pads above the eighth go round to the first again. With <b>slices 16</b> every pad is its own slice.</div></li>
     <li><div>A slice always plays at its own pitch, whatever the pad (<b>tune</b> moves them all together), and it plays through and fades over <b>release</b>.</div></li>
     <li><div>Tap steps and give each one a note in the inspector (recipe 5): a step chooses a slice the way a pad does (C3 is the first). Turn <b>start</b> and <b>length</b> to slice only the part of the sound you want.</div></li>
   </ol>
   <figure><div class="pair one"><img src="img/r21-slices-right.png" alt="The sampler on slices 8: ticks across the wave."></div><figcaption>The wave of the sound with its eight slices marked by the ticks.</figcaption></figure>
+  <ol>
+    <li><div><b>Cut where the sound hits.</b> Turn <b>knob 7, loop</b>, on to <b>hits</b>. Instead of equal parts, OP-8 looks for the places where the sound <i>hits</i> (a drum, a note that starts) and cuts there: a tick appears at each hit and a slice runs from one hit to the next. The first pad (C3) is the first hit, the next pad the next one, and the pads go round after the last. It finds up to sixteen, at least 60 ms apart, and what comes before the first hit is not a slice. A sound with no hits (a held tone, a pad) is one slice. <b>Start</b> and <b>length</b> still choose the part that is cut.</div></li>
+  </ol>
+  <figure><div class="pair one"><img src="img/r21-hits-right.png" alt="The sampler on hits: ticks where the sound hits."></div><figcaption>A phrase of four drum hits on <b>hits</b>: a tick at each one.</figcaption></figure>
   <p class="next"><b>Try next:</b> record a drum loop from the demo, slice it in 16, and play the slices from the steps of another track in a new order.</p>
 </div>
 
@@ -617,9 +621,10 @@ __PRESET_ROWS__
 <ul>
   <li><b>Undo.</b> Save with <kbd>FILE</kbd> before something bold.</li>
   <li><b>Patterns, scenes and a song.</b> A project is one pattern for now. <kbd>PATTERN</kbd>, <kbd>SCENE</kbd> and <kbd>ARRANGER</kbd> are planned.</li>
-  <li><b>More of sampling.</b> <kbd>SAMPLING</kbd> records mono, up to ten seconds; the slices are equal parts (not cut at the hits).</li>
+  <li><b>More of sampling.</b> <kbd>SAMPLING</kbd> records mono, up to ten seconds; the slices can be equal parts or cut where the sound hits (recipe 21).</li>
   <li><b>More of the mixer.</b> Level and pan of each track are there (recipe 19). A master compressor, sends and a page of its own for the <kbd>MIXER</kbd> button are planned.</li>
   <li><b>Recording chords and knob movements.</b> <kbd>REC</kbd> writes notes and drum hits. Automation (<kbd>AUTO</kbd>) and a count-in for it are planned (<kbd>SAMPLING</kbd> already has one, recipe 16). The LFO of button <kbd>8</kbd> already moves knobs by itself.</li>
+  <li><b>MIDI in.</b> OP-8 sends MIDI clock (recipe 22) but does not follow an outside clock or play from an outside keyboard yet, and it sends no song position.</li>
   <li><b>Naming on the unit.</b> What you save is named by the day (a project also by its tempo), and you can rename it by editing the small <code>.name</code> file next to it (recipe 12). Typing a name on the unit itself is planned. The presets that come with the instruments are a first set and will be tuned on the unit.</li>
   <li><b>Solo</b>, <b>duplicate</b>, <b>select</b> and <b>variation</b> buttons.</li>
 </ul>

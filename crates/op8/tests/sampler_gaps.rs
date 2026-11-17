@@ -141,9 +141,9 @@ fn f_a22_slices_play_from_the_steps() {
     b.press(Button::Group(4)); // E: the sampler
     assert_eq!(b.instrument(4).as_deref(), Some("sampler"));
     b.press(Button::Screen(6)); // the second page
-    b.knob(6, 500); // loop: one shot, loop, slices 8
+    b.knob(6, 400); // loop: one shot, loop, slices 8
     b.run_ms(100);
-    assert_eq!(b.param(4, 6), 0.625, "loop is on slices 8");
+    assert_eq!(b.param(4, 6), 0.5, "loop is on slices 8");
     b.capture("f-a22-slices");
     b.press(Button::Screen(5));
     b.tap(12);

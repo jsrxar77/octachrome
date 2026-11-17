@@ -423,7 +423,7 @@ const CARTS = {
              ["BODY",.5,v=>Math.round(v*100)+"%"],["LEVEL",.6,v=>Math.round(v*100)+"%"],["PAN",.5,v=>Math.round(v*100)+"%"],["SOUND",.5/8,v=>DRUM_NAMES[Math.min(7,Math.floor(v*8))]]] },
   sampler: { name: "SAMPLER", cat: "SAMPLER",
     params: [["SAMPLE",.5/16,v=>SAMPLE_NAMES[Math.min(15,Math.floor(v*16))]],["START",0,v=>Math.round(v*100)+"%"],["LENGTH",1,v=>Math.round(v*100)+"%"],["TUNE",.5,v=>{const s=Math.round(-24+48*v);return (s>0?"+":"")+s+"st";}],
-             ["ATTACK",0,v=>expMap(v,.5,2000).toFixed(0)+"ms"],["RELEASE",.3,v=>expMap(v,5,4000).toFixed(0)+"ms"],["LOOP",0,v=>LOOP_NAMES[Math.min(3,Math.floor(v*4))]],["LEVEL",.8,v=>Math.round(v*100)+"%"]] },
+             ["ATTACK",0,v=>expMap(v,.5,2000).toFixed(0)+"ms"],["RELEASE",.3,v=>expMap(v,5,4000).toFixed(0)+"ms"],["LOOP",0,v=>LOOP_NAMES[Math.min(4,Math.floor(v*5))]],["LEVEL",.8,v=>Math.round(v*100)+"%"]] },
   granular: { name: "GRANULAR", cat: "SAMPLER",
     params: [["SAMPLE",2.5/16,v=>SAMPLE_NAMES[Math.min(15,Math.floor(v*16))]],["POSITION",.3,v=>Math.round(v*100)+"%"],["SIZE",.5,v=>expMap(v,32,512).toFixed(0)+"ms"],["DENSITY",.2,v=>Math.round(v*100)+"%"],
              ["TUNE",.5,v=>{const s=Math.round(-24+48*v);return (s>0?"+":"")+s+"st";}],["TEXTURE",.6,v=>Math.round(v*100)+"%"],["SPREAD",.5,v=>Math.round(v*100)+"%"],["LEVEL",.8,v=>Math.round(v*100)+"%"]] },
@@ -588,8 +588,27 @@ function audition(t, note, vel, throttle) {
   else if (SLOTS[t] === "macro") playMacro(t, at, note, vel, 0.25);
 }
 // sampler (crates/op8-cartridges/src/sampler.rs): the eight sounds that come with it, made the same way (the twin has no folder of the player's own).
-const LOOP_NAMES = ["one shot", "loop", "slices 8", "slices 16"]; // Sampler: `loop` is also the slices
-const loopMode = p => Math.min(3, Math.floor(p[6] * 4)), sliceCount = p => [0, 0, 8, 16][loopMode(p)];
+const LOOP_NAMES = ["one shot", "loop", "slices 8", "slices 16", "hits"]; // Sampler: `loop` is also the slices
+const loopMode = p => Math.min(4, Math.floor(p[6] * 5)), sliceCount = p => [0, 0, 8, 16, 0][loopMode(p)];
+// where a sound hits (find_onsets in sampler.rs): a jump of 9 dB or more in the loudness (5 ms steps over 10 ms) over what was just before, 60 ms apart at least
+const onsetCache = new WeakMap();
+function findOnsets(d) {
+  if (onsetCache.has(d)) return onsetCache.get(d);
+  const HOP = 240, WIN = 480, out = []; let found = [];
+  if (d.length >= WIN * 2) {
+    const n = Math.floor((d.length - WIN) / HOP) + 1, lv = [];
+    for (let i = 0; i < n; i++) { let e = 0; for (let k = i * HOP; k < i * HOP + WIN; k++) e += d[k] * d[k]; lv.push(10 * Math.log10(e / WIN + 1e-9)); }
+    const cand = []; for (let i = 2; i < n; i++) { const rise = lv[i] - Math.max(lv[i - 1], lv[i - 2]); if (rise >= 9 && lv[i] > -45) cand.push([i, rise]); }
+    cand.sort((a, b) => b[1] - a[1]); const kept = []; for (const c of cand) if (kept.every(k => Math.abs(k[0] - c[0]) >= 12)) kept.push(c);
+    found = kept.slice(0, 32).map(([i, r]) => { let top = 0; for (let k = i * HOP; k < i * HOP + WIN; k++) top = Math.max(top, Math.abs(d[k])); let f = 0; while (f < WIN && Math.abs(d[i * HOP + f]) < .3 * top) f++; return [Math.max(0, i * HOP + f - 48), r]; });
+  }
+  onsetCache.set(d, found); return found;
+}
+// the edges of the slices of `hits` in the window [a, b]: a slice runs from one hit to the next, and what comes before the first is not one
+function hitEdges(d, a, b) {
+  const inside = findOnsets(d).filter(([p]) => p + 480 >= a && p + 480 <= b).sort((x, y) => y[1] - x[1]).slice(0, 16).sort((x, y) => x[0] - y[0]);
+  const e = [...new Set(inside.map(([p]) => Math.max(p, a)))]; if (!e.length) e.push(a); e.push(b); return e;
+}
 const SAMPLE_NAMES = ["pluck", "bell", "pad", "voice", "thump", "sweep", "glass", "glitch", "user 1", "user 2", "user 3", "user 4", "user 5", "user 6", "user 7", "user 8"];
 let sampleBank = null;
 function makeBank() {
@@ -614,6 +633,7 @@ function playSampler(t, time, note, vel, gate) {
   const buf = actx.createBuffer(1, data.length, 48000); buf.copyToChannel(data, 0);
   let [a, b] = sampleWindow(p, data.length), tune = -24 + 48 * p[3], n = sliceCount(p);
   if (n) { const k = (((note - 48) % n) + n) % n, w = (b - a) / n; [a, b] = [a + k * w, a + (k + 1) * w]; } // slices: the note chooses one, it keeps its own pitch
+  else if (loopMode(p) === 4) { const e = hitEdges(data, a, b), k = (((note - 48) % (e.length - 1)) + e.length - 1) % (e.length - 1); [a, b] = [e[k], e[k + 1]]; } // hits: from one hit to the next
   else tune += note - 60;
   const src = actx.createBufferSource(), g = actx.createGain();
   src.buffer = buf; src.playbackRate.value = Math.pow(2, tune / 12);
@@ -634,6 +654,7 @@ function samplerArt(g, t, p) {
   line(g, xs, cy - amp - 10, xs, cy + amp + 10, KC[5], 2); line(g, xe, cy - amp - 10, xe, cy + amp + 10, KC[6], 2);
   line(g, 170, 206, 310, 206, FAINT, 1); dot(g, 240, 206, 2, DIM); dot(g, 170 + 140 * p[3], 206, 5, KC[7]);
   if (sliceCount(p)) for (let k = 1; k < sliceCount(p); k++) { const x = xs + (xe - xs) * k / sliceCount(p); line(g, x, cy - amp - 6, x, cy + amp + 6, KC[6], 1); } // slices: a tick between each
+  if (loopMode(p) === 4) { const e = hitEdges(data, a, b); for (const h of e.slice(0, -1)) { const x = x0 + h / data.length * w; line(g, x, cy - amp - 6, x, cy + amp + 6, KC[6], 1); } } // hits: a tick at each place it is cut
   if (loopMode(p) === 1) { ring(g, xe, cy - amp - 16, 4, KC[6], 1.5); ring(g, xs, cy - amp - 16, 4, KC[5], 1.5); }
 }
 // granular (crates/op8-cartridges/src/granular.rs): the cloud of a note is worked out as the Rust one does it (the density that is regular below the
@@ -1583,11 +1604,11 @@ drums   | lofi   | 0.35 0.45 0.20 0.15 0.55 - - -
 drums   | hard   | 0.60 0.30 0.70 0.90 0.50 - - -
 sampler | pluck  | 0.031 0.00 1.00 0.50 0.00 0.20 0.00 0.80
 sampler | bell   | 0.094 0.00 1.00 0.50 0.00 0.35 0.00 0.80
-sampler | pad    | 0.156 0.15 0.65 0.50 0.60 0.70 0.40 0.70
+sampler | pad    | 0.156 0.15 0.65 0.50 0.60 0.70 0.30 0.70
 sampler | voice  | 0.219 0.00 1.00 0.50 0.05 0.40 0.00 0.80
 sampler | thump  | 0.281 0.00 0.50 0.475 0.00 0.20 0.00 0.85
 sampler | sweep  | 0.344 0.45 0.55 0.50 0.05 0.50 0.00 0.70
-sampler | glass  | 0.406 0.10 0.50 0.50 0.10 0.60 0.40 0.70
+sampler | glass  | 0.406 0.10 0.50 0.50 0.10 0.60 0.30 0.70
 sampler | tick   | 0.469 0.00 0.15 0.50 0.00 0.10 0.00 0.80
 macro   | lead    | 0.021 0.50 0.60 0.40 0.50 0.50 0.00 0.80
 macro   | strings | 0.271 0.50 0.50 0.50 0.70 0.50 0.00 0.75

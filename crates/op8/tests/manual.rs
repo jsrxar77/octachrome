@@ -618,15 +618,46 @@ fn recipe_21_slices_a_kit_made_of_a_sound() {
     b.press(Button::Group(4)); // E: the sampler
     b.knob(4, 100); // the bell
     b.press(Button::Screen(6)); // shape
-    b.knob(6, 500); // loop: slices 8
+    b.knob(6, 400); // loop: slices 8
     b.run_ms(100);
-    assert_eq!(b.param(4, 6), 0.625);
+    assert_eq!(b.param(4, 6), 0.5);
     b.capture("r21-slices");
     b.press(Button::Keyboard);
     b.strike_at(0, 0.9); // C3: the first slice
     b.run_ms(300);
     assert!(b.rms_db(0, b.now_ms()) > -60.0, "a slice is heard");
     b.release(0);
+    // hits: a sound of the player's own, a drum phrase of four hits, cut where it hits
+    let d = std::env::temp_dir().join(format!("op8-manual-hits-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&d);
+    std::fs::create_dir_all(&d).unwrap();
+    let mut seed = 0x9e37_79b9u32;
+    let mut phrase = vec![0.0f32; 96_000];
+    for (k, at) in [4800usize, 28_800, 40_800, 64_800].into_iter().enumerate() {
+        for i in 0..4800 {
+            seed ^= seed << 13;
+            seed ^= seed >> 17;
+            seed ^= seed << 5;
+            let n = seed as f32 / u32::MAX as f32 * 2.0 - 1.0;
+            phrase[at + i] = n * (-(i as f32) / (if k % 2 == 0 { 700.0 } else { 1500.0 })).exp();
+        }
+    }
+    b.set_samples_dir(d.clone());
+    std::fs::write(d.join("phrase.wav"), op8_cartridges::wav::encode_16(&phrase, 48_000)).unwrap(); // copied in while it runs
+    b.press(Button::Sampling);
+    b.press(Button::Sampling); // the folder is read when SAMPLING opens
+    b.press(Button::Screen(5));
+    b.knob(4, 300); // user 1: the phrase
+    b.press(Button::Screen(6));
+    b.knob(6, 320); // loop: hits
+    b.run_ms(100);
+    assert!((b.param(4, 6) - 0.9).abs() < 1e-3, "{}", b.param(4, 6));
+    assert_eq!(b.instrument(4).as_deref(), Some("sampler"));
+    b.capture("r21-hits");
+    b.strike_at(1, 0.9); // C#3: the second slice
+    b.run_ms(300);
+    b.release(1);
+    let _ = std::fs::remove_dir_all(&d);
 }
 
 // F-G04
