@@ -33,7 +33,7 @@ pub struct Context<'a> {
 pub fn all() -> Vec<Button> {
     use Button::*;
     let mut v = vec![
-        Shift, Rec, Tap, Tempo, Swing, Volume, FixedVel, Step, Chords, Perform, PadMode, Keyboard, NoteRepeat, ChannelMidi, Settings, File, PlugIn, Mute, Erase, Play, Stop, Restart, JogLeft,
+        Shift, Rec, Tap, Tempo, Swing, Volume, FixedVel, Step, Chords, Perform, PadMode, Keyboard, NoteRepeat, ChannelMidi, Settings, File, PlugIn, Mixer, Browser, Sampling, Pattern, Scene, Arranger, Mute, Erase, Play, Stop, Restart, JogLeft,
         JogRight,
     ];
     v.extend((1..=8).map(Screen));

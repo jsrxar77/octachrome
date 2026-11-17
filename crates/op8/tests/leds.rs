@@ -85,7 +85,18 @@ fn f_l09_buttons_are_dark_faint_or_strong() {
     assert!(faint(&b, Button::PadMode) && faint(&b, Button::Keyboard) && faint(&b, Button::Shift) && faint(&b, Button::Mute) && faint(&b, Button::Erase));
     assert!(faint(&b, Button::Rec), "REC can be armed");
     assert!(faint(&b, Button::Tap) && faint(&b, Button::Tempo) && faint(&b, Button::Swing) && faint(&b, Button::Volume) && faint(&b, Button::FixedVel));
-    assert!(off(&b, Button::Scene) && off(&b, Button::Pattern), "no function yet, dark");
+    // the views open from here: faint white, strong while open (and while held)
+    for btn in [Button::Pattern, Button::Scene, Button::Arranger, Button::Mixer, Button::Browser, Button::Sampling] {
+        assert!(faint(&b, btn), "{btn:?} does something: faint white at rest");
+    }
+    for btn in [Button::Pattern, Button::Scene, Button::Arranger] {
+        b.press(btn);
+        b.tick();
+        assert!(strong(&b, btn), "{btn:?} is strong while its view is open (it has the focus)");
+        b.press(btn);
+        b.tick();
+        assert!(faint(&b, btn), "{btn:?} is faint again once it is closed");
+    }
     assert!(strong(&b, Button::ChannelMidi) && faint(&b, Button::Settings), "composing: CHANNEL has the focus");
     // a button held down has the focus: SHIFT, then PERFORM held
     b.button_down(Button::Shift);
