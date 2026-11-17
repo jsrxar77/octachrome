@@ -35,6 +35,9 @@ fn draw_right_view(
     if ui.main == crate::Main::Settings {
         return crate::settings::draw_right(fb, ui);
     }
+    if ui.main == crate::Main::Name {
+        return crate::naming::draw_right(fb, ui);
+    }
     if ui.main == crate::Main::Mixer {
         return crate::mixer::draw_right(fb, ui);
     }

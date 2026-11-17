@@ -56,7 +56,7 @@ They are the modules of the current mode, like M1–M4 on the OP-XY. Their name 
 | MK3 button | In Maschine | On the OP-XY | In OP-8 | Status |
 | :-- | :-- | :-- | :-- | :-- |
 | Groups A–H | Groups | tracks 1–8 | Choose a track. Shift + group connects or disconnects it from the Brain | ✓ |
-| SELECT | Select without triggering | — | Hold SELECT + pad or group to choose without sounding | ○ |
+| SELECT | Select without triggering | — | Held in FILE or BROWSER, a tap on one of your own places (that has something in it) **names it** (2026-11-17): the NAME view opens on both screens. 4D encoder turns the letter under the cursor (SHIFT: ten at a time), the arrows ◀ ▶ and the pads of the top three rows move the cursor, the last four pads are `clear`, `delete`, `insert` and `save`; push saves the name next to the file; FILE or BROWSER cancels. Not yet: choosing a pad or group without sounding it | ◐ |
 | MUTE | Mute | shift + track | Hold MUTE + group to mute the track | ✓ |
 | SOLO | Solo | — | Hold SOLO + group to isolate the track | ○ |
 | PATTERN | Patterns | per-track patterns | Pads = 16 patterns of the track | ○ |

@@ -176,6 +176,7 @@ canvas.lcd {
             <button class="btn" id="bKeys" title="Los pads son un teclado cromático">KEYBOARD</button>
             <button class="btn" id="bErase">ERASE</button>
             <button class="btn" id="bMute">MUTE</button>
+            <button class="btn" id="bSelect" title="SELECT + a pad of FILE or BROWSER: name that place (letters with the 4D, ◀ ▶ or ▲ ▼ move)">SELECT</button>
             <button class="btn" id="bChannel" title="Compose: the sequencer on the left, the instrument on the right">CHANNEL</button>
             <button class="btn" id="bSettings" title="Settings: both screens">SETTINGS</button>
             <button class="btn" id="bMixer" title="Mixer: the channels on the left, the compressor of the master on the right">MIXER</button>
@@ -984,7 +985,7 @@ const THEME_IDS = ["chrome", "matte", "glossy"]; // chrome is the default (Javi,
 function setMain(m) { UI.grabbed = false; UI.focus = m === "file" ? { k: "cell", i: UI.fileLast ?? 0 } : m === "plugin" ? { k: "cell", i: Math.max(0, plugCells().cur) } : m === "instrument" ? { k: "track", i: UI.track } : m === "mixer" ? { k: "value", i: 0 } : { k: "cell", i: 0 }; if (m === "browser") { UI.brNote = ""; UI.brLast = null; } if (UI.main === "sampling" && m !== "sampling") { SMP.rec = false; SMP.armed = false; smpCountStop(); } if (m === "sampling") SMP.note = ""; UI.main = m; UI.inspect = null; inspectorPad = null; if (m === "file") { UI.fileNote = ""; } if (m === "plugin") UI.plugNote = ""; }
 function themeStep(d) { LOOK.theme = THEME_IDS[((THEME_IDS.indexOf(LOOK.theme) + d) % 3 + 3) % 3]; applyLook(); }
 function groupPress(g) {
-  if (UI.main === "settings" || UI.main === "mixer") return;
+  if (UI.main === "settings" || UI.main === "mixer" || UI.main === "name") return;
   const tr = P.tracks[g];
   if (UI.shift) { tr.link = !tr.link; toast(`Pista ${TRACK_NAMES[g]}: Brain ${tr.link ? "enlazado" : "desenlazado"}`); }
   else if (UI.mute) { tr.muted = !tr.muted; toast(`Pista ${TRACK_NAMES[g]} ${tr.muted ? "muteada" : "activa"}`); }
@@ -1018,6 +1019,7 @@ function padDown(pad, vel0) {
   if (UI.main === "plugin") { plugPad(pad); return; }
   if (UI.main === "sampling") { smpPad(pad); return; }
   if (UI.main === "browser") { brPad(pad); return; }
+  if (UI.main === "name") { namePad(pad); return; }
   if (UI.main === "settings" || UI.main === "mixer") return;
   if (UI.mode === "step") {
     if (padDownAt[pad] == null) {
@@ -1045,7 +1047,7 @@ function padPressure(pad, p) {
   }
 }
 function padUp(pad) {
-  if (UI.main === "settings" || UI.main === "mixer" || UI.main === "file" || UI.main === "plugin" || UI.main === "sampling" || UI.main === "browser") return;
+  if (UI.main === "settings" || UI.main === "mixer" || UI.main === "name" || UI.main === "file" || UI.main === "plugin" || UI.main === "sampling" || UI.main === "browser") return;
   if (UI.mode === "step") {
     const wasDown = padDownAt[pad] != null; padDownAt[pad] = null;
     if (inspectorPad === pad) { inspectorPad = null; UI.inspect = null; }
@@ -1213,6 +1215,7 @@ function navRing(g, screen) {
 }
 function jogOctave(d) { UI.octave = clamp(UI.octave + d, -2, 4); UI.down.fill(false); }
 function jog(d) {
+  if (UI.main === "name") { nameTurn(d); return; }
   if (UI.main === "settings" && SET.page === 0) { themeStep(d); return; }
   if (navOn() && !UI.held) { navTurn(d); return; }
   if (UI.held === "swing") { P.swing = clamp(P.swing + d * 0.005, 0.5, 0.75); return; }
@@ -1518,6 +1521,7 @@ function mixFooter(g, first) {
 function loadProject(src) { const q = JSON.parse(JSON.stringify(src)); P.tracks = q.tracks.map(ensureTrack); P.bpm = q.bpm; P.swing = q.swing; P.brain = q.brain; P.comp = q.comp ? q.comp.slice() : COMP_DEFAULT.slice(); P.eq = q.eq ? q.eq.slice() : EQ_DEFAULT.slice(); if (actx) { for (let t = 0; t < 8; t++) { fxApply(t, true); mixApply(t); } compApply(); eqApply(); } }
 function filePad(pad) {
   const slot = padToStep(pad); UI.fileLast = slot;
+  if (UI.select) { const k = userKey(slot - 7); nameBegin(slot, slot >= 8 && !!localStorage.getItem(k), k, "project", "file"); return; }
   if (UI.erase) { const k = userKey(slot - 7); UI.fileNote = erasePlace(slot, slot >= 8 && !!localStorage.getItem(k), slot >= 8 ? getName(k, slot - 7) : "", k, "project")[0]; return; }
   UI.confirm = null;
   if (UI.shift) {
@@ -1706,6 +1710,7 @@ function brGet(i) { try { const v = JSON.parse(localStorage.getItem(brKey(i)) ||
 function brPad(pad) {
   const i = padToStep(pad), t = UI.track; UI.brLast = i;
   if (!SLOTS[t]) { UI.brNote = "this track has no instrument (PLUG-IN)"; return; }
+  if (UI.select) { nameBegin(i, i >= 8 && !!brGet(i), brKey(i), "preset", "browser"); return; }
   if (UI.erase) { UI.brNote = erasePlace(i, i >= 8 && !!brGet(i), i >= 8 ? getName(brKey(i), i - 7) : "", brKey(i), "preset")[0]; return; }
   UI.confirm = null;
   if (i < 8) {
@@ -1787,6 +1792,51 @@ function listRows(g, list, chosen, screen, pageNow) {
   }
 }
 function setButton(g, [, x, y, w, h], label, on) { if (on) rrect(g, x, y, w, h, 8, PANEL); rrect(g, x + .5, y + .5, w - 1, h - 1, 8, on ? FG : FAINT, on ? 2 : 1); txt(g, label, x + w / 2, y + h / 2, "m", on ? FG : DIM, "center", "middle"); }
+// ---- naming (crates/op8-ui/src/naming.rs, Controller::begin_naming): SELECT + a pad of FILE or BROWSER names a place of the player's own that has
+// something in it. The 4D turns the letter under the cursor (SHIFT: ten at a time); ▲ ▼ (or the arrows) move the cursor; the twelve pads of the top three
+// rows are the twelve places; the last four are clear, delete, insert and save; PUSH saves; FILE or BROWSER cancels.
+const NAME_CHARS = " abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-.+#", NAME_LEN = 12, NAME_ACTIONS = ["clear", "delete", "insert", "save"];
+const NM = { what: "", chars: Array(12).fill(" "), cursor: 0, key: null, from: "file" };
+const nameText = () => NM.chars.join("").trim();
+function nameBegin(slot, has, key, kind, from) {
+  const say = t => { if (from === "file") UI.fileNote = t; else UI.brNote = t; };
+  if (slot < 8) { say(`the ${kind}s that come with it keep their names`); return; }
+  if (!has) { say(`nothing there to name: save a ${kind} first`); return; }
+  let cur = ""; try { cur = localStorage.getItem(nameKey(key)) || ""; } catch {}
+  NM.what = `${kind} user ${slot - 7}`; NM.chars = Array(NAME_LEN).fill(" "); [...cur].filter(c => NAME_CHARS.includes(c)).slice(0, NAME_LEN).forEach((c, i) => NM.chars[i] = c);
+  NM.cursor = 0; NM.key = key; NM.from = from; setMain("name");
+}
+function nameTurn(d) { const n = NAME_CHARS.length, i = Math.max(0, NAME_CHARS.indexOf(NM.chars[NM.cursor])); NM.chars[NM.cursor] = NAME_CHARS[((i + d * (UI.shift ? 10 : 1)) % n + n) % n]; }
+function nameMove(d) { NM.cursor = clamp(NM.cursor + d, 0, NAME_LEN - 1); }
+function namePad(pad) {
+  const c = padToStep(pad);
+  if (c < 12) NM.cursor = c; else if (c === 12) { NM.chars.fill(" "); NM.cursor = 0; }
+  else if (c === 13) { NM.chars.splice(NM.cursor, 1); NM.chars.push(" "); } else if (c === 14) { NM.chars.splice(NM.cursor, 0, " "); NM.chars.pop(); } else nameFinish();
+}
+function nameFinish() {
+  const t = nameText(); try { if (t) localStorage.setItem(nameKey(NM.key), t); else localStorage.removeItem(nameKey(NM.key)); } catch {}
+  const from = NM.from; setMain(from); const note = t ? "named " + t : "the name is taken away"; if (from === "file") UI.fileNote = note; else UI.brNote = note;
+}
+function nameLeft(g) {
+  fill(g, 0, 0, 480, 272, BG); dot(g, 16, 37, 6, FG); txt(g, "name", 30, 28, "mid", FG); txt(g, NM.what, 150, 37, "m", DIM, "left", "middle");
+  if (S.playing) { g.fillStyle = FG; g.beginPath(); g.moveTo(460, 30); g.lineTo(470, 36); g.lineTo(460, 42); g.fill(); } else fill(g, 460, 31, 10, 10, DIM);
+  for (let i = 0; i < NAME_LEN; i++) {
+    const x = 12 + i * 38, here = i === NM.cursor; rrect(g, x, 66, 34, 52, 6, here ? PANEL : BG); rrect(g, x + .5, 66.5, 33, 51, 6, here ? FG : FAINT, here ? 2 : 1);
+    if (NM.chars[i] !== " ") txt(g, NM.chars[i], x + 17, 92, "l", here ? FG : DIM, "center", "middle");
+  }
+  NAME_ACTIONS.forEach((l, k) => { const x = 12 + (k % 4) * 114, y = 44 + 3 * 48 + 4; rrect(g, x + .5, y + .5, 107, 41, 8, FAINT, 1); txt(g, l, x + 54, y + 21, "m", k === 3 ? FG : DIM, "center", "middle"); });
+}
+function nameRight(g) {
+  fill(g, 0, 0, 480, 272, BG); dot(g, 16, 37, 6, FG); txt(g, "letter", 30, 28, "mid", FG); txt(g, `place ${NM.cursor + 1} of ${NAME_LEN}`, 464, 37, "m", DIM, "right", "middle");
+  const n = NAME_CHARS.length, at = Math.max(0, NAME_CHARS.indexOf(NM.chars[NM.cursor]));
+  for (let d = -4; d <= 4; d++) {
+    const c = NAME_CHARS[((at + d) % n + n) % n], x = 240 + d * 46, shown = c === " " ? "·" : c;
+    if (d === 0) { rrect(g, x - 28, 74, 56, 76, 10, PANEL); rrect(g, x - 27, 75, 54, 74, 10, KC[0], 2); txt(g, shown, x, 112, "huge", FG, "center", "middle"); }
+    else txt(g, shown, x, 112, "l", Math.abs(d) <= 2 ? DIM : FAINT, "center", "middle");
+  }
+  const text = nameText(); txt(g, text || "(no name: user N)", 240, 184, "mid", text ? FG : DIM, "center", "middle");
+  txt(g, "turn: letter    shift + turn: ten", 240, 226, "s", DIM, "center", "middle"); txt(g, "up / down: place    push: save    FILE or BROWSER: cancel", 240, 248, "s", DIM, "center", "middle");
+}
 // ---- the mixer's screens (crates/op8-ui/src/mixer.rs)
 function mixerLeft(g) {
   fill(g, 0, 0, 480, 272, BG);
@@ -1906,6 +1956,7 @@ const RING = { cx: 118, cy: 137, r0: 26, step: 8 };
 function drawLeft(g) {
   animate();
   if (UI.main === "settings") { settingsLeft(g); return; }
+  if (UI.main === "name") { nameLeft(g); return; }
   if (UI.main === "mixer") { mixerLeft(g); return; }
   if (UI.main === "file") { fileLeft(g); return; }
   if (UI.main === "plugin") { plugLeft(g); return; }
@@ -2165,6 +2216,7 @@ const scopeBuf = new Float32Array(2048);
 function readScope(t) { if (!actx || !analysers[t]) { scopeBuf.fill(0); return 0; } analysers[t].getFloatTimeDomainData(scopeBuf); let st = 0; for (let i = 0; i < 1024; i++) if (scopeBuf[i] <= 0 && scopeBuf[i + 1] > 0) { st = i + 1; break; } return st; }
 function drawRight(g) {
   if (UI.main === "settings") { settingsRight(g); return; }
+  if (UI.main === "name") { nameRight(g); return; }
   if (UI.main === "mixer") { mixerRight(g); return; }
   if (UI.main === "file") { fileRight(g); return; }
   if (UI.main === "plugin") { plugRight(g); return; }
@@ -2504,9 +2556,14 @@ $("sb7").addEventListener("click", () => { if (UI.main === "instrument") UI.page
 $("sb8").addEventListener("click", () => { if (UI.main === "instrument") UI.page = 3; });
 $("jogL").addEventListener("click", () => jog(-1));
 $("jogR").addEventListener("click", () => jog(1));
-$("jogU").addEventListener("click", () => { if (navOn()) navMove(0, -1); });
-$("jogD").addEventListener("click", () => { if (navOn()) navMove(0, 1); });
-$("jogP").addEventListener("click", () => { if (navOn()) navPush(); });
+$("jogU").addEventListener("click", () => { if (UI.main === "name") nameMove(-1); else if (navOn()) navMove(0, -1); });
+$("jogD").addEventListener("click", () => { if (UI.main === "name") nameMove(1); else if (navOn()) navMove(0, 1); });
+$("jogP").addEventListener("click", () => { if (UI.main === "name") nameFinish(); else if (navOn()) navPush(); });
+document.addEventListener("keydown", e => { // in NAME the arrows move the cursor and Enter saves
+  if (UI.main !== "name" || (document.activeElement && document.activeElement !== document.body)) return;
+  const k = { ArrowLeft: -1, ArrowUp: -1, ArrowRight: 1, ArrowDown: 1 }[e.key];
+  if (k) { e.preventDefault(); nameMove(k); } else if (e.key === "Enter") { e.preventDefault(); nameFinish(); }
+});
 document.addEventListener("keydown", e => {
   if (!navOn() || (document.activeElement && document.activeElement !== document.body)) return;
   const k = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[e.key];
@@ -2515,8 +2572,8 @@ document.addEventListener("keydown", e => {
 });
 // Modifiers latch on click (a mouse can't hold two buttons). Shift and Mute
 // release after the next group press; Erase stays on until clicked again.
-for (const [id, key] of [["bShift", "shift"], ["bMute", "mute"], ["bErase", "erase"]]) {
-  $(id).addEventListener("click", () => { UI[key] = !UI[key]; if (key !== "erase") { if (key === "shift") UI.mute = false; else UI.shift = false; } });
+for (const [id, key] of [["bShift", "shift"], ["bMute", "mute"], ["bErase", "erase"], ["bSelect", "select"]]) {
+  $(id).addEventListener("click", () => { UI[key] = !UI[key]; if (key !== "erase" && key !== "select") { if (key === "shift") UI.mute = false; else UI.shift = false; } });
 }
 document.addEventListener("keydown", e => {
   if (e.target.closest && e.target.closest("input,textarea")) return;
@@ -2537,6 +2594,7 @@ function updateLeds() {
     let c = "transparent", lvl = 0;
     if (UI.main === "settings" || UI.main === "mixer") { padEls[pad].style.setProperty("--glow", c); padEls[pad].style.setProperty("--lvl", 0); continue; }
     if (UI.main === "browser") { const s = padToStep(pad); c = "#ffffff"; lvl = s >= 8 ? (!!SLOTS[UI.track] && brGet(s) ? (UI.brLast === s ? 1 : .6) : .22) : (factoryPresets(SLOTS[UI.track])[s] ? (UI.brLast === s ? 1 : .6) : 0); padEls[pad].style.setProperty("--glow", lvl ? c : "transparent"); padEls[pad].style.setProperty("--lvl", lvl); continue; }
+    if (UI.main === "name") { const s = padToStep(pad); c = "#ffffff"; lvl = s < 12 ? (s === NM.cursor ? 1 : .22) : .6; padEls[pad].style.setProperty("--glow", c); padEls[pad].style.setProperty("--lvl", lvl); continue; }
     if (UI.main === "sampling") { const s = padToStep(pad); c = "#ffffff"; lvl = s < 8 ? (SMP.saved[s] ? 1 : .22) : (SMP.len > 0 && !SMP.rec ? .6 : 0); padEls[pad].style.setProperty("--glow", lvl ? c : "transparent"); padEls[pad].style.setProperty("--lvl", lvl); continue; }
     if (UI.mode === "step") {
       const s = padToStep(pad);
@@ -2564,7 +2622,7 @@ function updateLeds() {
     bStep: composing && UI.mode === "step" ? 2 : 1, bChords: composing && UI.mode === "brain" ? 2 : 1, bPerform: composing && UI.mode === "punch" ? 2 : 1,
     bPads: composing && UI.mode === "pads" ? 2 : 1, bKeys: composing && UI.mode === "keys" ? 2 : 1,
     bChannel: composing ? 2 : 1, bSettings: UI.main === "settings" ? 2 : 1, bMixer: UI.main === "mixer" ? 2 : 1, bFile: UI.main === "file" ? 2 : 1, bPlug: UI.main === "plugin" ? 2 : 1, bSampling: UI.main === "sampling" ? 2 : 1, bBrowser: UI.main === "browser" ? 2 : 1, bShift: UI.shift ? 2 : 1,
-    bMute: composing ? (UI.mute ? 2 : 1) : 0, bErase: composing ? (UI.erase ? 2 : 1) : 0,
+    bMute: composing ? (UI.mute ? 2 : 1) : 0, bSelect: UI.main === "file" || UI.main === "browser" ? (UI.select ? 2 : 1) : 0, bErase: composing ? (UI.erase ? 2 : 1) : 0,
     bStop: S.playing ? 1 : 2, bRestart: 1, bRec: composing ? (UI.rec ? 2 : 1) : UI.main === "sampling" ? (SMP.rec || SMP.armed || SMP.counting ? 2 : 1) : 0, bTap: composing ? (UI.metro ? 2 : 1) : UI.main === "sampling" ? (SMP.countIn ? 2 : 1) : 0, bTempo: composing ? (UI.held === "tempo" ? 2 : 1) : 0, bSwing: composing ? (UI.held === "swing" ? 2 : 1) : 0, bVolume: composing ? (UI.held === "volume" ? 2 : 1) : 0, bFixed: composing ? (UI.fixed ? 2 : 1) : 0, jogL: !composing || UI.mode === "keys" ? 1 : 0, jogR: !composing || UI.mode === "keys" ? 1 : 0,
     sb1: composing ? (UI.mode === "step" && UI.inspect == null && UI.leftPage === "steps" ? 2 : 1) : UI.main === "settings" ? (SET.page === 0 ? 2 : 1) : UI.main === "mixer" ? (MIX.group === 0 ? 2 : 1) : 0, sb2: composing ? (UI.inspect != null ? 2 : 1) : UI.main === "settings" ? (SET.page === 1 ? 2 : 1) : UI.main === "mixer" ? (MIX.group === 1 ? 2 : 1) : 0,
     sb3: composing ? (stepsOpen && UI.leftPage === "players" ? 2 : 1) : UI.main === "settings" ? (SET.page === 2 ? 2 : 1) : 0, sb4: composing ? (stepsOpen && UI.leftPage === "bar" ? 2 : 1) : UI.main === "settings" ? (SET.page === 3 ? 2 : 1) : 0,

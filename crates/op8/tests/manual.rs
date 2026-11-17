@@ -344,6 +344,24 @@ fn recipe_12_save_and_come_back() {
     b.tap(pad(9));
     assert!(b.project().tracks[1].steps[0].active, "your project is back");
     assert!(dir.join("user-1.name").is_file(), "it carries a name, the day and the tempo");
+    // to name it: SELECT and the place
+    b.press(Button::File);
+    b.button_down(Button::Select);
+    b.tap(pad(9));
+    b.button_up(Button::Select);
+    assert_eq!(b.ui().main, op8_ui::Main::Name);
+    b.tap(pad(13)); // clear
+    for c in ['m', 'y'] {
+        while b.ui().naming.chars[b.ui().naming.cursor] != c {
+            b.encoder(1);
+        }
+        b.press(Button::JogRight);
+    }
+    b.run_ms(100);
+    b.capture("r12-name");
+    b.press(Button::JogPush);
+    assert_eq!(std::fs::read_to_string(dir.join("user-1.name")).unwrap().trim(), "my");
+    b.press(Button::File); // back to composing
     // to get rid of it: ERASE and the place, twice
     b.press(Button::File);
     for _ in 0..2 {

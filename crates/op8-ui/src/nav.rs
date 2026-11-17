@@ -173,6 +173,8 @@ pub fn items(ui: &UiState) -> Vec<NavItem> {
     match ui.main {
         Main::File | Main::Plugin | Main::Browser => (0..CELLS).map(cell).collect(),
         Main::Settings => pick_items(ui),
+        // the 4D turns the letters here, so nothing is listed to reach
+        Main::Name => Vec::new(),
         // the four levels under the left screen and the values of the compressor's page under the right one: the knobs' places
         Main::Mixer => (0..4)
             .map(|k| NavItem { kind: NavKind::Value(k as u8), screen: 0, rect: footer_rect(k) })
