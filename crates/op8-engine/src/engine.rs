@@ -173,6 +173,10 @@ pub struct Engine {
     /// MIDI clock out: on or off, the way to the MIDI thread, and the sample time of the block.
     comp: crate::comp::Compressor,
     eq: crate::eq::Eq,
+    sends: crate::sends::Sends,
+    /// What the tracks send to the delay and to the reverb in this block.
+    bus_a: [Box<[f32]>; 2],
+    bus_b: [Box<[f32]>; 2],
     midi_clock: bool,
     sync_tx: rtrb::Producer<SyncMessage>,
     sync_time: u64,
@@ -255,6 +259,9 @@ impl Engine {
             preview: None,
             comp: crate::comp::Compressor::new(SAMPLE_RATE),
             eq: crate::eq::Eq::new(SAMPLE_RATE),
+            sends: crate::sends::Sends::new(SAMPLE_RATE),
+            bus_a: [vec![0.0; MAX_BLOCK].into_boxed_slice(), vec![0.0; MAX_BLOCK].into_boxed_slice()],
+            bus_b: [vec![0.0; MAX_BLOCK].into_boxed_slice(), vec![0.0; MAX_BLOCK].into_boxed_slice()],
             midi_clock: true,
             sync_tx,
             sync_time: 0,
@@ -435,6 +442,9 @@ impl Engine {
         self.sync_time += n as u64;
         out_l.fill(0.0);
         out_r.fill(0.0);
+        for b in self.bus_a.iter_mut().chain(self.bus_b.iter_mut()) {
+            b[..n].fill(0.0);
+        }
 
         for t in 0..TRACKS {
             let Some(slot) = &self.slots[t] else { continue };
@@ -507,15 +517,25 @@ impl Engine {
             let vol = (level as f32 / 127.0) * vol_scale;
             let bal = ((pan as f32 - 64.0) / 63.0).clamp(-1.0, 1.0);
             let (gl, gr) = ((1.0 - bal.max(0.0)) * vol, (1.0 + bal.min(0.0)) * vol);
+            let (sa, sb) = (self.seq.project.tracks[t].send_a as f32 / 127.0, self.seq.project.tracks[t].send_b as f32 / 127.0);
             let mut peak = self.peaks[t] * 0.9;
             for i in 0..n {
                 let (a, b) = (l[i] * gl, r[i] * gr);
                 out_l[i] += a;
                 out_r[i] += b;
+                // what goes to the sends is taken after the level and the pan
+                self.bus_a[0][i] += a * sa;
+                self.bus_a[1][i] += b * sa;
+                self.bus_b[0][i] += a * sb;
+                self.bus_b[1][i] += b * sb;
                 peak = peak.max(a.abs()).max(b.abs());
             }
             self.peaks[t] = peak;
         }
+        // the delay and the reverb give back into the mix, before the performance effects
+        let bpm = self.seq.project.bpm;
+        let (a_l, a_r, b_l, b_r) = (&self.bus_a[0][..n], &self.bus_a[1][..n], &self.bus_b[0][..n], &self.bus_b[1][..n]);
+        self.sends.process((a_l, a_r), (b_l, b_r), (&mut *out_l, &mut *out_r), &self.seq.project.sends, bpm);
 
         let spt = self.seq.samples_per_tick() * 24.0;
         self.fx.process(out_l, out_r, spt);

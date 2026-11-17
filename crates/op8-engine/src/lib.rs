@@ -17,6 +17,7 @@
 pub mod comp;
 mod engine;
 pub mod eq;
+pub mod sends;
 pub mod fx;
 mod status;
 mod track_fx;

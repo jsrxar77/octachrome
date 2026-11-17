@@ -68,6 +68,10 @@ pub struct Track {
     pub level: u8,
     /// Where the track sits between the speakers, 0..=127: 0 hard left, 64 centre, 127 hard right.
     pub pan: u8,
+    /// How much of the track goes to the two sends, 0..=127 each: the delay (`send_a`) and the reverb (`send_b`), taken after the level and
+    /// the pan. 0 is none.
+    pub send_a: u8,
+    pub send_b: u8,
 }
 
 /// A track's level when it is new: 80 % of the way up, what the engine used for every track before the mixer.
@@ -89,6 +93,8 @@ impl Default for Track {
             lfo: Lfo::default(),
             level: DEFAULT_LEVEL,
             pan: PAN_CENTRE,
+            send_a: 0,
+            send_b: 0,
         }
     }
 }
@@ -136,6 +142,45 @@ impl MasterComp {
             3 => self.release = v,
             4 => self.makeup = v,
             5 => self.mix = v,
+            _ => {}
+        }
+    }
+}
+
+/// The two effects the tracks are sent to: a delay in step with the tempo and a reverb. Four settings, each 0..=255 of its own range (what
+/// they mean is `op8-engine`'s `sends.rs`). Saved with the project.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct MasterSends {
+    /// The delay's time, as one of six note values.
+    pub time: u8,
+    /// How much of the delay comes round again.
+    pub feedback: u8,
+    /// The size of the reverb's room (how long it rings).
+    pub size: u8,
+    /// How bright the reverb is (high: bright; low: the highs die first).
+    pub tone: u8,
+}
+
+/// How many settings the sends have.
+pub const SENDS_PARAMS: usize = 4;
+
+impl Default for MasterSends {
+    fn default() -> Self {
+        Self { time: 100, feedback: 100, size: 150, tone: 128 }
+    }
+}
+
+impl MasterSends {
+    /// Setting `i` (time, feedback, size, tone), 0..=255.
+    pub fn get(&self, i: usize) -> u8 {
+        [self.time, self.feedback, self.size, self.tone].get(i).copied().unwrap_or(0)
+    }
+    pub fn set(&mut self, i: usize, v: u8) {
+        match i {
+            0 => self.time = v,
+            1 => self.feedback = v,
+            2 => self.size = v,
+            3 => self.tone = v,
             _ => {}
         }
     }
@@ -190,6 +235,8 @@ pub struct Project {
     pub comp: MasterComp,
     /// The EQ on the master.
     pub eq: MasterEq,
+    /// The delay and the reverb the tracks are sent to.
+    pub sends: MasterSends,
 }
 
 impl Default for Project {
@@ -202,6 +249,7 @@ impl Default for Project {
             seed: 0x0003_5EED,
             comp: MasterComp::default(),
             eq: MasterEq::default(),
+            sends: MasterSends::default(),
         }
     }
 }
@@ -297,6 +345,17 @@ pub enum Command {
     SetLevel {
         track: u8,
         level: u8,
+    },
+    /// How much of a track goes to a send (`bus` 0 the delay, 1 the reverb), 0..=127.
+    SetSend {
+        track: u8,
+        bus: u8,
+        value: u8,
+    },
+    /// One setting of the sends' effects (`MasterSends::set`).
+    SetMasterSends {
+        index: u8,
+        value: u8,
     },
     /// One setting of the master EQ (`MasterEq::set`).
     SetMasterEq {
@@ -471,6 +530,16 @@ impl Project {
             }
             SetMasterComp { index, value } => self.comp.set(index as usize, value),
             SetMasterEq { index, value } => self.eq.set(index as usize, value),
+            SetMasterSends { index, value } => self.sends.set(index as usize, value),
+            SetSend { track, bus, value } => {
+                if let Some(t) = self.tracks.get_mut(track as usize) {
+                    if bus == 0 {
+                        t.send_a = value.min(127);
+                    } else {
+                        t.send_b = value.min(127);
+                    }
+                }
+            }
             SetLevel { track, level } => {
                 if let Some(t) = self.tracks.get_mut(track as usize) {
                     t.level = level.min(127);

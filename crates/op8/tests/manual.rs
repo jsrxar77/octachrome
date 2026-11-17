@@ -692,6 +692,19 @@ fn recipe_23_the_mixer_and_the_compressor() {
     b.knob(2, -200); // knob 3: the level of C
     b.run_ms(100);
     b.capture("r23-mixer");
+    b.press(Button::Screen(3)); // the delay send
+    b.knob(0, 200);
+    b.knob(1, 360);
+    b.knob(2, 520);
+    b.press(Button::Screen(8)); // the effects of the sends
+    b.knob(4, 300);
+    b.knob(5, 180);
+    b.knob(6, 150);
+    b.run_ms(150);
+    assert!(b.project().tracks[2].send_a > 40);
+    b.capture("r23-send");
+    b.press(Button::Screen(3)); // back to the levels
+    b.press(Button::Screen(5)); // the compressor again
     assert_eq!(b.project().comp, op8_seq::MasterComp::default());
     b.knob(4, -500); // threshold
     b.knob(5, 130); // ratio
