@@ -5,7 +5,7 @@
 
 use crate::projectfile::ProjectFile;
 use op8_seq::{
-    Brain, BrainMode, ChordKind, ChordSlot, ChordType, Division, FxKind, Lfo, LfoShape, PlayMode, Players, Project, Scale, Step,
+    Brain, BrainMode, ChordKind, ChordSlot, ChordType, Command, Division, FxKind, Lfo, LfoShape, PlayMode, Players, Project, Scale, Step,
     StepComponent as C, TrackFx,
 };
 
@@ -82,6 +82,106 @@ const D: usize = 3;
 const SAMP: usize = 4;
 const MACRO: usize = 6;
 
+/// Show pattern `index` of `track` (a new one is empty), to fill it.
+fn pattern(p: &mut Project, track: usize, index: u8) {
+    p.apply(&Command::SetPattern { track: track as u8, index, now: false });
+}
+
+/// Store a scene: the pattern each track shows, the tracks that are muted and the harmony.
+fn scene(p: &mut Project, index: u8, patterns: [u8; 8], muted: &[usize], harmony: Brain) {
+    for (t, &i) in patterns.iter().enumerate() {
+        pattern(p, t, i);
+        p.tracks[t].muted = muted.contains(&t);
+    }
+    p.brain = harmony;
+    p.apply(&Command::StoreScene { index });
+}
+
+/// House as a whole song of about two minutes (60 bars at 124): intro, groove, main, break, build, drop and outro. What is in the steps
+/// when it loads is the first pattern of each track (the groove); the rest are more patterns of the tracks and seven scenes that
+/// choose which ones play, which tracks are heard and the chords. The song is followed from the start.
+fn house_song(p: &mut Project) {
+    const F: usize = 5;
+    let own = p.brain;
+    // ---- more patterns of each track (pattern 1 and on; pattern 0 is the groove that is already in) ----
+    // A, the drums: 1 intro (hats), 2 break, 3 build (a roll of claps), 4 drop (every sixteenth, a crash and a fill)
+    pattern(p, A, 1);
+    p.tracks[A].kit = true;
+    kit(&mut p.tracks[A].steps, CHAT, &[0, 2, 4, 6, 8, 10, 12, 14]);
+    pattern(p, A, 2);
+    p.tracks[A].kit = true;
+    kit(&mut p.tracks[A].steps, CHAT, &[0, 4, 8, 12]);
+    kit(&mut p.tracks[A].steps, RIM, &[7, 15]);
+    pattern(p, A, 3);
+    p.tracks[A].kit = true;
+    kit(&mut p.tracks[A].steps, CLAP, &[0, 4, 8, 10, 12, 13, 14, 15]);
+    kit(&mut p.tracks[A].steps, OHAT, &[2, 6]);
+    kit(&mut p.tracks[A].steps, CHAT, &[0, 2, 4, 6, 8, 10, 12, 14]);
+    pattern(p, A, 4);
+    p.tracks[A].kit = true;
+    kit(&mut p.tracks[A].steps, OHAT, &[2, 6, 10, 14]);
+    kit(&mut p.tracks[A].steps, CLAP, &[4, 12]);
+    kit(&mut p.tracks[A].steps, CHAT, &[1, 3, 5, 7, 9, 11, 13, 15]);
+    kit(&mut p.tracks[A].steps, CRASH, &[0]);
+    kit(&mut p.tracks[A].steps, TOM, &[13, 15]);
+    // B, the kick: 1 a roll for the build
+    pattern(p, B, 1);
+    put(&mut p.tracks[B].steps, &[(0, 36), (4, 36), (8, 36), (10, 36), (12, 36), (13, 36), (14, 36), (15, 36)]);
+    // C, the bass: 1 busier, for the drop
+    pattern(p, CC, 1);
+    put(&mut p.tracks[CC].steps, &[(0, 36), (2, 36), (3, 36), (6, 36), (7, 43), (10, 36), (11, 36), (13, 43), (14, 36)]);
+    for s in [0, 2, 3, 6, 7, 10, 11, 13, 14] {
+        p.tracks[CC].steps[s].gate = 40;
+    }
+    // D, the stabs: 1 sparse, for the break
+    pattern(p, D, 1);
+    put(&mut p.tracks[D].steps, &[(0, 60), (10, 60)]);
+    // E, the sampler (a voice): 0 chops, 1 more of them, for the break and the build
+    pattern(p, SAMP, 1);
+    put(&mut p.tracks[SAMP].steps, &[(0, 60), (6, 67), (10, 60), (12, 64)]);
+    p.tracks[SAMP].steps[12].components.push(C::Ratchet(2));
+    // F, the granular cloud: 0 a long grain, 1 two of them, three quarters of a bar long so that it drifts against the rest
+    pattern(p, F, 0);
+    p.tracks[F].brain_link = true;
+    p.tracks[F].steps[0] = Step::on(72).with(C::Hold(14));
+    p.tracks[F].fx = TrackFx { kind: FxKind::Reverb, a: 160, b: 150, c: 80 };
+    pattern(p, F, 1);
+    p.tracks[F].length = 12;
+    put(&mut p.tracks[F].steps, &[(0, 67), (6, 72)]);
+    p.tracks[F].steps[0].components.push(C::Hold(5));
+    p.tracks[F].steps[6].components.push(C::Hold(5));
+    // G, the pad: 1 two short chords, for the build
+    pattern(p, MACRO, 1);
+    put(&mut p.tracks[MACRO].steps, &[(0, 60), (8, 60)]);
+    p.tracks[MACRO].steps[0].components.push(C::Hold(6));
+    p.tracks[MACRO].steps[8].components.push(C::Hold(6));
+    // sampler: pattern 0 is the chops of the main part
+    pattern(p, SAMP, 0);
+    put(&mut p.tracks[SAMP].steps, &[(4, 60), (11, 67), (14, 60)]);
+    p.tracks[SAMP].steps[11].components.push(C::Chance(70));
+    // ---- the scenes: the patterns of A to H, the tracks that are silent and the chords ----
+    let h = |degrees: &[u8]| brain(9, Scale::Minor, ChordKind::Seventh, degrees);
+    let groove = h(&[0, 5, 2, 6]);
+    //                      A  B  C  D  E  F  G  H
+    scene(p, 0, [1, 0, 0, 0, 0, 0, 0, 0], &[CC, D, SAMP, 7], h(&[0, 5])); // intro: hats, kick, pad and the cloud
+    scene(p, 1, [0, 0, 0, 0, 0, 0, 0, 0], &[D, SAMP, F, 7], groove); // groove: the bass comes in
+    scene(p, 2, [0, 0, 0, 0, 0, 0, 0, 0], &[F, 7], groove); // main: the stabs and the voice
+    scene(p, 3, [2, 0, 0, 1, 1, 1, 0, 0], &[B, CC, 7], h(&[5, 6, 0, 2])); // break: no kick, no bass, other chords
+    scene(p, 4, [3, 1, 0, 0, 1, 1, 1, 0], &[CC, D, 7], h(&[6])); // build: the roll on one chord, the stabs out until the drop
+    scene(p, 5, [4, 0, 1, 0, 0, 0, 1, 0], &[7], groove); // drop: everything, a busier bass
+    scene(p, 6, [1, 0, 0, 0, 0, 0, 0, 0], &[CC, SAMP, F, 7], h(&[0, 5])); // outro: it thins out
+    // ---- the song, and back to the groove as the piece loads ----
+    for (i, (scene, bars)) in [(0, 8), (1, 8), (2, 8), (3, 8), (4, 4), (5, 16), (6, 8)].into_iter().enumerate() {
+        p.apply(&Command::SetSongStep { index: i as u8, scene, bars });
+    }
+    p.apply(&Command::SetSongOn(true));
+    for t in 0..8 {
+        pattern(p, t, 0);
+        p.tracks[t].muted = false;
+    }
+    p.brain = own;
+}
+
 pub fn project(i: usize) -> Project {
     let mut p = Project::default();
     match i {
@@ -109,6 +209,7 @@ pub fn project(i: usize) -> Project {
             pad.brain_link = true;
             pad.steps[0] = Step::on(60).with(C::Hold(14));
             pad.fx = TrackFx { kind: FxKind::Reverb, a: 150, b: 150, c: 70 };
+            house_song(&mut p);
         }
         // 1 · boom bap: a lazy swing, a sub bass under a soft kick, a voice sample and chords on the off beats
         1 => {
@@ -286,7 +387,7 @@ pub fn project(i: usize) -> Project {
 
 /// The presets of each piece, by track A to H (`""`: as it comes), and how much of the level of its instruments it keeps.
 const PRESETS: [([&str; 8], f32); 8] = [
-    (["", "punch", "round", "steel", "", "shimmer", "chords", ""], 0.85),
+    (["", "punch", "round", "steel", "voice", "shimmer", "chords", ""], 0.7),
     (["", "soft", "sub", "nylon", "voice", "rumble", "", ""], 1.0),
     (["", "boom", "sub", "bell", "", "dust", "swarm", ""], 0.8),
     (["", "soft", "", "harp", "bell", "bells", "strings", ""], 1.0),

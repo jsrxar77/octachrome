@@ -218,7 +218,8 @@ impl Sequencer {
             t.load(&self.project.stored[tr][p]);
         }
         if let Some(m) = self.song_mute {
-            t.muted = m >> tr & 1 == 1;
+            // silent if the scene silences it or the player did (MUTE still works while the song plays; it cannot bring back what the scene mutes)
+            t.muted |= m >> tr & 1 == 1;
         }
         t
     }
@@ -1201,5 +1202,26 @@ mod tests {
         q.apply(&SetKey(0));
         q.apply(&LaunchScene { index: 3 });
         assert_eq!(q.brain.key, 7);
+    }
+
+    // F-S17
+    #[test]
+    fn the_mute_of_the_player_still_works_while_the_song_plays() {
+        use crate::Command::*;
+        let mut p = Project::default();
+        p.tracks[0].steps[0] = Step::on(36);
+        p.tracks[1].steps[0] = Step::on(50);
+        p.apply(&SetMute { track: 2, muted: true });
+        p.tracks[2].steps[0] = Step::on(60);
+        p.apply(&StoreScene { index: 0 }); // C is silenced by the scene
+        p.apply(&SetMute { track: 2, muted: false });
+        p.apply(&SetSongStep { index: 0, scene: 0, bars: 2 });
+        p.apply(&SetSongOn(true));
+        p.apply(&SetMute { track: 0, muted: true }); // the player mutes A while the song goes
+        let mut seq = Sequencer::new(p, SR);
+        seq.play();
+        let log = run_with(&mut seq, 96_000 * 2, &[]);
+        let count = |tr: usize| log.iter().filter(|e| e.1 == tr).count();
+        assert_eq!((count(0), count(1), count(2)), (0, 2, 0), "A by the player, C by the scene, B plays");
     }
 }
