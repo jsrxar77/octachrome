@@ -178,6 +178,7 @@ canvas.lcd {
             <button class="btn" id="bMute">MUTE</button>
             <button class="btn" id="bChannel" title="Compose: the sequencer on the left, the instrument on the right">CHANNEL</button>
             <button class="btn" id="bSettings" title="Settings: both screens">SETTINGS</button>
+            <button class="btn" id="bMixer" title="Mixer: the channels on the left, the compressor of the master on the right">MIXER</button>
             <button class="btn" id="bFile" title="Proyectos: abrir y guardar">FILE</button>
             <button class="btn" id="bPlug" title="Elegir el instrumento de la pista">PLUG-IN</button>
             <button class="btn" id="bBrowser" title="Presets del instrumento: tocar carga, SHIFT + tocar guarda (filas de abajo)">BROWSER</button>
@@ -363,10 +364,46 @@ function lfoWave(l, phase) {
 }
 const lfoNow = (t, ms) => { const l = P.tracks[t].lfo; return lfoWave(l, ms / 1000 * lfoHz(l)); };
 
+// ---- the mixer: four channels on the left, the compressor of the master on the right (crates/op8-ui/src/mixer.rs, crates/op8-engine/src/comp.rs).
+// The six settings are 0..255 of their own range and go with the project. The sound is WebAudio's own compressor, which is an approximation:
+// the twin's has its own make-up gain; the screen's curve is the Rust one. A threshold of 0 dB with no make-up does nothing at all.
+const COMP_DEFAULT = [255, 102, 128, 128, 0, 255];
+const MIX = { page: 0, group: 0 }, compAccum = [0, 0, 0, 0, 0, 0];
+const CD = { thr: v => -40 + 40 * v / 255, ratio: v => 1 + 19 * (v / 255) ** 2, atk: v => .1 * Math.pow(1000, v / 255), rel: v => 20 * Math.pow(50, v / 255), make: v => 24 * v / 255, mix: v => v / 255 };
+const mixPageValues = () => MIX.page === 0 ? 4 : 2;
+const compIndex = k => k >= 4 && k - 4 < mixPageValues() ? (MIX.page === 0 ? k - 4 : 4 + k - 4) : -1;
+function compReduction(inDb, thr, ratio) { // by how many dB a level is brought down (0 or less), with a soft knee of 6 dB
+  const over = inDb - thr, K = 6;
+  const out = 2 * over < -K ? inDb : 2 * Math.abs(over) <= K ? inDb + (1 / ratio - 1) * (over + K / 2) ** 2 / (2 * K) : thr + over / ratio;
+  return out - inDb;
+}
+function curveOut(inDb, c) { // what comes out for what goes in, with the make-up and the mix as they sound
+  const wet = inDb + compReduction(inDb, CD.thr(c[0]), CD.ratio(c[1])) + CD.make(c[4]), m = CD.mix(c[5]);
+  return 20 * Math.log10(Math.max(1e-6, (1 - m) * 10 ** (inDb / 20) + m * 10 ** (wet / 20)));
+}
+function compApply() {
+  if (!actx || !fx.mcComp) return; const c = P.comp || COMP_DEFAULT, off = c[0] === 255 && c[4] === 0, m = off ? 0 : CD.mix(c[5]);
+  fx.mcComp.threshold.value = CD.thr(c[0]); fx.mcComp.ratio.value = Math.max(1, CD.ratio(c[1])); fx.mcComp.attack.value = CD.atk(c[2]) / 1000; fx.mcComp.release.value = CD.rel(c[3]) / 1000;
+  fx.mcMake.gain.value = 10 ** (CD.make(c[4]) / 20); fx.mcWet.gain.value = m; fx.mcDry.gain.value = 1 - m;
+}
+function mixPage(p) { MIX.page = p; UI.grabbed = false; if (UI.focus.k === "value" && UI.focus.i >= 4 && UI.focus.i - 4 >= mixPageValues()) UI.focus = { k: "value", i: 4 }; }
+function mixPageKnob(k, delta) {
+  if (k < 4) { mixKnob(MIX.group * 4 + k, delta); return; }
+  const i = compIndex(k); if (i < 0) return;
+  compAccum[i] += delta / 800 * 255; const w = Math.trunc(compAccum[i]); compAccum[i] -= w;
+  if (w) { P.comp[i] = clamp(P.comp[i] + w, 0, 255); compApply(); }
+}
+let compSeen = { inDb: -90, red: 0 };
+function compMeter() { // how loud it is going in and how far it is being brought down, held a moment so the eye can follow
+  let inDb = -90, red = 0;
+  if (actx && fx.mcAn && S.playing) { const b = new Float32Array(fx.mcAn.fftSize); fx.mcAn.getFloatTimeDomainData(b); let pk = 0; for (const v of b) pk = Math.max(pk, Math.abs(v)); inDb = 20 * Math.log10(Math.max(pk, 1e-4)); red = (P.comp[0] === 255 && P.comp[4] === 0) ? 0 : fx.mcComp.reduction; }
+  compSeen = { inDb: Math.max(inDb, compSeen.inDb - 1.5), red: Math.min(red, compSeen.red + .6) };
+  return compSeen;
+}
 // ---- project (same demo set as op8 sim) ----
 function demoProject() {
   const tracks = Array.from({ length: 8 }, () => ensureTrack({ steps: Array.from({ length: 16 }, () => newStep()), length: 16, div: 2, link: false, muted: false }));
-  const p = { tracks, bpm: 122, swing: 0.54, seed: 0x35EED,
+  const p = { tracks, bpm: 122, swing: 0.54, seed: 0x35EED, comp: COMP_DEFAULT.slice(),
     brain: { key: 0, scale: 0, mode: 1, len: 4, live: null,
       prog: [0,5,3,4,0,0,0,0].map(d => ({ degree: d, kind: "triad", length: 16 })) } };
   for (const s of [0,4,8,12]) tracks[1].steps[s] = newStep(true, 36);
@@ -473,7 +510,11 @@ function initAudio() {
     for (let i = 0; i < d.length && SMP.len < SMP_MAX; i++) { SMP.buf[SMP.len++] = d[i]; pk = Math.max(pk, Math.abs(d[i])); }
     SMP.level = Math.max(SMP.level, pk); if (SMP.len >= SMP_MAX) SMP.rec = false;
   };
-  master.connect(fx.strip).connect(fx.punch).connect(fx.crush).connect(fx.gate).connect(fx.kill).connect(fx.limiter).connect(dest);
+  // the compressor of the master (MIXER) sits after the performance effects: the sound as it was and the compressed one, in the mix the project says
+  fx.mcDry = actx.createGain(); fx.mcComp = actx.createDynamicsCompressor(); fx.mcComp.knee.value = 6; fx.mcMake = actx.createGain(); fx.mcWet = actx.createGain(); fx.mcAn = actx.createAnalyser(); fx.mcAn.fftSize = 1024;
+  master.connect(fx.strip).connect(fx.punch).connect(fx.crush).connect(fx.gate).connect(fx.kill);
+  fx.kill.connect(fx.mcDry).connect(fx.limiter); fx.kill.connect(fx.mcComp).connect(fx.mcMake).connect(fx.mcWet).connect(fx.limiter); fx.kill.connect(fx.mcAn); fx.limiter.connect(dest);
+  compApply();
   fx.kill.connect(fx.echoSend).connect(fx.delay); fx.delay.connect(fx.fb).connect(fx.delay); fx.delay.connect(fx.limiter);
   for (let t = 0; t < 8; t++) {
     const g = actx.createGain(); g.gain.value = 0.8;
@@ -917,10 +958,10 @@ function setMode(m) {
 // Main modes: CHANNEL composes (sequencer left, instrument right); SETTINGS
 // takes both screens for the machine's settings (theme for now).
 const THEME_IDS = ["chrome", "matte", "glossy"]; // chrome is the default (Javi, 2026-11-16), then matte and glossy
-function setMain(m) { UI.grabbed = false; UI.focus = m === "file" ? { k: "cell", i: UI.fileLast ?? 0 } : m === "plugin" ? { k: "cell", i: Math.max(0, plugCells().cur) } : m === "instrument" ? { k: "track", i: UI.track } : { k: "cell", i: 0 }; if (m === "browser") { UI.brNote = ""; UI.brLast = null; } if (UI.main === "sampling" && m !== "sampling") { SMP.rec = false; SMP.armed = false; smpCountStop(); } if (m === "sampling") SMP.note = ""; UI.main = m; UI.inspect = null; inspectorPad = null; if (m === "file") { UI.fileNote = ""; } if (m === "plugin") UI.plugNote = ""; }
+function setMain(m) { UI.grabbed = false; UI.focus = m === "file" ? { k: "cell", i: UI.fileLast ?? 0 } : m === "plugin" ? { k: "cell", i: Math.max(0, plugCells().cur) } : m === "instrument" ? { k: "track", i: UI.track } : m === "mixer" ? { k: "value", i: 0 } : { k: "cell", i: 0 }; if (m === "browser") { UI.brNote = ""; UI.brLast = null; } if (UI.main === "sampling" && m !== "sampling") { SMP.rec = false; SMP.armed = false; smpCountStop(); } if (m === "sampling") SMP.note = ""; UI.main = m; UI.inspect = null; inspectorPad = null; if (m === "file") { UI.fileNote = ""; } if (m === "plugin") UI.plugNote = ""; }
 function themeStep(d) { LOOK.theme = THEME_IDS[((THEME_IDS.indexOf(LOOK.theme) + d) % 3 + 3) % 3]; applyLook(); }
 function groupPress(g) {
-  if (UI.main === "settings") return;
+  if (UI.main === "settings" || UI.main === "mixer") return;
   const tr = P.tracks[g];
   if (UI.shift) { tr.link = !tr.link; toast(`Pista ${TRACK_NAMES[g]}: Brain ${tr.link ? "enlazado" : "desenlazado"}`); }
   else if (UI.mute) { tr.muted = !tr.muted; toast(`Pista ${TRACK_NAMES[g]} ${tr.muted ? "muteada" : "activa"}`); }
@@ -954,7 +995,7 @@ function padDown(pad, vel0) {
   if (UI.main === "plugin") { plugPad(pad); return; }
   if (UI.main === "sampling") { smpPad(pad); return; }
   if (UI.main === "browser") { brPad(pad); return; }
-  if (UI.main === "settings") return;
+  if (UI.main === "settings" || UI.main === "mixer") return;
   if (UI.mode === "step") {
     if (padDownAt[pad] == null) {
       padDownAt[pad] = performance.now();
@@ -981,7 +1022,7 @@ function padPressure(pad, p) {
   }
 }
 function padUp(pad) {
-  if (UI.main === "settings" || UI.main === "file" || UI.main === "plugin" || UI.main === "sampling" || UI.main === "browser") return;
+  if (UI.main === "settings" || UI.main === "mixer" || UI.main === "file" || UI.main === "plugin" || UI.main === "sampling" || UI.main === "browser") return;
   if (UI.mode === "step") {
     const wasDown = padDownAt[pad] != null; padDownAt[pad] = null;
     if (inspectorPad === pad) { inspectorPad = null; UI.inspect = null; }
@@ -1002,6 +1043,7 @@ function padUp(pad) {
 function knob(k, delta) {
   if (UI.held === "volume" && UI.main === "instrument") { mixKnob(k, delta); return; } // VOLUME held: the eight knobs are the mix (SHIFT: the pans)
   if (UI.main === "sampling") { smpKnob(k, delta); return; }
+  if (UI.main === "mixer") { mixPageKnob(k, delta); return; }
   if (UI.main === "settings") return;
   if (k >= 4 && UI.page === 2) { fxKnob(k, delta); return; }
   if (k >= 4 && UI.page === 3) { lfoKnob(k, delta); return; }
@@ -1090,6 +1132,7 @@ function navItems() {
   if (["file", "plugin", "browser"].includes(UI.main)) return Array.from({ length: 16 }, (_, i) => cell(i));
   if (UI.main === "sampling") return [...Array.from({ length: 16 }, (_, i) => cell(i)), ...Array.from({ length: 4 }, (_, k) => ({ k: "value", i: 4 + k, s: 1, x: 60 + k * 120 - 52, y: 224, w: 104, h: 42 }))];
   if (UI.main === "settings") return settingsItems();
+  if (UI.main === "mixer") return [...[0, 1, 2, 3].map(k => ({ k: "value", i: k, s: 0, x: 60 + k * 120 - 52, y: 224, w: 104, h: 42 })), ...Array.from({ length: mixPageValues() }, (_, k) => ({ k: "value", i: 4 + k, s: 1, x: 60 + k * 120 - 52, y: 224, w: 104, h: 42 }))];
   if (UI.main !== "instrument") return [];
   const slot = SLOTS[UI.track], second = slot && CARTS[slot].params.length > 4;
   const NAMES = ["step", "components", "players", "bar", "sound", "shape", "fx", "mod"], cv = document.createElement("canvas").getContext("2d");
@@ -1120,7 +1163,7 @@ function navTurn(d) {
   const items = navItems(); if (!items.length) return;
   // an effect of PERFORM is sounding: the wheel is its intensity (the pad's pressure); the arrows still move the focus
   if (UI.main === "instrument" && UI.mode === "punch" && UI.focus.k === "grid" && punchState.slot != null) { const v = clamp(punchState.amount + d * 0.04, 0, 1); setPunch(punchState.slot, v); return; }
-  if (UI.grabbed) { if (UI.focus.k === "comp") knob(3, d * DETENT); if (UI.focus.k === "value") { if (UI.main === "sampling") smpKnob(UI.focus.i, d * DETENT); else knob(UI.focus.i, d * DETENT); } return; }
+  if (UI.grabbed) { if (UI.focus.k === "comp") knob(3, d * DETENT); if (UI.focus.k === "value") { if (UI.main === "sampling") smpKnob(UI.focus.i, d * DETENT); else if (UI.main === "mixer") mixPageKnob(UI.focus.i, d * DETENT); else knob(UI.focus.i, d * DETENT); } return; }
   navSet(items[((navIndex(items) + d) % items.length + items.length) % items.length]);
 }
 function navPush() {
@@ -1324,7 +1367,7 @@ function settingsPick(n) {
   else if (pg === 3 && n < 4) { LOOK.screen = n + 1; applyLook(); }
   else if (pg === 3) { LOOK.pads = n - 3; applyLook(); }
 }
-const lightShare = () => (LOOK.screen || 4) / 4;
+function lightShare() { return (LOOK.screen || 4) / 4; } // a function, so that applyLook() can call it when the page loads
 // ---- FILE: projects (crates/op8/src/factory.rs and projectfile.rs). The factory eight, and the player's eight kept in localStorage.
 const FILE_NAMES = ["house", "boom bap", "dub", "polyrhythm", "acid", "electro", "ambient", "breaks"];
 // The eight pieces that come with the machine (crates/op8/src/factory.rs): the same steps, components, chords, effects and LFOs.
@@ -1449,7 +1492,7 @@ function mixFooter(g, first) {
     txt(g, String.fromCharCode(65 + i), cx - 34, 248, "l", TRACK_COLORS[i], "center", "middle"); txt(g, v, cx - 18, 248, "l", FG, "left", "middle");
   }
 }
-function loadProject(src) { const q = JSON.parse(JSON.stringify(src)); P.tracks = q.tracks.map(ensureTrack); P.bpm = q.bpm; P.swing = q.swing; P.brain = q.brain; if (actx) for (let t = 0; t < 8; t++) { fxApply(t, true); mixApply(t); } }
+function loadProject(src) { const q = JSON.parse(JSON.stringify(src)); P.tracks = q.tracks.map(ensureTrack); P.bpm = q.bpm; P.swing = q.swing; P.brain = q.brain; P.comp = q.comp ? q.comp.slice() : COMP_DEFAULT.slice(); if (actx) { for (let t = 0; t < 8; t++) { fxApply(t, true); mixApply(t); } compApply(); } }
 function filePad(pad) {
   const slot = padToStep(pad); UI.fileLast = slot;
   if (UI.erase) { const k = userKey(slot - 7); UI.fileNote = erasePlace(slot, slot >= 8 && !!localStorage.getItem(k), slot >= 8 ? getName(k, slot - 7) : "", k, "project")[0]; return; }
@@ -1721,6 +1764,45 @@ function listRows(g, list, chosen, screen, pageNow) {
   }
 }
 function setButton(g, [, x, y, w, h], label, on) { if (on) rrect(g, x, y, w, h, 8, PANEL); rrect(g, x + .5, y + .5, w - 1, h - 1, 8, on ? FG : FAINT, on ? 2 : 1); txt(g, label, x + w / 2, y + h / 2, "m", on ? FG : DIM, "center", "middle"); }
+// ---- the mixer's screens (crates/op8-ui/src/mixer.rs)
+function mixerLeft(g) {
+  fill(g, 0, 0, 480, 272, BG);
+  buttonStrip(g, [["a–d", MIX.group === 0], ["e–h", MIX.group === 1], ["", false], ["", false]]);
+  settingsBar(g, "mixer", 37);
+  if (S.playing) { g.fillStyle = FG; g.beginPath(); g.moveTo(460, 30); g.lineTo(470, 36); g.lineTo(460, 42); g.fill(); } else fill(g, 460, 31, 10, 10, DIM);
+  for (let c = 0; c < 4; c++) {
+    const i = MIX.group * 4 + c, tr = P.tracks[i], cx = c * 120 + 60;
+    txt(g, String.fromCharCode(65 + i), cx - 14, 62, "mid", TRACK_COLORS[i], "center", "middle");
+    if (tr.muted) txt(g, "mute", cx + 8, 62, "s", DIM, "left", "middle");
+    rrect(g, cx - 9, 78, 18, 96, 9, FAINT);
+    const h = tr.level > 0 ? Math.max(6, 96 * tr.level / 127) : 0; if (h) rrect(g, cx - 9, 78 + 96 - h, 18, h, 9, tr.muted ? DIM : TRACK_COLORS[i]);
+    line(g, cx - 36, 192, cx + 36, 192, FAINT, 1); line(g, cx, 188, cx, 196, DIM, 1); dot(g, cx - 36 + 72 * tr.pan / 127, 192, 4, FG);
+    const pan = tr.pan === 64 ? "c" : tr.pan < 64 ? "l" + Math.floor((64 - tr.pan) * 100 / 64) : "r" + Math.floor((tr.pan - 64) * 100 / 63);
+    txt(g, UI.shift ? "pan" : "level", cx, 236, "s", DIM, "center", "middle"); txt(g, UI.shift ? pan : Math.round(tr.level * 100 / 127) + "%", cx, 254, "m", KC[c], "center", "middle");
+  }
+  navRing(g, 0);
+}
+function mixerRight(g) {
+  fill(g, 0, 0, 480, 272, BG);
+  buttonStrip(g, [["comp", MIX.page === 0], ["output", MIX.page === 1], ["", false], ["", false]]);
+  settingsBar(g, "compressor", 37);
+  const c = P.comp, [x0, y0, side] = [30, 52, 150], FLOOR = -48, fr = db => Math.min(1, Math.max(0, (db - FLOOR) / -FLOOR));
+  const at = (i, o) => [x0 + side * fr(i), y0 + side * (1 - fr(o))];
+  rrect(g, x0, y0, side, side, 6, PANEL);
+  let a = at(FLOOR, FLOOR), b = at(0, 0); line(g, a[0], a[1], b[0], b[1], FAINT, 1);
+  let prev = at(FLOOR, curveOut(FLOOR, c)); for (let k = 1; k <= 48; k++) { const i = FLOOR + -FLOOR * k / 48, now = at(i, curveOut(i, c)); line(g, prev[0], prev[1], now[0], now[1], FG, 2); prev = now; }
+  txt(g, "in", x0 + side, y0 + side + 14, "s", DIM, "right", "middle"); txt(g, "out", x0 + 6, y0 + 10, "s", DIM, "left", "middle");
+  const tx = x0 + side * fr(CD.thr(c[0])); line(g, tx, y0 + side, tx, y0 + side + 8, KC[4], 2);
+  const m = compMeter(); if (m.inDb > FLOOR) { const d = at(m.inDb, curveOut(m.inDb, c)); dot(g, d[0], d[1], 4, FG); }
+  const [rx, ry, rw] = [216, 100, 234], red = Math.min(24, Math.max(0, -m.red));
+  txt(g, "reduction", rx, ry - 16, "s", DIM, "left", "middle"); rrect(g, rx, ry, rw, 8, 4, FAINT); if (red > .05) rrect(g, rx, ry, Math.max(8, rw * red / 24), 8, 4, FG);
+  txt(g, red.toFixed(1) + " dB", rx + rw, ry + 24, "m", DIM, "right", "middle");
+  if (c[0] === 255 && c[4] === 0) txt(g, "it does nothing yet: lower the threshold", rx, 160, "s", DIM, "left", "middle");
+  const ms = v => v >= 10 ? v.toFixed(0) + " ms" : v.toFixed(1) + " ms";
+  const vals = MIX.page === 0 ? [["threshold", CD.thr(c[0]).toFixed(0) + " dB"], ["ratio", CD.ratio(c[1]).toFixed(1) + ":1"], ["attack", ms(CD.atk(c[2]))], ["release", ms(CD.rel(c[3]))]] : [["make-up", "+" + CD.make(c[4]).toFixed(0) + " dB"], ["mix", Math.round(CD.mix(c[5]) * 100) + "%"]];
+  vals.forEach(([n, v], i) => { txt(g, n, 60 + i * 120, 236, "s", DIM, "center", "middle"); txt(g, v, 60 + i * 120, 254, "m", KC[4 + i], "center", "middle"); });
+  navRing(g, 1);
+}
 function settingsLeft(g) {
   fill(g, 0, 0, 480, 272, BG);
   buttonStrip(g, PAGES.map((n, i) => [n, SET.page === i]));
@@ -1785,6 +1867,7 @@ const RING = { cx: 118, cy: 137, r0: 26, step: 8 };
 function drawLeft(g) {
   animate();
   if (UI.main === "settings") { settingsLeft(g); return; }
+  if (UI.main === "mixer") { mixerLeft(g); return; }
   if (UI.main === "file") { fileLeft(g); return; }
   if (UI.main === "plugin") { plugLeft(g); return; }
   if (UI.main === "sampling") { smpLeft(g); return; }
@@ -2043,6 +2126,7 @@ const scopeBuf = new Float32Array(2048);
 function readScope(t) { if (!actx || !analysers[t]) { scopeBuf.fill(0); return 0; } analysers[t].getFloatTimeDomainData(scopeBuf); let st = 0; for (let i = 0; i < 1024; i++) if (scopeBuf[i] <= 0 && scopeBuf[i + 1] > 0) { st = i + 1; break; } return st; }
 function drawRight(g) {
   if (UI.main === "settings") { settingsRight(g); return; }
+  if (UI.main === "mixer") { mixerRight(g); return; }
   if (UI.main === "file") { fileRight(g); return; }
   if (UI.main === "plugin") { plugRight(g); return; }
   if (UI.main === "sampling") { smpRight(g); return; }
@@ -2352,6 +2436,7 @@ $("bPads").addEventListener("click", () => setMode(UI.mode === "pads" ? "step" :
 $("bKeys").addEventListener("click", () => setMode(UI.mode === "keys" ? "step" : "keys"));
 $("bChannel").addEventListener("click", () => setMain("instrument"));
 $("bSettings").addEventListener("click", () => setMain(UI.main === "settings" ? "instrument" : "settings"));
+$("bMixer").addEventListener("click", () => setMain(UI.main === "mixer" ? "instrument" : "mixer"));
 // TAP works the tempo out from the taps; SHIFT + TAP is the metronome. TEMPO, SWING and VOLUME are held on the unit; in the twin a click
 // holds them (and releases them), and JOG ◀ ▶ turns the one held. FIXED VEL toggles.
 const taps = [];
@@ -2370,12 +2455,12 @@ $("bBrowser").addEventListener("click", () => setMain(UI.main === "browser" ? "i
 $("bSampling").addEventListener("click", () => setMain(UI.main === "sampling" ? "instrument" : "sampling"));
 $("bFile").addEventListener("click", () => setMain(UI.main === "file" ? "instrument" : "file"));
 $("bPlug").addEventListener("click", () => setMain(UI.main === "plugin" ? "instrument" : "plugin"));
-$("sb1").addEventListener("click", () => { if (UI.main === "settings") settingsPage(0); else if (UI.main === "instrument") setMode("step"); }); // setMode also goes back to the steps
-$("sb2").addEventListener("click", () => { if (UI.main === "settings") settingsPage(1); else if (UI.main === "instrument") { setMode("step"); UI.inspect = 0; UI.compCursor = 0; UI.focus = { k: "comp", i: 0 }; } });
+$("sb1").addEventListener("click", () => { if (UI.main === "mixer") MIX.group = 0; else if (UI.main === "settings") settingsPage(0); else if (UI.main === "instrument") setMode("step"); }); // setMode also goes back to the steps
+$("sb2").addEventListener("click", () => { if (UI.main === "mixer") MIX.group = 1; else if (UI.main === "settings") settingsPage(1); else if (UI.main === "instrument") { setMode("step"); UI.inspect = 0; UI.compCursor = 0; UI.focus = { k: "comp", i: 0 }; } });
 $("sb3").addEventListener("click", () => { if (UI.main === "settings") settingsPage(2); else openLeft("players"); });
 $("sb4").addEventListener("click", () => { if (UI.main === "settings") settingsPage(3); else openLeft("bar"); });
-$("sb5").addEventListener("click", () => { if (UI.main === "instrument") UI.page = 0; });
-$("sb6").addEventListener("click", () => { if (UI.main === "instrument") UI.page = 1; });
+$("sb5").addEventListener("click", () => { if (UI.main === "instrument") UI.page = 0; else if (UI.main === "mixer") mixPage(0); });
+$("sb6").addEventListener("click", () => { if (UI.main === "instrument") UI.page = 1; else if (UI.main === "mixer") mixPage(1); });
 $("sb7").addEventListener("click", () => { if (UI.main === "instrument") UI.page = 2; });
 $("sb8").addEventListener("click", () => { if (UI.main === "instrument") UI.page = 3; });
 $("jogL").addEventListener("click", () => jog(-1));
@@ -2411,7 +2496,7 @@ function updateLeds() {
   document.documentElement.style.setProperty("--accent", color);
   for (let pad = 0; pad < 16; pad++) {
     let c = "transparent", lvl = 0;
-    if (UI.main === "settings") { padEls[pad].style.setProperty("--glow", c); padEls[pad].style.setProperty("--lvl", 0); continue; }
+    if (UI.main === "settings" || UI.main === "mixer") { padEls[pad].style.setProperty("--glow", c); padEls[pad].style.setProperty("--lvl", 0); continue; }
     if (UI.main === "browser") { const s = padToStep(pad); c = "#ffffff"; lvl = s >= 8 ? (!!SLOTS[UI.track] && brGet(s) ? (UI.brLast === s ? 1 : .6) : .22) : (factoryPresets(SLOTS[UI.track])[s] ? (UI.brLast === s ? 1 : .6) : 0); padEls[pad].style.setProperty("--glow", lvl ? c : "transparent"); padEls[pad].style.setProperty("--lvl", lvl); continue; }
     if (UI.main === "sampling") { const s = padToStep(pad); c = "#ffffff"; lvl = s < 8 ? (SMP.saved[s] ? 1 : .22) : (SMP.len > 0 && !SMP.rec ? .6 : 0); padEls[pad].style.setProperty("--glow", lvl ? c : "transparent"); padEls[pad].style.setProperty("--lvl", lvl); continue; }
     if (UI.mode === "step") {
@@ -2439,12 +2524,12 @@ function updateLeds() {
   const L = {
     bStep: composing && UI.mode === "step" ? 2 : 1, bChords: composing && UI.mode === "brain" ? 2 : 1, bPerform: composing && UI.mode === "punch" ? 2 : 1,
     bPads: composing && UI.mode === "pads" ? 2 : 1, bKeys: composing && UI.mode === "keys" ? 2 : 1,
-    bChannel: composing ? 2 : 1, bSettings: UI.main === "settings" ? 2 : 1, bFile: UI.main === "file" ? 2 : 1, bPlug: UI.main === "plugin" ? 2 : 1, bSampling: UI.main === "sampling" ? 2 : 1, bBrowser: UI.main === "browser" ? 2 : 1, bShift: UI.shift ? 2 : 1,
+    bChannel: composing ? 2 : 1, bSettings: UI.main === "settings" ? 2 : 1, bMixer: UI.main === "mixer" ? 2 : 1, bFile: UI.main === "file" ? 2 : 1, bPlug: UI.main === "plugin" ? 2 : 1, bSampling: UI.main === "sampling" ? 2 : 1, bBrowser: UI.main === "browser" ? 2 : 1, bShift: UI.shift ? 2 : 1,
     bMute: composing ? (UI.mute ? 2 : 1) : 0, bErase: composing ? (UI.erase ? 2 : 1) : 0,
     bStop: S.playing ? 1 : 2, bRestart: 1, bRec: composing ? (UI.rec ? 2 : 1) : UI.main === "sampling" ? (SMP.rec || SMP.armed || SMP.counting ? 2 : 1) : 0, bTap: composing ? (UI.metro ? 2 : 1) : UI.main === "sampling" ? (SMP.countIn ? 2 : 1) : 0, bTempo: composing ? (UI.held === "tempo" ? 2 : 1) : 0, bSwing: composing ? (UI.held === "swing" ? 2 : 1) : 0, bVolume: composing ? (UI.held === "volume" ? 2 : 1) : 0, bFixed: composing ? (UI.fixed ? 2 : 1) : 0, jogL: !composing || UI.mode === "keys" ? 1 : 0, jogR: !composing || UI.mode === "keys" ? 1 : 0,
-    sb1: composing ? (UI.mode === "step" && UI.inspect == null && UI.leftPage === "steps" ? 2 : 1) : UI.main === "settings" ? (SET.page === 0 ? 2 : 1) : 0, sb2: composing ? (UI.inspect != null ? 2 : 1) : UI.main === "settings" ? (SET.page === 1 ? 2 : 1) : 0,
+    sb1: composing ? (UI.mode === "step" && UI.inspect == null && UI.leftPage === "steps" ? 2 : 1) : UI.main === "settings" ? (SET.page === 0 ? 2 : 1) : UI.main === "mixer" ? (MIX.group === 0 ? 2 : 1) : 0, sb2: composing ? (UI.inspect != null ? 2 : 1) : UI.main === "settings" ? (SET.page === 1 ? 2 : 1) : UI.main === "mixer" ? (MIX.group === 1 ? 2 : 1) : 0,
     sb3: composing ? (stepsOpen && UI.leftPage === "players" ? 2 : 1) : UI.main === "settings" ? (SET.page === 2 ? 2 : 1) : 0, sb4: composing ? (stepsOpen && UI.leftPage === "bar" ? 2 : 1) : UI.main === "settings" ? (SET.page === 3 ? 2 : 1) : 0,
-    sb5: composing ? (rp === 0 ? 2 : 1) : 0, sb6: composing && second ? (rp === 1 ? 2 : 1) : 0,
+    sb5: composing ? (rp === 0 ? 2 : 1) : UI.main === "mixer" ? (MIX.page === 0 ? 2 : 1) : 0, sb6: composing && second ? (rp === 1 ? 2 : 1) : UI.main === "mixer" ? (MIX.page === 1 ? 2 : 1) : 0,
     sb7: composing ? (rp === 2 ? 2 : 1) : 0, sb8: composing ? (rp === 3 ? 2 : 1) : 0,
   };
   for (const id in L) { const e = $(id); if (!e) continue; e.classList.toggle("avail", L[id] === 1); e.classList.toggle("on", L[id] === 2); e.classList.remove("lit"); }

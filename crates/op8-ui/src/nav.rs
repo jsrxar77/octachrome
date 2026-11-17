@@ -173,6 +173,11 @@ pub fn items(ui: &UiState) -> Vec<NavItem> {
     match ui.main {
         Main::File | Main::Plugin | Main::Browser => (0..CELLS).map(cell).collect(),
         Main::Settings => pick_items(ui),
+        // the four levels under the left screen and the values of the compressor's page under the right one: the knobs' places
+        Main::Mixer => (0..4)
+            .map(|k| NavItem { kind: NavKind::Value(k as u8), screen: 0, rect: footer_rect(k) })
+            .chain((0..crate::mixer::page_values(ui.mixer.page)).map(|k| NavItem { kind: NavKind::Value(4 + k as u8), screen: 1, rect: footer_rect(k) }))
+            .collect(),
         Main::Sampling => (0..CELLS)
             .map(cell)
             .chain((0..4).map(|k| NavItem { kind: NavKind::Value(4 + k as u8), screen: 1, rect: value_rect(k) }))

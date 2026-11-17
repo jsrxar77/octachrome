@@ -22,6 +22,9 @@ pub struct EngineStatus {
     /// Fraction of the block period spent rendering, as f32 bits.
     pub load: AtomicU32,
     pub dropped_events: AtomicU32,
+    /// The master compressor, for its picture: the deepest reduction (dB, 0 or less) and the loudest input (dB) of the last block, as f32 bits.
+    pub comp_reduction: AtomicU32,
+    pub comp_input: AtomicU32,
     /// SAMPLING: true while the engine is recording, how many samples are in `take`, and the
     /// loudest sample of the last block (f32 bits).
     pub recording: AtomicBool,
@@ -46,6 +49,14 @@ impl EngineStatus {
     }
     pub fn rec_peak(&self) -> f32 {
         f32::from_bits(self.rec_peak.load(Relaxed))
+    }
+    /// How far the master compressor is bringing the sound down, in dB (0 or less).
+    pub fn comp_reduction(&self) -> f32 {
+        f32::from_bits(self.comp_reduction.load(Relaxed))
+    }
+    /// The loudest the sound going into the master compressor was in the last block, in dB (-90 for silence).
+    pub fn comp_input(&self) -> f32 {
+        f32::from_bits(self.comp_input.load(Relaxed))
     }
     pub fn load(&self) -> f32 {
         f32::from_bits(self.load.load(Relaxed))

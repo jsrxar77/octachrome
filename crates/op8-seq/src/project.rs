@@ -102,6 +102,45 @@ impl Track {
     }
 }
 
+/// The compressor on the master: six settings, each 0..=255 of its own range (how they sound is `op8-engine`'s `comp.rs`). Saved with the
+/// project. The defaults do nothing: the threshold is at 0 dB, where nothing reaches it.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct MasterComp {
+    pub threshold: u8,
+    pub ratio: u8,
+    pub attack: u8,
+    pub release: u8,
+    pub makeup: u8,
+    pub mix: u8,
+}
+
+/// How many settings the master compressor has.
+pub const COMP_PARAMS: usize = 6;
+
+impl Default for MasterComp {
+    fn default() -> Self {
+        Self { threshold: 255, ratio: 102, attack: 128, release: 128, makeup: 0, mix: 255 }
+    }
+}
+
+impl MasterComp {
+    /// Setting `i` (threshold, ratio, attack, release, makeup, mix), 0..=255.
+    pub fn get(&self, i: usize) -> u8 {
+        [self.threshold, self.ratio, self.attack, self.release, self.makeup, self.mix].get(i).copied().unwrap_or(0)
+    }
+    pub fn set(&mut self, i: usize, v: u8) {
+        match i {
+            0 => self.threshold = v,
+            1 => self.ratio = v,
+            2 => self.attack = v,
+            3 => self.release = v,
+            4 => self.makeup = v,
+            5 => self.mix = v,
+            _ => {}
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Project {
     pub tracks: [Track; TRACKS],
@@ -111,6 +150,8 @@ pub struct Project {
     pub swing: f32,
     /// Seed for every random component.
     pub seed: u64,
+    /// The compressor on the master.
+    pub comp: MasterComp,
 }
 
 impl Default for Project {
@@ -121,6 +162,7 @@ impl Default for Project {
             bpm: 120.0,
             swing: 0.5,
             seed: 0x0003_5EED,
+            comp: MasterComp::default(),
         }
     }
 }
@@ -216,6 +258,11 @@ pub enum Command {
     SetLevel {
         track: u8,
         level: u8,
+    },
+    /// One setting of the master compressor (`MasterComp::set`).
+    SetMasterComp {
+        index: u8,
+        value: u8,
     },
     SetPan {
         track: u8,
@@ -378,6 +425,7 @@ impl Project {
                     t.lfo = Lfo { target: lfo.target.min(crate::rack::LFO_TARGETS - 1), ..lfo };
                 }
             }
+            SetMasterComp { index, value } => self.comp.set(index as usize, value),
             SetLevel { track, level } => {
                 if let Some(t) = self.tracks.get_mut(track as usize) {
                     t.level = level.min(127);

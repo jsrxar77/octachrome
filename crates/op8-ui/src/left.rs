@@ -40,6 +40,9 @@ fn draw_left_view(fb: &mut FrameBuffer480x272, ui: &UiState, p: &Project, st: &E
     if ui.main == crate::Main::Settings {
         return crate::settings::draw_left(fb, ui, st);
     }
+    if ui.main == crate::Main::Mixer {
+        return crate::mixer::draw_left(fb, ui, p, st);
+    }
     if ui.main == crate::Main::File {
         return crate::files::draw_left(fb, ui, st);
     }
