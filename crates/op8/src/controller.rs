@@ -828,7 +828,9 @@ impl Controller {
     fn refresh_samples(&mut self) {
         let dir = self.samples_dir.clone();
         for k in 0..8 {
-            self.ui.smp.saved[k] = dir.as_ref().is_some_and(|d| d.join(op8_cartridges::sampler::recording_file(k)).is_file());
+            let file = dir.as_ref().map(|d| d.join(op8_cartridges::sampler::recording_file(k)));
+            self.ui.smp.saved[k] = file.as_ref().is_some_and(|f| f.is_file());
+            self.ui.smp.names[k] = file.filter(|f| f.is_file()).and_then(|f| crate::projectfile::read_name(&f)).unwrap_or_default();
         }
     }
 
@@ -966,6 +968,12 @@ impl Controller {
             return;
         }
         let slot = Self::pad_to_step(pad) as usize;
+        // SELECT held: name the recording that is in that place (it has none of its own to name before it is saved)
+        if self.held.select && slot < 8 {
+            let path = self.samples_dir.as_ref().map(|d| d.join(op8_cartridges::sampler::recording_file(slot)));
+            self.begin_naming(slot + 8, path, "recording", Main::Sampling, h);
+            return;
+        }
         let Some(data) = self.kept(h) else {
             self.ui.smp.note = "nothing recorded yet (REC)".into();
             return;
@@ -1833,10 +1841,10 @@ impl Controller {
     /// SELECT held and a pad of FILE or BROWSER: name that place. Only the player's own places that have something in them can be named.
     fn begin_naming(&mut self, slot: usize, path: Option<std::path::PathBuf>, what: &str, from: Main, h: &mut EngineHandle) {
         let say = |s: &mut Self, text: String| {
-            if from == Main::File {
-                s.ui.file_note = text;
-            } else {
-                s.ui.browse_note = text;
+            match from {
+                Main::File => s.ui.file_note = text,
+                Main::Sampling => s.ui.smp.note = text,
+                _ => s.ui.browse_note = text,
             }
         };
         if slot < 8 {
@@ -2051,12 +2059,19 @@ impl Controller {
             format!("named {text}")
         };
         self.set_main(from, h);
-        if from == Main::File {
-            self.refresh_files();
-            self.ui.file_note = what;
-        } else {
-            self.refresh_browser(h);
-            self.ui.browse_note = what;
+        match from {
+            Main::File => {
+                self.refresh_files();
+                self.ui.file_note = what;
+            }
+            Main::Sampling => {
+                self.refresh_samples();
+                self.ui.smp.note = what;
+            }
+            _ => {
+                self.refresh_browser(h);
+                self.ui.browse_note = what;
+            }
         }
     }
 

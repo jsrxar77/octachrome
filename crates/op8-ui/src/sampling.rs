@@ -38,6 +38,8 @@ pub struct SamplingView {
     pub peaks: Vec<(f32, f32)>,
     /// Which of the eight places of the player's own have a sound.
     pub saved: [bool; 8],
+    /// The names the player gave to her recordings (empty: it is still `user N`).
+    pub names: [String; 8],
     pub note: String,
     /// TAP: REC counts three beats of the project's tempo before it records.
     pub count_in: bool,
@@ -60,6 +62,7 @@ impl Default for SamplingView {
             fade: 0.05,
             peaks: Vec::new(),
             saved: [false; 8],
+            names: Default::default(),
             note: String::new(),
             count_in: false,
             counting: 0,
@@ -86,7 +89,9 @@ impl SamplingView {
 
 pub fn draw_left(fb: &mut FrameBuffer480x272, ui: &crate::UiState, st: &EngineStatus) {
     let s = &ui.smp;
-    let mut cells: Vec<(String, bool)> = (0..8).map(|i| (format!("user {}", i + 1), s.saved[i])).collect();
+    let mut cells: Vec<(String, bool)> = (0..8)
+        .map(|i| (if s.names[i].is_empty() { format!("user {}", i + 1) } else { s.names[i].clone() }, s.saved[i]))
+        .collect();
     cells.extend((0..8).map(|_| ("listen".to_string(), s.len > 0)));
     pick_left(fb, ui, st, "sampling", &cells, None);
 }
