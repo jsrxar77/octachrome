@@ -96,7 +96,6 @@ Known limits of the setup:
 - **Eight and eight projects.** 8 factory projects (eight short pieces in eight styles, made only with the factory instruments and their presets: [instruments.md §9](instruments.md)) and 8 for the player; FILE shows them on the 16 pads ([instruments.md §7](instruments.md)). Needs save and load first (§7).
 
 - PATTERN: 16 patterns per track.
-- ARRANGER: the song, a chain of scenes.
 - DUPLICATE, SELECT, SOLO, VARIATION, EVENTS, LOCK.
 - Done: FILE opens the eight factory projects and the player's eight and saves into them (the projects folder). To do: naming a project, deleting one, saving a copy.
 
@@ -138,7 +137,7 @@ Saved on 2026-11-16, after the batch of section 8, and kept current since. Devel
 3. Done (2026-11-16): KEYBOARD on a drum kit is PAD MODE (F-K17).
 4. Done (2026-11-16): the basic mixer: a level and a pan for each track, turned with VOLUME held and the knobs (SHIFT for the pan), saved with the project (format version 3) (F-A20, F-K18, F-D20). The MIXER page and the master compressor came after (item 11). Sends came after (item 14).
 5. Done (2026-11-16): names for projects and presets (by the day, and a text file the player can edit) and ERASE + a tap, twice, to erase one (F-F08, F-F09, F-K19). Naming on the unit itself came after (item 13).
-6. ARRANGER (PATTERN is done, item 17, and SCENE, item 18).
+6. Done: PATTERN (item 17), SCENE (item 18) and ARRANGER (item 19).
 7. Done (2026-11-16): the sampler's gaps: copied WAVs are loaded when SAMPLING or PLUG-IN opens (F-A24), SHIFT + REC waits for the sound (F-A23), slices on the `loop` knob and `tune` of ± 24, which is also the root note (F-A22). Then (2026-11-17): `hits`, the fifth position of `loop`, cuts the window where the sound hits (F-A26).
 8. Done (2026-11-16): SETTINGS in four pages, `theme`, `audio` (output, input, block), `midi` (port, test note, silence) and `light` (steps of backlight and pad level, never more than the supply allows), with the devices asked for live and kept in the settings file (F-C10 to F-C15). Not tried on the unit: the lists of devices of the Mac and the Pi, reopening the audio while it plays, and the brightness steps. Left: REC's count-in. MIDI clock out came after (item 10); MIDI in is not built.
 9. Done (2026-11-16): the count-in of SAMPLING (TAP turns it on, REC counts three beats: F-K20) and the cut that moves while the part plays (F-A25). The count-in of the REC that writes notes is still to do (with chords and knob movements).
@@ -152,6 +151,8 @@ Saved on 2026-11-16, after the batch of section 8, and kept current since. Devel
 17. Done (2026-11-17): PATTERN: sixteen patterns for each track (steps, length, division and kit); the pads of PATTERN show one (at once) and play it from the next loop of the track, SHIFT + a tap at once, hold + tap copies, ERASE + tap empties; saved with the project (format version 8) (F-S15, F-K25). Not tried on the unit. Left: the pattern is not shown while composing (only in PATTERN), and SCENE and ARRANGER, which come next in that order (a scene is the pattern of each track and the mutes; the song is a chain of scenes with repeats, and goes round at its end).
 
 18. Done (2026-11-17): SCENE: sixteen scenes in the project, each the pattern every track shows and the mutes; a tap on a pad brings one back (each track at the start of its own next loop, the mutes at once), SHIFT + a tap stores, ERASE + a tap empties; saved with the project (format version 9) (F-S16, F-K26). Not tried on the unit. Left: ARRANGER, the song as a chain of scenes with repeats that goes round at its end.
+
+19. Done (2026-11-17): ARRANGER: a song of up to sixteen steps, each a scene for 1 to 16 bars; when it is followed (knob 7) the sequencer plays the steps one after another and goes back to the first at the end; saved with the project (format version 10) (F-S17, F-K27). Also fixed: a pad tap in a view other than composing could open the step inspector when the mode was STEP (the hold was counted from time zero). Not tried on the unit. Left: the mutes that a scene sets while the song plays are not drawn on the screens and a step cannot be inserted between others (a step is put at its place and the later ones are kept).
 
 **To try on the unit, all together**
 

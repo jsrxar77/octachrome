@@ -661,6 +661,7 @@ impl Engine {
         let s = &self.status;
         s.playing.store(self.seq.is_playing(), Relaxed);
         s.tick.store(self.seq.song_tick() as u32, Relaxed);
+        s.song_step.store(self.seq.song_position().map_or(255, |p| p as u8), Relaxed);
         for t in 0..TRACKS {
             s.playhead[t].store(self.seq.playhead(t).step, Relaxed);
             s.pattern[t].store(self.seq.playing_patterns()[t], Relaxed);

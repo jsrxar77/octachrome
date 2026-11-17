@@ -12,7 +12,7 @@ use std::sync::atomic::Ordering::Relaxed;
 
 use crate::nav::{CELL_H, CELL_W, GAP};
 
-fn bar(fb: &mut FrameBuffer480x272, title: &str) {
+pub(crate) fn bar(fb: &mut FrameBuffer480x272, title: &str) {
     let t = theme();
     fill_circle(fb, 16.0, 15.0, 6.0, t.fg);
     text_v(fb, title, 30, 15, FontSize::Large, t.fg, Align::Left, VAlign::Middle);

@@ -51,6 +51,9 @@ fn draw_right_view(
     if ui.main == crate::Main::Sampling {
         return crate::sampling::draw_right(fb, ui);
     }
+    if ui.main == crate::Main::Arranger {
+        return crate::arranger::draw_right(fb, ui);
+    }
     if ui.main == crate::Main::Scene {
         return crate::scene::draw_right(fb, ui);
     }

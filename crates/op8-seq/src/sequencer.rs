@@ -117,6 +117,12 @@ pub struct Sequencer {
     play: [u8; TRACKS],
     queued: [Option<u8>; TRACKS],
     origin: [u64; TRACKS],
+    /// The song: the step that plays (while the song is followed), the tick at which it began and the mutes of its scene.
+    song_pos: Option<usize>,
+    song_start: u64,
+    song_mute: Option<u8>,
+    /// The sequencer has just started: the song's first step plays at once instead of waiting for the loops.
+    song_fresh: bool,
     rng: [Rng; TRACKS],
     repeat: Option<Repeat>,
     repeat_request: Option<u32>,
@@ -141,6 +147,10 @@ impl Sequencer {
             play: [0; TRACKS],
             queued: [None; TRACKS],
             origin: [0; TRACKS],
+            song_pos: None,
+            song_start: 0,
+            song_mute: None,
+            song_fresh: false,
             rng: [Rng::new(0); TRACKS],
             repeat: None,
             repeat_request: None,
@@ -204,7 +214,59 @@ impl Sequencer {
         if p != self.project.current[tr] as usize {
             t.load(&self.project.stored[tr][p]);
         }
+        if let Some(m) = self.song_mute {
+            t.muted = m >> tr & 1 == 1;
+        }
         t
+    }
+
+    /// The step of the song that plays, while the song is followed.
+    pub fn song_position(&self) -> Option<usize> {
+        self.song_pos.filter(|_| self.playing)
+    }
+
+    /// Follow the song: which step plays at `tick` (the song is a loop), entering it when it changes. A step that begins now plays from its
+    /// first step; one that follows another waits for each track's next loop. A scene that was never stored changes nothing.
+    fn song_update(&mut self, tick: u64) {
+        let song = self.project.song;
+        let len = (song.len as usize).min(crate::SONG_STEPS);
+        if !song.on || len == 0 {
+            (self.song_pos, self.song_mute) = (None, None);
+            return;
+        }
+        let bar = 4 * crate::PPQN as u64;
+        let span = |i: usize| song.steps[i].bars.max(1) as u64 * bar;
+        match self.song_pos.filter(|&p| p < len) {
+            None => {
+                // where in the song this tick is (a start from the top, from a song position, or the song turned on while playing)
+                let total: u64 = (0..len).map(span).sum();
+                let (mut at, mut pos) = (tick % total, 0);
+                while at >= span(pos) {
+                    at -= span(pos);
+                    pos += 1;
+                }
+                let fresh = std::mem::take(&mut self.song_fresh);
+                self.enter_song_step(pos, tick - at, fresh);
+            }
+            Some(p) if tick >= self.song_start + span(p) => self.enter_song_step((p + 1) % len, self.song_start + span(p), false),
+            Some(_) => {}
+        }
+    }
+
+    fn enter_song_step(&mut self, pos: usize, start: u64, at_start: bool) {
+        self.song_pos = Some(pos);
+        self.song_start = start;
+        let Some(sc) = self.project.scenes.get(self.project.song.steps[pos].scene as usize).copied().filter(|s| s.used) else {
+            return;
+        };
+        self.song_mute = Some(sc.mute);
+        for t in 0..TRACKS {
+            if at_start {
+                (self.play[t], self.queued[t], self.origin[t]) = (sc.pattern[t].min(crate::PATTERNS as u8 - 1), None, self.last_eff);
+            } else {
+                self.switch_pattern(t, sc.pattern[t], false);
+            }
+        }
     }
 
     /// Which patterns are playing, one for each track.
@@ -226,6 +288,7 @@ impl Sequencer {
         // from the top, what the player is looking at is what plays
         self.play = self.project.current;
         (self.queued, self.origin) = ([None; TRACKS], [0; TRACKS]);
+        (self.song_pos, self.song_mute, self.song_fresh) = (None, None, true);
         self.reseed();
     }
 
@@ -371,6 +434,7 @@ impl Sequencer {
             None => (tick, false),
         };
         self.last_eff = eff;
+        self.song_update(tick);
         let spt = self.samples_per_tick();
         let offset = (at - self.now) as u32;
         // MIDI clock follows the ticks that go by (not `eff`, which a beat repeat loops): start on the first, a clock on every fourth
@@ -1039,5 +1103,44 @@ mod tests {
         // clearing it
         seq.apply(&ClearScene { index: 0 });
         assert!(!seq.project.scenes[0].used);
+    }
+
+    // F-S17
+    #[test]
+    fn the_song_chains_the_scenes_for_their_bars_and_goes_round() {
+        use crate::Command::*;
+        let mut p = Project::default();
+        p.tracks[0].steps[0] = Step::on(36);
+        p.apply(&SetPattern { track: 0, index: 1, now: false });
+        p.tracks[0].steps[0] = Step::on(40);
+        p.apply(&SetPattern { track: 0, index: 0, now: false });
+        p.apply(&StoreScene { index: 0 }); // pattern 1
+        p.apply(&SetPattern { track: 0, index: 1, now: false });
+        p.apply(&SetMute { track: 1, muted: true });
+        p.tracks[1].steps[0] = Step::on(50);
+        p.apply(&StoreScene { index: 1 }); // pattern 2, track B muted
+        p.apply(&SetPattern { track: 0, index: 0, now: false });
+        p.apply(&SetMute { track: 1, muted: false });
+        p.apply(&SetSongStep { index: 0, scene: 0, bars: 2 });
+        p.apply(&SetSongStep { index: 1, scene: 1, bars: 1 });
+        p.apply(&SetSongOn(true));
+        assert_eq!(p.song.len, 2);
+        let mut seq = Sequencer::new(p, SR);
+        seq.play();
+        // a bar is 96 000 samples: two bars of scene 1, one of scene 2, and round again
+        let log = run_with(&mut seq, 96_000 * 6, &[]);
+        let of = |tr: usize| log.iter().filter(|e| e.1 == tr).map(|e| (e.0, e.2)).collect::<Vec<_>>();
+        let bar = 96_000;
+        assert_eq!(of(0), vec![(0, 36), (bar, 36), (2 * bar, 40), (3 * bar, 36), (4 * bar, 36), (5 * bar, 40)]);
+        assert_eq!(of(1), vec![(0, 50), (bar, 50), (3 * bar, 50), (4 * bar, 50)], "track B is silent only in the bar of scene 2");
+        assert_eq!(seq.song_position(), Some(1), "the sixth bar is the second scene of the second round");
+        // a song that is off, or empty, does nothing
+        let mut q = Project::default();
+        q.tracks[0].steps[0] = Step::on(36);
+        let mut seq = Sequencer::new(q, SR);
+        seq.play();
+        let log = run_with(&mut seq, 96_000 * 2, &[]);
+        assert_eq!(log.iter().filter(|e| e.1 == 0).count(), 2);
+        assert_eq!(seq.song_position(), None);
     }
 }
