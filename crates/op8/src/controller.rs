@@ -458,7 +458,12 @@ impl Controller {
                 self.ui.mixer.send = if self.ui.mixer.send == n - 2 { 0 } else { n - 2 };
             }
             Button::Screen(n @ (5..=8)) if self.ui.main == Main::Mixer => {
-                self.ui.mixer.page = n - 5;
+                // `sends` again is its second page, where each send is taken from, and again the first
+                self.ui.mixer.page = match (n, self.ui.mixer.page) {
+                    (8, 3) => 4,
+                    (8, _) => 3,
+                    _ => n - 5,
+                };
                 self.ui.grabbed = false;
                 // the focus is not left on a value the new page does not have
                 if let NavKind::Value(k) = self.ui.focus {

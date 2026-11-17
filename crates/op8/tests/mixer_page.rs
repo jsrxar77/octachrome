@@ -69,7 +69,7 @@ fn f_k21_the_4d_reaches_the_mixer() {
     assert!(b.project().comp.ratio > r, "the 4D turned the ratio");
     b.press(Button::Screen(6));
     let n = op8_ui::nav_items(b.ui()).len();
-    assert_eq!(n, 4 + 2, "the output page has two values: nothing else to reach");
+    assert_eq!(n, 4 + 3, "the output page has three values: nothing else to reach");
     focus_on(&mut b, NavKind::Value(2));
     b.press(Button::JogPush);
     let l = b.project().tracks[2].level;
@@ -241,4 +241,73 @@ fn f_a29_a_track_sent_to_an_effect_is_heard_after_it_stops() {
     assert!(wet > -60.0, "sent to the reverb: it rings after the hit: {wet} dB");
     let echo = tail(127, 0);
     assert!(echo > -60.0, "and the delay repeats it: {echo} dB");
+}
+
+// F-K24: the second page of `output` has a third value, the side-chain (the mix itself, or one of the eight tracks), and the second press
+// of button 8 is the page `taps` with two values: where the delay and where the reverb are taken from. Both are saved with the project.
+#[test]
+fn f_k24_the_side_chain_and_the_taps_are_in_the_mixer() {
+    let mut b = Bench::demo();
+    b.press(Button::Mixer);
+    b.press(Button::Screen(6));
+    assert_eq!(b.ui().mixer.page, 1);
+    assert_eq!(op8_ui::nav_items(b.ui()).len(), 4 + 3, "four levels and three values");
+    b.run_ms(100);
+    let before = b.screen_hash(Screen::Right);
+    assert_eq!(b.project().comp.side, 0, "the mix itself to begin with");
+    b.knob(6, 100); // the third value
+    let side = b.project().comp.side;
+    assert!(op8_seq::side_track(side).is_some(), "a track is chosen: {side}");
+    b.run_ms(100);
+    assert_ne!(b.screen_hash(Screen::Right), before, "the screen names it");
+    b.capture("f-k24-side-chain");
+    b.press(Button::Screen(8));
+    assert_eq!(b.ui().mixer.page, 3);
+    b.press(Button::Screen(8));
+    assert_eq!(b.ui().mixer.page, 4, "again: the taps");
+    assert_eq!(op8_ui::nav_items(b.ui()).len(), 4 + 2);
+    b.run_ms(100);
+    let after = b.screen_hash(Screen::Right);
+    assert!(!b.project().sends.is_pre(0) && !b.project().sends.is_pre(1), "after the fader to begin with");
+    b.knob(4, 500);
+    assert!(b.project().sends.is_pre(0) && !b.project().sends.is_pre(1));
+    b.run_ms(100);
+    assert_ne!(b.screen_hash(Screen::Right), after, "the line leaves before the fader now");
+    b.capture("f-k24-taps");
+    b.press(Button::Screen(8));
+    assert_eq!(b.ui().mixer.page, 3, "and again: back to the effects");
+    let q = op8_seq::io::decode(&op8_seq::io::encode(b.project())).unwrap();
+    assert_eq!((q.comp.side, q.sends.tap_a, q.sends.tap_b), (side, b.project().sends.tap_a, b.project().sends.tap_b));
+}
+
+// F-A30: a send taken before the fader is heard with the track's level at nothing (after it, silence), and a compressor that listens to
+// a track that is silent leaves the mix alone where listening to the mix itself brings it down.
+#[test]
+fn f_a30_pre_fader_sends_and_the_side_chain_are_heard() {
+    let tail = |tap: u8| {
+        let mut b = Bench::empty();
+        b.app.handle.seq(op8_seq::Command::SetStep { track: 1, step: 0, value: op8_seq::Step::on(36) });
+        b.app.handle.seq(op8_seq::Command::SetLevel { track: 1, level: 0 });
+        b.app.handle.seq(op8_seq::Command::SetSend { track: 1, bus: 1, value: 127 });
+        b.app.handle.seq(op8_seq::Command::SetMasterSends { index: 2, value: 255 });
+        b.app.handle.seq(op8_seq::Command::SetMasterSends { index: 5, value: tap });
+        b.press(Button::Play);
+        b.run_ms(300);
+        b.press(Button::Stop);
+        b.run_ms(1500);
+        b.peak_db(0, b.now_ms())
+    };
+    assert!(tail(0) < -90.0, "after the fader, with the level at nothing: silence");
+    assert!(tail(255) > -60.0, "before the fader the reverb still has the kick: {} dB", tail(255));
+    let level = |side: u8| {
+        let mut b = Bench::demo();
+        for (i, v) in [(0u8, 60u8), (1, 255), (2, 20), (3, 250), (4, 0), (6, side)] {
+            b.app.handle.seq(op8_seq::Command::SetMasterComp { index: i, value: v });
+        }
+        b.press(Button::Play);
+        b.run_ms(2000);
+        b.peak_db(500, b.now_ms())
+    };
+    let (own, silent) = (level(0), level(255)); // 255: the eighth track, which has nothing to play
+    assert!(silent > own + 3.0, "listening to a silent track does not bring it down: {silent} dB against {own} dB");
 }

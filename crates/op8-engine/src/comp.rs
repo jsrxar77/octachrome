@@ -62,8 +62,10 @@ impl Compressor {
         Self { sample_rate, gr: 0.0, block_gr: 0.0, block_in_db: -90.0 }
     }
 
-    /// Compress the block in place. A threshold of 0 dB with no make-up gain does nothing at all (the sound passes untouched).
-    pub fn process(&mut self, l: &mut [f32], r: &mut [f32], s: &MasterComp) {
+    /// Compress the block in place. A threshold of 0 dB with no make-up gain does nothing at all (the sound passes untouched). With a
+    /// `side` signal (the sound of one track) it is that sound, not the block itself, that the compressor listens to: when it is loud the
+    /// whole block comes down.
+    pub fn process(&mut self, l: &mut [f32], r: &mut [f32], side: Option<(&[f32], &[f32])>, s: &MasterComp) {
         let (thr, ratio, makeup, mix) = (threshold_db(s.threshold), ratio(s.ratio), makeup_db(s.makeup), mix(s.mix));
         self.block_gr = 0.0;
         self.block_in_db = -90.0;
@@ -73,8 +75,12 @@ impl Compressor {
         }
         let coef = |ms: f32| 1.0 - (-1.0 / (ms * 0.001 * self.sample_rate)).exp();
         let (atk, rel) = (coef(attack_ms(s.attack)), coef(release_ms(s.release)));
-        for (sl, sr) in l.iter_mut().zip(r.iter_mut()) {
-            let level = sl.abs().max(sr.abs()).max(1e-6);
+        for (i, (sl, sr)) in l.iter_mut().zip(r.iter_mut()).enumerate() {
+            let level = match side {
+                Some((dl, dr)) => dl[i].abs().max(dr[i].abs()),
+                None => sl.abs().max(sr.abs()),
+            }
+            .max(1e-6);
             let in_db = 20.0 * level.log10();
             let target = reduction_db(in_db, thr, ratio);
             // more reduction takes hold at the attack, less lets go at the release
@@ -101,7 +107,7 @@ mod tests {
     }
     fn run(c: &mut Compressor, s: &MasterComp, amp: f32) -> f32 {
         let (mut l, mut r) = (tone(amp, 48_000), tone(amp, 48_000));
-        c.process(&mut l, &mut r, s);
+        c.process(&mut l, &mut r, None, s);
         rms(&l[24_000..]) / rms(&tone(amp, 48_000)[24_000..])
     }
 
@@ -111,7 +117,7 @@ mod tests {
         let mut c = Compressor::new(48_000.0);
         let (mut l, mut r) = (tone(0.9, 4800), tone(0.9, 4800));
         let before = l.clone();
-        c.process(&mut l, &mut r, &MasterComp::default());
+        c.process(&mut l, &mut r, None, &MasterComp::default());
         assert_eq!(l, before, "the sound passes untouched");
         assert_eq!(c.block_gr, 0.0);
     }
@@ -168,16 +174,16 @@ mod tests {
         let mut c = Compressor::new(48_000.0);
         let mut l = tone(0.9, 4800);
         let mut r = l.clone();
-        c.process(&mut l[..480].to_vec(), &mut r[..480].to_vec(), &s);
+        c.process(&mut l[..480].to_vec(), &mut r[..480].to_vec(), None, &s);
         let early = c.block_gr;
         let (mut l2, mut r2) = (tone(0.9, 24_000), tone(0.9, 24_000));
-        c.process(&mut l2, &mut r2, &s);
+        c.process(&mut l2, &mut r2, None, &s);
         assert!(c.block_gr < early - 3.0, "it takes hold over time: {early} then {}", c.block_gr);
         // silence lets it go
         let (mut a, mut b) = (vec![0.0; 48_000], vec![0.0; 48_000]);
-        c.process(&mut a, &mut b, &s);
+        c.process(&mut a, &mut b, None, &s);
         let (mut a, mut b) = (vec![0.0; 480], vec![0.0; 480]);
-        c.process(&mut a, &mut b, &s);
+        c.process(&mut a, &mut b, None, &s);
         assert!(c.gr > -0.5, "it has let go: {}", c.gr);
     }
 
@@ -189,5 +195,22 @@ mod tests {
         let at = reduction_db(-20.0, -20.0, 4.0);
         assert!(at < 0.0 && at > -1.0, "the knee starts to bite at the threshold: {at}");
         assert_eq!(reduction_db(-10.0, -20.0, 1.0), 0.0, "1:1 is nothing");
+    }
+
+    #[test]
+    fn a_side_chain_brings_the_block_down_with_the_sound_of_another_track() {
+        let s = MasterComp { threshold: 100, ratio: 255, attack: 0, release: 255, makeup: 0, mix: 255, side: 30 };
+        let mut c = Compressor::new(48_000.0);
+        let loud: Vec<f32> = tone(0.9, 4800);
+        let quiet = tone(0.01, 4800);
+        // the block is quiet; the side is loud: it is brought down
+        let (mut l, mut r) = (quiet.clone(), quiet.clone());
+        c.process(&mut l, &mut r, Some((&loud, &loud)), &s);
+        assert!(rms(&l[2400..]) < rms(&quiet[2400..]) * 0.7, "ducked: {} of {}", rms(&l[2400..]), rms(&quiet[2400..]));
+        // a quiet side leaves a loud block alone
+        let mut c = Compressor::new(48_000.0);
+        let (mut l, mut r) = (loud.clone(), loud.clone());
+        c.process(&mut l, &mut r, Some((&quiet, &quiet)), &s);
+        assert!((rms(&l) - rms(&loud)).abs() < 1e-4, "untouched");
     }
 }

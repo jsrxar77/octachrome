@@ -57,10 +57,12 @@ const CURVE: (f32, f32, f32) = (30.0, 52.0, 150.0);
 /// The range of the curve, in dB, on both axes.
 const FLOOR_DB: f32 = -48.0;
 
-/// How many values the page has under the right screen (the second page has two).
+/// How many values the page has under the right screen (the second page has three: make-up, mix and the side-chain; the taps of the
+/// sends, the second page of `sends`, have two).
 pub fn page_values(page: u8) -> usize {
     match page {
-        1 => 2,
+        1 => 3,
+        4 => 2,
         _ => 4,
     }
 }
@@ -73,9 +75,14 @@ pub fn comp_index(page: u8, k: usize) -> Option<usize> {
     Some(if page == 0 { k - 4 } else { 4 + k - 4 })
 }
 
-/// The setting of the sends' effects that knob `k` edits, if the page is theirs: time, feedback, size, tone.
+/// The setting of the sends' effects that knob `k` edits, if the page is theirs: time, feedback, size, tone on the first page, and on
+/// the second where the delay and the reverb are taken from.
 pub fn sends_index(page: u8, k: usize) -> Option<usize> {
-    (page == 3 && (4..8).contains(&k)).then(|| k - 4)
+    match page {
+        3 if (4..8).contains(&k) => Some(k - 4),
+        4 if (4..6).contains(&k) => Some(k),
+        _ => None,
+    }
 }
 
 /// The EQ setting that knob `k` edits, if the page is the EQ's: low, mid, freq, high.
@@ -93,7 +100,7 @@ pub fn buttons(m: &MixerView) -> [Option<(&'static str, bool)>; 8] {
     b[4] = Some(("comp", m.page == 0));
     b[5] = Some(("output", m.page == 1));
     b[6] = Some(("eq", m.page == 2));
-    b[7] = Some(("sends", m.page == 3));
+    b[7] = Some((if m.page == 4 { "taps" } else { "sends" }, m.page >= 3));
     b
 }
 
@@ -197,6 +204,9 @@ pub fn draw_right(fb: &mut FrameBuffer480x272, ui: &crate::UiState) {
     if ui.mixer.page == 3 {
         return draw_sends(fb, ui);
     }
+    if ui.mixer.page == 4 {
+        return draw_taps(fb, ui);
+    }
     let t = theme();
     let s = &ui.mixer.comp;
     fb.clear(t.bg);
@@ -250,7 +260,11 @@ pub fn draw_right(fb: &mut FrameBuffer480x272, ui: &crate::UiState) {
             ("release", ms_text(comp::release_ms(s.release))),
         ]
     } else {
-        vec![("make-up", format!("+{:.0} dB", comp::makeup_db(s.makeup))), ("mix", format!("{:.0}%", comp::mix(s.mix) * 100.0))]
+        vec![
+            ("make-up", format!("+{:.0} dB", comp::makeup_db(s.makeup))),
+            ("mix", format!("{:.0}%", comp::mix(s.mix) * 100.0)),
+            ("side-chain", side_text(s.side)),
+        ]
     };
     for (i, (name, v)) in values.iter().enumerate() {
         let x = 60 + i as i32 * 120;
@@ -261,6 +275,53 @@ pub fn draw_right(fb: &mut FrameBuffer480x272, ui: &crate::UiState) {
         crate::nav::draw_ring(fb, &it, ui);
     }
     let _ = (ring, stroke_round_rect);
+}
+
+/// What the side-chain setting says: the mix itself, or the letter of the track the compressor listens to.
+pub fn side_text(v: u8) -> String {
+    match op8_seq::side_track(v) {
+        None => "the mix".to_string(),
+        Some(t) => format!("track {}", TRACK_NAMES[t]),
+    }
+}
+
+/// The second page of the sends: for each of the two, where it is taken from, drawn as the path of a track to the mix with the fader on
+/// it and a line that goes off to the effect before the fader or after it.
+fn draw_taps(fb: &mut FrameBuffer480x272, ui: &crate::UiState) {
+    let t = theme();
+    let s = &ui.mixer.sends;
+    fb.clear(t.bg);
+    button_strip(fb, &crate::strip_labels(ui, 1));
+    bar(fb, "send taps");
+    for (n, name) in ["delay", "reverb"].iter().enumerate() {
+        let x0 = 30.0 + n as f32 * 220.0;
+        let (y0, w, h) = (56.0f32, 200.0f32, 130.0f32);
+        fill_round_rect(fb, x0, y0, w, h, 6.0, t.panel);
+        text_v(fb, name, (x0 + 8.0) as i32, (y0 + 12.0) as i32, FontSize::Small, t.dim, Align::Left, VAlign::Middle);
+        let pre = s.is_pre(n);
+        let y = y0 + 60.0;
+        let (xa, xf, xb) = (x0 + 16.0, x0 + 90.0, x0 + w - 16.0);
+        // the track's path to the mix, with the fader as a box on it
+        line_aa(fb, xa, y, xb, y, 2.0, t.dim);
+        fill_round_rect(fb, xf - 12.0, y - 12.0, 24.0, 24.0, 4.0, t.faint);
+        // the line off to the effect: from before the fader or from after it
+        let tap = if pre { xf - 32.0 } else { xf + 34.0 };
+        line_aa(fb, tap, y, tap, y + 40.0, 3.0, t.fg);
+        fill_circle(fb, tap, y, 4.0, t.fg);
+        fill_circle(fb, tap, y + 40.0, 4.0, t.fg);
+    }
+    let values = [
+        ("delay", if s.is_pre(0) { "before the fader" } else { "after the fader" }),
+        ("reverb", if s.is_pre(1) { "before the fader" } else { "after the fader" }),
+    ];
+    for (i, (name, v)) in values.iter().enumerate() {
+        let x = 60 + i as i32 * 120;
+        text_v(fb, name, x, 236, FontSize::Small, t.dim, Align::Center, VAlign::Middle);
+        text_v(fb, v, x, 254, FontSize::Small, knob(4 + i), Align::Center, VAlign::Middle);
+    }
+    if let Some(it) = crate::nav::focused(ui).filter(|it| it.screen == 1 && ui.main == crate::Main::Mixer) {
+        crate::nav::draw_ring(fb, &it, ui);
+    }
 }
 
 /// The sends' page: the delay on the left, as the taps it makes (further apart for a longer time, each lower by the feedback), and the
