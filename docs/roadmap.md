@@ -102,7 +102,7 @@ Known limits of the setup:
 
 ## 6. Mix and samples
 
-- MIXER: level, pan, the master compressor and the master EQ are done (2026-11-17); sends are to do.
+- MIXER: level, pan, sends, the master compressor and the master EQ are done (2026-11-17).
 - Done: the sampler cartridge (eight sounds that come with it, the player's WAV files from `~/.config/op8/samples/`). SAMPLING records what OP-8 plays or the audio input, cuts it and saves it into the sampler (2026-11-15; not yet tried on the unit). Since then: the armed recording (F-A23), the count-in (F-K20) and the cut that moves while it plays (F-A25). To do: stereo or longer recordings.
 - Smart Strip with PITCH, MOD and NOTES.
 
@@ -136,16 +136,17 @@ Saved on 2026-11-16, after the batch of section 8, and kept current since. Devel
 1. Done (2026-11-16): the step inspector's own items: its components and values reached with the focus and the 4D, like every other view (F-N15).
 2. Done (2026-11-16): granular, from the grain scheduler of Clouds (MIT) rewritten in Rust, on the sampler's bank of sounds (F-A21, F-I06), and on its own track F in the standard layout, in the unit, the eight pieces and a new empty project (F-I07). Not tried by ear on the unit yet.
 3. Done (2026-11-16): KEYBOARD on a drum kit is PAD MODE (F-K17).
-4. Done (2026-11-16): the basic mixer: a level and a pan for each track, turned with VOLUME held and the knobs (SHIFT for the pan), saved with the project (format version 3) (F-A20, F-K18, F-D20). The MIXER page and the master compressor came after (item 11). Still to do: sends.
+4. Done (2026-11-16): the basic mixer: a level and a pan for each track, turned with VOLUME held and the knobs (SHIFT for the pan), saved with the project (format version 3) (F-A20, F-K18, F-D20). The MIXER page and the master compressor came after (item 11). Sends came after (item 14).
 5. Done (2026-11-16): names for projects and presets (by the day, and a text file the player can edit) and ERASE + a tap, twice, to erase one (F-F08, F-F09, F-K19). Naming on the unit itself came after (item 13).
 6. PATTERN, SCENE and ARRANGER.
 7. Done (2026-11-16): the sampler's gaps: copied WAVs are loaded when SAMPLING or PLUG-IN opens (F-A24), SHIFT + REC waits for the sound (F-A23), slices on the `loop` knob and `tune` of ± 24, which is also the root note (F-A22). Then (2026-11-17): `hits`, the fifth position of `loop`, cuts the window where the sound hits (F-A26).
 8. Done (2026-11-16): SETTINGS in four pages, `theme`, `audio` (output, input, block), `midi` (port, test note, silence) and `light` (steps of backlight and pad level, never more than the supply allows), with the devices asked for live and kept in the settings file (F-C10 to F-C15). Not tried on the unit: the lists of devices of the Mac and the Pi, reopening the audio while it plays, and the brightness steps. Left: REC's count-in. MIDI clock out came after (item 10); MIDI in is not built.
 9. Done (2026-11-16): the count-in of SAMPLING (TAP turns it on, REC counts three beats: F-K20) and the cut that moves while the part plays (F-A25). The count-in of the REC that writes notes is still to do (with chords and knob movements).
 10. Done (2026-11-17): MIDI clock out: start, 24 clocks to the quarter note and stop on the MIDI port, on by default, with a button on the `midi` page of SETTINGS (F-M03, F-C16). Not tried against real gear. Left: MIDI in, song position pointer, a start that waits for the bar when it is turned on while playing.
-11. Done (2026-11-17): the MIXER button opens the mixer on both screens (four channels, the levels and pans with the knobs; the compressor of the master on the right: threshold, ratio, attack, release, make-up and mix), saved with the project (format version 4) (F-K21, F-A27). Not tried by ear on the unit. Left: sends, and the compressor's input from a side-chain.
+11. Done (2026-11-17): the MIXER button opens the mixer on both screens (four channels, the levels and pans with the knobs; the compressor of the master on the right: threshold, ratio, attack, release, make-up and mix), saved with the project (format version 4) (F-K21, F-A27). Not tried by ear on the unit. Left: the compressor's input from a side-chain.
 12. Done (2026-11-17): the master EQ, the third page of MIXER (button 7): a low shelf, a middle band with its frequency and a high shelf of ±15 dB, before the compressor, saved with the project (format version 5) (F-K22, F-A28). Not tried by ear on the unit.
 13. Done (2026-11-17): naming on the unit: SELECT held and a tap on one of your own places in FILE or BROWSER opens NAME, a text screen of twelve places where the 4D chooses the letter, the arrows and the pads move the cursor and push saves (F-N16, F-N17). Not tried on the unit. Left: naming other things (a recording, a sound), and a longer name.
+14. Done (2026-11-17): sends: each track sends part of itself (after level and pan) to a ping-pong delay in step with the tempo and to a reverb, with the knobs under the left screen when `delay` or `reverb` is lit, and a page `sends` for the effects (time, feedback, size, tone); saved with the project (format version 6) (F-K23, F-A29). Not tried by ear on the unit. Left: more effects on the sends, and a send that is taken before the fader.
 
 **To try on the unit, all together**
 

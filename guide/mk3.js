@@ -12,7 +12,7 @@
     .forEach((b, i) => add(String(i + 1), R(153 + 39.1 * i, 40, 34, 12), b[1], b[0] + ": " + b[2]));
   // left block: two columns, six rows
   [[["CHANNEL","y","Back to composing"],["PLUG-IN","y","Choose the track's instrument: the 16 pads are the 16 places"]],
-   [["ARRANGER","n","Scenes and the song"],["MIXER","p","Level and pan of the tracks, the compressor and the EQ of the master"]],
+   [["ARRANGER","n","Scenes and the song"],["MIXER","p","Level, pan and sends of the tracks, the compressor and the EQ of the master"]],
    [["BROWSER","p","Presets of the instrument: the 16 pads are the 16 presets"],["SAMPLING","p","Record a sound and put it in the sampler"]],
    [["PAGE ◀","n","Previous page of the current mode"],["PAGE ▶","n","Next page of the current mode"]],
    [["FILE","y","Open and save projects: the 16 pads are the 16 slots (factory top, yours bottom); SHIFT + a pad saves"],["SETTINGS","p","Both screens become settings: pick the theme with the 4D encoder"]],

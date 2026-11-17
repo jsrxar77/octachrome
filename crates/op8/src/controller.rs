@@ -154,6 +154,7 @@ pub struct Controller {
     /// The fractions of a step the compressor's knobs have turned and not yet applied.
     comp_accum: [f32; op8_seq::COMP_PARAMS],
     eq_accum: [f32; op8_seq::EQ_PARAMS],
+    sends_accum: [f32; op8_seq::SENDS_PARAMS],
     /// SAMPLING: the count-in that is going before a recording starts.
     countin: Option<CountIn>,
     /// When the last taps of TAP were, to work out a tempo.
@@ -446,7 +447,11 @@ impl Controller {
             Button::Screen(n @ 1..=4) if self.ui.main == Main::Settings => self.set_settings_page(n - 1),
             // in the mixer: 1 and 2 choose the four channels on the left, 5 and 6 the page of the compressor on the right
             Button::Screen(n @ (1 | 2)) if self.ui.main == Main::Mixer => self.ui.mixer.group = n - 1,
-            Button::Screen(n @ (5..=7)) if self.ui.main == Main::Mixer => {
+            // 3 and 4 are the sends: lit, the knobs under the left screen are how much each channel sends (again: back to the levels)
+            Button::Screen(n @ (3 | 4)) if self.ui.main == Main::Mixer => {
+                self.ui.mixer.send = if self.ui.mixer.send == n - 2 { 0 } else { n - 2 };
+            }
+            Button::Screen(n @ (5..=8)) if self.ui.main == Main::Mixer => {
                 self.ui.mixer.page = n - 5;
                 self.ui.grabbed = false;
                 // the focus is not left on a value the new page does not have
@@ -1730,7 +1735,27 @@ impl Controller {
     /// the four under the right screen are the values of the compressor's page.
     fn mixer_page_knob(&mut self, k: usize, delta: i32, h: &mut EngineHandle) {
         if k < 4 {
-            self.mixer_knob(self.ui.mixer.group as usize * 4 + k, delta, h);
+            let track = self.ui.mixer.group as usize * 4 + k;
+            // SHIFT is always the pan; otherwise the level, or the send that is lit
+            if self.ui.mixer.send > 0 && !self.held.shift {
+                let n = self.detents(k, delta);
+                if n != 0 {
+                    let t = h.project.tracks[track];
+                    let bus = self.ui.mixer.send - 1;
+                    let now = if bus == 0 { t.send_a } else { t.send_b };
+                    h.seq(Command::SetSend { track: track as u8, bus, value: (now as i32 + n * 4).clamp(0, 127) as u8 });
+                }
+            } else {
+                self.mixer_knob(track, delta, h);
+            }
+        } else if let Some(i) = op8_ui::mixer_sends_index(self.ui.mixer.page, k) {
+            self.sends_accum[i] += delta as f32 / SWEEP * 255.0;
+            let whole = self.sends_accum[i].trunc();
+            self.sends_accum[i] -= whole;
+            if whole != 0.0 {
+                let v = (h.project.sends.get(i) as f32 + whole).clamp(0.0, 255.0) as u8;
+                h.seq(Command::SetMasterSends { index: i as u8, value: v });
+            }
         } else if let Some(i) = op8_ui::mixer_eq_index(self.ui.mixer.page, k) {
             // the same for the EQ: a sweep of the knob is the whole range of 255
             self.eq_accum[i] += delta as f32 / SWEEP * 255.0;
@@ -2004,6 +2029,7 @@ impl Controller {
             let m = &mut self.ui.mixer;
             m.comp = h.project.comp;
             m.eq = h.project.eq;
+            m.sends = h.project.sends;
             m.reduction = h.status.comp_reduction();
             m.input = h.status.comp_input();
         }

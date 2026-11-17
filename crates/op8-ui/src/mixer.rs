@@ -1,5 +1,9 @@
 //! MIXER: the main mode that takes both screens (design.md §4, "Mixer").
 //!
+//! The buttons 3 and 4 over the left screen are the two sends, `delay` and `reverb`: while one is lit the knobs under the screen are how
+//! much each of the four channels sends to it (the faders show it), and the right screen's button 8, `sends`, is the page of their
+//! effects: the delay's time and feedback, the reverb's size and tone.
+//!
 //! **Left:** four channels in the four columns of the knobs under the screen, each a vertical fader (the level, in the colour of its
 //! track) with its pan under it and the track's letter on top; the buttons 1 and 2 choose which four (`a–d` and `e–h`). The knobs under
 //! the screen are their levels, and with SHIFT their pans.
@@ -13,20 +17,22 @@
 //! A control that does nothing here shows nothing (rule 11).
 
 use crate::theme::{button_strip, track_color, FOOTER_COL, HEADER_CY, TRACK_NAMES};
-use op8_engine::{comp, eq, EngineStatus};
+use op8_engine::{comp, eq, sends, EngineStatus};
 use op8_gfx::{
     knob,
     paint::{fill_circle, fill_round_rect, line_aa, ring, stroke_round_rect},
     text_v, theme, Align, FontSize, FrameBuffer480x272, VAlign,
 };
-use op8_seq::{MasterComp, MasterEq, Project};
+use op8_seq::{MasterComp, MasterEq, MasterSends, Project};
 use std::sync::atomic::Ordering::Relaxed;
 
 /// What the mixer shows and the controller keeps.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct MixerView {
-    /// The page of the right screen: 0 `comp`, 1 `output`, 2 `eq`.
+    /// The page of the right screen: 0 `comp`, 1 `output`, 2 `eq`, 3 `sends`.
     pub page: u8,
+    /// What the faders and the knobs under the left screen are: 0 the levels, 1 the sends to the delay, 2 the sends to the reverb.
+    pub send: u8,
     /// The four channels on the left: 0 is A to D, 1 is E to H.
     pub group: u8,
     /// The compressor's settings, how far it is bringing the sound down (dB, 0 or less) and how loud the sound going in is (dB): the
@@ -34,13 +40,15 @@ pub struct MixerView {
     pub comp: MasterComp,
     /// The EQ's settings, kept the same way.
     pub eq: MasterEq,
+    /// The settings of the delay and the reverb.
+    pub sends: MasterSends,
     pub reduction: f32,
     pub input: f32,
 }
 
 impl Default for MixerView {
     fn default() -> Self {
-        Self { page: 0, group: 0, comp: MasterComp::default(), eq: MasterEq::default(), reduction: 0.0, input: -90.0 }
+        Self { page: 0, send: 0, group: 0, comp: MasterComp::default(), eq: MasterEq::default(), sends: MasterSends::default(), reduction: 0.0, input: -90.0 }
     }
 }
 
@@ -65,6 +73,11 @@ pub fn comp_index(page: u8, k: usize) -> Option<usize> {
     Some(if page == 0 { k - 4 } else { 4 + k - 4 })
 }
 
+/// The setting of the sends' effects that knob `k` edits, if the page is theirs: time, feedback, size, tone.
+pub fn sends_index(page: u8, k: usize) -> Option<usize> {
+    (page == 3 && (4..8).contains(&k)).then(|| k - 4)
+}
+
 /// The EQ setting that knob `k` edits, if the page is the EQ's: low, mid, freq, high.
 pub fn eq_index(page: u8, k: usize) -> Option<usize> {
     (page == 2 && (4..8).contains(&k)).then(|| k - 4)
@@ -75,9 +88,12 @@ pub fn buttons(m: &MixerView) -> [Option<(&'static str, bool)>; 8] {
     let mut b = [None; 8];
     b[0] = Some(("a–d", m.group == 0));
     b[1] = Some(("e–h", m.group == 1));
+    b[2] = Some(("delay", m.send == 1));
+    b[3] = Some(("reverb", m.send == 2));
     b[4] = Some(("comp", m.page == 0));
     b[5] = Some(("output", m.page == 1));
     b[6] = Some(("eq", m.page == 2));
+    b[7] = Some(("sends", m.page == 3));
     b
 }
 
@@ -114,10 +130,17 @@ pub fn draw_left(fb: &mut FrameBuffer480x272, ui: &crate::UiState, p: &Project, 
         // the fader: a rounded slot with the level filled from below
         let (fx, fy, fw, fh) = (cx - 9.0, 78.0, 18.0, 96.0);
         fill_round_rect(fb, fx, fy, fw, fh, 9.0, t.faint);
-        let lv = (track.level as f32 / 127.0).clamp(0.0, 1.0);
-        let h = (fh * lv).max(if track.level > 0 { 6.0 } else { 0.0 });
+        // what the fader shows: the level, or (with a send lit) how much of the track goes to that send, in `fg`
+        let shown = match ui.mixer.send {
+            1 => track.send_a,
+            2 => track.send_b,
+            _ => track.level,
+        };
+        let lv = (shown as f32 / 127.0).clamp(0.0, 1.0);
+        let h = (fh * lv).max(if shown > 0 { 6.0 } else { 0.0 });
         if h > 0.0 {
-            fill_round_rect(fb, fx, fy + fh - h, fw, h, 9.0, if track.muted { t.dim } else { track_color(i) });
+            let colour = if ui.mixer.send > 0 { t.fg } else if track.muted { t.dim } else { track_color(i) };
+            fill_round_rect(fb, fx, fy + fh - h, fw, h, 9.0, colour);
         }
         // the pan: a short line with a dot, centre marked
         let (px0, px1, py) = (cx - 36.0, cx + 36.0, 192.0);
@@ -126,7 +149,16 @@ pub fn draw_left(fb: &mut FrameBuffer480x272, ui: &crate::UiState, p: &Project, 
         fill_circle(fb, px0 + (px1 - px0) * track.pan as f32 / 127.0, py, 4.0, t.fg);
         // under the screen: what the knob turns, with SHIFT or without
         let k = knob(c);
-        let (name, value) = if ui.shift { ("pan", pan_text(track.pan)) } else { ("level", format!("{}%", (track.level as f32 / 127.0 * 100.0).round())) };
+        let percent = |v: u8| format!("{}%", (v as f32 / 127.0 * 100.0).round());
+        let (name, value) = if ui.shift {
+            ("pan", pan_text(track.pan))
+        } else {
+            match ui.mixer.send {
+                1 => ("delay", percent(track.send_a)),
+                2 => ("reverb", percent(track.send_b)),
+                _ => ("level", percent(track.level)),
+            }
+        };
         text_v(fb, name, cx as i32, 236, FontSize::Small, t.dim, Align::Center, VAlign::Middle);
         text_v(fb, &value, cx as i32, 254, FontSize::Medium, k, Align::Center, VAlign::Middle);
     }
@@ -161,6 +193,9 @@ pub fn curve_out(in_db: f32, s: &MasterComp) -> f32 {
 pub fn draw_right(fb: &mut FrameBuffer480x272, ui: &crate::UiState) {
     if ui.mixer.page == 2 {
         return draw_eq(fb, ui);
+    }
+    if ui.mixer.page == 3 {
+        return draw_sends(fb, ui);
     }
     let t = theme();
     let s = &ui.mixer.comp;
@@ -226,6 +261,62 @@ pub fn draw_right(fb: &mut FrameBuffer480x272, ui: &crate::UiState) {
         crate::nav::draw_ring(fb, &it, ui);
     }
     let _ = (ring, stroke_round_rect);
+}
+
+/// The sends' page: the delay on the left, as the taps it makes (further apart for a longer time, each lower by the feedback), and the
+/// reverb on the right, as the way it dies away (longer for a bigger room, with the highs going first when the tone is low).
+fn draw_sends(fb: &mut FrameBuffer480x272, ui: &crate::UiState) {
+    let t = theme();
+    let s = &ui.mixer.sends;
+    fb.clear(t.bg);
+    button_strip(fb, &crate::strip_labels(ui, 1));
+    bar(fb, "sends");
+    // the delay
+    let (x0, y0, w, h) = (30.0f32, 56.0f32, 200.0f32, 130.0f32);
+    fill_round_rect(fb, x0, y0, w, h, 6.0, t.panel);
+    text_v(fb, "delay", (x0 + 8.0) as i32, (y0 + 12.0) as i32, FontSize::Small, t.dim, Align::Left, VAlign::Middle);
+    let beats = sends::DELAY_BEATS[sends::delay_index(s.time)];
+    let step = (w - 28.0) * beats / 3.0; // the longer the time, the further apart
+    let fbk = sends::feedback(s.feedback);
+    let base = y0 + h - 14.0;
+    let mut x = x0 + 14.0;
+    let mut level = 1.0f32;
+    for _ in 0..8 {
+        if x > x0 + w - 8.0 || level < 0.04 {
+            break;
+        }
+        line_aa(fb, x, base, x, base - (h - 42.0) * level, 3.0, if level >= 1.0 { t.fg } else { t.dim });
+        x += step.max(14.0);
+        level *= fbk;
+    }
+    // the reverb
+    let (rx, rw) = (250.0f32, 200.0f32);
+    fill_round_rect(fb, rx, y0, rw, h, 6.0, t.panel);
+    text_v(fb, "reverb", (rx + 8.0) as i32, (y0 + 12.0) as i32, FontSize::Small, t.dim, Align::Left, VAlign::Middle);
+    let room = sends::room(s.size);
+    let damp = sends::damping(s.tone);
+    // the tail: it falls by `room` every round of about 25 ms; a duller tone is drawn thinner and lower
+    let mut prev = (rx + 10.0, base - (h - 42.0));
+    for k in 1..=40 {
+        let x = rx + 10.0 + (rw - 20.0) * k as f32 / 40.0;
+        let y = base - (h - 42.0) * room.powf(k as f32 * 2.2).clamp(0.0, 1.0) * (1.0 - damp * 0.6);
+        line_aa(fb, prev.0, prev.1, x, y, 2.0 - damp, t.fg);
+        prev = (x, y);
+    }
+    let values = [
+        ("time", sends::DELAY_NAMES[sends::delay_index(s.time)].to_string()),
+        ("feedback", format!("{:.0}%", fbk * 100.0)),
+        ("size", format!("{:.0}%", s.size as f32 / 255.0 * 100.0)),
+        ("tone", format!("{:.0}%", s.tone as f32 / 255.0 * 100.0)),
+    ];
+    for (i, (name, v)) in values.iter().enumerate() {
+        let x = 60 + i as i32 * 120;
+        text_v(fb, name, x, 236, FontSize::Small, t.dim, Align::Center, VAlign::Middle);
+        text_v(fb, v, x, 254, FontSize::Medium, knob(4 + i), Align::Center, VAlign::Middle);
+    }
+    if let Some(it) = crate::nav::focused(ui).filter(|it| it.screen == 1 && ui.main == crate::Main::Mixer) {
+        crate::nav::draw_ring(fb, &it, ui);
+    }
 }
 
 /// The EQ's page: the response of the three bands across the screen, on a scale of frequency that is logarithmic, with a dot where each

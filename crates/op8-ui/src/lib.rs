@@ -30,7 +30,7 @@ mod theme;
 pub use anim::{animate, Anim};
 pub use left::{comp_glyph, draw_left, left_footer};
 pub use naming::{NameView, ACTIONS as NAME_ACTIONS, NAME_CHARS, NAME_LEN};
-pub use mixer::{comp_index as mixer_comp_index, eq_index as mixer_eq_index, page_values as mixer_page_values, MixerView};
+pub use mixer::{comp_index as mixer_comp_index, eq_index as mixer_eq_index, page_values as mixer_page_values, sends_index as mixer_sends_index, MixerView};
 pub use settings::SettingsView;
 pub use nav::{focused as nav_focused, index as nav_index, items as nav_items, move_dir as nav_move_dir, punch_slot as nav_punch_slot, step as nav_step, NavItem, NavKind};
 pub use pages::{fx_footer, lfo_footer};
