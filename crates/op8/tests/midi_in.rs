@@ -154,3 +154,46 @@ fn f_c17_the_midi_page_chooses_the_input() {
     assert_eq!(b.app.ctl.requests.last(), Some(&Request::MidiIn(None)));
     let _ = std::fs::remove_dir_all(&d);
 }
+
+// F-M05: a program change puts the instrument of that place of PLUG-IN on the track (the selected one, or the channel's with "by channel"),
+// a place with nothing in it changes nothing, and the pitch wheel bends what plays (two semitones at the ends).
+#[test]
+fn f_m05_program_change_picks_the_instrument() {
+    let mut b = Bench::empty();
+    b.press(Button::Group(0));
+    b.midi_in(&[0xC0, 2]);
+    assert_eq!(b.instrument(0).as_deref(), Some("FmBass"), "place 3 of PLUG-IN");
+    b.midi_in(&[0xC0, 4]);
+    assert_eq!(b.instrument(0).as_deref(), Some("sampler"));
+    b.midi_in(&[0xC0, 12]);
+    assert_eq!(b.instrument(0).as_deref(), Some("sampler"), "an empty place changes nothing");
+    b.app.ctl.settings.midi_by_channel = true;
+    b.midi_in(&[0xC0 | 3, 2]); // channel 4: track D
+    assert_eq!(b.instrument(3).as_deref(), Some("FmBass"));
+    assert_eq!(b.instrument(0).as_deref(), Some("sampler"), "and the selected one is left");
+}
+
+// F-M05: the pitch wheel bends a note that is sounding up and down by up to two semitones, and back to centre.
+#[test]
+fn f_m05_the_pitch_wheel_bends_what_plays() {
+    // the number of times the sound crosses zero in the second half of a run is its pitch
+    let crossings = |wheel: Option<[u8; 3]>| {
+        let mut b = Bench::empty();
+        b.press(Button::Group(2)); // the FM bass
+        b.midi_in(&note_on(0, 48, 110));
+        if let Some(w) = wheel {
+            b.midi_in(&w);
+        }
+        b.run_ms(1000);
+        let end = b.now_ms();
+        b.zero_crossings(end - 400, end)
+    };
+    let centre = crossings(None);
+    let up = crossings(Some([0xE0, 127, 127])); // all the way up
+    let down = crossings(Some([0xE0, 0, 0]));
+    let mid = crossings(Some([0xE0, 0, 64])); // 8192: the centre
+    assert!(centre > 20, "it sounds: {centre}");
+    assert!(up as f32 > centre as f32 * 1.10, "up: {up} against {centre}");
+    assert!((down as f32) < centre as f32 * 0.92, "down: {down} against {centre}");
+    assert_eq!(mid, centre, "the centre is no bend");
+}

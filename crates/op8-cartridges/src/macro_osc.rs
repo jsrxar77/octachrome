@@ -49,6 +49,8 @@ pub struct MacroOsc {
     /// the engines see a fresh rising edge.
     retrigger: bool,
     held_note: u8,
+    /// The pitch wheel, in semitones.
+    bend: f32,
     /// Chunks rendered in a row below the silence threshold. The voice
     /// sleeps (renders nothing, outputs exact zeros) once this passes
     /// `SLEEP_CHUNKS`, which also saves CPU on the Pi.
@@ -80,6 +82,7 @@ impl MacroOsc {
             gate: false,
             retrigger: false,
             held_note: 0,
+            bend: 0.0,
             quiet_chunks: 0,
             awake: false,
             out: [0.0; CHUNK],
@@ -147,7 +150,7 @@ impl InstrumentCartridge for MacroOsc {
                 self.voice
                     .render(&patch, &mut self.out[..len], &mut self.aux[..len]);
             }
-            patch.note = self.note;
+            patch.note = self.note + self.bend;
             patch.trigger = self.gate && !std::mem::take(&mut self.retrigger);
             self.voice
                 .render(&patch, &mut self.out[..len], &mut self.aux[..len]);
@@ -170,6 +173,10 @@ impl InstrumentCartridge for MacroOsc {
             }
             start = end;
         }
+    }
+
+    fn set_pitch_bend(&mut self, semitones: f32) {
+        self.bend = semitones;
     }
 
     fn parameters(&self) -> &[ParamDescriptor; 4] {

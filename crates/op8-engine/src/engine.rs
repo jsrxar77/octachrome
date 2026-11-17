@@ -45,6 +45,8 @@ pub enum EngineCommand {
         velocity: f32,
         on: bool,
     },
+    /// The pitch wheel of a keyboard on a track's instrument: bend by `semitones` (0 is centre). An instrument with no pitch ignores it.
+    PitchBend { track: u8, semitones: f32 },
     /// The master volume, 0.0..=1.0 (VOLUME + the 4D encoder).
     MasterVolume(f32),
     /// The metronome clicks on every beat while the sequencer runs (SHIFT + TAP).
@@ -321,6 +323,11 @@ impl Engine {
                     if let Some(q) = self.live.get_mut(track as usize) {
                         let ev = if on { op8_cartridge::NoteEvent::on(0, note, velocity.clamp(0.0, 1.0)) } else { op8_cartridge::NoteEvent::off(0, note) };
                         q.push(ev);
+                    }
+                }
+                EngineCommand::PitchBend { track, semitones } => {
+                    if let Some(Ok(mut c)) = self.slots.get(track as usize).and_then(|s| s.as_ref()).map(|s| s.lock()) {
+                        c.set_pitch_bend(semitones);
                     }
                 }
                 EngineCommand::MasterVolume(v) => self.master = v.clamp(0.0, 1.0),

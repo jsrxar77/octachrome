@@ -53,6 +53,8 @@ pub struct Resonator {
     values: [f32; 8],
     voices: Vec<Voice>,
     clock: u64,
+    /// The pitch wheel, in semitones.
+    bend: f32,
     out: [f32; CHUNK],
     aux: [f32; CHUNK],
     scope: Scope,
@@ -82,7 +84,7 @@ impl Resonator {
                 age: 0,
             })
             .collect();
-        Self { values, voices, clock: 0, out: [0.0; CHUNK], aux: [0.0; CHUNK], scope: Scope::new(2) }
+        Self { values, voices, clock: 0, bend: 0.0, out: [0.0; CHUNK], aux: [0.0; CHUNK], scope: Scope::new(2) }
     }
 
     fn kind(&self) -> usize {
@@ -108,6 +110,7 @@ impl InstrumentCartridge for Resonator {
         let engine = ENGINES[self.kind()];
         let (structure, bright, damping) = (self.values[1], self.values[2], self.values[3]);
         let (decay, colour, spread, level) = (self.values[4], self.values[5], self.values[6], self.values[7]);
+        let bend = self.bend;
         let mut ev = events.iter().peekable();
         let mut start = 0;
         while start < n {
@@ -135,7 +138,7 @@ impl InstrumentCartridge for Resonator {
                     continue;
                 }
                 let mut patch = MacroPatch {
-                    note: v.note,
+                    note: v.note + bend,
                     engine,
                     harmonics: structure,
                     timbre: bright,
@@ -179,6 +182,10 @@ impl InstrumentCartridge for Resonator {
             }
             start = end;
         }
+    }
+
+    fn set_pitch_bend(&mut self, semitones: f32) {
+        self.bend = semitones;
     }
 
     fn parameters(&self) -> &[ParamDescriptor; 4] {

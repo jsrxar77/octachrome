@@ -163,6 +163,13 @@ impl InstrumentCartridge for MidiOutBridge {
         self.clock += output_l.len() as u64;
     }
 
+    /// The wheel goes on to the instrument that is being played, on this channel (the usual range of two semitones).
+    fn set_pitch_bend(&mut self, semitones: f32) {
+        let v = (8192.0 + semitones / 2.0 * 8191.0).round().clamp(0.0, 16383.0) as u16;
+        let ch = self.channel();
+        self.push([0xE0 | ch, (v & 0x7F) as u8, (v >> 7) as u8], 3, 0);
+    }
+
     fn parameters(&self) -> &[ParamDescriptor; 4] {
         &PARAMS
     }

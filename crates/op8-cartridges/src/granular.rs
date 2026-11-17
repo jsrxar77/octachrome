@@ -159,6 +159,8 @@ pub struct Granular {
     bank: Vec<Sample>,
     grains: [Grain; MAX_GRAINS],
     held: [Option<(u8, f32)>; HELD],
+    /// The pitch wheel, in semitones: the grains that start take it.
+    bend: f32,
     /// The next held note to give its pitch to a grain.
     turn: usize,
     random: Random,
@@ -199,6 +201,7 @@ impl Granular {
             bank,
             grains: [Grain::default(); MAX_GRAINS],
             held: [None; HELD],
+            bend: 0.0,
             turn: 0,
             random: Random(0x2545_F491),
             amp: 0.0,
@@ -274,7 +277,7 @@ impl Granular {
         if data_len < 64 {
             return;
         }
-        let pitch = semis + (self.values[4] - 0.5) * 48.0;
+        let pitch = semis + self.bend + (self.values[4] - 0.5) * 48.0;
         let ratio = 2f32.powf(pitch / 12.0);
         let mut size = self.grain_size();
         // a grain never eats more than half of the sound, so that it ends before the sound does
@@ -373,6 +376,10 @@ impl InstrumentCartridge for Granular {
                 g.active = false;
             }
         }
+    }
+
+    fn set_pitch_bend(&mut self, semitones: f32) {
+        self.bend = semitones;
     }
 
     fn parameters(&self) -> &[ParamDescriptor; 4] {

@@ -1017,14 +1017,25 @@ impl Controller {
         }
         self.pad_down_at[pad as usize] = Some(0);
         let slot = Self::pad_to_step(pad) as usize;
-        let track = self.ui.track;
-        let Some(&(label, name, built)) = FACTORY_INSTRUMENTS.get(slot) else {
-            self.ui.plug_note = "empty: installed instruments will go here".into();
+        if let Err(note) = self.put_instrument(self.ui.track, slot, h) {
+            self.ui.plug_note = note;
             return;
+        }
+        self.ui.right_page = 0;
+        self.ui.plug_note = String::new();
+        self.set_main(Main::Instrument, h);
+        // the pad is let go in composing: that release must not toggle a step
+        self.pad_down_at[pad as usize] = None;
+    }
+
+    /// Put the instrument of place `slot` of PLUG-IN on `track` (what a pad of PLUG-IN does, and a program change). The MIDI out is one
+    /// bridge that owns the MIDI queue, so choosing it moves the bridge from the track that has it. The reason, if it cannot.
+    fn put_instrument(&mut self, track: usize, slot: usize, h: &mut EngineHandle) -> Result<(), String> {
+        let Some(&(label, name, built)) = FACTORY_INSTRUMENTS.get(slot) else {
+            return Err("empty: installed instruments will go here".into());
         };
         if !built {
-            self.ui.plug_note = format!("{label} is not built yet");
-            return;
+            return Err(format!("{label} is not built yet"));
         }
         let current = h.slots[track].as_ref().and_then(|c| c.lock().ok().map(|c| c.info().name));
         if current.as_deref() != Some(name) {
@@ -1032,8 +1043,7 @@ impl Controller {
                 // move the running bridge here
                 let from = (0..TRACKS).find(|&t| h.slots[t].as_ref().is_some_and(|c| c.lock().is_ok_and(|c| c.info().name == name)));
                 let Some(from) = from else {
-                    self.ui.plug_note = "no MIDI out is running".into();
-                    return;
+                    return Err("no MIDI out is running".into());
                 };
                 let bridge = h.slots[from].take();
                 h.send(EngineCommand::LoadCartridge { track: from as u8, cartridge: None });
@@ -1047,11 +1057,7 @@ impl Controller {
                 h.seq(Command::SetKit { track: track as u8, kit: false });
             }
         }
-        self.ui.right_page = 0;
-        self.ui.plug_note = String::new();
-        self.set_main(Main::Instrument, h);
-        // the pad is let go in composing: that release must not toggle a step
-        self.pad_down_at[pad as usize] = None;
+        Ok(())
     }
 
     /// FILE: a pad opens the project in its slot; SHIFT + a pad of the player's slots saves into it.
@@ -1853,6 +1859,19 @@ impl Controller {
                 if let Some(track) = self.midi_held.remove(&(channel, note)) {
                     h.send(EngineCommand::LiveNote { track, note, velocity: 0.0, on: false });
                 }
+            }
+            // a program change picks the instrument of that place of PLUG-IN for the track (0..=7 are the eight that come with it); a place
+            // with nothing in it, or the instrument that is already there, changes nothing
+            0xC0 => {
+                if self.put_instrument(target, data(1) as usize, h).is_ok() && target == self.ui.track {
+                    self.refresh_plugs(h);
+                }
+            }
+            // the pitch wheel: 14 bits, the middle (8192) is no bend, and the ends are two semitones
+            0xE0 => {
+                let raw = data(1) as i32 | (data(2) as i32) << 7;
+                let semitones = (raw - 8192) as f32 / 8192.0 * 2.0;
+                h.send(EngineCommand::PitchBend { track: target as u8, semitones });
             }
             0xB0 => match data(1) {
                 7 => {
