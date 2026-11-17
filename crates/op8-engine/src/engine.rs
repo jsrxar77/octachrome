@@ -246,7 +246,7 @@ impl Engine {
             last_beat: 0,
             audition: [None; TRACKS],
             live: Default::default(),
-            seq: Sequencer::new(project, SAMPLE_RATE),
+            seq: Sequencer::new(project.clone(), SAMPLE_RATE),
             slots: slots.clone(),
             rx,
             garbage: gtx,
@@ -663,6 +663,7 @@ impl Engine {
         s.tick.store(self.seq.song_tick() as u32, Relaxed);
         for t in 0..TRACKS {
             s.playhead[t].store(self.seq.playhead(t).step, Relaxed);
+            s.pattern[t].store(self.seq.playing_patterns()[t], Relaxed);
             s.phase[t].store((self.seq.step_phase(t) * 255.0) as u8, Relaxed);
             s.note_count[t].store(self.note_counts[t], Relaxed);
             s.peak[t].store(self.peaks[t].to_bits(), Relaxed);
@@ -724,7 +725,7 @@ impl EngineHandle {
             _ => None,
         };
         let loaded = match &cmd {
-            EngineCommand::LoadProject(p) => Some(**p),
+            EngineCommand::LoadProject(p) => Some((**p).clone()),
             _ => None,
         };
         let master = if let EngineCommand::MasterVolume(v) = &cmd { Some(v.clamp(0.0, 1.0)) } else { None };

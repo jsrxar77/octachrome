@@ -51,6 +51,9 @@ fn draw_right_view(
     if ui.main == crate::Main::Sampling {
         return crate::sampling::draw_right(fb, ui);
     }
+    if ui.main == crate::Main::Pattern {
+        return crate::pattern::draw_right(fb, ui);
+    }
     if ui.main == crate::Main::Plugin {
         return crate::files::pick_right(fb, "plug-in", &[("tap a pad", "puts that instrument on the selected track")], &ui.plug_note);
     }

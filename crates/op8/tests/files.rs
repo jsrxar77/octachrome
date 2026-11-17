@@ -76,7 +76,7 @@ fn f_f06_empty_factory_and_damaged_slots() {
     let dir = temp_dir("damaged");
     let mut b = Bench::demo();
     b.set_projects_dir(dir.clone());
-    let before = *b.project();
+    let before = b.project().clone();
     b.press(Button::File);
     b.tap(pad_of(10)); // an empty slot of the player's: a new project
     assert_eq!(b.ui().main, Main::Instrument, "opening goes back to composing");
@@ -86,7 +86,7 @@ fn f_f06_empty_factory_and_damaged_slots() {
     assert_eq!(b.project().bpm, 120.0);
     assert_eq!(b.instrument(0).as_deref(), Some("drums"), "the standard instruments are there");
     b.press(Button::File);
-    let before = *b.project();
+    let before = b.project().clone();
     b.button_down(Button::Shift);
     b.tap(pad_of(1)); // a factory slot
     b.button_up(Button::Shift);

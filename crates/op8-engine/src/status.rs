@@ -12,6 +12,8 @@ pub struct EngineStatus {
     /// The tick the sequencer has reached (96 to the quarter note, counted from the start).
     pub tick: AtomicU32,
     pub playhead: [AtomicU8; TRACKS],
+    /// Which pattern of each track is playing.
+    pub pattern: [AtomicU8; TRACKS],
     /// How far into its step each track is, 0..=255 (the fraction of the step that has passed).
     pub phase: [AtomicU8; TRACKS],
     /// Incremented on every note-on, per track (drives activity LEDs).

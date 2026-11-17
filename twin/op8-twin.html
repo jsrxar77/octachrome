@@ -182,6 +182,7 @@ canvas.lcd {
             <button class="btn" id="bMixer" title="Mixer: the channels on the left, the compressor of the master on the right">MIXER</button>
             <button class="btn" id="bFile" title="Proyectos: abrir y guardar">FILE</button>
             <button class="btn" id="bPlug" title="Elegir el instrumento de la pista">PLUG-IN</button>
+            <button class="btn" id="bPattern" title="PATTERN: the sixteen pads are the sixteen patterns of the track. Tap: shown, plays from the next loop; SHIFT + tap: at once; hold + tap another: copy; ERASE + tap: empty">PATTERN</button>
             <button class="btn" id="bBrowser" title="Presets del instrumento: tocar carga, SHIFT + tocar guarda (filas de abajo)">BROWSER</button>
             <button class="btn" id="bSampling" title="Grabar un sonido: REC graba, los pads de arriba lo guardan, los de abajo lo escuchan">SAMPLING</button>
           </div>
@@ -346,6 +347,24 @@ const FX_DEFAULTS = [[128, 110, 90], [178, 110, 100], [150, 150, 90], [70, 140, 
 const LFO_SHAPES = ["sine", "triangle", "square", "saw", "random"];
 const LFO_TARGETS = 10; // 0 nothing, 1 volume, 2..9 the instrument's knobs 1-8
 const QUANT = ["nearest", "down", "up"];
+// ---- patterns (crates/op8-seq/src/project.rs, Pattern): what a track plays is its steps, length, division and kit; the sound is the track's
+const emptyPat = () => ({ steps: Array.from({ length: 16 }, () => newStep()), length: 16, div: 2, kit: false });
+const patOf = tr => ({ steps: tr.steps, length: tr.length, div: tr.div, kit: tr.kit });
+const patIsEmpty = pt => !pt.steps.slice(0, pt.length).some(st => st.active);
+function patGet(t, i) { const tr = P.tracks[t]; return i === tr.cur ? patOf(tr) : (tr.pats[i] || emptyPat()); }
+function patLoad(tr, pt) { tr.steps = pt.steps; tr.length = pt.length; tr.div = pt.div; tr.kit = pt.kit; }
+function patSwitch(t, i) { // show another: what is shown goes to its place and the one asked for comes out of its own
+  const tr = P.tracks[t]; if (i === tr.cur) return;
+  tr.pats[tr.cur] = patOf(tr); patLoad(tr, tr.pats[i] || emptyPat()); tr.pats[i] = null; tr.cur = i;
+}
+function patCopy(t, from, to) { const src = patGet(t, from), c = { steps: JSON.parse(JSON.stringify(src.steps)), length: src.length, div: src.div, kit: src.kit }, tr = P.tracks[t]; if (to === tr.cur) patLoad(tr, c); else tr.pats[to] = c; }
+function patClear(t, i) { const tr = P.tracks[t]; if (i === tr.cur) patLoad(tr, emptyPat()); else tr.pats[i] = null; }
+// what plays: the pattern of each track that plays (S.play), the one that waits for the start of the track's loop (S.queued) and where the playing one started
+function patView(t, i) { const tr = P.tracks[t]; return i === tr.cur ? tr : Object.assign({}, tr, patGet(t, i)); }
+function patPick(t, i, now) { // the same as the unit's: shown at once, and it plays from the next loop (or at once)
+  patSwitch(t, i);
+  if (!S.playing || now) { S.play[t] = i; S.queued[t] = null; S.origin[t] = S.playing ? (S.eff || 0) + 1 : 0; } else S.queued[t] = i !== S.play[t] ? i : null;
+}
 function ensureTrack(tr) {
   tr.pl = tr.pl || { mode: 0, chord: 0, speed: 2, oct: 1 };
   tr.fx = tr.fx || { kind: 0, a: 128, b: 110, c: 90 };
@@ -354,6 +373,8 @@ function ensureTrack(tr) {
   if (tr.pan == null) tr.pan = 64;
   if (tr.sendA == null) tr.sendA = 0; // the sends (Track::send_a and send_b): how much goes to the delay and to the reverb, 0..127
   if (tr.sendB == null) tr.sendB = 0;
+  if (!tr.pats) tr.pats = Array(16).fill(null); // the patterns (Project::stored): the one shown (tr.cur) is the track's own steps, length, div and kit; the others are here (null: empty)
+  if (tr.cur == null) tr.cur = 0;
   return tr;
 }
 const lfoHz = l => 0.05 * Math.pow(400, l.rate / 255);
@@ -883,10 +904,11 @@ function playMidiPreview(t, time, note, vel, dur) {
 }
 
 // ======================= sequencer clock (mirrors op8-seq Sequencer) =======================
-const S = { playing: false, tick: 0, nextTime: 0, repeat: null, repeatReq: null, rng: [], playhead: Array(8).fill(0), chordSlot: 0, chord: brainChord(P.brain, 0), vis: [], noteCount: Array(8).fill(0), gateOn: false, gateLen: 1 };
+const S = { play: Array(8).fill(0), queued: Array(8).fill(null), origin: Array(8).fill(0), playing: false, tick: 0, nextTime: 0, repeat: null, repeatReq: null, rng: [], playhead: Array(8).fill(0), chordSlot: 0, chord: brainChord(P.brain, 0), vis: [], noteCount: Array(8).fill(0), gateOn: false, gateLen: 1 };
 function play() {
   initAudio(); if (actx.state === "suspended") actx.resume();
   for (let t = 0; t < 8; t++) fxApply(t);
+  S.play = P.tracks.map(tr => tr.cur); S.queued = Array(8).fill(null); S.origin = Array(8).fill(0);
   S.playing = true; S.tick = 0; S.repeat = null; S.nextTime = actx.currentTime + 0.06;
   S.rng = Array.from({ length: 8 }, (_, i) => makeRng(P.seed ^ (i + 1) * 7919)); S.vis = [];
 }
@@ -906,10 +928,15 @@ function onTick(time) {
     const half = S.gateLen * 24 * spt() / 2;
     fx.gate.gain.setValueAtTime(1, time); fx.gate.gain.setValueAtTime(Math.max(0, 1 - punchState.amount), time + half);
   }
-  P.tracks.forEach((tr, t) => {
-    const tps = DIVS[tr.div][1];
-    if (eff % tps !== 0 && !windowStart) return;
-    const g = Math.floor(eff / tps), len = tr.length, step = tr.steps[g % len];
+  P.tracks.forEach((tr0, t) => {
+    let tr = patView(t, S.play[t]);
+    if (S.queued[t] != null) { // a pattern that waits takes over where the one that plays starts its loop again
+      const rel0 = Math.max(0, eff - S.origin[t]), tps0 = DIVS[tr.div][1];
+      if (rel0 % tps0 === 0 && Math.floor(rel0 / tps0) % tr.length === 0) { S.play[t] = S.queued[t]; S.queued[t] = null; S.origin[t] = eff; tr = patView(t, S.play[t]); }
+    }
+    const tps = DIVS[tr.div][1], rel = Math.max(0, eff - S.origin[t]);
+    if (rel % tps !== 0 && !windowStart) return;
+    const g = Math.floor(rel / tps), len = tr.length, step = tr.steps[g % len];
     const r = resolve(step, Math.floor(g / len), S.rng[t]);
     if (tr.muted || !r.fire || !SLOTS[t]) return;
     const note = tr.link ? brainApply(P.brain, r.note, brainChord(P.brain, step16)) : r.note;
@@ -968,7 +995,7 @@ function updateVisual() {
   const now = actx.currentTime;
   while (S.vis.length && S.vis[0].time <= now) {
     const v = S.vis.shift();
-    P.tracks.forEach((tr, t) => { S.playhead[t] = Math.floor(v.eff / DIVS[tr.div][1]) % tr.length; });
+    P.tracks.forEach((tr0, t) => { const tr = patView(t, S.play[t]); S.playhead[t] = Math.floor(Math.max(0, v.eff - S.origin[t]) / DIVS[tr.div][1]) % tr.length; });
     S.chordSlot = v.slot; S.chord = v.chord; S.eff = v.eff;
   }
 }
@@ -1026,7 +1053,7 @@ function setMode(m) {
 // Main modes: CHANNEL composes (sequencer left, instrument right); SETTINGS
 // takes both screens for the machine's settings (theme for now).
 const THEME_IDS = ["chrome", "matte", "glossy"]; // chrome is the default (Javi, 2026-11-16), then matte and glossy
-function setMain(m) { UI.grabbed = false; UI.focus = m === "file" ? { k: "cell", i: UI.fileLast ?? 0 } : m === "plugin" ? { k: "cell", i: Math.max(0, plugCells().cur) } : m === "instrument" ? { k: "track", i: UI.track } : m === "mixer" ? { k: "value", i: 0 } : { k: "cell", i: 0 }; if (m === "browser") { UI.brNote = ""; UI.brLast = null; } if (UI.main === "sampling" && m !== "sampling") { SMP.rec = false; SMP.armed = false; smpCountStop(); } if (m === "sampling") SMP.note = ""; UI.main = m; UI.inspect = null; inspectorPad = null; if (m === "file") { UI.fileNote = ""; } if (m === "plugin") UI.plugNote = ""; }
+function setMain(m) { UI.grabbed = false; UI.focus = m === "file" ? { k: "cell", i: UI.fileLast ?? 0 } : m === "plugin" ? { k: "cell", i: Math.max(0, plugCells().cur) } : m === "pattern" ? { k: "cell", i: P.tracks[UI.track].cur } : m === "instrument" ? { k: "track", i: UI.track } : m === "mixer" ? { k: "value", i: 0 } : { k: "cell", i: 0 }; if (m === "browser") { UI.brNote = ""; UI.brLast = null; } if (UI.main === "sampling" && m !== "sampling") { SMP.rec = false; SMP.armed = false; smpCountStop(); } if (m === "sampling") SMP.note = ""; UI.main = m; UI.inspect = null; inspectorPad = null; if (m === "file") { UI.fileNote = ""; } if (m === "plugin") UI.plugNote = ""; }
 function themeStep(d) { LOOK.theme = THEME_IDS[((THEME_IDS.indexOf(LOOK.theme) + d) % 3 + 3) % 3]; applyLook(); }
 function groupPress(g) {
   if (UI.main === "settings" || UI.main === "mixer" || UI.main === "name") return;
@@ -1061,6 +1088,7 @@ function padDown(pad, vel0) {
   const vel = UI.fixed ? 100 / 127 : vel0;
   if (UI.main === "file") { filePad(pad); return; }
   if (UI.main === "plugin") { plugPad(pad); return; }
+  if (UI.main === "pattern") { patternPad(pad); return; }
   if (UI.main === "sampling") { smpPad(pad); return; }
   if (UI.main === "browser") { brPad(pad); return; }
   if (UI.main === "name") { namePad(pad); return; }
@@ -1091,7 +1119,8 @@ function padPressure(pad, p) {
   }
 }
 function padUp(pad) {
-  if (UI.main === "settings" || UI.main === "mixer" || UI.main === "name" || UI.main === "file" || UI.main === "plugin" || UI.main === "sampling" || UI.main === "browser") return;
+  if (UI.main === "pattern") { patternPadUp(pad); return; }
+  if (UI.main === "settings" || UI.main === "mixer" || UI.main === "name" || UI.main === "file" || UI.main === "plugin" || UI.main === "pattern" || UI.main === "sampling" || UI.main === "browser") return;
   if (UI.mode === "step") {
     const wasDown = padDownAt[pad] != null; padDownAt[pad] = null;
     if (inspectorPad === pad) { inspectorPad = null; UI.inspect = null; }
@@ -1203,7 +1232,7 @@ function openLeft(page) {
 const BCX = [24, 164, 304, 444];
 function navItems() {
   const cell = i => ({ k: "cell", i, s: 0, x: 12 + (i % 4) * 114, y: 44 + Math.floor(i / 4) * 48, w: 108, h: 42 });
-  if (["file", "plugin", "browser"].includes(UI.main)) return Array.from({ length: 16 }, (_, i) => cell(i));
+  if (["file", "plugin", "browser", "pattern"].includes(UI.main)) return Array.from({ length: 16 }, (_, i) => cell(i));
   if (UI.main === "sampling") return [...Array.from({ length: 16 }, (_, i) => cell(i)), ...Array.from({ length: 4 }, (_, k) => ({ k: "value", i: 4 + k, s: 1, x: 60 + k * 120 - 52, y: 224, w: 104, h: 42 }))];
   if (UI.main === "settings") return settingsItems();
   if (UI.main === "mixer") return [...[0, 1, 2, 3].map(k => ({ k: "value", i: k, s: 0, x: 60 + k * 120 - 52, y: 224, w: 104, h: 42 })), ...Array.from({ length: mixPageValues() }, (_, k) => ({ k: "value", i: 4 + k, s: 1, x: 60 + k * 120 - 52, y: 224, w: 104, h: 42 }))];
@@ -1613,7 +1642,7 @@ function mixFooter(g, first) {
     txt(g, String.fromCharCode(65 + i), cx - 34, 248, "l", TRACK_COLORS[i], "center", "middle"); txt(g, v, cx - 18, 248, "l", FG, "left", "middle");
   }
 }
-function loadProject(src) { const q = JSON.parse(JSON.stringify(src)); P.tracks = q.tracks.map(ensureTrack); P.bpm = q.bpm; P.swing = q.swing; P.brain = q.brain; P.comp = fillTo(q.comp, COMP_DEFAULT); P.eq = q.eq ? q.eq.slice() : EQ_DEFAULT.slice(); P.sends = fillTo(q.sends, SENDS_DEFAULT); if (actx) { for (let t = 0; t < 8; t++) { fxApply(t, true); mixApply(t); } compApply(); eqApply(); sendsApply(); } }
+function loadProject(src) { const q = JSON.parse(JSON.stringify(src)); P.tracks = q.tracks.map(ensureTrack); P.bpm = q.bpm; P.swing = q.swing; P.brain = q.brain; P.comp = fillTo(q.comp, COMP_DEFAULT); P.eq = q.eq ? q.eq.slice() : EQ_DEFAULT.slice(); P.sends = fillTo(q.sends, SENDS_DEFAULT); S.play = P.tracks.map(tr => tr.cur); S.queued = Array(8).fill(null); S.origin = Array(8).fill(0); if (actx) { for (let t = 0; t < 8; t++) { fxApply(t, true); mixApply(t); } compApply(); eqApply(); sendsApply(); } }
 function filePad(pad) {
   const slot = padToStep(pad); UI.fileLast = slot;
   if (UI.select) { const k = userKey(slot - 7); nameBegin(slot, slot >= 8 && !!localStorage.getItem(k), k, "project", "file"); return; }
@@ -1841,19 +1870,43 @@ function plugPut(t, slot) { // the instrument of place `slot` of PLUG-IN on trac
   return true;
 }
 function plugCells() { const cur = FACTORY_INSTRUMENTS.findIndex(f => f[1] === SLOTS[UI.track]); return { cells: Array.from({ length: 16 }, (_, i) => FACTORY_INSTRUMENTS[i] ? [FACTORY_INSTRUMENTS[i][0], FACTORY_INSTRUMENTS[i][2]] : ["", false]), cur }; }
-function pickLeft(title, cells, last) {
+function pickLeft(title, cells, last, rows = true) {
   return g => {
     fill(g, 0, 0, 480, 272, BG); dot(g, 16, 15, 6, FG); txt(g, title, 30, 6, "mid", FG);
     if (S.playing) { g.fillStyle = FG; g.beginPath(); g.moveTo(460, 8); g.lineTo(470, 14); g.lineTo(460, 20); g.fill(); } else fill(g, 460, 9, 10, 10, DIM);
     cells.forEach(([name, has], i) => {
       const x = 12 + (i % 4) * 114, y = 44 + Math.floor(i / 4) * 48, on = last === i;
-      if (has) rrect(g, x, y, 108, 42, 8, i < 8 ? PANEL : FAINT);
+      if (has) rrect(g, x, y, 108, 42, 8, rows && i >= 8 ? FAINT : PANEL);
       rrect(g, x + .5, y + .5, 107, 41, 8, on ? FG : has ? DIM : FAINT, on ? 2 : 1);
       if (UI.confirm === i) { const [fill_, ink] = readable(REC); rrect(g, x, y, 108, 42, 8, fill_); txt(g, "erase?", x + 54, y + 21, "m", ink, "center", "middle"); } // the place ERASE has marked
       else txt(g, name || "empty", x + 54, y + 21, "m", has ? FG : DIM, "center", "middle");
     });
     navRing(g, 0);
   };
+}
+// PATTERN (crates/op8-ui/src/pattern.rs, Controller::pattern_pad): the sixteen pads are the patterns of the selected track
+UI.patNote = "";
+let patHeld = null;
+function patternPad(pad) {
+  const slot = padToStep(pad), t = UI.track;
+  if (UI.erase) { patClear(t, slot); UI.patNote = `pattern ${slot + 1} is empty`; return; }
+  if (patHeld != null && patHeld.pad !== pad) { patCopy(t, padToStep(patHeld.pad), slot); UI.patNote = `pattern ${padToStep(patHeld.pad) + 1} copied over ${slot + 1}`; patHeld.copied = true; return; }
+  if (patHeld == null) patHeld = { pad, copied: false };
+}
+function patternPadUp(pad) {
+  if (UI.main !== "pattern" || patHeld == null || patHeld.pad !== pad) return;
+  const h = patHeld; patHeld = null; if (h.copied) return;
+  const slot = padToStep(pad); patPick(UI.track, slot, UI.shift); UI.patNote = `pattern ${slot + 1}${UI.shift ? " plays now" : ": from the next loop"}`; UI.focus = { k: "cell", i: slot };
+}
+function patternLeft(g) {
+  const t = UI.track, cells = Array.from({ length: 16 }, (_, i) => [String(i + 1), !patIsEmpty(patGet(t, i))]);
+  pickLeft("patterns · " + "ABCDEFGH"[t], cells, P.tracks[t].cur, false)(g);
+  const pl = S.play[t]; if (S.playing && pl !== P.tracks[t].cur) { const x = 12 + (pl % 4) * 114, y = 44 + Math.floor(pl / 4) * 48; g.fillStyle = FG; g.beginPath(); g.moveTo(x + 90, y + 8); g.lineTo(x + 100, y + 14); g.lineTo(x + 90, y + 20); g.fill(); }
+}
+function patternRight(g) {
+  fill(g, 0, 0, 480, 272, BG); dot(g, 16, 15, 6, FG); txt(g, "patterns · " + "ABCDEFGH"[UI.track], 30, 6, "mid", FG);
+  [["tap a pad", "shows it, plays from the next loop"], ["shift + tap", "plays it at once"], ["hold + tap another", "copies it; erase + tap empties"]].forEach(([a, b], i) => { txt(g, a, 30, 80 + i * 50, "mid", FG); txt(g, b, 30, 80 + i * 50 + 24, "m", DIM); });
+  if (UI.patNote) txt(g, UI.patNote, 30, 236, "mid", FG);
 }
 function plugLeft(g) { const { cells, cur } = plugCells(); pickLeft("instruments", cells, cur)(g); }
 function plugRight(g) {
@@ -2088,6 +2141,7 @@ function drawLeft(g) {
   if (UI.main === "mixer") { mixerLeft(g); return; }
   if (UI.main === "file") { fileLeft(g); return; }
   if (UI.main === "plugin") { plugLeft(g); return; }
+  if (UI.main === "pattern") { patternLeft(g); return; }
   if (UI.main === "sampling") { smpLeft(g); return; }
   if (UI.main === "browser") { brLeft(g); return; }
   const accent = TRACK_COLORS[UI.track];
@@ -2348,6 +2402,7 @@ function drawRight(g) {
   if (UI.main === "mixer") { mixerRight(g); return; }
   if (UI.main === "file") { fileRight(g); return; }
   if (UI.main === "plugin") { plugRight(g); return; }
+  if (UI.main === "pattern") { patternRight(g); return; }
   if (UI.main === "sampling") { smpRight(g); return; }
   if (UI.main === "browser") { brRight(g); return; }
   const t = UI.track, accent = TRACK_COLORS[t], slot = SLOTS[t];
@@ -2674,6 +2729,7 @@ $("bBrowser").addEventListener("click", () => setMain(UI.main === "browser" ? "i
 $("bSampling").addEventListener("click", () => setMain(UI.main === "sampling" ? "instrument" : "sampling"));
 $("bFile").addEventListener("click", () => setMain(UI.main === "file" ? "instrument" : "file"));
 $("bPlug").addEventListener("click", () => setMain(UI.main === "plugin" ? "instrument" : "plugin"));
+$("bPattern").addEventListener("click", () => setMain(UI.main === "pattern" ? "instrument" : "pattern"));
 $("sb1").addEventListener("click", () => { if (UI.main === "mixer") MIX.group = 0; else if (UI.main === "settings") settingsPage(0); else if (UI.main === "instrument") setMode("step"); }); // setMode also goes back to the steps
 $("sb2").addEventListener("click", () => { if (UI.main === "mixer") MIX.group = 1; else if (UI.main === "settings") settingsPage(1); else if (UI.main === "instrument") { setMode("step"); UI.inspect = 0; UI.compCursor = 0; UI.focus = { k: "comp", i: 0 }; } });
 $("sb3").addEventListener("click", () => { if (UI.main === "mixer") MIX.send = MIX.send === 1 ? 0 : 1; else if (UI.main === "settings") settingsPage(2); else openLeft("players"); });
@@ -2749,7 +2805,7 @@ function updateLeds() {
   const L = {
     bStep: composing && UI.mode === "step" ? 2 : 1, bChords: composing && UI.mode === "brain" ? 2 : 1, bPerform: composing && UI.mode === "punch" ? 2 : 1,
     bPads: composing && UI.mode === "pads" ? 2 : 1, bKeys: composing && UI.mode === "keys" ? 2 : 1,
-    bChannel: composing ? 2 : 1, bSettings: UI.main === "settings" ? 2 : 1, bMixer: UI.main === "mixer" ? 2 : 1, bFile: UI.main === "file" ? 2 : 1, bPlug: UI.main === "plugin" ? 2 : 1, bSampling: UI.main === "sampling" ? 2 : 1, bBrowser: UI.main === "browser" ? 2 : 1, bShift: UI.shift ? 2 : 1,
+    bChannel: composing ? 2 : 1, bSettings: UI.main === "settings" ? 2 : 1, bMixer: UI.main === "mixer" ? 2 : 1, bFile: UI.main === "file" ? 2 : 1, bPlug: UI.main === "plugin" ? 2 : 1, bPattern: UI.main === "pattern" ? 2 : 1, bSampling: UI.main === "sampling" ? 2 : 1, bBrowser: UI.main === "browser" ? 2 : 1, bShift: UI.shift ? 2 : 1,
     bMute: composing ? (UI.mute ? 2 : 1) : 0, bSelect: UI.main === "file" || UI.main === "browser" ? (UI.select ? 2 : 1) : 0, bErase: composing ? (UI.erase ? 2 : 1) : 0,
     bStop: S.playing ? 1 : 2, bRestart: 1, bRec: composing ? (UI.rec ? 2 : 1) : UI.main === "sampling" ? (SMP.rec || SMP.armed || SMP.counting ? 2 : 1) : 0, bTap: composing ? (UI.metro ? 2 : 1) : UI.main === "sampling" ? (SMP.countIn ? 2 : 1) : 0, bTempo: composing ? (UI.held === "tempo" ? 2 : 1) : 0, bSwing: composing ? (UI.held === "swing" ? 2 : 1) : 0, bVolume: composing ? (UI.held === "volume" ? 2 : 1) : 0, bFixed: composing ? (UI.fixed ? 2 : 1) : 0, jogL: !composing || UI.mode === "keys" ? 1 : 0, jogR: !composing || UI.mode === "keys" ? 1 : 0,
     sb1: composing ? (UI.mode === "step" && UI.inspect == null && UI.leftPage === "steps" ? 2 : 1) : UI.main === "settings" ? (SET.page === 0 ? 2 : 1) : UI.main === "mixer" ? (MIX.group === 0 ? 2 : 1) : 0, sb2: composing ? (UI.inspect != null ? 2 : 1) : UI.main === "settings" ? (SET.page === 1 ? 2 : 1) : UI.main === "mixer" ? (MIX.group === 1 ? 2 : 1) : 0,

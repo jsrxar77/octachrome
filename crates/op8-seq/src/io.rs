@@ -15,7 +15,7 @@ use crate::{
 /// Version 4 adds the master compressor after the tracks; an older file still opens (it is then at its defaults, which do nothing).
 /// Version 5 adds the master EQ after the compressor; an older file still opens (it is then flat).
 /// Version 6 adds the two sends of each track and the settings of the sends' effects after the EQ; an older file still opens (nothing is sent).
-pub const VERSION: u8 = 7;
+pub const VERSION: u8 = 8;
 
 /// How many compressor and sends settings versions 4 to 6 wrote: later ones are appended at the end, so those files still open.
 const COMP_V4: usize = 6;
@@ -128,6 +128,32 @@ fn read_component(r: &mut R) -> Option<StepComponent> {
     })
 }
 
+fn write_step(w: &mut W, s: &Step) {
+    w.u8(s.active as u8);
+    w.u8(s.note);
+    w.u8(s.velocity);
+    w.u8(s.gate);
+    w.u8(s.lanes);
+    w.u8(s.components.as_slice().len() as u8);
+    for c in s.components.iter() {
+        component(w, c);
+    }
+}
+
+fn read_step(r: &mut R) -> Option<Step> {
+    let mut st = Step::default();
+    st.active = r.u8()? != 0;
+    st.note = r.u8()?.min(127);
+    st.velocity = r.u8()?.clamp(1, 127);
+    st.gate = r.u8()?.clamp(1, 100);
+    st.lanes = r.u8()?;
+    for _ in 0..r.u8()? {
+        let c = read_component(r)?;
+        st.components.push(c);
+    }
+    Some(st)
+}
+
 /// The project as bytes.
 pub fn encode(p: &Project) -> Vec<u8> {
     let mut w = W(Vec::new());
@@ -164,15 +190,7 @@ pub fn encode(p: &Project) -> Vec<u8> {
         w.u8(t.level);
         w.u8(t.pan);
         for s in &t.steps {
-            w.u8(s.active as u8);
-            w.u8(s.note);
-            w.u8(s.velocity);
-            w.u8(s.gate);
-            w.u8(s.lanes);
-            w.u8(s.components.as_slice().len() as u8);
-            for c in s.components.iter() {
-                component(&mut w, c);
-            }
+            write_step(&mut w, s);
         }
     }
     for i in 0..COMP_V4 {
@@ -194,6 +212,27 @@ pub fn encode(p: &Project) -> Vec<u8> {
     }
     for i in SENDS_V6..crate::SENDS_PARAMS {
         w.u8(p.sends.get(i));
+    }
+    // version 8: the patterns. For each track the one that is shown, and for each of the sixteen a byte: 0 an empty one, 2 the one that
+    // is shown (it is the track's own, written above), 1 one with something in it, followed by its length, division, kit and steps
+    for t in 0..TRACKS {
+        w.u8(p.current[t]);
+        for i in 0..crate::PATTERNS {
+            let pat = p.pattern(t, i).unwrap_or_default();
+            if i == p.current[t] as usize {
+                w.u8(2);
+            } else if pat == crate::Pattern::default() {
+                w.u8(0);
+            } else {
+                w.u8(1);
+                w.u8(pat.length);
+                w.u8(Division::ALL.iter().position(|d| *d == pat.division).unwrap_or(2) as u8);
+                w.u8(pat.kit as u8);
+                for s in &pat.steps {
+                    write_step(&mut w, s);
+                }
+            }
+        }
     }
     w.0
 }
@@ -257,17 +296,7 @@ pub fn decode(data: &[u8]) -> Option<Project> {
             tr.pan = r.u8()?.min(127);
         }
         for s in tr.steps.iter_mut() {
-            let mut st = Step::default();
-            st.active = r.u8()? != 0;
-            st.note = r.u8()?.min(127);
-            st.velocity = r.u8()?.clamp(1, 127);
-            st.gate = r.u8()?.clamp(1, 100);
-            st.lanes = r.u8()?;
-            for _ in 0..r.u8()? {
-                let c = read_component(&mut r)?;
-                st.components.push(c);
-            }
-            *s = st;
+            *s = read_step(&mut r)?;
         }
         *t = tr;
     }
@@ -303,6 +332,27 @@ pub fn decode(data: &[u8]) -> Option<Project> {
             p.sends.set(i, v);
         }
     }
+    if version >= 8 {
+        for t in 0..TRACKS {
+            p.current[t] = r.u8()?.min(crate::PATTERNS as u8 - 1);
+            for i in 0..crate::PATTERNS {
+                match r.u8()? {
+                    0 | 2 => {}
+                    1 => {
+                        let mut pat = crate::Pattern::default();
+                        pat.length = r.u8()?.clamp(1, MAX_STEPS as u8);
+                        pat.division = *Division::ALL.get(r.u8()? as usize)?;
+                        pat.kit = r.u8()? != 0;
+                        for s in pat.steps.iter_mut() {
+                            *s = read_step(&mut r)?;
+                        }
+                        p.stored[t][i] = pat;
+                    }
+                    _ => return None,
+                }
+            }
+        }
+    }
     Some(p)
 }
 
@@ -314,11 +364,13 @@ mod tests {
     const SENDS_BYTES: usize = 2 * TRACKS + SENDS_V6;
     /// What version 7 adds after that: the side-chain setting and the two taps.
     const V7_BYTES: usize = (crate::COMP_PARAMS - COMP_V4) + (crate::SENDS_PARAMS - SENDS_V6);
+    /// What version 8 adds after that, for a project with a single pattern each: the shown one and a byte for each of the sixteen.
+    const V8_BYTES: usize = TRACKS * (1 + crate::PATTERNS);
 
     /// The bytes of a version 3 file for `p`: the current ones without the compressor at the end.
     fn as_version_3(p: &Project) -> Vec<u8> {
         let mut v = encode(p);
-        v.truncate(v.len() - COMP_V4 - crate::EQ_PARAMS - SENDS_BYTES - V7_BYTES);
+        v.truncate(v.len() - COMP_V4 - crate::EQ_PARAMS - SENDS_BYTES - V7_BYTES - V8_BYTES);
         v[0] = 3;
         v
     }
@@ -410,7 +462,7 @@ mod tests {
         let mut p = Project::default();
         p.comp.threshold = 70;
         let mut v = encode(&p);
-        v.truncate(v.len() - crate::EQ_PARAMS - SENDS_BYTES - V7_BYTES);
+        v.truncate(v.len() - crate::EQ_PARAMS - SENDS_BYTES - V7_BYTES - V8_BYTES);
         v[0] = 4;
         let q = decode(&v).expect("a version 4 file opens");
         assert_eq!(q, p);
@@ -423,7 +475,7 @@ mod tests {
         let mut p = Project::default();
         p.eq.low = 30;
         let mut v = encode(&p);
-        v.truncate(v.len() - SENDS_BYTES - V7_BYTES);
+        v.truncate(v.len() - SENDS_BYTES - V7_BYTES - V8_BYTES);
         v[0] = 5;
         let q = decode(&v).expect("a version 5 file opens");
         assert_eq!(q, p);
@@ -436,11 +488,45 @@ mod tests {
         let mut p = Project::default();
         p.sends.time = 3;
         let mut v = encode(&p);
-        v.truncate(v.len() - V7_BYTES);
+        v.truncate(v.len() - V7_BYTES - V8_BYTES);
         v[0] = 6;
         let q = decode(&v).expect("a version 6 file opens");
         assert_eq!(q, p);
         assert_eq!((q.comp.side, q.sends.tap_a, q.sends.tap_b), (0, 0, 0));
+    }
+
+    // F-F01
+    #[test]
+    fn a_version_7_file_still_opens_with_one_pattern_in_each_track() {
+        let mut p = Project::default();
+        p.tracks[1].steps[2] = Step::on(50);
+        let mut v = encode(&p);
+        v.truncate(v.len() - V8_BYTES);
+        v[0] = 7;
+        let q = decode(&v).expect("a version 7 file opens");
+        assert_eq!(q, p);
+        assert_eq!(q.current, [0; TRACKS]);
+        assert_eq!(q.pattern(1, 0).unwrap().steps[2], Step::on(50));
+    }
+
+    // F-F01
+    #[test]
+    fn the_patterns_of_the_tracks_round_trip() {
+        let mut p = Project::default();
+        p.tracks[3].steps[0] = Step::on(60);
+        p.apply(&crate::Command::SetPattern { track: 3, index: 5, now: false });
+        p.tracks[3].steps[7] = Step::on(70).with(StepComponent::Ratchet(2));
+        p.tracks[3].length = 11;
+        p.tracks[3].division = Division::Eighth;
+        p.apply(&crate::Command::SetPattern { track: 3, index: 1, now: false });
+        p.apply(&crate::Command::SetPattern { track: 6, index: 15, now: false });
+        let q = decode(&encode(&p)).unwrap();
+        assert_eq!(q.current, p.current);
+        assert_eq!(q.pattern(3, 0), p.pattern(3, 0), "the first, with its note");
+        assert_eq!(q.pattern(3, 5), p.pattern(3, 5), "the one with its own length and division");
+        assert_eq!((q.pattern(3, 5).unwrap().length, q.pattern(3, 5).unwrap().division), (11, Division::Eighth));
+        assert_eq!(q.tracks[3], p.tracks[3]);
+        assert_eq!(q.tracks[6].steps, p.tracks[6].steps);
     }
 
     // F-F01

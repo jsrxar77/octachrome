@@ -153,6 +153,8 @@ pub struct Controller {
     name_target: Option<(std::path::PathBuf, Main)>,
     /// The notes that came in by MIDI and are down: (channel, note) and the track each one sounds on.
     midi_held: std::collections::HashMap<(u8, u8), u8>,
+    /// PATTERN: the pad that is held (to copy it over another) and whether it has copied.
+    pattern_held: Option<(u8, bool)>,
     /// MIDI clock in: the tempo and the position that the pulses say.
     clock: crate::clockin::ClockFollower,
     /// The parameter (0..=7) that `learn` is waiting for a control for, once a knob has been turned.
@@ -266,6 +268,7 @@ impl Controller {
             // In settings the pads and knobs do nothing; the 4D encoder picks the theme.
             ControlEvent::Pad { pad, event } if self.ui.main == Main::File => self.file_pad(pad, event, h),
             ControlEvent::Pad { pad, event } if self.ui.main == Main::Plugin => self.plugin_pad(pad, event, h),
+            ControlEvent::Pad { pad, event } if self.ui.main == Main::Pattern => self.pattern_pad(pad, event, h),
             ControlEvent::Pad { pad, event } if self.ui.main == Main::Sampling => self.sampling_pad(pad, event, h),
             ControlEvent::Pad { pad, event } if self.ui.main == Main::Browser => self.browser_pad(pad, event, h),
             ControlEvent::Pad { pad, event } if self.ui.main == Main::Name => self.name_pad(pad, event, h),
@@ -435,6 +438,10 @@ impl Controller {
             Button::FixedVel if self.ui.main == Main::Instrument => self.ui.fixed_vel = !self.ui.fixed_vel,
             Button::PlugIn => {
                 let to = if self.ui.main == Main::Plugin { Main::Instrument } else { Main::Plugin };
+                self.set_main(to, h);
+            }
+            Button::Pattern => {
+                let to = if self.ui.main == Main::Pattern { Main::Instrument } else { Main::Pattern };
                 self.set_main(to, h);
             }
             Button::File => {
@@ -653,6 +660,7 @@ impl Controller {
                     match self.ui.main {
                         Main::File => self.file_pad(pad, ev, h),
                         Main::Plugin => self.plugin_pad(pad, ev, h),
+                        Main::Pattern => self.pattern_pad(pad, ev, h),
                         Main::Browser => self.browser_pad(pad, ev, h),
                         Main::Sampling => self.sampling_pad(pad, ev, h),
                         _ => {}
@@ -1074,6 +1082,46 @@ impl Controller {
         Ok(())
     }
 
+    /// PATTERN: a tap on a pad shows that pattern of the selected track and has it play from the start of the track's next loop (SHIFT:
+    /// at once); a pad held and another tapped copies the first over the second; ERASE and a tap empties it.
+    fn pattern_pad(&mut self, pad: u8, ev: PadEvent, h: &mut EngineHandle) {
+        let (track, slot) = (self.ui.track as u8, Self::pad_to_step(pad));
+        match ev {
+            PadEvent::Press | PadEvent::Strike(_) => {
+                if self.pad_down_at[pad as usize].is_some() {
+                    return;
+                }
+                self.pad_down_at[pad as usize] = Some(0);
+                if self.held.erase {
+                    h.seq(Command::ClearPattern { track, index: slot });
+                    self.ui.pattern_note = format!("pattern {} is empty", slot + 1);
+                } else if let Some((first, _)) = self.pattern_held.filter(|(first, _)| *first != pad) {
+                    let from = Self::pad_to_step(first);
+                    h.seq(Command::CopyPattern { track, from, to: slot });
+                    self.ui.pattern_note = format!("pattern {} copied over {}", from + 1, slot + 1);
+                    self.pattern_held = Some((first, true));
+                } else if self.pattern_held.is_none() {
+                    self.pattern_held = Some((pad, false));
+                }
+            }
+            PadEvent::Release => {
+                let was_down = self.pad_down_at[pad as usize].take().is_some();
+                if let Some((first, copied)) = self.pattern_held {
+                    if first == pad {
+                        self.pattern_held = None;
+                        if was_down && !copied {
+                            let now = self.held.shift;
+                            h.seq(Command::SetPattern { track, index: slot, now });
+                            self.ui.pattern_note = format!("pattern {}{}", slot + 1, if now { " plays now" } else { ": from the next loop" });
+                            self.ui.focus = NavKind::Cell(slot);
+                        }
+                    }
+                }
+            }
+            PadEvent::Pressure(_) => {}
+        }
+    }
+
     /// FILE: a pad opens the project in its slot; SHIFT + a pad of the player's slots saves into it.
     fn file_pad(&mut self, pad: u8, ev: PadEvent, h: &mut EngineHandle) {
         if !matches!(ev, PadEvent::Press | PadEvent::Strike(_)) || self.pad_down_at[pad as usize].is_some() {
@@ -1385,6 +1433,10 @@ impl Controller {
             h.send(EngineCommand::Record(None));
             h.send(EngineCommand::Preview(None));
         }
+        if m == Main::Pattern {
+            self.ui.pattern_note.clear();
+            self.pattern_held = None;
+        }
         if m == Main::Browser {
             self.refresh_browser(h);
             self.ui.browse_note.clear();
@@ -1400,6 +1452,7 @@ impl Controller {
         self.ui.focus = match m {
             Main::File => NavKind::Cell(self.ui.file_last.unwrap_or(0) as u8),
             Main::Plugin => NavKind::Cell(self.ui.plug_current.unwrap_or(0) as u8),
+            Main::Pattern => NavKind::Cell(h.project.current[self.ui.track]),
             // composing: on the track you are working on
             Main::Instrument => NavKind::Track(self.ui.track as u8),
             Main::Settings => NavKind::Pick(0),
@@ -2401,6 +2454,20 @@ impl Controller {
                 let level = if slot < 8 { if self.ui.smp.saved[slot] { 3 } else { 1 } } else if self.ui.smp.len > 0 && !self.ui.smp.recording { 2 } else { 0 };
                 if level > 0 {
                     out.set_pad(pad, NiColor::White, level);
+                }
+            }
+        }
+        if self.ui.main == Main::Pattern {
+            let now_pat = h.status.pattern[tr].load(Relaxed) as usize;
+            for pad in 0..16u8 {
+                let slot = Self::pad_to_step(pad) as usize;
+                let has = h.project.pattern(tr, slot).is_some_and(|p| !p.is_empty());
+                if slot == h.project.current[tr] as usize {
+                    out.set_pad(pad, NiColor::White, 3);
+                } else if playing && slot == now_pat {
+                    out.set_pad(pad, color, 2);
+                } else {
+                    out.set_pad(pad, NiColor::White, if has { 2 } else { 1 });
                 }
             }
         }

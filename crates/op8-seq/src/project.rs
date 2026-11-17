@@ -99,7 +99,41 @@ impl Default for Track {
     }
 }
 
+/// How many patterns each track has.
+pub const PATTERNS: usize = 16;
+
+/// What a track plays: its steps, how many of them, how fast they go and whether they are the lanes of a drum kit. The sound (the
+/// instrument, the effect, the LFO, the mix) is the track's and does not change with the pattern.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Pattern {
+    pub steps: [Step; MAX_STEPS],
+    pub length: u8,
+    pub division: Division,
+    pub kit: bool,
+}
+
+impl Default for Pattern {
+    fn default() -> Self {
+        Self { steps: [Step::default(); MAX_STEPS], length: 16, division: Division::Sixteenth, kit: false }
+    }
+}
+
+impl Pattern {
+    /// The pattern a track has in it now.
+    pub fn of(t: &Track) -> Self {
+        Self { steps: t.steps, length: t.length, division: t.division, kit: t.kit }
+    }
+    /// Nothing on its steps (what a pattern is when it is new).
+    pub fn is_empty(&self) -> bool {
+        !self.steps[..self.length.clamp(1, MAX_STEPS as u8) as usize].iter().any(|s| s.active)
+    }
+}
+
 impl Track {
+    /// Put a pattern in the track's place.
+    pub fn load(&mut self, p: &Pattern) {
+        (self.steps, self.length, self.division, self.kit) = (p.steps, p.length, p.division, p.kit);
+    }
     pub fn len(&self) -> usize {
         self.length.clamp(1, MAX_STEPS as u8) as usize
     }
@@ -245,7 +279,7 @@ impl MasterEq {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Project {
     pub tracks: [Track; TRACKS],
     pub brain: Brain,
@@ -260,6 +294,11 @@ pub struct Project {
     pub eq: MasterEq,
     /// The delay and the reverb the tracks are sent to.
     pub sends: MasterSends,
+    /// The patterns of each track. The one that is shown and edited, `current`, is in the track itself (its steps, length, division and
+    /// kit); the others are here, and the place of `current` here is always an empty one.
+    pub stored: Box<[[Pattern; PATTERNS]; TRACKS]>,
+    /// Which pattern of each track is shown and edited.
+    pub current: [u8; TRACKS],
 }
 
 impl Default for Project {
@@ -273,6 +312,8 @@ impl Default for Project {
             comp: MasterComp::default(),
             eq: MasterEq::default(),
             sends: MasterSends::default(),
+            stored: Box::new([[Pattern::default(); PATTERNS]; TRACKS]),
+            current: [0; TRACKS],
         }
     }
 }
@@ -413,9 +454,33 @@ pub enum Command {
     },
     SetProgressionLength(u8),
     SetLiveChord(Option<Chord>),
+    /// Show and edit another pattern of a track. What plays changes when the sequencer says (at the start of the track's next loop, or
+    /// at once with `now`; the project only changes what is shown).
+    SetPattern { track: u8, index: u8, now: bool },
+    /// Copy a pattern of a track over another one.
+    CopyPattern { track: u8, from: u8, to: u8 },
+    /// Empty a pattern of a track.
+    ClearPattern { track: u8, index: u8 },
 }
 
 impl Project {
+    /// What pattern `index` of a track holds (the track's own steps if it is the one shown).
+    pub fn pattern(&self, track: usize, index: usize) -> Option<Pattern> {
+        let t = self.tracks.get(track)?;
+        if index >= PATTERNS {
+            return None;
+        }
+        Some(if index == self.current[track] as usize { Pattern::of(t) } else { self.stored[track][index] })
+    }
+
+    fn set_pattern(&mut self, track: usize, index: usize, p: Pattern) {
+        if index == self.current[track] as usize {
+            self.tracks[track].load(&p);
+        } else {
+            self.stored[track][index] = p;
+        }
+    }
+
     fn step_mut(&mut self, track: u8, step: u8) -> Option<&mut Step> {
         self.tracks
             .get_mut(track as usize)?
@@ -427,6 +492,30 @@ impl Project {
     pub fn apply(&mut self, cmd: &Command) {
         use Command::*;
         match *cmd {
+            SetPattern { track, index, .. } => {
+                let (t, i) = (track as usize, index as usize);
+                if t < TRACKS && i < PATTERNS && i != self.current[t] as usize {
+                    // what is shown goes to its place, and the one asked for comes out of its own
+                    self.stored[t][self.current[t] as usize] = Pattern::of(&self.tracks[t]);
+                    let p = std::mem::take(&mut self.stored[t][i]);
+                    self.tracks[t].load(&p);
+                    self.current[t] = index;
+                }
+            }
+            CopyPattern { track, from, to } => {
+                let t = track as usize;
+                if let Some(p) = self.pattern(t, from as usize) {
+                    if (to as usize) < PATTERNS {
+                        self.set_pattern(t, to as usize, p);
+                    }
+                }
+            }
+            ClearPattern { track, index } => {
+                let t = track as usize;
+                if t < TRACKS && (index as usize) < PATTERNS {
+                    self.set_pattern(t, index as usize, Pattern::default());
+                }
+            }
             SetKit { track, kit } => {
                 if let Some(t) = self.tracks.get_mut(track as usize) {
                     if kit && !t.kit {

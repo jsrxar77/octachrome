@@ -31,7 +31,7 @@ impl ProjectFile {
                 Some((c.info().name, c.save_state()))
             })
             .collect();
-        Self { project: h.project, instruments }
+        Self { project: h.project.clone(), instruments }
     }
 
     pub fn encode(&self) -> Vec<u8> {
@@ -83,7 +83,7 @@ impl ProjectFile {
 
     /// Put this project and its instruments into the engine.
     pub fn apply(&self, h: &mut EngineHandle) {
-        h.send(EngineCommand::LoadProject(Box::new(self.project)));
+        h.send(EngineCommand::LoadProject(Box::new(self.project.clone())));
         for (t, slot) in self.instruments.iter().enumerate().take(TRACKS) {
             let current_is_bridge = h.slots[t].as_ref().and_then(|c| c.lock().ok().map(|c| c.info().name == MIDI_BRIDGE)).unwrap_or(false);
             match slot {

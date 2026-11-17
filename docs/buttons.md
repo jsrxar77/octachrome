@@ -59,7 +59,7 @@ They are the modules of the current mode, like M1–M4 on the OP-XY. Their name 
 | SELECT | Select without triggering | — | Held in FILE or BROWSER, a tap on one of your own places (that has something in it) **names it** (2026-11-17): the NAME view opens on both screens. 4D encoder turns the letter under the cursor (SHIFT: ten at a time), the arrows ◀ ▶ and the pads of the top three rows move the cursor, the last four pads are `clear`, `delete`, `insert` and `save`; push saves the name next to the file; FILE or BROWSER cancels. The same in SAMPLING, with a pad, names a recording (2026-11-17). Not yet: choosing a pad or group without sounding it | ◐ |
 | MUTE | Mute | shift + track | Hold MUTE + group to mute the track | ✓ |
 | SOLO | Solo | — | Hold SOLO + group to isolate the track | ○ |
-| PATTERN | Patterns | per-track patterns | Pads = 16 patterns of the track | ○ |
+| PATTERN | Patterns | per-track patterns | **Patterns** (2026-11-17): both screens, the pads are the 16 patterns of the selected track (steps, length, division and kit; the sound stays the track's). A tap shows that pattern and plays it from the start of the track's next loop; SHIFT + a tap plays it at once; a pad held and another tapped copies; ERASE + a tap empties. Again goes back | ✓ |
 | SCENE | Scenes | scenes (arrange) | Pads = 16 scenes | ○ |
 | EVENTS | Edit events | step components | Opens the components of the selected step (same as button 2) | ○ |
 | VARIATION | Humanise and random | component random | Adds random variation to the track (velocity, chance) | ○ |
