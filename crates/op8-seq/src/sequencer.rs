@@ -9,7 +9,7 @@
 use crate::{
     fixed::FixedVec,
     project::{Command, Project},
-    Chord, Rng, TRACKS,
+    Brain, Chord, Rng, TRACKS,
 };
 use op8_cartridge::{NoteEvent, NoteKind};
 
@@ -121,6 +121,8 @@ pub struct Sequencer {
     song_pos: Option<usize>,
     song_start: u64,
     song_mute: Option<u8>,
+    /// The harmony of the song's scene while the song plays; its chords count from the start of the step.
+    song_brain: Option<Brain>,
     /// The sequencer has just started: the song's first step plays at once instead of waiting for the loops.
     song_fresh: bool,
     rng: [Rng; TRACKS],
@@ -150,6 +152,7 @@ impl Sequencer {
             song_pos: None,
             song_start: 0,
             song_mute: None,
+            song_brain: None,
             song_fresh: false,
             rng: [Rng::new(0); TRACKS],
             repeat: None,
@@ -231,7 +234,7 @@ impl Sequencer {
         let song = self.project.song;
         let len = (song.len as usize).min(crate::SONG_STEPS);
         if !song.on || len == 0 {
-            (self.song_pos, self.song_mute) = (None, None);
+            (self.song_pos, self.song_mute, self.song_brain) = (None, None, None);
             return;
         }
         let bar = 4 * crate::PPQN as u64;
@@ -260,6 +263,7 @@ impl Sequencer {
             return;
         };
         self.song_mute = Some(sc.mute);
+        self.song_brain = Some(sc.brain);
         for t in 0..TRACKS {
             if at_start {
                 (self.play[t], self.queued[t], self.origin[t]) = (sc.pattern[t].min(crate::PATTERNS as u8 - 1), None, self.last_eff);
@@ -293,7 +297,7 @@ impl Sequencer {
         // from the top, what the player is looking at is what plays
         self.play = self.project.current;
         (self.queued, self.origin) = ([None; TRACKS], [0; TRACKS]);
-        (self.song_pos, self.song_mute, self.song_fresh) = (None, None, true);
+        (self.song_pos, self.song_mute, self.song_brain, self.song_fresh) = (None, None, None, true);
         self.reseed();
     }
 
@@ -365,14 +369,34 @@ impl Sequencer {
         (self.last_eff.saturating_sub(self.origin[track]) % ticks) as f32 / ticks as f32
     }
 
+    /// The harmony that sounds: the song's scene while the song is followed (its chords count from the start of the step),
+    /// the project's own otherwise; and the 1/16 step to look the chord up at.
+    fn harmony_at(&self, eff: u64) -> (&Brain, u64) {
+        match &self.song_brain {
+            Some(b) => (b, eff.saturating_sub(self.song_start) / 24),
+            None => (&self.project.brain, eff / 24),
+        }
+    }
+
+    fn chord_at(&self, eff: u64) -> Chord {
+        match self.project.brain.live {
+            Some(c) => c,
+            None => {
+                let (b, step) = self.harmony_at(eff);
+                b.chord_at(step)
+            }
+        }
+    }
+
     /// The Brain chord sounding now.
     pub fn current_chord(&self) -> Chord {
-        self.project.brain.chord_at(self.last_eff / 24)
+        self.chord_at(self.last_eff)
     }
 
     /// Index of the Brain progression slot sounding now.
     pub fn current_chord_slot(&self) -> usize {
-        self.project.brain.slot_at(self.last_eff / 24)
+        let (b, step) = self.harmony_at(self.last_eff);
+        b.slot_at(step)
     }
 
     /// Events that did not fit in the queue (should stay 0).
@@ -497,8 +521,7 @@ impl Sequencer {
             self.locked[tr] = lock_mask;
 
             let note = if track.brain_link {
-                let b = &self.project.brain;
-                b.apply(r.note, b.chord_at(eff / 24))
+                self.harmony_at(eff).0.apply(r.note, self.chord_at(eff))
             } else {
                 r.note
             };
@@ -1147,5 +1170,36 @@ mod tests {
         let log = run_with(&mut seq, 96_000 * 2, &[]);
         assert_eq!(log.iter().filter(|e| e.1 == 0).count(), 2);
         assert_eq!(seq.song_position(), None);
+    }
+
+    // F-S18
+    #[test]
+    fn each_scene_of_the_song_brings_its_own_harmony_counted_from_the_start_of_its_step() {
+        use crate::{ChordKind, ChordSlot, Command::*};
+        let mut p = Project::default(); // I vi IV V, one bar each, in C
+        p.tracks[0].steps[0] = Step::on(64); // E
+        p.tracks[0].brain_link = true;
+        p.apply(&StoreScene { index: 0 });
+        // the second scene stays on IV
+        p.apply(&SetProgressionSlot { index: 0, slot: ChordSlot { degree: 3, kind: ChordKind::Triad, length: 16 } });
+        p.apply(&SetProgressionLength(1));
+        p.apply(&StoreScene { index: 1 });
+        p.apply(&SetKey(2)); // the project's own harmony is not the one that plays while the song does
+        p.apply(&SetSongStep { index: 0, scene: 0, bars: 2 });
+        p.apply(&SetSongStep { index: 1, scene: 1, bars: 2 });
+        p.apply(&SetSongOn(true));
+        let mut seq = Sequencer::new(p, SR);
+        seq.play();
+        let log = run_with(&mut seq, 96_000 * 6, &[]);
+        let notes: Vec<u8> = log.iter().filter(|e| e.1 == 0).map(|e| e.2).collect();
+        // C, Am | F, F (the progression of scene 2 begins with its step; it does not go on to G) | round again: C, Am
+        assert_eq!(notes, [64, 60, 69, 69, 64, 60]);
+        // and a scene launched by hand brings its harmony into the project
+        let mut q = Project::default();
+        q.apply(&SetKey(7));
+        q.apply(&StoreScene { index: 3 });
+        q.apply(&SetKey(0));
+        q.apply(&LaunchScene { index: 3 });
+        assert_eq!(q.brain.key, 7);
     }
 }

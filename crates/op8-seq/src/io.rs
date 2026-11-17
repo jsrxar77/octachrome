@@ -15,7 +15,7 @@ use crate::{
 /// Version 4 adds the master compressor after the tracks; an older file still opens (it is then at its defaults, which do nothing).
 /// Version 5 adds the master EQ after the compressor; an older file still opens (it is then flat).
 /// Version 6 adds the two sends of each track and the settings of the sends' effects after the EQ; an older file still opens (nothing is sent).
-pub const VERSION: u8 = 10;
+pub const VERSION: u8 = 11;
 
 /// How many compressor and sends settings versions 4 to 6 wrote: later ones are appended at the end, so those files still open.
 const COMP_V4: usize = 6;
@@ -161,16 +161,7 @@ pub fn encode(p: &Project) -> Vec<u8> {
     w.f32(p.bpm);
     w.f32(p.swing);
     w.u64(p.seed);
-    let b = &p.brain;
-    w.u8(b.key);
-    w.u8(Scale::ALL.iter().position(|s| *s == b.scale).unwrap_or(0) as u8);
-    w.u8(b.mode as u8);
-    w.u8(b.len);
-    for slot in &b.progression {
-        w.u8(slot.degree);
-        w.u8(slot.kind as u8);
-        w.u8(slot.length);
-    }
+    write_brain(&mut w, &p.brain);
     for t in &p.tracks {
         w.u8(t.length);
         w.u8(Division::ALL.iter().position(|d| *d == t.division).unwrap_or(2) as u8);
@@ -242,6 +233,8 @@ pub fn encode(p: &Project) -> Vec<u8> {
                 w.u8(sc.pattern[t]);
             }
             w.u8(sc.mute);
+            // version 11: and its harmony
+            write_brain(&mut w, &sc.brain);
         } else {
             w.u8(0);
         }
@@ -256,17 +249,20 @@ pub fn encode(p: &Project) -> Vec<u8> {
     w.0
 }
 
-/// A project from bytes, or `None` if they are not a project of a version this build knows.
-pub fn decode(data: &[u8]) -> Option<Project> {
-    let mut r = R(data);
-    let version = r.u8()?;
-    if !(1..=VERSION).contains(&version) {
-        return None;
+/// The harmony: key, scale, mode, number of chords and each chord (a degree, a kind and a length).
+fn write_brain(w: &mut W, b: &Brain) {
+    w.u8(b.key);
+    w.u8(Scale::ALL.iter().position(|s| *s == b.scale).unwrap_or(0) as u8);
+    w.u8(b.mode as u8);
+    w.u8(b.len);
+    for slot in &b.progression {
+        w.u8(slot.degree);
+        w.u8(slot.kind as u8);
+        w.u8(slot.length);
     }
-    let mut p = Project::default();
-    p.bpm = r.f32()?.clamp(20.0, 300.0);
-    p.swing = r.f32()?.clamp(0.5, 0.75);
-    p.seed = r.u64()?;
+}
+
+fn read_brain(r: &mut R) -> Option<Brain> {
     let key = r.u8()?;
     let scale = *Scale::ALL.get(r.u8()? as usize)?;
     let mode = match r.u8()? {
@@ -288,7 +284,21 @@ pub fn decode(data: &[u8]) -> Option<Project> {
         };
         slot.length = r.u8()?;
     }
-    p.brain = Brain { key: key % 12, scale, mode, progression, len: len.clamp(1, MAX_PROGRESSION as u8), live: None };
+    Some(Brain { key: key % 12, scale, mode, progression, len: len.clamp(1, MAX_PROGRESSION as u8), live: None })
+}
+
+/// A project from bytes, or `None` if they are not a project of a version this build knows.
+pub fn decode(data: &[u8]) -> Option<Project> {
+    let mut r = R(data);
+    let version = r.u8()?;
+    if !(1..=VERSION).contains(&version) {
+        return None;
+    }
+    let mut p = Project::default();
+    p.bpm = r.f32()?.clamp(20.0, 300.0);
+    p.swing = r.f32()?.clamp(0.5, 0.75);
+    p.seed = r.u64()?;
+    p.brain = read_brain(&mut r)?;
     for t in p.tracks.iter_mut().take(TRACKS) {
         let mut tr = Track::default();
         tr.length = r.u8()?.clamp(1, MAX_STEPS as u8);
@@ -382,6 +392,8 @@ pub fn decode(data: &[u8]) -> Option<Project> {
                         sc.pattern[t] = r.u8()?.min(crate::PATTERNS as u8 - 1);
                     }
                     sc.mute = r.u8()?;
+                    // before version 11 a scene had no harmony of its own: it keeps the project's
+                    sc.brain = if version >= 11 { read_brain(&mut r)? } else { p.brain };
                 }
                 _ => return None,
             }
@@ -592,17 +604,55 @@ mod tests {
         assert!(q.scenes.iter().all(|s| !s.used));
     }
 
+    /// What version 11 adds to each stored scene: its harmony.
+    const BRAIN_BYTES: usize = 4 + 3 * MAX_PROGRESSION;
+
+    /// A version 10 file with scene 2 stored (and nothing else in the scenes, nor a song): the harmony taken out of the scene.
+    fn v10_with_scene_2(p: &Project) -> Vec<u8> {
+        let mut v = encode(p);
+        // after scene 2: the 13 flags of the scenes 3 to 15, then the song (two bytes)
+        let end = v.len() - V10_BYTES - 13;
+        v.drain(end - BRAIN_BYTES..end);
+        v[0] = 10;
+        v
+    }
+
     // F-F01
     #[test]
     fn a_version_9_file_still_opens_without_a_song() {
         let mut p = Project::default();
         p.apply(&crate::Command::StoreScene { index: 2 });
-        let mut v = encode(&p);
+        let mut v = v10_with_scene_2(&p);
         v.truncate(v.len() - V10_BYTES);
         v[0] = 9;
         let q = decode(&v).expect("a version 9 file opens");
         assert_eq!(q, p);
         assert_eq!(q.song.len, 0);
+    }
+
+    // F-F01
+    #[test]
+    fn a_version_10_scene_keeps_the_harmony_of_the_project() {
+        let mut p = Project::default();
+        p.apply(&crate::Command::SetKey(7));
+        p.apply(&crate::Command::StoreScene { index: 2 });
+        p.apply(&crate::Command::SetKey(2)); // the project moved on; the file's own harmony is the second
+        let q = decode(&v10_with_scene_2(&p)).expect("a version 10 file opens");
+        assert_eq!(q.brain.key, 2);
+        assert_eq!(q.scenes[2].brain.key, 2, "an old scene has no harmony of its own: it takes the project's");
+    }
+
+    // F-F01
+    #[test]
+    fn the_harmony_of_a_scene_round_trips() {
+        let mut p = Project::default();
+        p.apply(&crate::Command::SetKey(9));
+        p.apply(&crate::Command::SetScale(Scale::Dorian));
+        p.apply(&crate::Command::StoreScene { index: 1 });
+        p.apply(&crate::Command::SetKey(3));
+        let q = decode(&encode(&p)).unwrap();
+        assert_eq!((q.scenes[1].brain.key, q.scenes[1].brain.scale), (9, Scale::Dorian));
+        assert_eq!(q.brain.key, 3, "and the project keeps its own");
     }
 
     // F-F01
