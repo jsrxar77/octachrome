@@ -299,6 +299,20 @@ pub struct Project {
     pub stored: Box<[[Pattern; PATTERNS]; TRACKS]>,
     /// Which pattern of each track is shown and edited.
     pub current: [u8; TRACKS],
+    /// The sixteen scenes: each one remembers which pattern every track shows and which tracks are muted.
+    pub scenes: [Scene; SCENES],
+}
+
+/// How many scenes a project keeps.
+pub const SCENES: usize = 16;
+
+/// A scene: the pattern of each track and which tracks are muted. An unused one has never been stored.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct Scene {
+    pub used: bool,
+    pub pattern: [u8; TRACKS],
+    /// Bit `t` is set when track `t` is muted.
+    pub mute: u8,
 }
 
 impl Default for Project {
@@ -314,6 +328,7 @@ impl Default for Project {
             sends: MasterSends::default(),
             stored: Box::new([[Pattern::default(); PATTERNS]; TRACKS]),
             current: [0; TRACKS],
+            scenes: [Scene::default(); SCENES],
         }
     }
 }
@@ -461,6 +476,13 @@ pub enum Command {
     CopyPattern { track: u8, from: u8, to: u8 },
     /// Empty a pattern of a track.
     ClearPattern { track: u8, index: u8 },
+    /// Store in a scene the pattern each track shows and which tracks are muted.
+    StoreScene { index: u8 },
+    /// Empty a scene.
+    ClearScene { index: u8 },
+    /// Bring a scene back: every track's pattern is asked for (it plays from the track's next loop) and the mutes are set at once.
+    /// An empty scene does nothing.
+    LaunchScene { index: u8 },
 }
 
 impl Project {
@@ -500,6 +522,28 @@ impl Project {
                     let p = std::mem::take(&mut self.stored[t][i]);
                     self.tracks[t].load(&p);
                     self.current[t] = index;
+                }
+            }
+            StoreScene { index } => {
+                if (index as usize) < SCENES {
+                    let mut mute = 0u8;
+                    for (t, tr) in self.tracks.iter().enumerate() {
+                        mute |= (tr.muted as u8) << t;
+                    }
+                    self.scenes[index as usize] = Scene { used: true, pattern: self.current, mute };
+                }
+            }
+            ClearScene { index } => {
+                if (index as usize) < SCENES {
+                    self.scenes[index as usize] = Scene::default();
+                }
+            }
+            LaunchScene { index } => {
+                if let Some(sc) = self.scenes.get(index as usize).copied().filter(|s| s.used) {
+                    for t in 0..TRACKS {
+                        self.apply(&SetPattern { track: t as u8, index: sc.pattern[t], now: false });
+                        self.tracks[t].muted = sc.mute >> t & 1 == 1;
+                    }
                 }
             }
             CopyPattern { track, from, to } => {

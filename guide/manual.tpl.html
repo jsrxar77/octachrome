@@ -4,7 +4,7 @@
 <link rel="icon" href="brand/op8-mark.svg" type="image/svg+xml">
 <link rel="stylesheet" href="site.css">
 <!--SOCIAL-->
-<meta name="description" content="The OP-8 manual: how the machine works, twenty-three recipes you can follow from the first minute, and every button.">
+<meta name="description" content="The OP-8 manual: how the machine works, twenty-five recipes you can follow from the first minute, and every button.">
 <style>
 @font-face{font-family:Jost;font-weight:300;src:url(fonts/Jost-Light.ttf)}
 @font-face{font-family:Jost;font-weight:400;src:url(fonts/Jost-Regular.ttf)}
@@ -75,7 +75,7 @@ h2.ref small{font-size:14px;color:var(--dim)}
 <!--HEADER-->
 <main id="main">
 <h1>Manual</h1>
-<p class="dim" style="font-size:22px;max-width:40ch;margin-top:14px">How OP-8 works, from the first minute. Twenty-three recipes you can follow with the unit in front of you, and then every button.</p>
+<p class="dim" style="font-size:22px;max-width:40ch;margin-top:14px">How OP-8 works, from the first minute. Twenty-five recipes you can follow with the unit in front of you, and then every button.</p>
 
 <nav class="toc" aria-label="Contents">
   <a href="#map">The unit, part by part</a><a href="#welcome">What it is</a><a href="#unit">Five facts</a><a href="#pieces">Eight pieces</a><a href="#first">First ten minutes</a><a href="#recipes">Recipes</a><a href="#ideas">The ideas behind it</a><a href="#instruments">Instruments</a><a href="#reference">Every button</a><a href="#saved">Where things are kept</a><a href="#help">If something is odd</a><a href="#notyet">Not yet</a>
@@ -562,6 +562,20 @@ __PIECE_ROWS__
   <p class="next"><b>Try next:</b> copy the first pattern to the second, take a few steps out of it, and swap between them every few bars while it plays.</p>
 </div>
 
+<div class="recipe" id="r25">
+  <h3>25 <span>SCENES: CHANGE EVERYTHING AT ONCE</span></h3>
+  <p class="goal">Keep a whole arrangement (which pattern each track plays and what is muted) and bring it back with one tap.</p>
+  <ol class="steps">
+    <li><div>Set the music up the way you want it: on each track, choose its pattern with <kbd>PATTERN</kbd> (recipe 24), and mute the tracks that should be silent (hold <kbd>MUTE</kbd> and press a group key).</div></li>
+    <li><div>Press <kbd>SCENE</kbd> (it lights). Both screens change: on the left sixteen cells, <b>1</b> to <b>16</b>, one for each <b>scene</b>. A scene is <b>which pattern every track shows and which tracks are muted</b>; nothing of the sound.</div></li>
+    <li><div>Hold <kbd>SHIFT</kbd> and tap a pad: the scene is <b>stored</b> there (the right screen says so, and the cell gets a fill). Go back to composing, change patterns and mutes, and store another one on a second pad.</div></li>
+    <li><div>Tap a stored pad: every track <b>goes to the pattern it had</b>, each one from the start of <b>its own next loop</b> (so a short track changes before a long one), and the <b>mutes come back at once</b>. A pad that was never stored says so and changes nothing.</div></li>
+    <li><div>To empty a scene, hold <kbd>ERASE</kbd> and tap its pad. The scenes are saved with the project; one from before this existed opens with none.</div></li>
+  </ol>
+  <figure><div class="pair"><img src="img/r25-scenes-left.png" alt="SCENE: the sixteen scenes."><img src="img/r25-scenes-right.png" alt="SCENE: what a pad does."></div><figcaption>The sixteen scenes on the left (the one tapped last has the thick outline), what a pad does on the right.</figcaption></figure>
+  <p class="next"><b>Try next:</b> store a quiet scene (only the drums) and a full one, and swap between them while it plays.</p>
+</div>
+
 
 <h2 id="ideas">The ideas behind it</h2>
 <p class="sub">Short, so you can keep them in your head.</p>
@@ -662,7 +676,7 @@ __PRESET_ROWS__
 <p class="sub">So that you do not look for it.</p>
 <ul>
   <li><b>Undo.</b> Save with <kbd>FILE</kbd> before something bold.</li>
-  <li><b>Scenes and a song.</b> Each track has sixteen patterns (recipe 24), but there is no way yet to change them all at once or to chain them. <kbd>SCENE</kbd> and <kbd>ARRANGER</kbd> are planned.</li>
+  <li><b>A song.</b> Scenes (recipe 25) change everything at once, but there is no way yet to chain them into a song. <kbd>ARRANGER</kbd> is planned.</li>
   <li><b>More of sampling.</b> <kbd>SAMPLING</kbd> records mono, up to ten seconds; the slices can be equal parts or cut where the sound hits (recipe 21).</li>
   <li><b>More of the mixer.</b> Level, pan and two sends of each track (taken before or after the fader), a compressor that can listen to one track, and an EQ on the master are there (recipes 19 and 23).</li>
   <li><b>Recording chords and knob movements.</b> <kbd>REC</kbd> writes notes and drum hits. Automation (<kbd>AUTO</kbd>) and a count-in for it are planned (<kbd>SAMPLING</kbd> already has one, recipe 16). The LFO of button <kbd>8</kbd> already moves knobs by itself.</li>

@@ -772,6 +772,25 @@ fn recipe_24_patterns() {
 
 // F-G04
 #[test]
+fn recipe_25_scenes() {
+    let _one_at_a_time = serial();
+    let mut b = Bench::demo();
+    b.press(Button::Scene);
+    assert_eq!(b.ui().main, op8_ui::Main::Scene);
+    b.button_down(Button::Shift);
+    b.tap(pad(2));
+    b.button_up(Button::Shift);
+    b.tap(pad(2));
+    b.run_ms(100);
+    assert!(b.project().scenes[1].used);
+    assert!(b.ui().scene_note.contains("scene 2"));
+    b.capture("r25-scenes");
+    b.press(Button::Scene);
+    assert_eq!(b.ui().main, op8_ui::Main::Instrument);
+}
+
+// F-G04
+#[test]
 fn recipe_22_settings_audio_midi_and_light() {
     use op8::controller::{DeviceList, Request};
     use op8_ui::NavKind;

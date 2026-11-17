@@ -15,7 +15,7 @@ use crate::{
 /// Version 4 adds the master compressor after the tracks; an older file still opens (it is then at its defaults, which do nothing).
 /// Version 5 adds the master EQ after the compressor; an older file still opens (it is then flat).
 /// Version 6 adds the two sends of each track and the settings of the sends' effects after the EQ; an older file still opens (nothing is sent).
-pub const VERSION: u8 = 8;
+pub const VERSION: u8 = 9;
 
 /// How many compressor and sends settings versions 4 to 6 wrote: later ones are appended at the end, so those files still open.
 const COMP_V4: usize = 6;
@@ -234,6 +234,18 @@ pub fn encode(p: &Project) -> Vec<u8> {
             }
         }
     }
+    // version 9: the sixteen scenes. A byte each: 0 never stored; 1 stored, followed by the pattern of each track and the mutes
+    for sc in &p.scenes {
+        if sc.used {
+            w.u8(1);
+            for t in 0..TRACKS {
+                w.u8(sc.pattern[t]);
+            }
+            w.u8(sc.mute);
+        } else {
+            w.u8(0);
+        }
+    }
     w.0
 }
 
@@ -353,6 +365,21 @@ pub fn decode(data: &[u8]) -> Option<Project> {
             }
         }
     }
+    if version >= 9 {
+        for sc in p.scenes.iter_mut() {
+            match r.u8()? {
+                0 => {}
+                1 => {
+                    sc.used = true;
+                    for t in 0..TRACKS {
+                        sc.pattern[t] = r.u8()?.min(crate::PATTERNS as u8 - 1);
+                    }
+                    sc.mute = r.u8()?;
+                }
+                _ => return None,
+            }
+        }
+    }
     Some(p)
 }
 
@@ -366,11 +393,13 @@ mod tests {
     const V7_BYTES: usize = (crate::COMP_PARAMS - COMP_V4) + (crate::SENDS_PARAMS - SENDS_V6);
     /// What version 8 adds after that, for a project with a single pattern each: the shown one and a byte for each of the sixteen.
     const V8_BYTES: usize = TRACKS * (1 + crate::PATTERNS);
+    /// What version 9 adds after that, for a project with no scenes: a byte for each of the sixteen.
+    const V9_BYTES: usize = crate::SCENES;
 
     /// The bytes of a version 3 file for `p`: the current ones without the compressor at the end.
     fn as_version_3(p: &Project) -> Vec<u8> {
         let mut v = encode(p);
-        v.truncate(v.len() - COMP_V4 - crate::EQ_PARAMS - SENDS_BYTES - V7_BYTES - V8_BYTES);
+        v.truncate(v.len() - COMP_V4 - crate::EQ_PARAMS - SENDS_BYTES - V7_BYTES - V8_BYTES - V9_BYTES);
         v[0] = 3;
         v
     }
@@ -462,7 +491,7 @@ mod tests {
         let mut p = Project::default();
         p.comp.threshold = 70;
         let mut v = encode(&p);
-        v.truncate(v.len() - crate::EQ_PARAMS - SENDS_BYTES - V7_BYTES - V8_BYTES);
+        v.truncate(v.len() - crate::EQ_PARAMS - SENDS_BYTES - V7_BYTES - V8_BYTES - V9_BYTES);
         v[0] = 4;
         let q = decode(&v).expect("a version 4 file opens");
         assert_eq!(q, p);
@@ -475,7 +504,7 @@ mod tests {
         let mut p = Project::default();
         p.eq.low = 30;
         let mut v = encode(&p);
-        v.truncate(v.len() - SENDS_BYTES - V7_BYTES - V8_BYTES);
+        v.truncate(v.len() - SENDS_BYTES - V7_BYTES - V8_BYTES - V9_BYTES);
         v[0] = 5;
         let q = decode(&v).expect("a version 5 file opens");
         assert_eq!(q, p);
@@ -488,7 +517,7 @@ mod tests {
         let mut p = Project::default();
         p.sends.time = 3;
         let mut v = encode(&p);
-        v.truncate(v.len() - V7_BYTES - V8_BYTES);
+        v.truncate(v.len() - V7_BYTES - V8_BYTES - V9_BYTES);
         v[0] = 6;
         let q = decode(&v).expect("a version 6 file opens");
         assert_eq!(q, p);
@@ -501,7 +530,7 @@ mod tests {
         let mut p = Project::default();
         p.tracks[1].steps[2] = Step::on(50);
         let mut v = encode(&p);
-        v.truncate(v.len() - V8_BYTES);
+        v.truncate(v.len() - V8_BYTES - V9_BYTES);
         v[0] = 7;
         let q = decode(&v).expect("a version 7 file opens");
         assert_eq!(q, p);
@@ -527,6 +556,32 @@ mod tests {
         assert_eq!((q.pattern(3, 5).unwrap().length, q.pattern(3, 5).unwrap().division), (11, Division::Eighth));
         assert_eq!(q.tracks[3], p.tracks[3]);
         assert_eq!(q.tracks[6].steps, p.tracks[6].steps);
+    }
+
+    // F-F01
+    #[test]
+    fn a_version_8_file_still_opens_without_scenes() {
+        let mut p = Project::default();
+        p.tracks[1].steps[2] = Step::on(50);
+        let mut v = encode(&p);
+        v.truncate(v.len() - V9_BYTES);
+        v[0] = 8;
+        let q = decode(&v).expect("a version 8 file opens");
+        assert_eq!(q, p);
+        assert!(q.scenes.iter().all(|s| !s.used));
+    }
+
+    // F-F01
+    #[test]
+    fn the_scenes_round_trip() {
+        let mut p = Project::default();
+        p.apply(&crate::Command::SetPattern { track: 2, index: 3, now: false });
+        p.apply(&crate::Command::SetMute { track: 5, muted: true });
+        p.apply(&crate::Command::StoreScene { index: 4 });
+        let q = decode(&encode(&p)).unwrap();
+        assert_eq!(q.scenes[4], p.scenes[4]);
+        assert_eq!((q.scenes[4].pattern[2], q.scenes[4].mute), (3, 1 << 5));
+        assert!(!q.scenes[0].used);
     }
 
     // F-F01

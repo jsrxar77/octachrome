@@ -96,7 +96,7 @@ Known limits of the setup:
 - **Eight and eight projects.** 8 factory projects (eight short pieces in eight styles, made only with the factory instruments and their presets: [instruments.md §9](instruments.md)) and 8 for the player; FILE shows them on the 16 pads ([instruments.md §7](instruments.md)). Needs save and load first (§7).
 
 - PATTERN: 16 patterns per track.
-- SCENE and ARRANGER: scenes and song.
+- ARRANGER: the song, a chain of scenes.
 - DUPLICATE, SELECT, SOLO, VARIATION, EVENTS, LOCK.
 - Done: FILE opens the eight factory projects and the player's eight and saves into them (the projects folder). To do: naming a project, deleting one, saving a copy.
 
@@ -138,7 +138,7 @@ Saved on 2026-11-16, after the batch of section 8, and kept current since. Devel
 3. Done (2026-11-16): KEYBOARD on a drum kit is PAD MODE (F-K17).
 4. Done (2026-11-16): the basic mixer: a level and a pan for each track, turned with VOLUME held and the knobs (SHIFT for the pan), saved with the project (format version 3) (F-A20, F-K18, F-D20). The MIXER page and the master compressor came after (item 11). Sends came after (item 14).
 5. Done (2026-11-16): names for projects and presets (by the day, and a text file the player can edit) and ERASE + a tap, twice, to erase one (F-F08, F-F09, F-K19). Naming on the unit itself came after (item 13).
-6. SCENE and ARRANGER (PATTERN is done, item 17).
+6. ARRANGER (PATTERN is done, item 17, and SCENE, item 18).
 7. Done (2026-11-16): the sampler's gaps: copied WAVs are loaded when SAMPLING or PLUG-IN opens (F-A24), SHIFT + REC waits for the sound (F-A23), slices on the `loop` knob and `tune` of ± 24, which is also the root note (F-A22). Then (2026-11-17): `hits`, the fifth position of `loop`, cuts the window where the sound hits (F-A26).
 8. Done (2026-11-16): SETTINGS in four pages, `theme`, `audio` (output, input, block), `midi` (port, test note, silence) and `light` (steps of backlight and pad level, never more than the supply allows), with the devices asked for live and kept in the settings file (F-C10 to F-C15). Not tried on the unit: the lists of devices of the Mac and the Pi, reopening the audio while it plays, and the brightness steps. Left: REC's count-in. MIDI clock out came after (item 10); MIDI in is not built.
 9. Done (2026-11-16): the count-in of SAMPLING (TAP turns it on, REC counts three beats: F-K20) and the cut that moves while the part plays (F-A25). The count-in of the REC that writes notes is still to do (with chords and knob movements).
@@ -150,6 +150,8 @@ Saved on 2026-11-16, after the batch of section 8, and kept current since. Devel
 15. Done (2026-11-17): MIDI in: an input chosen on the `midi` page of SETTINGS (none by default) plays the selected track or, with `in: by channel`, the track of each channel (1 to 8 are A to H); REC writes what comes in; controllers 7, 10 and 91 mix the track (F-M04, F-C17). Not tried with a real keyboard, and the Linux branch has not been compiled yet. Left: aftertouch. Learning controls, the outside clock, program changes and pitch bend came after (item 16).
 16. Done (2026-11-17): the small ones: the compressor can listen to one track (a side-chain, the third value of `output`: F-K24, F-A30) and each send can be taken before the fader (the page `taps`, button 8 again); MIDI in has program changes (the eight of PLUG-IN), the pitch wheel (±2 semitones; FM bass, macro, resonator, sampler, granular and the MIDI out), the outside clock (tempo, start, continue, stop and the song position pointer, kept in step by the pulses' own times: F-M06) and learned controls (any controller to any of the eight knobs of the instrument: F-M07); SAMPLING names its recordings (F-N18). The project is format version 7. Not tried with real gear: the clock was checked against simulated pulses stamped as the input thread stamps them, not a real sequencer, and a start or stop is acted on at the next frame; the Linux branch of the timestamps has not been compiled. Left: a start that waits for the bar, aftertouch, naming a sound that is not a recording.
 17. Done (2026-11-17): PATTERN: sixteen patterns for each track (steps, length, division and kit); the pads of PATTERN show one (at once) and play it from the next loop of the track, SHIFT + a tap at once, hold + tap copies, ERASE + tap empties; saved with the project (format version 8) (F-S15, F-K25). Not tried on the unit. Left: the pattern is not shown while composing (only in PATTERN), and SCENE and ARRANGER, which come next in that order (a scene is the pattern of each track and the mutes; the song is a chain of scenes with repeats, and goes round at its end).
+
+18. Done (2026-11-17): SCENE: sixteen scenes in the project, each the pattern every track shows and the mutes; a tap on a pad brings one back (each track at the start of its own next loop, the mutes at once), SHIFT + a tap stores, ERASE + a tap empties; saved with the project (format version 9) (F-S16, F-K26). Not tried on the unit. Left: ARRANGER, the song as a chain of scenes with repeats that goes round at its end.
 
 **To try on the unit, all together**
 

@@ -172,15 +172,27 @@ impl Sequencer {
 
     pub fn apply(&mut self, cmd: &Command) {
         self.project.apply(cmd);
-        if let Command::SetPattern { track, index, now } = *cmd {
-            let t = track as usize;
-            if t < TRACKS && (index as usize) < crate::PATTERNS {
-                if !self.playing || now {
-                    // stopped, or at once: it plays from its first step, on the next tick
-                    (self.play[t], self.queued[t], self.origin[t]) = (index, None, if self.playing { self.last_eff + 1 } else { 0 });
-                } else {
-                    self.queued[t] = (index != self.play[t]).then_some(index);
+        match *cmd {
+            Command::SetPattern { track, index, now } => self.switch_pattern(track as usize, index, now),
+            Command::LaunchScene { index } => {
+                if let Some(sc) = self.project.scenes.get(index as usize).copied().filter(|s| s.used) {
+                    for t in 0..TRACKS {
+                        self.switch_pattern(t, sc.pattern[t], false);
+                    }
                 }
+            }
+            _ => {}
+        }
+    }
+
+    /// Have track `t` play pattern `index`: from the start of its next loop, or at once (`now`, or when stopped).
+    fn switch_pattern(&mut self, t: usize, index: u8, now: bool) {
+        if t < TRACKS && (index as usize) < crate::PATTERNS {
+            if !self.playing || now {
+                // stopped, or at once: it plays from its first step, on the next tick
+                (self.play[t], self.queued[t], self.origin[t]) = (index, None, if self.playing { self.last_eff + 1 } else { 0 });
+            } else {
+                self.queued[t] = (index != self.play[t]).then_some(index);
             }
         }
     }
@@ -998,5 +1010,34 @@ mod tests {
         assert_eq!(p.tracks[2].steps[3], Step::on(61));
         p.apply(&crate::Command::SetPattern { track: 2, index: 40, now: false });
         assert_eq!(p.current[2], 9, "out of range is ignored");
+    }
+
+    // F-S16
+    #[test]
+    fn a_scene_brings_back_the_patterns_and_the_mutes_that_were_stored() {
+        use crate::Command::*;
+        let mut p = Project::default();
+        p.tracks[0].steps[0] = Step::on(36);
+        p.tracks[1].steps[0] = Step::on(50);
+        p.apply(&SetPattern { track: 0, index: 1, now: false });
+        p.tracks[0].steps[2] = Step::on(38);
+        p.apply(&SetPattern { track: 0, index: 0, now: false });
+        p.apply(&StoreScene { index: 0 }); // pattern 1 of every track, nothing muted
+        p.apply(&SetPattern { track: 0, index: 1, now: false });
+        p.apply(&SetMute { track: 1, muted: true });
+        assert!(!p.scenes[1].used && p.scenes[0].used);
+        let mut seq = Sequencer::new(p, SR);
+        seq.play();
+        let log = run_with(&mut seq, 300_000, &[(40_000, LaunchScene { index: 0 })]);
+        let of = |tr: usize| log.iter().filter(|e| e.1 == tr).map(|e| (e.0, e.2)).collect::<Vec<_>>();
+        assert_eq!(of(0), vec![(12_000, 38), (96_000, 36), (192_000, 36), (288_000, 36)], "pattern 2 until its loop ends, then pattern 1");
+        assert_eq!(of(1), vec![(96_000, 50), (192_000, 50), (288_000, 50)], "muted for the first bar; the mute went at once");
+        assert!(!seq.project.tracks[1].muted);
+        // an empty scene does nothing
+        seq.apply(&LaunchScene { index: 9 });
+        assert_eq!(seq.project.current[0], 0);
+        // clearing it
+        seq.apply(&ClearScene { index: 0 });
+        assert!(!seq.project.scenes[0].used);
     }
 }
