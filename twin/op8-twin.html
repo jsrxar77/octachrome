@@ -1271,7 +1271,7 @@ function touchOverlay(g, cells, base) {
 function settingsBar(g, title, cy = 15) { dot(g, 16, cy, 6, FG); txt(g, title, 30, cy - 9, "mid", FG); }
 // ---- settings in four pages (crates/op8-ui/src/settings.rs, Controller::settings_pick): theme, audio, midi, light. The twin has no devices: it
 // lists some for the look, and what is chosen is only remembered; the light (the backlight step and the pad level) does dim the twin.
-const SET = { page: 0, outs: ["Maschine MK3", "MacBook Pro Speakers", "USB Audio"], ins: ["Maschine MK3", "Scarlett 2i2"], ports: ["Maschine MK3 MIDI", "IAC Driver Bus 1"], out: 0, inp: 0, port: 0, buffer: 128, note: "" };
+const SET = { page: 0, outs: ["Maschine MK3", "MacBook Pro Speakers", "USB Audio"], ins: ["Maschine MK3", "Scarlett 2i2"], ports: ["Maschine MK3 MIDI", "IAC Driver Bus 1"], out: 0, inp: 0, port: 0, buffer: 128, clock: true, note: "" };
 const PAGES = ["theme", "audio", "midi", "light"], BUFFERS = [64, 128, 256];
 const listLen = (n, screen) => Math.min(1 + n, screen === 0 ? 8 : 4);
 function pickRect(page, n) { // [screen, x, y, w, h]
@@ -1280,13 +1280,14 @@ function pickRect(page, n) { // [screen, x, y, w, h]
   if (page === 1 && n >= 16 && n < 19) return [1, 12 + (n - 16) * 152, 176, 144, 30];
   if (page === 2 && n === 8) return [1, 12, 60, 224, 36];
   if (page === 2 && n === 9) return [1, 244, 60, 224, 36];
+  if (page === 2 && n === 10) return [1, 12, 108, 224, 36];
   if (page === 3 && n < 4) return [0, 12 + n * 114, 72, 108, 60];
   if (page === 3 && n >= 4 && n < 7) return [0, 12 + (n - 4) * 152, 176, 144, 70];
   return [0, 0, 0, 0, 0];
 }
 function settingsItems() {
   const ids = SET.page === 1 ? [...Array(listLen(SET.outs.length, 0)).keys(), ...Array.from({ length: listLen(SET.ins.length, 1) }, (_, i) => 8 + i), 16, 17, 18]
-    : SET.page === 2 ? [...Array(listLen(SET.ports.length, 0)).keys(), 8, 9] : SET.page === 3 ? [...Array(7).keys()] : [];
+    : SET.page === 2 ? [...Array(listLen(SET.ports.length, 0)).keys(), 8, 9, 10] : SET.page === 3 ? [...Array(7).keys()] : [];
   return ids.map(n => { const [sc, x, y, w, h] = pickRect(SET.page, n); return { k: "pick", i: n, s: sc, x, y, w, h }; });
 }
 function settingsPage(n) { SET.page = n; SET.note = ""; UI.grabbed = false; UI.focus = { k: "pick", i: 0 }; }
@@ -1298,6 +1299,7 @@ function settingsPick(n) {
   else if (pg === 2 && n < 8) { SET.port = n; SET.note = "opening it… (the twin has no MIDI ports)"; }
   else if (pg === 2 && n === 8) SET.note = "a note goes out of the port (not in the twin)";
   else if (pg === 2 && n === 9) SET.note = "everything silenced";
+  else if (pg === 2 && n === 10) { SET.clock = !SET.clock; SET.note = SET.clock ? "the clock goes out on the port (not in the twin)" : "no clock on the port"; }
   else if (pg === 3 && n < 4) { LOOK.screen = n + 1; applyLook(); }
   else if (pg === 3) { LOOK.pads = n - 3; applyLook(); }
 }
@@ -1741,7 +1743,8 @@ function settingsRight(g) {
   } else if (SET.page === 2) {
     settingsBar(g, "midi");
     ["play a note", "silence all"].forEach((l, k) => setButton(g, pickRect(2, 8 + k), l, false));
-    txt(g, "the port that is open", 16, 120, "s", DIM, "left", "middle"); txt(g, SET.ports[0], 16, 142, "m", FG, "left", "middle");
+    setButton(g, pickRect(2, 10), SET.clock ? "clock out: on" : "clock out: off", SET.clock);
+    txt(g, "the port that is open", 16, 168, "s", DIM, "left", "middle"); txt(g, SET.ports[0], 16, 190, "m", FG, "left", "middle");
   } else if (SET.page === 3) {
     settingsBar(g, "light");
     ["the twin is a simulation: the supply allows", "all of it (a real MK3 may allow less)."].forEach((l, i) => txt(g, l, 16, 70 + i * 22, "m", FG, "left", "middle"));

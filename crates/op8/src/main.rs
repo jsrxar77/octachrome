@@ -125,7 +125,8 @@ fn audio_prefs(s: &op8::settings::Settings) -> op8::audio::Prefs {
 #[cfg(feature = "mk3")]
 fn run(mut script: Option<Script>, theme_given: bool) -> Result<()> {
     use std::sync::{atomic::AtomicBool, Arc};
-    let (engine, handle, midi_rx) = demo::rig();
+    let (engine, mut handle, midi_rx) = demo::rig();
+    let midi_sync = handle.take_midi_sync();
     let stop = Arc::new(AtomicBool::new(false));
     // What the player chose in SETTINGS (the devices, the block, the light): read before anything is opened.
     let saved = op8::settings::default_path().map(|p| op8::settings::Settings::load(&p)).unwrap_or_default();
@@ -143,7 +144,7 @@ fn run(mut script: Option<Script>, theme_given: bool) -> Result<()> {
         Box::new(op8::midi::NullPort)
     });
     println!("midi out: {}", port.name());
-    let (_midi, midi_link) = op8::midi::spawn_linked(midi_rx, port, stop.clone());
+    let (_midi, midi_link) = op8::midi::spawn_linked(midi_rx, midi_sync, port, stop.clone());
 
     // The engine lives in `Audio`, which reopens the stream if the device goes
     // away: the sequencer's clock runs in the audio callback, so without audio
@@ -177,6 +178,7 @@ fn run(mut script: Option<Script>, theme_given: bool) -> Result<()> {
         app.settings_path = Some(path);
     }
     app.ctl.settings = saved.clone();
+    app.handle.send(op8_engine::EngineCommand::MidiClock(saved.midi_clock));
     app.ctl.ui.settings.supply = app.surface.power_note().to_string();
     app.ctl.projects_dir = op8::projectfile::default_dir();
     app.ctl.samples_dir = op8_cartridges::sampler::default_dir();

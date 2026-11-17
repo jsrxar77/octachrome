@@ -198,3 +198,41 @@ fn f_c13_the_light_page_chooses_the_steps() {
     assert!(b.app.ctl.requests.iter().all(|r| !matches!(r, Request::AudioOut(_) | Request::Buffer(_))), "the light asks nothing of the audio");
     let _ = std::fs::remove_dir_all(path.parent().unwrap());
 }
+
+// F-C16: the MIDI page has a button for the clock out, on by default: pushed it is off (kept in the file, the label says so, and a unit that
+// was playing tells what follows it to stop once), pushed again it is on and the clocks go out again.
+#[test]
+fn f_c16_the_midi_page_turns_the_clock_on_and_off() {
+    let _t = fresh();
+    let path = temp("clock").join("settings");
+    let mut b = Bench::empty();
+    b.app.settings_path = Some(path.clone());
+    b.press(Button::Settings);
+    b.press(Button::Screen(3));
+    b.app.ctl.devices_listed(devices());
+    b.run_ms(100);
+    assert!(b.ui().settings.midi_clock, "on by default");
+    let on = b.screen_hash(Screen::Right);
+    b.capture("f-c16-clock");
+    b.press(Button::Settings); // out of SETTINGS, to play
+    b.press(Button::Play);
+    b.run_ms(600);
+    assert!(b.sync_log.iter().any(|x| x.1 == 0xF8), "the clock goes out");
+    b.press(Button::Settings);
+    b.press(Button::Screen(3));
+    focus_on(&mut b, NavKind::Pick(10));
+    b.press(Button::JogPush);
+    b.run_ms(100);
+    assert!(!b.ui().settings.midi_clock);
+    assert_ne!(b.screen_hash(Screen::Right), on, "the label says it is off");
+    assert!(saved(&path).contains("midi_clock=off"), "{}", saved(&path));
+    assert_eq!(b.sync_log.iter().filter(|x| x.1 == 0xFC).count(), 1, "what follows the clock is told to stop");
+    let n = b.sync_log.len();
+    b.run_ms(500);
+    assert_eq!(b.sync_log.len(), n, "no clocks while it is off");
+    b.press(Button::JogPush);
+    b.run_ms(500);
+    assert!(b.ui().settings.midi_clock && b.sync_log.len() > n, "on again, and the clocks go out");
+    assert!(!saved(&path).contains("midi_clock"), "the default is not written");
+    let _ = std::fs::remove_dir_all(path.parent().unwrap());
+}

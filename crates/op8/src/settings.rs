@@ -26,6 +26,8 @@ pub struct Settings {
     pub buffer: Option<u32>,
     /// The MIDI output port.
     pub midi_out: Option<String>,
+    /// MIDI clock out: start, 24 clocks to the quarter note and stop on the MIDI port while the sequencer runs.
+    pub midi_clock: bool,
     /// The screen backlight as a step of what the supply allows: 1 to 4 (25, 50, 75 and 100 %).
     pub screen: u8,
     /// The highest level of the pad LEDs: 1 to 3.
@@ -34,7 +36,7 @@ pub struct Settings {
 
 impl Default for Settings {
     fn default() -> Self {
-        Self { theme: ThemeId::Chrome, audio_out: None, audio_in: None, buffer: None, midi_out: None, screen: SCREEN_STEPS, pads: 3 }
+        Self { theme: ThemeId::Chrome, audio_out: None, audio_in: None, buffer: None, midi_out: None, midi_clock: true, screen: SCREEN_STEPS, pads: 3 }
     }
 }
 
@@ -92,6 +94,13 @@ impl Settings {
                 "audio_out" => s.audio_out = name(),
                 "audio_in" => s.audio_in = name(),
                 "midi_out" => s.midi_out = name(),
+                "midi_clock" => {
+                    s.midi_clock = match value {
+                        "off" | "0" | "false" => false,
+                        "on" | "1" | "true" => true,
+                        _ => s.midi_clock,
+                    }
+                }
                 "buffer" => s.buffer = value.parse().ok().filter(|b| BUFFERS.contains(b)),
                 "screen" => s.screen = value.parse().ok().filter(|v| (1..=SCREEN_STEPS).contains(v)).unwrap_or(s.screen),
                 "pads" => s.pads = value.parse().ok().filter(|v| (1..=3).contains(v)).unwrap_or(s.pads),
@@ -112,6 +121,9 @@ impl Settings {
         }
         if let Some(b) = self.buffer {
             out.push_str(&format!("buffer={b}\n"));
+        }
+        if self.midi_clock != d.midi_clock {
+            out.push_str(&format!("midi_clock={}\n", if self.midi_clock { "on" } else { "off" }));
         }
         if self.screen != d.screen {
             out.push_str(&format!("screen={}\n", self.screen));
@@ -237,6 +249,7 @@ mod tests {
             audio_in: Some("Scarlett 2i2".into()),
             buffer: Some(64),
             midi_out: Some("Maschine".into()),
+            midi_clock: false,
             screen: 2,
             pads: 1,
         };
@@ -244,7 +257,7 @@ mod tests {
         assert_eq!(Settings::parse(&text), s, "{text}");
         assert_eq!(Settings { theme: ThemeId::Matte, ..Settings::default() }.render(), "theme=matte\n", "only what is not the default is written");
         let d = Settings::default();
-        for bad in ["audio_out=\n", "audio_out=auto\n", "buffer=100\n", "buffer=x\n", "screen=0\n", "screen=9\n", "pads=4\n", "pads=\n"] {
+        for bad in ["audio_out=\n", "audio_out=auto\n", "buffer=100\n", "buffer=x\n", "midi_clock=maybe\n", "screen=0\n", "screen=9\n", "pads=4\n", "pads=\n"] {
             assert_eq!(Settings::parse(bad), d, "{bad:?}");
         }
         assert_eq!(Settings::parse("screen=3\nbuffer=256\n").screen, 3);

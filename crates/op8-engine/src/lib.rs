@@ -19,7 +19,7 @@ pub mod fx;
 mod status;
 mod track_fx;
 
-pub use engine::{Engine, EngineCommand, EngineHandle, RecSource, SharedCartridge, MAX_RECORD};
+pub use engine::{Engine, EngineCommand, EngineHandle, RecSource, SharedCartridge, SyncMessage, MAX_RECORD};
 pub use fx::{PunchFx, PUNCH_SLOTS};
 pub use status::EngineStatus;
 

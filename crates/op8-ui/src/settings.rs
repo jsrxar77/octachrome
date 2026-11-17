@@ -8,7 +8,7 @@
 //! **audio.** Left: the audio outputs, one to a row (the first row is `automatic`); the chosen one has a dot and the one that is open is
 //! tagged `in use`. Right: the audio inputs the same way, then the size of the audio block, and what is open.
 //!
-//! **midi.** Left: the MIDI output ports the same way. Right: a button that plays a note and one that silences everything.
+//! **midi.** Left: the MIDI output ports the same way. Right: a button that plays a note, one that silences everything and one that turns the MIDI clock out on and off.
 //!
 //! **light.** Left: the step of the screen backlight and the highest level of the pad LEDs, which are shares of what the supply allows,
 //! never more. Right: what the supply is and what that means.
@@ -53,6 +53,8 @@ pub struct SettingsView {
     /// The backlight step (1..=4) and the pad level (1..=3).
     pub screen: u8,
     pub pads: u8,
+    /// MIDI clock out is on.
+    pub midi_clock: bool,
     /// What the supply allows, in a line.
     pub supply: String,
     /// What just happened.
@@ -76,6 +78,7 @@ impl Default for SettingsView {
             stream_now: String::new(),
             screen: 4,
             pads: 3,
+            midi_clock: true,
             supply: String::new(),
             note: String::new(),
         }
@@ -162,9 +165,10 @@ pub fn draw_right(fb: &mut FrameBuffer480x272, ui: &crate::UiState) {
             for (k, label) in ["play a note", "silence all"].into_iter().enumerate() {
                 button(fb, crate::nav::pick_rect(Page::Midi, 8 + k).1, label, false);
             }
-            text_v(fb, "the port that is open", 16, 120, FontSize::Small, t.dim, Align::Left, VAlign::Middle);
+            button(fb, crate::nav::pick_rect(Page::Midi, 10).1, if s.midi_clock { "clock out: on" } else { "clock out: off" }, s.midi_clock);
+            text_v(fb, "the port that is open", 16, 168, FontSize::Small, t.dim, Align::Left, VAlign::Middle);
             let now = if s.port_now.is_empty() { "none" } else { &s.port_now };
-            text_v(fb, &fit(now, 40), 16, 142, FontSize::Medium, t.fg, Align::Left, VAlign::Middle);
+            text_v(fb, &fit(now, 40), 16, 190, FontSize::Medium, t.fg, Align::Left, VAlign::Middle);
         }
         Page::Light => {
             bar(fb, "light", 15.0);

@@ -27,6 +27,7 @@ pub struct Bench {
     pub engine: Engine,
     pub app: App<MockSurface>,
     midi: rtrb::Consumer<MidiMessage>,
+    sync: Option<rtrb::Consumer<op8_engine::SyncMessage>>,
     script: Script,
     samples: u64,
     /// Everything rendered so far, left and right.
@@ -34,22 +35,27 @@ pub struct Bench {
     pub audio_r: Vec<f32>,
     /// Every MIDI message that left the bridge: (time in ms, bytes).
     pub midi_log: Vec<(u64, Vec<u8>)>,
+    /// Every MIDI real-time message (0xF8 clock, 0xFA start, 0xFC stop): (sample time, byte).
+    pub sync_log: Vec<(u64, u8)>,
 }
 
 impl Bench {
     /// A bench around an engine, its handle and the MIDI consumer, as returned
     /// by `demo::rig` and `demo::empty_rig`.
     pub fn new(rig: (Engine, EngineHandle, rtrb::Consumer<MidiMessage>)) -> Self {
-        let (engine, handle, midi) = rig;
+        let (engine, mut handle, midi) = rig;
+        let sync = handle.take_midi_sync();
         Self {
             engine,
             app: App::new(MockSurface::new(), handle),
             midi,
+            sync,
             script: Script::default(),
             samples: 0,
             audio_l: Vec::new(),
             audio_r: Vec::new(),
             midi_log: Vec::new(),
+            sync_log: Vec::new(),
         }
     }
 
@@ -92,6 +98,9 @@ impl Bench {
 
         while let Ok(m) = self.midi.pop() {
             self.midi_log.push((now, m.as_bytes().to_vec()));
+        }
+        while let Some(m) = self.sync.as_mut().and_then(|s| s.pop().ok()) {
+            self.sync_log.push((m.sample_time, m.byte));
         }
     }
 
