@@ -108,6 +108,7 @@ The buttons and their implementation status are in [buttons.md](buttons.md). Thi
 |---|---|---|---|
 | F-M01 | Track C emits well-formed note-on and note-off on a single channel; also CC74 (filter) when a parameter changes | status byte `0x8n`/`0x9n`/`0xBn`, data 0..127, a single channel, controller 74 for the CCs | ✓ |
 | F-M02 | No lost events during the demo | `dropped_events == 0` after 7 s of demo | ✓ |
+| F-M03 | MIDI clock out: PLAY sends start (`0xFA`) once and then a clock (`0xF8`) every 1/24 of a quarter note at the project's tempo (the gaps are exact to a sample and follow a change of tempo at once); STOP sends stop (`0xFC`) once and the clocks cease; RESTART sends a new start; nothing is sent while stopped | `Bench::sync_log` (sample time, byte) | ✓ |
 
 ## A · Audio (`tests/audio.rs`)
 
@@ -206,6 +207,7 @@ The buttons and their implementation status are in [buttons.md](buttons.md). Thi
 | F-C13 | The settings file keeps the devices, the audio block, the backlight step and the pad level beside the theme, writing only what is not the default; "auto" or nothing is automatic, a value that makes no sense is the default; the light that is asked of the surface is the theme's with the steps put on it and never more | `Settings::render` and `parse`, `effective_light` | ✓ |
 | F-C14 | The light page has four steps of backlight and three levels of pad LED; pushing one keeps it in the file and the page shows it; it asks nothing of the audio | `settings`, the file, pixel hashes | ✓ |
 | F-C15 | The thread that writes to the MIDI port can be told to play a test note (that ends by itself), to silence the port (all sound off and all notes off on the sixteen channels) and to switch to another port, which it silences first; it says which is open | unit test with fake ports | ✓ |
+| F-C16 | The `midi` page has `clock out`, on by default: pushed it is off (the label says so, the file keeps `midi_clock=off`, and a unit that was playing sends one stop), pushed again it is on and the clocks go out again (the default is not written) | `ui().settings.midi_clock`, `Bench::sync_log`, the settings file | ✓ |
 | F-D18 | BROWSER draws both screens (the sixteen presets on the left, the instrument's name and what the pads do on the right) and changes when something is saved; its button and the pad LEDs follow it | pixel hashes and lit pixels, the LED slots | ✓ |
 | F-D16 | SAMPLING draws both screens (the pads on the left, the wave, the level and the four knobs on the right); the right screen moves while nothing records; the pad and button LEDs follow it | pixel hashes and lit pixels, `ui().smp` | ✓ |
 | F-I05 | The sampler can be chosen in PLUG-IN, has two pages (`sample`, `start`, `length`, `tune` and `attack`, `release`, `loop`, `level`), plays a sound from a step, and the right screen draws its wave | `instrument(track)`, the track's audio and note count, `ui().has_second` | ✓ |

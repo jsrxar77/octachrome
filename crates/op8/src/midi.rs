@@ -182,11 +182,18 @@ pub fn panic_messages() -> Vec<[u8; 3]> {
 
 /// Drain `rx` into `port` until `stop` is set.
 pub fn spawn(rx: rtrb::Consumer<MidiMessage>, port: Box<dyn MidiPort>, stop: Arc<AtomicBool>) -> thread::JoinHandle<()> {
-    spawn_linked(rx, port, stop).0
+    spawn_linked(rx, None, port, stop).0
 }
 
-/// Like [`spawn`], and the [`Link`] through which SETTINGS can switch the port, play a test note and silence it.
-pub fn spawn_linked(mut rx: rtrb::Consumer<MidiMessage>, port: Box<dyn MidiPort>, stop: Arc<AtomicBool>) -> (thread::JoinHandle<()>, Link) {
+/// Like [`spawn`], and the [`Link`] through which SETTINGS can switch the port, play a test note and silence it. `sync` is the engine's
+/// MIDI clock (start, clock, stop): each is one byte, written to the port as it comes. They leave when the thread takes them (within a
+/// millisecond), not at their sample time, so the clock carries that much jitter on top of the audio block (2.7 ms at 128 frames).
+pub fn spawn_linked(
+    mut rx: rtrb::Consumer<MidiMessage>,
+    mut sync: Option<rtrb::Consumer<op8_engine::SyncMessage>>,
+    port: Box<dyn MidiPort>,
+    stop: Arc<AtomicBool>,
+) -> (thread::JoinHandle<()>, Link) {
     let (tx, cmds) = std::sync::mpsc::channel();
     let name = Arc::new(std::sync::Mutex::new(port.name()));
     let link = Link { tx, name: name.clone() };
@@ -221,6 +228,10 @@ pub fn spawn_linked(mut rx: rtrb::Consumer<MidiMessage>, port: Box<dyn MidiPort>
                 if note_off_at.is_some_and(|t| std::time::Instant::now() >= t) {
                     let _ = port.send(&[0x80, 60, 0]);
                     note_off_at = None;
+                }
+                // the clock first: it is the message that is late if it waits
+                while let Some(m) = sync.as_mut().and_then(|s| s.pop().ok()) {
+                    let _ = port.send(&[m.byte]);
                 }
                 while let Ok(m) = rx.pop() {
                     if let Err(e) = port.send(m.as_bytes()) {
@@ -268,7 +279,7 @@ mod tests {
         let (_tx, rx) = rtrb::RingBuffer::<MidiMessage>::new(8);
         let (first, second) = (Log(Default::default(), "first"), Log(Default::default(), "second"));
         let stop = Arc::new(AtomicBool::new(false));
-        let (handle, link) = spawn_linked(rx, Box::new(first.clone()), stop.clone());
+        let (handle, link) = spawn_linked(rx, None, Box::new(first.clone()), stop.clone());
         assert_eq!(link.name(), "first");
         link.test();
         assert!(wait(&first, |m| m.contains(&vec![0x90, 60, 100])), "the test note starts");

@@ -541,7 +541,7 @@ impl Controller {
         let Some(item) = op8_ui::nav_focused(&self.ui) else { return };
         match item.kind {
             NavKind::Value(_) => self.ui.grabbed = !self.ui.grabbed,
-            NavKind::Pick(n) => self.settings_pick(n as usize),
+            NavKind::Pick(n) => self.settings_pick(n as usize, h),
             // a component of the inspector: grab it (turning changes its kind, as knob 4 does) or let go
             NavKind::Comp(i) => {
                 self.ui.comp_cursor = i as usize;
@@ -1366,6 +1366,7 @@ impl Controller {
         v.buffer = s.buffer.unwrap_or(128);
         v.screen = s.screen;
         v.pads = s.pads;
+        v.midi_clock = s.midi_clock;
     }
 
     /// What the hardware answered: the lists and what is open.
@@ -1383,7 +1384,7 @@ impl Controller {
     }
 
     /// Push on a choice of the open page of settings: use that device, that block, that step of the light, or do what the button says.
-    fn settings_pick(&mut self, n: usize) {
+    fn settings_pick(&mut self, n: usize, h: &mut EngineHandle) {
         use crate::settings::BUFFERS;
         let name = |list: &[String], row: usize| (row > 0).then(|| list.get(row - 1).cloned()).flatten();
         match (self.ui.settings.page, n) {
@@ -1410,6 +1411,11 @@ impl Controller {
             }
             (2, 8) => self.requests.push(Request::MidiTest),
             (2, 9) => self.requests.push(Request::MidiPanic),
+            (2, 10) => {
+                self.settings.midi_clock = !self.settings.midi_clock;
+                h.send(EngineCommand::MidiClock(self.settings.midi_clock));
+                self.ui.settings.note = if self.settings.midi_clock { "the clock goes out on the port" } else { "no clock on the port" }.into();
+            }
             (3, 0..=3) => self.settings.screen = n as u8 + 1,
             (3, 4..=6) => self.settings.pads = n as u8 - 3,
             _ => return,

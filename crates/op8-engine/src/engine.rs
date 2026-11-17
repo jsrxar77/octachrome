@@ -65,6 +65,8 @@ pub enum EngineCommand {
     SetInput(Box<rtrb::Consumer<f32>>),
     /// SAMPLING: play `start..end` of the take (in samples) to hear it; `None` stops it.
     Preview(Option<(u32, u32)>),
+    /// MIDI clock out: start, 24 clocks to the quarter note and stop go to the MIDI thread, or not.
+    MidiClock(bool),
     /// One click of the count-in before a recording (a higher one when `true`), whether the sequencer runs or not.
     Click(bool),
     /// SAMPLING: move the part that is being listened to while it plays (nothing if it is not playing): the end moves, and the
@@ -168,6 +170,10 @@ pub struct Engine {
     preroll: Vec<f32>,
     preroll_at: usize,
     preview: Option<(usize, usize)>,
+    /// MIDI clock out: on or off, the way to the MIDI thread, and the sample time of the block.
+    midi_clock: bool,
+    sync_tx: rtrb::Producer<SyncMessage>,
+    sync_time: u64,
     input: Option<rtrb::Consumer<f32>>,
 }
 
@@ -183,6 +189,22 @@ pub struct EngineHandle {
     playing: bool,
     pub master: f32,
     pub metronome: bool,
+    /// The MIDI real-time messages (start, clock, stop) for the MIDI thread to take, once.
+    sync_rx: Option<rtrb::Consumer<SyncMessage>>,
+}
+
+impl EngineHandle {
+    /// The end of the queue of MIDI real-time messages; the MIDI thread (or the test bench) takes it once.
+    pub fn take_midi_sync(&mut self) -> Option<rtrb::Consumer<SyncMessage>> {
+        self.sync_rx.take()
+    }
+}
+
+/// A MIDI real-time message (0xF8 clock, 0xFA start, 0xFC stop) with the sample time it falls at.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct SyncMessage {
+    pub byte: u8,
+    pub sample_time: u64,
 }
 
 impl Engine {
@@ -192,6 +214,7 @@ impl Engine {
     ) -> (Engine, EngineHandle) {
         let (tx, rx) = rtrb::RingBuffer::new(1024);
         let (gtx, grx) = rtrb::RingBuffer::new(64);
+        let (sync_tx, sync_rx) = rtrb::RingBuffer::new(256);
         let status = Arc::new(EngineStatus::default());
         status.take.lock().unwrap().resize(MAX_RECORD, 0.0);
         let mut params = [[0.5; PARAMS_PER_SLOT]; TRACKS];
@@ -228,6 +251,9 @@ impl Engine {
             preroll: vec![0.0; PREROLL],
             preroll_at: 0,
             preview: None,
+            midi_clock: true,
+            sync_tx,
+            sync_time: 0,
             input: None,
         };
         let handle = EngineHandle {
@@ -240,6 +266,7 @@ impl Engine {
             playing: false,
             master: 1.0,
             metronome: false,
+            sync_rx: Some(sync_rx),
         };
         (engine, handle)
     }
@@ -339,6 +366,13 @@ impl Engine {
                         self.preview = (pos.max(a) < b).then_some((pos.max(a), b));
                     }
                 }
+                EngineCommand::MidiClock(on) => {
+                    if !on && self.midi_clock && self.seq.is_playing() {
+                        // what is following the clock is told to stop, since no more clocks will come
+                        let _ = self.sync_tx.push(SyncMessage { byte: 0xFC, sample_time: self.sync_time });
+                    }
+                    self.midi_clock = on;
+                }
                 EngineCommand::Click(high) => {
                     self.click_left = (SAMPLE_RATE * 0.03) as u32;
                     self.click_phase = 0.0;
@@ -383,6 +417,18 @@ impl Engine {
     fn render_block(&mut self, out_l: &mut [f32], out_r: &mut [f32]) {
         let n = out_l.len();
         self.seq.process(n, &mut self.events);
+        for e in self.events.sync.iter() {
+            if self.midi_clock {
+                let byte = match e.kind {
+                    op8_seq::SyncKind::Start => 0xFA,
+                    op8_seq::SyncKind::Clock => 0xF8,
+                    op8_seq::SyncKind::Stop => 0xFC,
+                };
+                // a full queue drops a clock, which an external clock tolerates, rather than wait on the audio thread
+                let _ = self.sync_tx.push(SyncMessage { byte, sample_time: self.sync_time + e.offset as u64 });
+            }
+        }
+        self.sync_time += n as u64;
         out_l.fill(0.0);
         out_r.fill(0.0);
 

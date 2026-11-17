@@ -24,7 +24,7 @@ pub mod step;
 pub use brain::{Brain, BrainMode, Chord, ChordKind, ChordSlot, Scale};
 pub use project::{Command, Division, Project, Track};
 pub use rack::{ChordType, FxKind, Lfo, LfoShape, PlayMode, Players, TrackFx, LFO_TARGETS};
-pub use sequencer::{BlockEvents, ParamEvent, Playhead, Sequencer};
+pub use sequencer::{BlockEvents, ParamEvent, Playhead, Sequencer, SyncEvent, SyncKind};
 pub use step::{Components, ResolvedStep, Step, StepComponent};
 
 pub const TRACKS: usize = 8;

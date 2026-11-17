@@ -27,20 +27,44 @@ pub struct ParamEvent {
     pub value: Option<f32>,
 }
 
+/// A MIDI real-time message the sequencer's own time calls for (MIDI clock out).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum SyncKind {
+    /// 0xFA: the sequencer starts from the top.
+    #[default]
+    Start,
+    /// 0xF8: 24 to the quarter note, one every four ticks, whatever the tempo.
+    Clock,
+    /// 0xFC: the sequencer stopped.
+    Stop,
+}
+
+/// A real-time message and where in the block it falls.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct SyncEvent {
+    pub offset: u32,
+    pub kind: SyncKind,
+}
+
+pub const MAX_SYNC_EVENTS: usize = 16;
+
 /// Everything the sequencer produced for one block.
 #[derive(Clone, Debug, Default)]
 pub struct BlockEvents {
     pub notes: [FixedVec<NoteEvent, MAX_EVENTS_PER_TRACK>; TRACKS],
     pub params: FixedVec<ParamEvent, MAX_PARAM_EVENTS>,
+    /// Start, clock and stop, for the MIDI output.
+    pub sync: FixedVec<SyncEvent, MAX_SYNC_EVENTS>,
 }
 
 impl BlockEvents {
     pub fn clear(&mut self) {
         self.notes.iter_mut().for_each(FixedVec::clear);
         self.params.clear();
+        self.sync.clear();
     }
     pub fn is_empty(&self) -> bool {
-        self.notes.iter().all(FixedVec::is_empty) && self.params.is_empty()
+        self.notes.iter().all(FixedVec::is_empty) && self.params.is_empty() && self.sync.is_empty()
     }
 }
 
@@ -86,6 +110,8 @@ pub struct Sequencer {
     held: [u128; TRACKS],
     locked: [u8; TRACKS],
     restore_on_next_block: bool,
+    /// It stopped while playing: the next block says so to the MIDI output.
+    stop_pending: bool,
     rng: [Rng; TRACKS],
     repeat: Option<Repeat>,
     repeat_request: Option<u32>,
@@ -106,6 +132,7 @@ impl Sequencer {
             held: [0; TRACKS],
             locked: [0; TRACKS],
             restore_on_next_block: false,
+            stop_pending: false,
             rng: [Rng::new(0); TRACKS],
             repeat: None,
             repeat_request: None,
@@ -153,6 +180,7 @@ impl Sequencer {
 
     /// Stop and release every sounding note at the start of the next block.
     pub fn stop(&mut self) {
+        self.stop_pending |= self.playing;
         self.playing = false;
         let now = self.now;
         self.pending.clear();
@@ -224,6 +252,9 @@ impl Sequencer {
     /// Produce the events for the next `frames` samples.
     pub fn process(&mut self, frames: usize, out: &mut BlockEvents) {
         out.clear();
+        if std::mem::take(&mut self.stop_pending) {
+            out.sync.push(SyncEvent { offset: 0, kind: SyncKind::Stop });
+        }
         if self.restore_on_next_block {
             self.restore_on_next_block = false;
             for t in 0..TRACKS {
@@ -279,6 +310,13 @@ impl Sequencer {
         self.last_eff = eff;
         let spt = self.samples_per_tick();
         let offset = (at - self.now) as u32;
+        // MIDI clock follows the ticks that go by (not `eff`, which a beat repeat loops): start on the first, a clock on every fourth
+        if tick == 0 {
+            out.sync.push(SyncEvent { offset, kind: SyncKind::Start });
+        }
+        if tick % (crate::PPQN as u64 / 24) == 0 {
+            out.sync.push(SyncEvent { offset, kind: SyncKind::Clock });
+        }
 
         for tr in 0..TRACKS {
             let track = self.project.tracks[tr];
