@@ -56,6 +56,9 @@ fn draw_left_view(fb: &mut FrameBuffer480x272, ui: &UiState, p: &Project, st: &E
     if ui.main == crate::Main::Sampling {
         return crate::sampling::draw_left(fb, ui, st);
     }
+    if ui.main == crate::Main::Pattern {
+        return crate::pattern::draw_left(fb, ui, p, st);
+    }
     if ui.main == crate::Main::Plugin {
         return crate::files::pick_left(fb, ui, st, "instruments", &ui.plugs, ui.plug_current);
     }

@@ -25,6 +25,11 @@ pub fn draw_left(fb: &mut FrameBuffer480x272, ui: &crate::UiState, st: &EngineSt
 /// A grid of sixteen choices as the pads are (reading order), the top two rows the factory ones: used by
 /// FILE (projects) and PLUG-IN (instruments). A cell is `(name, available)`; the one in `last` is outlined.
 pub fn pick_left(fb: &mut FrameBuffer480x272, ui: &crate::UiState, st: &EngineStatus, title: &str, cells: &[(String, bool)], last: Option<usize>) {
+    pick_left_rows(fb, ui, st, title, cells, last, true)
+}
+
+/// The same, with the first two rows told apart from the rest (what comes with the machine) or not.
+pub fn pick_left_rows(fb: &mut FrameBuffer480x272, ui: &crate::UiState, st: &EngineStatus, title: &str, cells: &[(String, bool)], last: Option<usize>, factory_rows: bool) {
     let t = theme();
     fb.clear(t.bg);
     bar(fb, title);
@@ -39,7 +44,7 @@ pub fn pick_left(fb: &mut FrameBuffer480x272, ui: &crate::UiState, st: &EngineSt
         let (col, row) = ((i % 4) as f32, (i / 4) as f32);
         let (x, y) = (12.0 + col * (CELL_W + GAP), 44.0 + row * (CELL_H + GAP));
         let (name, has) = cells.get(i).cloned().unwrap_or_default();
-        let factory = i < 8;
+        let factory = factory_rows && i < 8;
         let last = last == Some(i);
         if has {
             fill_round_rect(fb, x, y, CELL_W, CELL_H, 8.0, if factory { t.panel } else { t.faint });

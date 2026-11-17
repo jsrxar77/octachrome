@@ -112,6 +112,11 @@ pub struct Sequencer {
     restore_on_next_block: bool,
     /// It stopped while playing: the next block says so to the MIDI output.
     stop_pending: bool,
+    /// The pattern of each track that is playing (it is `project.current` unless a change is waiting or the player is looking at another),
+    /// the one that is waiting for the start of the track's next loop, and the tick at which the playing one started.
+    play: [u8; TRACKS],
+    queued: [Option<u8>; TRACKS],
+    origin: [u64; TRACKS],
     rng: [Rng; TRACKS],
     repeat: Option<Repeat>,
     repeat_request: Option<u32>,
@@ -133,6 +138,9 @@ impl Sequencer {
             locked: [0; TRACKS],
             restore_on_next_block: false,
             stop_pending: false,
+            play: [0; TRACKS],
+            queued: [None; TRACKS],
+            origin: [0; TRACKS],
             rng: [Rng::new(0); TRACKS],
             repeat: None,
             repeat_request: None,
@@ -148,6 +156,8 @@ impl Sequencer {
         let was_playing = self.playing;
         self.stop();
         self.project = p;
+        self.play = self.project.current;
+        (self.queued, self.origin) = ([None; TRACKS], [0; TRACKS]);
         self.reseed();
         if was_playing {
             self.play();
@@ -162,6 +172,32 @@ impl Sequencer {
 
     pub fn apply(&mut self, cmd: &Command) {
         self.project.apply(cmd);
+        if let Command::SetPattern { track, index, now } = *cmd {
+            let t = track as usize;
+            if t < TRACKS && (index as usize) < crate::PATTERNS {
+                if !self.playing || now {
+                    // stopped, or at once: it plays from its first step, on the next tick
+                    (self.play[t], self.queued[t], self.origin[t]) = (index, None, if self.playing { self.last_eff + 1 } else { 0 });
+                } else {
+                    self.queued[t] = (index != self.play[t]).then_some(index);
+                }
+            }
+        }
+    }
+
+    /// The track as it is playing: what the player is looking at, unless another of its patterns is the one that plays.
+    fn playing_track(&self, tr: usize) -> crate::Track {
+        let mut t = self.project.tracks[tr];
+        let p = self.play[tr] as usize;
+        if p != self.project.current[tr] as usize {
+            t.load(&self.project.stored[tr][p]);
+        }
+        t
+    }
+
+    /// Which patterns are playing, one for each track.
+    pub fn playing_patterns(&self) -> [u8; TRACKS] {
+        self.play
     }
 
     pub fn is_playing(&self) -> bool {
@@ -175,6 +211,9 @@ impl Sequencer {
         self.last_eff = 0;
         self.next_tick_at = self.now as f64;
         self.repeat = None;
+        // from the top, what the player is looking at is what plays
+        self.play = self.project.current;
+        (self.queued, self.origin) = ([None; TRACKS], [0; TRACKS]);
         self.reseed();
     }
 
@@ -221,8 +260,8 @@ impl Sequencer {
 
     /// Where `track` is, for the UI and the pad LEDs.
     pub fn playhead(&self, track: usize) -> Playhead {
-        let t = &self.project.tracks[track];
-        let step_global = self.last_eff / t.division.ticks() as u64;
+        let t = self.playing_track(track);
+        let step_global = self.last_eff.saturating_sub(self.origin[track]) / t.division.ticks() as u64;
         let len = t.len() as u64;
         Playhead {
             step: (step_global % len) as u8,
@@ -242,8 +281,8 @@ impl Sequencer {
 
     /// How far into its current step a track is, 0.0..1.0 (for recording to the nearest step).
     pub fn step_phase(&self, track: usize) -> f32 {
-        let ticks = self.project.tracks[track].division.ticks() as u64;
-        (self.last_eff % ticks) as f32 / ticks as f32
+        let ticks = self.playing_track(track).division.ticks() as u64;
+        (self.last_eff.saturating_sub(self.origin[track]) % ticks) as f32 / ticks as f32
     }
 
     /// The Brain chord sounding now.
@@ -331,12 +370,21 @@ impl Sequencer {
         }
 
         for tr in 0..TRACKS {
-            let track = self.project.tracks[tr];
+            let mut track = self.playing_track(tr);
+            // a pattern that is waiting takes over where the one that plays starts its loop again
+            if let Some(next) = self.queued[tr] {
+                let (rel, tps) = (eff.saturating_sub(self.origin[tr]), track.division.ticks() as u64);
+                if rel % tps == 0 && (rel / tps) % track.len() as u64 == 0 {
+                    (self.play[tr], self.queued[tr], self.origin[tr]) = (next, None, eff);
+                    track = self.playing_track(tr);
+                }
+            }
+            let rel = eff.saturating_sub(self.origin[tr]);
             let tps = track.division.ticks() as u64;
-            if eff % tps != 0 && !window_start {
+            if rel % tps != 0 && !window_start {
                 continue;
             }
-            let step_global = eff / tps;
+            let step_global = rel / tps;
             let len = track.len() as u64;
             let step = track.steps[(step_global % len) as usize];
             let r = step.resolve(step_global / len, &mut self.rng[tr]);
@@ -852,5 +900,103 @@ mod tests {
         p.apply(&crate::Command::ShiftTrack { track: 0, by: -2 });
         assert!(p.tracks[0].steps[3].active, "wraps round the end");
         assert!(p.tracks[0].steps[9].active);
+    }
+
+    /// Play for `samples`, applying each command when the time passes its sample; the notes as (time, track, note).
+    fn run_with(seq: &mut Sequencer, samples: usize, cmds: &[(usize, crate::Command)]) -> Vec<(u64, usize, u8)> {
+        let (mut out, mut log, mut t) = (BlockEvents::default(), Vec::new(), 0usize);
+        let mut next = 0;
+        while t < samples {
+            while next < cmds.len() && cmds[next].0 <= t {
+                seq.apply(&cmds[next].1);
+                next += 1;
+            }
+            seq.process(128, &mut out);
+            for (tr, evs) in out.notes.iter().enumerate() {
+                for e in evs.iter().filter(|e| e.kind == NoteKind::On) {
+                    log.push((t as u64 + e.sample_offset as u64, tr, e.note));
+                }
+            }
+            t += 128;
+        }
+        log
+    }
+
+    // F-S12
+    #[test]
+    fn a_pattern_that_is_asked_for_plays_from_the_start_of_the_next_loop() {
+        let mut p = Project::default();
+        p.tracks[0].steps[0] = Step::on(36);
+        p.apply(&crate::Command::SetPattern { track: 0, index: 1, now: false });
+        p.tracks[0].steps[4] = Step::on(38);
+        p.apply(&crate::Command::SetPattern { track: 0, index: 0, now: false });
+        let mut seq = Sequencer::new(p, SR);
+        seq.play();
+        // asked for in the middle of the first bar (a bar is 96000 samples)
+        let log = run_with(&mut seq, 300_000, &[(40_000, crate::Command::SetPattern { track: 0, index: 1, now: false })]);
+        let notes: Vec<(u64, u8)> = log.iter().filter(|e| e.1 == 0).map(|e| (e.0, e.2)).collect();
+        assert_eq!(notes, vec![(0, 36), (96_000 + 24_000, 38), (192_000 + 24_000, 38)], "the first bar as it was, then the new pattern from its first step");
+        assert_eq!(seq.playing_patterns()[0], 1);
+        // what is shown is what was asked for at once, whatever plays
+        assert_eq!(seq.project.current[0], 1);
+    }
+
+    // F-S12
+    #[test]
+    fn shift_makes_it_play_at_once_and_a_stopped_sequencer_plays_what_is_shown() {
+        let mut p = Project::default();
+        p.tracks[0].steps[0] = Step::on(36);
+        p.apply(&crate::Command::SetPattern { track: 0, index: 1, now: false });
+        p.tracks[0].steps[2] = Step::on(38);
+        p.apply(&crate::Command::SetPattern { track: 0, index: 0, now: false });
+        let mut seq = Sequencer::new(p, SR);
+        // stopped: it is what plays when it starts
+        seq.apply(&crate::Command::SetPattern { track: 0, index: 1, now: false });
+        assert_eq!(seq.playing_patterns()[0], 1);
+        seq.play();
+        let log = run_with(&mut seq, 30_000, &[]);
+        assert_eq!(log.iter().filter(|e| e.1 == 0).map(|e| e.2).collect::<Vec<_>>(), vec![38], "pattern 2, which has a note on its third step");
+        // playing: `now` changes it at once, in the middle of the loop
+        let mut seq = Sequencer::new(seq.project, SR);
+        seq.apply(&crate::Command::SetPattern { track: 0, index: 0, now: false });
+        seq.play();
+        let log = run_with(&mut seq, 60_000, &[(10_000, crate::Command::SetPattern { track: 0, index: 1, now: true })]);
+        let at: Vec<(u64, u8)> = log.iter().filter(|e| e.1 == 0).map(|e| (e.0, e.2)).collect();
+        assert_eq!(at[0], (0, 36));
+        assert!(at.len() == 2 && at[1].1 == 38 && at[1].0 >= 10_000 && at[1].0 < 30_000, "{at:?}");
+    }
+
+    // F-S12
+    #[test]
+    fn a_pattern_with_another_length_starts_from_its_first_step() {
+        let mut p = Project::default();
+        p.tracks[0].steps[0] = Step::on(36);
+        p.apply(&crate::Command::SetPattern { track: 0, index: 1, now: false });
+        p.tracks[0].length = 3;
+        p.tracks[0].steps[0] = Step::on(50);
+        p.apply(&crate::Command::SetPattern { track: 0, index: 0, now: false });
+        let mut seq = Sequencer::new(p, SR);
+        seq.play();
+        let log = run_with(&mut seq, 96_000 + 4 * 18_000, &[(1_000, crate::Command::SetPattern { track: 0, index: 1, now: false })]);
+        let at: Vec<(u64, u8)> = log.iter().filter(|e| e.1 == 0).map(|e| (e.0, e.2)).collect();
+        // the first bar, then the three-step pattern from the top of the second bar, every three steps (18000 samples)
+        assert_eq!(at[0], (0, 36));
+        assert_eq!(&at[1..4], &[(96_000, 50), (96_000 + 18_000, 50), (96_000 + 36_000, 50)]);
+    }
+
+    // F-S12
+    #[test]
+    fn copying_and_clearing_a_pattern() {
+        let mut p = Project::default();
+        p.tracks[2].steps[3] = Step::on(61);
+        p.apply(&crate::Command::CopyPattern { track: 2, from: 0, to: 9 });
+        assert_eq!(p.pattern(2, 9).unwrap().steps[3], Step::on(61));
+        p.apply(&crate::Command::ClearPattern { track: 2, index: 0 });
+        assert!(p.tracks[2].is_empty(), "the one that is shown is the track's own and it was emptied");
+        assert!(!p.pattern(2, 9).unwrap().is_empty());
+        p.apply(&crate::Command::SetPattern { track: 2, index: 9, now: false });
+        assert_eq!(p.tracks[2].steps[3], Step::on(61));
+        p.apply(&crate::Command::SetPattern { track: 2, index: 40, now: false });
+        assert_eq!(p.current[2], 9, "out of range is ignored");
     }
 }
