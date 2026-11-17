@@ -11,4 +11,5 @@
 - Mutable Instruments code (STM32, MIT) can be used, but without its module names. Surge XT and Vital are GPL: do not include without a decision from Javi.
 - The brand mark is eight buttons in the order red, orange, yellow, green, blue, indigo, violet, white, laid out as the MK3 lays out eight (group keys 4 + 4, or eight knobs in a row): `docs/design.md` §2.3, colours per theme in `Theme.brand`. **Every picture of the unit follows the real front panel** (`guide/mk3.js`, §2.4). Respect both, always.
 - Eight and eight: 8 factory + 8 user instruments, 8 factory + 8 user projects (`docs/instruments.md` §7).
+- **Button lights: a button is lit if and only if it has a function in the current context; a toggle goes strong when pressed and faint when pressed again (KEYBOARD, CHORDS).** A new function brings its light in the same change: `lights::all()`, `lights::light`, `F-L09`, the twin (`docs/design.md` §2.6).
 - Both MK3 screens animate. Never assume either one is still.

@@ -118,6 +118,8 @@ Every button follows one rule, the same for all of them (`crates/op8/src/lights.
 - **Very faint white:** it does something here. It can be pressed, but it is not in use.
 - **Strong white:** it is pressed or held, or it has the focus: the pad mode in use, CHANNEL while composing and SETTINGS in settings, the page that is open, SHIFT, MUTE or ERASE while held, STOP while stopped and PLAY while playing.
 
+**The rule, from Javi (2026-11-17): a button is lit if and only if it has a function in the current context.** Never leave a working button dark, and never light one that does nothing. A toggle (a pad mode, PATTERN, SCENE, ARRANGER, MIXER…) goes to strong white when it is pressed and back down to faint white when it is pressed again, as KEYBOARD and CHORDS do. Every new function therefore comes with its light: the button goes in `lights::all()` and in `lights::light`, and `F-L09` checks it (rest, pressed, pressed again). The twin lights the same way.
+
 The buttons whose LED has a colour (the groups A–H, PLAY) keep it and follow the same three levels. The faint white is about 10 % of the full brightness, which also keeps the current down ([architecture.md §10](architecture.md)). The eight screen buttons use the same rule through `screen_buttons` (§4). In the twin a faint button has a faint label and a strong one is filled.
 
 ## 3. Typography
