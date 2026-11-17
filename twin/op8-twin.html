@@ -183,6 +183,7 @@ canvas.lcd {
             <button class="btn" id="bFile" title="Proyectos: abrir y guardar">FILE</button>
             <button class="btn" id="bPlug" title="Elegir el instrumento de la pista">PLUG-IN</button>
             <button class="btn" id="bPattern" title="PATTERN: the sixteen pads are the sixteen patterns of the track. Tap: shown, plays from the next loop; SHIFT + tap: at once; hold + tap another: copy; ERASE + tap: empty">PATTERN</button>
+            <button class="btn" id="bScene" title="SCENE: the sixteen pads are the sixteen scenes. Tap: every track goes to the pattern it had (from its next loop) and the mutes come back at once; SHIFT + tap: store what is now; ERASE + tap: empty">SCENE</button>
             <button class="btn" id="bBrowser" title="Presets del instrumento: tocar carga, SHIFT + tocar guarda (filas de abajo)">BROWSER</button>
             <button class="btn" id="bSampling" title="Grabar un sonido: REC graba, los pads de arriba lo guardan, los de abajo lo escuchan">SAMPLING</button>
           </div>
@@ -479,7 +480,7 @@ function compMeter() { // how loud it is going in and how far it is being brough
 // ---- project (same demo set as op8 sim) ----
 function demoProject() {
   const tracks = Array.from({ length: 8 }, () => ensureTrack({ steps: Array.from({ length: 16 }, () => newStep()), length: 16, div: 2, link: false, muted: false }));
-  const p = { tracks, bpm: 122, swing: 0.54, seed: 0x35EED, comp: COMP_DEFAULT.slice(), eq: EQ_DEFAULT.slice(), sends: SENDS_DEFAULT.slice(),
+  const p = { tracks, bpm: 122, swing: 0.54, seed: 0x35EED, comp: COMP_DEFAULT.slice(), eq: EQ_DEFAULT.slice(), sends: SENDS_DEFAULT.slice(), scenes: Array(16).fill(null),
     brain: { key: 0, scale: 0, mode: 1, len: 4, live: null,
       prog: [0,5,3,4,0,0,0,0].map(d => ({ degree: d, kind: "triad", length: 16 })) } };
   for (const s of [0,4,8,12]) tracks[1].steps[s] = newStep(true, 36);
@@ -1053,7 +1054,7 @@ function setMode(m) {
 // Main modes: CHANNEL composes (sequencer left, instrument right); SETTINGS
 // takes both screens for the machine's settings (theme for now).
 const THEME_IDS = ["chrome", "matte", "glossy"]; // chrome is the default (Javi, 2026-11-16), then matte and glossy
-function setMain(m) { UI.grabbed = false; UI.focus = m === "file" ? { k: "cell", i: UI.fileLast ?? 0 } : m === "plugin" ? { k: "cell", i: Math.max(0, plugCells().cur) } : m === "pattern" ? { k: "cell", i: P.tracks[UI.track].cur } : m === "instrument" ? { k: "track", i: UI.track } : m === "mixer" ? { k: "value", i: 0 } : { k: "cell", i: 0 }; if (m === "browser") { UI.brNote = ""; UI.brLast = null; } if (UI.main === "sampling" && m !== "sampling") { SMP.rec = false; SMP.armed = false; smpCountStop(); } if (m === "sampling") SMP.note = ""; UI.main = m; UI.inspect = null; inspectorPad = null; if (m === "file") { UI.fileNote = ""; } if (m === "plugin") UI.plugNote = ""; }
+function setMain(m) { UI.grabbed = false; UI.focus = m === "file" ? { k: "cell", i: UI.fileLast ?? 0 } : m === "plugin" ? { k: "cell", i: Math.max(0, plugCells().cur) } : m === "pattern" ? { k: "cell", i: P.tracks[UI.track].cur } : m === "scene" ? { k: "cell", i: UI.sceneLast ?? 0 } : m === "instrument" ? { k: "track", i: UI.track } : m === "mixer" ? { k: "value", i: 0 } : { k: "cell", i: 0 }; if (m === "browser") { UI.brNote = ""; UI.brLast = null; } if (UI.main === "sampling" && m !== "sampling") { SMP.rec = false; SMP.armed = false; smpCountStop(); } if (m === "sampling") SMP.note = ""; UI.main = m; UI.inspect = null; inspectorPad = null; if (m === "file") { UI.fileNote = ""; } if (m === "plugin") UI.plugNote = ""; if (m === "scene") UI.sceneNote = ""; }
 function themeStep(d) { LOOK.theme = THEME_IDS[((THEME_IDS.indexOf(LOOK.theme) + d) % 3 + 3) % 3]; applyLook(); }
 function groupPress(g) {
   if (UI.main === "settings" || UI.main === "mixer" || UI.main === "name") return;
@@ -1089,6 +1090,7 @@ function padDown(pad, vel0) {
   if (UI.main === "file") { filePad(pad); return; }
   if (UI.main === "plugin") { plugPad(pad); return; }
   if (UI.main === "pattern") { patternPad(pad); return; }
+  if (UI.main === "scene") { scenePad(pad); return; }
   if (UI.main === "sampling") { smpPad(pad); return; }
   if (UI.main === "browser") { brPad(pad); return; }
   if (UI.main === "name") { namePad(pad); return; }
@@ -1120,7 +1122,7 @@ function padPressure(pad, p) {
 }
 function padUp(pad) {
   if (UI.main === "pattern") { patternPadUp(pad); return; }
-  if (UI.main === "settings" || UI.main === "mixer" || UI.main === "name" || UI.main === "file" || UI.main === "plugin" || UI.main === "pattern" || UI.main === "sampling" || UI.main === "browser") return;
+  if (UI.main === "settings" || UI.main === "mixer" || UI.main === "name" || UI.main === "file" || UI.main === "plugin" || UI.main === "pattern" || UI.main === "scene" || UI.main === "sampling" || UI.main === "browser") return;
   if (UI.mode === "step") {
     const wasDown = padDownAt[pad] != null; padDownAt[pad] = null;
     if (inspectorPad === pad) { inspectorPad = null; UI.inspect = null; }
@@ -1232,7 +1234,7 @@ function openLeft(page) {
 const BCX = [24, 164, 304, 444];
 function navItems() {
   const cell = i => ({ k: "cell", i, s: 0, x: 12 + (i % 4) * 114, y: 44 + Math.floor(i / 4) * 48, w: 108, h: 42 });
-  if (["file", "plugin", "browser", "pattern"].includes(UI.main)) return Array.from({ length: 16 }, (_, i) => cell(i));
+  if (["file", "plugin", "browser", "pattern", "scene"].includes(UI.main)) return Array.from({ length: 16 }, (_, i) => cell(i));
   if (UI.main === "sampling") return [...Array.from({ length: 16 }, (_, i) => cell(i)), ...Array.from({ length: 4 }, (_, k) => ({ k: "value", i: 4 + k, s: 1, x: 60 + k * 120 - 52, y: 224, w: 104, h: 42 }))];
   if (UI.main === "settings") return settingsItems();
   if (UI.main === "mixer") return [...[0, 1, 2, 3].map(k => ({ k: "value", i: k, s: 0, x: 60 + k * 120 - 52, y: 224, w: 104, h: 42 })), ...Array.from({ length: mixPageValues() }, (_, k) => ({ k: "value", i: 4 + k, s: 1, x: 60 + k * 120 - 52, y: 224, w: 104, h: 42 }))];
@@ -1642,7 +1644,7 @@ function mixFooter(g, first) {
     txt(g, String.fromCharCode(65 + i), cx - 34, 248, "l", TRACK_COLORS[i], "center", "middle"); txt(g, v, cx - 18, 248, "l", FG, "left", "middle");
   }
 }
-function loadProject(src) { const q = JSON.parse(JSON.stringify(src)); P.tracks = q.tracks.map(ensureTrack); P.bpm = q.bpm; P.swing = q.swing; P.brain = q.brain; P.comp = fillTo(q.comp, COMP_DEFAULT); P.eq = q.eq ? q.eq.slice() : EQ_DEFAULT.slice(); P.sends = fillTo(q.sends, SENDS_DEFAULT); S.play = P.tracks.map(tr => tr.cur); S.queued = Array(8).fill(null); S.origin = Array(8).fill(0); if (actx) { for (let t = 0; t < 8; t++) { fxApply(t, true); mixApply(t); } compApply(); eqApply(); sendsApply(); } }
+function loadProject(src) { const q = JSON.parse(JSON.stringify(src)); P.tracks = q.tracks.map(ensureTrack); P.bpm = q.bpm; P.swing = q.swing; P.brain = q.brain; P.comp = fillTo(q.comp, COMP_DEFAULT); P.eq = q.eq ? q.eq.slice() : EQ_DEFAULT.slice(); P.sends = fillTo(q.sends, SENDS_DEFAULT); P.scenes = q.scenes ? q.scenes.map(x => x ? { pat: x.pat.slice(), mute: x.mute.slice() } : null) : Array(16).fill(null); S.play = P.tracks.map(tr => tr.cur); S.queued = Array(8).fill(null); S.origin = Array(8).fill(0); if (actx) { for (let t = 0; t < 8; t++) { fxApply(t, true); mixApply(t); } compApply(); eqApply(); sendsApply(); } }
 function filePad(pad) {
   const slot = padToStep(pad); UI.fileLast = slot;
   if (UI.select) { const k = userKey(slot - 7); nameBegin(slot, slot >= 8 && !!localStorage.getItem(k), k, "project", "file"); return; }
@@ -1908,6 +1910,23 @@ function patternRight(g) {
   [["tap a pad", "shows it, plays from the next loop"], ["shift + tap", "plays it at once"], ["hold + tap another", "copies it; erase + tap empties"]].forEach(([a, b], i) => { txt(g, a, 30, 80 + i * 50, "mid", FG); txt(g, b, 30, 80 + i * 50 + 24, "m", DIM); });
   if (UI.patNote) txt(g, UI.patNote, 30, 236, "mid", FG);
 }
+// SCENE (crates/op8-ui/src/scene.rs, Controller::scene_pad): the sixteen pads are the sixteen scenes of the project
+UI.sceneNote = ""; UI.sceneLast = null;
+function sceneStore(i) { P.scenes[i] = { pat: P.tracks.map(tr => tr.cur), mute: P.tracks.map(tr => !!tr.muted) }; }
+function sceneLaunch(i) { const sc = P.scenes[i]; if (!sc) return false; P.tracks.forEach((tr, t) => { patPick(t, sc.pat[t], false); tr.muted = sc.mute[t]; }); return true; }
+function scenePad(pad) {
+  const slot = padToStep(pad); UI.focus = { k: "cell", i: slot };
+  if (UI.erase) { P.scenes[slot] = null; UI.sceneNote = `scene ${slot + 1} is empty`; }
+  else if (UI.shift) { sceneStore(slot); UI.sceneLast = slot; UI.sceneNote = `scene ${slot + 1} stored`; }
+  else if (P.scenes[slot]) { sceneLaunch(slot); UI.sceneLast = slot; UI.sceneNote = `scene ${slot + 1}: patterns from the next loop`; }
+  else UI.sceneNote = `scene ${slot + 1} is empty: shift + tap stores`;
+}
+function sceneLeft(g) { pickLeft("scenes", P.scenes.map((sc, i) => [String(i + 1), !!sc]), UI.sceneLast, false)(g); }
+function sceneRight(g) {
+  fill(g, 0, 0, 480, 272, BG); dot(g, 16, 15, 6, FG); txt(g, "scenes", 30, 6, "mid", FG);
+  [["tap a pad", "every track goes to the pattern it had, from its next loop; the mutes at once"], ["shift + tap", "stores the patterns and mutes that are now"], ["erase + tap", "empties it"]].forEach(([a, b], i) => { txt(g, a, 30, 80 + i * 50, "mid", FG); txt(g, b, 30, 80 + i * 50 + 24, "m", DIM); });
+  if (UI.sceneNote) txt(g, UI.sceneNote, 30, 236, "mid", FG);
+}
 function plugLeft(g) { const { cells, cur } = plugCells(); pickLeft("instruments", cells, cur)(g); }
 function plugRight(g) {
   fill(g, 0, 0, 480, 272, BG); dot(g, 16, 15, 6, FG); txt(g, "plug-in", 30, 6, "mid", FG);
@@ -2142,6 +2161,7 @@ function drawLeft(g) {
   if (UI.main === "file") { fileLeft(g); return; }
   if (UI.main === "plugin") { plugLeft(g); return; }
   if (UI.main === "pattern") { patternLeft(g); return; }
+  if (UI.main === "scene") { sceneLeft(g); return; }
   if (UI.main === "sampling") { smpLeft(g); return; }
   if (UI.main === "browser") { brLeft(g); return; }
   const accent = TRACK_COLORS[UI.track];
@@ -2403,6 +2423,7 @@ function drawRight(g) {
   if (UI.main === "file") { fileRight(g); return; }
   if (UI.main === "plugin") { plugRight(g); return; }
   if (UI.main === "pattern") { patternRight(g); return; }
+  if (UI.main === "scene") { sceneRight(g); return; }
   if (UI.main === "sampling") { smpRight(g); return; }
   if (UI.main === "browser") { brRight(g); return; }
   const t = UI.track, accent = TRACK_COLORS[t], slot = SLOTS[t];
@@ -2730,6 +2751,7 @@ $("bSampling").addEventListener("click", () => setMain(UI.main === "sampling" ? 
 $("bFile").addEventListener("click", () => setMain(UI.main === "file" ? "instrument" : "file"));
 $("bPlug").addEventListener("click", () => setMain(UI.main === "plugin" ? "instrument" : "plugin"));
 $("bPattern").addEventListener("click", () => setMain(UI.main === "pattern" ? "instrument" : "pattern"));
+$("bScene").addEventListener("click", () => setMain(UI.main === "scene" ? "instrument" : "scene"));
 $("sb1").addEventListener("click", () => { if (UI.main === "mixer") MIX.group = 0; else if (UI.main === "settings") settingsPage(0); else if (UI.main === "instrument") setMode("step"); }); // setMode also goes back to the steps
 $("sb2").addEventListener("click", () => { if (UI.main === "mixer") MIX.group = 1; else if (UI.main === "settings") settingsPage(1); else if (UI.main === "instrument") { setMode("step"); UI.inspect = 0; UI.compCursor = 0; UI.focus = { k: "comp", i: 0 }; } });
 $("sb3").addEventListener("click", () => { if (UI.main === "mixer") MIX.send = MIX.send === 1 ? 0 : 1; else if (UI.main === "settings") settingsPage(2); else openLeft("players"); });
@@ -2805,7 +2827,7 @@ function updateLeds() {
   const L = {
     bStep: composing && UI.mode === "step" ? 2 : 1, bChords: composing && UI.mode === "brain" ? 2 : 1, bPerform: composing && UI.mode === "punch" ? 2 : 1,
     bPads: composing && UI.mode === "pads" ? 2 : 1, bKeys: composing && UI.mode === "keys" ? 2 : 1,
-    bChannel: composing ? 2 : 1, bSettings: UI.main === "settings" ? 2 : 1, bMixer: UI.main === "mixer" ? 2 : 1, bFile: UI.main === "file" ? 2 : 1, bPlug: UI.main === "plugin" ? 2 : 1, bPattern: UI.main === "pattern" ? 2 : 1, bSampling: UI.main === "sampling" ? 2 : 1, bBrowser: UI.main === "browser" ? 2 : 1, bShift: UI.shift ? 2 : 1,
+    bChannel: composing ? 2 : 1, bSettings: UI.main === "settings" ? 2 : 1, bMixer: UI.main === "mixer" ? 2 : 1, bFile: UI.main === "file" ? 2 : 1, bPlug: UI.main === "plugin" ? 2 : 1, bPattern: UI.main === "pattern" ? 2 : 1, bScene: UI.main === "scene" ? 2 : 1, bSampling: UI.main === "sampling" ? 2 : 1, bBrowser: UI.main === "browser" ? 2 : 1, bShift: UI.shift ? 2 : 1,
     bMute: composing ? (UI.mute ? 2 : 1) : 0, bSelect: UI.main === "file" || UI.main === "browser" ? (UI.select ? 2 : 1) : 0, bErase: composing ? (UI.erase ? 2 : 1) : 0,
     bStop: S.playing ? 1 : 2, bRestart: 1, bRec: composing ? (UI.rec ? 2 : 1) : UI.main === "sampling" ? (SMP.rec || SMP.armed || SMP.counting ? 2 : 1) : 0, bTap: composing ? (UI.metro ? 2 : 1) : UI.main === "sampling" ? (SMP.countIn ? 2 : 1) : 0, bTempo: composing ? (UI.held === "tempo" ? 2 : 1) : 0, bSwing: composing ? (UI.held === "swing" ? 2 : 1) : 0, bVolume: composing ? (UI.held === "volume" ? 2 : 1) : 0, bFixed: composing ? (UI.fixed ? 2 : 1) : 0, jogL: !composing || UI.mode === "keys" ? 1 : 0, jogR: !composing || UI.mode === "keys" ? 1 : 0,
     sb1: composing ? (UI.mode === "step" && UI.inspect == null && UI.leftPage === "steps" ? 2 : 1) : UI.main === "settings" ? (SET.page === 0 ? 2 : 1) : UI.main === "mixer" ? (MIX.group === 0 ? 2 : 1) : 0, sb2: composing ? (UI.inspect != null ? 2 : 1) : UI.main === "settings" ? (SET.page === 1 ? 2 : 1) : UI.main === "mixer" ? (MIX.group === 1 ? 2 : 1) : 0,

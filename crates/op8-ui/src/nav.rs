@@ -171,7 +171,7 @@ pub fn footer_rect(col: usize) -> (f32, f32, f32, f32) {
 pub fn items(ui: &UiState) -> Vec<NavItem> {
     let cell = |i: usize| NavItem { kind: NavKind::Cell(i as u8), screen: 0, rect: cell_rect(i) };
     match ui.main {
-        Main::File | Main::Plugin | Main::Browser | Main::Pattern => (0..CELLS).map(cell).collect(),
+        Main::File | Main::Plugin | Main::Browser | Main::Pattern | Main::Scene => (0..CELLS).map(cell).collect(),
         Main::Settings => pick_items(ui),
         // the 4D turns the letters here, so nothing is listed to reach
         Main::Name => Vec::new(),

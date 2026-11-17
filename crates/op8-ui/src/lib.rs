@@ -23,6 +23,7 @@ mod naming;
 mod nav;
 mod pages;
 mod pattern;
+mod scene;
 mod right;
 mod sampling;
 mod settings;
@@ -58,6 +59,8 @@ pub enum Main {
     Sampling,
     /// The patterns of the selected track (PATTERN): the sixteen pads choose which one is shown and plays, both screens.
     Pattern,
+    /// The sixteen scenes (SCENE): each pad launches one, SHIFT + pad stores what is now into it, both screens.
+    Scene,
     /// The presets of the selected track's instrument (BROWSER): both screens.
     Browser,
     /// The mix (MIXER): four channels on the left, the compressor of the master on the right.
@@ -159,6 +162,9 @@ pub struct UiState {
     pub plug_note: String,
     /// What just happened in PATTERN.
     pub pattern_note: String,
+    /// What just happened in SCENE, and the scene that was launched or stored last.
+    pub scene_note: String,
+    pub scene_last: Option<usize>,
     /// BROWSER: the sixteen presets of the instrument (name, and whether there is one), its name, the last pad touched and a line saying what happened.
     pub browse: Vec<(String, bool)>,
     pub browse_inst: String,
@@ -430,7 +436,7 @@ mod tests {
         let _guard = lock();
         let modes = [Mode::Step, Mode::Brain, Mode::Punch, Mode::Pads, Mode::Keys];
         let mut seen = 0;
-        for main in [Main::Instrument, Main::File, Main::Plugin, Main::Browser, Main::Sampling, Main::Pattern] {
+        for main in [Main::Instrument, Main::File, Main::Plugin, Main::Browser, Main::Sampling, Main::Pattern, Main::Scene] {
             for mode in modes {
                 for page in [LeftPage::Steps, LeftPage::Players, LeftPage::Bar] {
                     for (has_second, lane, inspect_step) in [(false, None, None), (true, None, None), (true, Some(0), None), (true, None, Some(0))] {

@@ -269,6 +269,7 @@ impl Controller {
             ControlEvent::Pad { pad, event } if self.ui.main == Main::File => self.file_pad(pad, event, h),
             ControlEvent::Pad { pad, event } if self.ui.main == Main::Plugin => self.plugin_pad(pad, event, h),
             ControlEvent::Pad { pad, event } if self.ui.main == Main::Pattern => self.pattern_pad(pad, event, h),
+            ControlEvent::Pad { pad, event } if self.ui.main == Main::Scene => self.scene_pad(pad, event, h),
             ControlEvent::Pad { pad, event } if self.ui.main == Main::Sampling => self.sampling_pad(pad, event, h),
             ControlEvent::Pad { pad, event } if self.ui.main == Main::Browser => self.browser_pad(pad, event, h),
             ControlEvent::Pad { pad, event } if self.ui.main == Main::Name => self.name_pad(pad, event, h),
@@ -442,6 +443,10 @@ impl Controller {
             }
             Button::Pattern => {
                 let to = if self.ui.main == Main::Pattern { Main::Instrument } else { Main::Pattern };
+                self.set_main(to, h);
+            }
+            Button::Scene => {
+                let to = if self.ui.main == Main::Scene { Main::Instrument } else { Main::Scene };
                 self.set_main(to, h);
             }
             Button::File => {
@@ -661,6 +666,7 @@ impl Controller {
                         Main::File => self.file_pad(pad, ev, h),
                         Main::Plugin => self.plugin_pad(pad, ev, h),
                         Main::Pattern => self.pattern_pad(pad, ev, h),
+                        Main::Scene => self.scene_pad(pad, ev, h),
                         Main::Browser => self.browser_pad(pad, ev, h),
                         Main::Sampling => self.sampling_pad(pad, ev, h),
                         _ => {}
@@ -1122,6 +1128,37 @@ impl Controller {
         }
     }
 
+    /// SCENE: a tap launches the scene on the pad (every track's pattern from its next loop, the mutes at once); SHIFT + a tap stores
+    /// the patterns and mutes that are now; ERASE + a tap empties it.
+    fn scene_pad(&mut self, pad: u8, ev: PadEvent, h: &mut EngineHandle) {
+        let slot = Self::pad_to_step(pad);
+        match ev {
+            PadEvent::Press | PadEvent::Strike(_) => {
+                if self.pad_down_at[pad as usize].is_some() {
+                    return;
+                }
+                self.pad_down_at[pad as usize] = Some(0);
+                self.ui.focus = NavKind::Cell(slot);
+                if self.held.erase {
+                    h.seq(Command::ClearScene { index: slot });
+                    self.ui.scene_note = format!("scene {} is empty", slot + 1);
+                } else if self.held.shift {
+                    h.seq(Command::StoreScene { index: slot });
+                    self.ui.scene_last = Some(slot as usize);
+                    self.ui.scene_note = format!("scene {} stored", slot + 1);
+                } else if h.project.scenes[slot as usize].used {
+                    h.seq(Command::LaunchScene { index: slot });
+                    self.ui.scene_last = Some(slot as usize);
+                    self.ui.scene_note = format!("scene {}: patterns from the next loop", slot + 1);
+                } else {
+                    self.ui.scene_note = format!("scene {} is empty: shift + tap stores", slot + 1);
+                }
+            }
+            PadEvent::Release => self.pad_down_at[pad as usize] = None,
+            PadEvent::Pressure(_) => {}
+        }
+    }
+
     /// FILE: a pad opens the project in its slot; SHIFT + a pad of the player's slots saves into it.
     fn file_pad(&mut self, pad: u8, ev: PadEvent, h: &mut EngineHandle) {
         if !matches!(ev, PadEvent::Press | PadEvent::Strike(_)) || self.pad_down_at[pad as usize].is_some() {
@@ -1437,6 +1474,9 @@ impl Controller {
             self.ui.pattern_note.clear();
             self.pattern_held = None;
         }
+        if m == Main::Scene {
+            self.ui.scene_note.clear();
+        }
         if m == Main::Browser {
             self.refresh_browser(h);
             self.ui.browse_note.clear();
@@ -1453,6 +1493,7 @@ impl Controller {
             Main::File => NavKind::Cell(self.ui.file_last.unwrap_or(0) as u8),
             Main::Plugin => NavKind::Cell(self.ui.plug_current.unwrap_or(0) as u8),
             Main::Pattern => NavKind::Cell(h.project.current[self.ui.track]),
+            Main::Scene => NavKind::Cell(self.ui.scene_last.unwrap_or(0) as u8),
             // composing: on the track you are working on
             Main::Instrument => NavKind::Track(self.ui.track as u8),
             Main::Settings => NavKind::Pick(0),
@@ -2469,6 +2510,13 @@ impl Controller {
                 } else {
                     out.set_pad(pad, NiColor::White, if has { 2 } else { 1 });
                 }
+            }
+        }
+        if self.ui.main == Main::Scene {
+            for pad in 0..16u8 {
+                let slot = Self::pad_to_step(pad) as usize;
+                let level = if self.ui.scene_last == Some(slot) { 3 } else if h.project.scenes[slot].used { 2 } else { 1 };
+                out.set_pad(pad, NiColor::White, level);
             }
         }
         if self.ui.main == Main::Plugin {
