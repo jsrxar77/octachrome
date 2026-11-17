@@ -33,8 +33,8 @@ pub struct Context<'a> {
 pub fn all() -> Vec<Button> {
     use Button::*;
     let mut v = vec![
-        Shift, Rec, Tap, Tempo, Swing, Volume, FixedVel, Step, Chords, Perform, PadMode, Keyboard, NoteRepeat, ChannelMidi, Settings, File, PlugIn, Mixer, Browser, Sampling, Pattern, Scene, Arranger, Mute, Erase, Play, Stop, Restart, JogLeft,
-        JogRight,
+        Shift, Rec, Tap, Tempo, Swing, Volume, FixedVel, Step, Chords, Perform, PadMode, Keyboard, NoteRepeat, ChannelMidi, Settings, File, PlugIn, Mixer, Browser, Sampling, Pattern, Scene, Arranger, Mute, Erase, Play, Stop, Restart, Select, JogLeft,
+        JogRight, JogUp, JogDown,
     ];
     v.extend((1..=8).map(Screen));
     v
@@ -44,6 +44,7 @@ pub fn all() -> Vec<Button> {
 pub fn light(ui: &UiState, c: &Context, b: Button) -> Light {
     use Button::*;
     let composing = ui.main == Main::Instrument;
+    let nav = !op8_ui::nav_items(ui).is_empty();
     let state = |on: bool| if on { Light::Full } else { Light::Dim };
     let l = match b {
         Shift => state(c.shift),
@@ -77,13 +78,19 @@ pub fn light(ui: &UiState, c: &Context, b: Button) -> Light {
         Mute => if composing { state(c.mute) } else { Light::Off },
         Erase => if composing { state(c.erase) } else { Light::Off },
         // The 4D encoder's sides: the theme in settings, the octave on the keyboard
+        // (the same contexts as `Controller::button`: the octave on the keyboard, the theme in settings,
+        // the cursor of a name, and whatever the 4D can move through on the pads)
         JogLeft | JogRight => {
-            if ui.main == Main::Settings || (composing && ui.mode == Mode::Keys) {
+            if ui.main == Main::Settings || ui.main == Main::Name || (composing && ui.mode == Mode::Keys && ui.lane.is_none()) || nav {
                 Light::Dim
             } else {
                 Light::Off
             }
         }
+        JogUp | JogDown => if nav { Light::Dim } else { Light::Off },
+        // (the push of the 4D has no LED on the MK3)
+        // SELECT held on a pad names it: where there are things to name
+        Select => if matches!(ui.main, Main::File | Main::Browser | Main::Sampling) { Light::Dim } else { Light::Off },
         Screen(n) => match screen_buttons(ui).get(n as usize - 1).copied().flatten() {
             None => Light::Off,
             Some((_, true)) => Light::Full,

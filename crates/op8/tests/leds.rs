@@ -126,4 +126,40 @@ fn f_l09_buttons_are_dark_faint_or_strong() {
         assert!(off(&b, Button::Screen(n)), "the buttons of the right screen do nothing in settings");
     }
     assert!(!off(&b, Button::Play) && !off(&b, Button::Restart) && !off(&b, Button::Stop), "the transport still works");
+    // SELECT and the 4D: lit only where they do something (SELECT names things in FILE, BROWSER and SAMPLING;
+    // the 4D moves through whatever the pads show)
+    b.press(Button::ChannelMidi);
+    b.press(Button::Step);
+    b.tick();
+    assert!(off(&b, Button::Select), "nothing to name while composing");
+    for view in [Button::File, Button::Browser, Button::Sampling] {
+        b.press(view);
+        b.tick();
+        assert!(faint(&b, Button::Select), "SELECT names things in {view:?}");
+        b.press(view);
+        b.tick();
+    }
+    b.press(Button::Pattern);
+    b.tick();
+    assert!(faint(&b, Button::JogUp) && faint(&b, Button::JogDown) && faint(&b, Button::JogLeft), "the 4D moves over the sixteen patterns");
+    assert!(off(&b, Button::Select), "and SELECT does nothing there");
+    b.press(Button::Pattern);
+    b.tick();
+    assert!(faint(&b, Button::JogUp) && faint(&b, Button::JogDown), "composing: the 4D moves over the tracks, the buttons and the values");
+}
+
+// F-H08: closing the program leaves the controller as it was before OP-8: every LED off and both screens black,
+// not what was last shown.
+#[test]
+fn f_h08_closing_leaves_the_controller_clean() {
+    let mut b = Bench::demo();
+    b.press(Button::Play);
+    b.run_ms(300);
+    assert!(b.app.surface.leds.slots.iter().any(|&v| v != 0), "something is lit while playing");
+    assert!(b.app.surface.screens.iter().any(|s| s.pixels().iter().any(|&p| p != 0)), "and something is drawn");
+    b.app.shutdown().unwrap();
+    assert!(b.app.surface.leds.slots.iter().all(|&v| v == 0), "every LED is off");
+    for s in &b.app.surface.screens {
+        assert!(s.pixels().iter().all(|&p| p == 0), "both screens are black");
+    }
 }

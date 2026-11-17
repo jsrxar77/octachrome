@@ -166,6 +166,7 @@ A project file (`crates/op8/src/projectfile.rs`) is `OP8P`, a version byte, the 
 
 **Decisions**
 
+- **Closing OP-8 leaves the MK3 clean (Javi, 2026-11-17).** On Ctrl-C, SIGTERM or closing the terminal, `op8 run` turns every LED off, paints both screens black, lets go of the screens and resets the device on USB as replugging it would (`App::shutdown`, `reset_usb`), so it is not left showing the last thing played. The reset on the real MK3 is manual review (F-H08).
 - **A button is lit if and only if it has a function in the current context (Javi, 2026-11-17).** A toggle goes strong when pressed and faint again when pressed again (KEYBOARD, CHORDS). Lights are applied only to the buttons in `lights::all()`: a button missing from that list stays dark on the unit even if the table says otherwise (PATTERN, SCENE, ARRANGER, MIXER, BROWSER and SAMPLING were dark for that reason until this date). Rule: [design.md §2.6](design.md).
 
 - **Licence MIT or Apache-2.0.** No GPL dependencies are added. Encdr, autotel/maschine-mk3-linux and Deckard are GPL: from the MK3 protocol only the facts were taken, not the code. Surge XT and Vital are GPL and stay out unless Javi decides otherwise.
