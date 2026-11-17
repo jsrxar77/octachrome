@@ -178,6 +178,13 @@ impl Sequencer {
         self.reseed();
     }
 
+    /// Start at the next block from `tick` (96 to the quarter note) instead of from the top: where a song position pointer says.
+    pub fn play_from(&mut self, tick: u64) {
+        self.play();
+        self.tick = tick;
+        self.last_eff = tick;
+    }
+
     /// Stop and release every sounding note at the start of the next block.
     pub fn stop(&mut self) {
         self.stop_pending |= self.playing;
@@ -221,6 +228,11 @@ impl Sequencer {
             step: (step_global % len) as u8,
             iteration: (step_global / len) as u32,
         }
+    }
+
+    /// The tick the song has reached (96 per quarter note), counted straight on: a beat repeat that loops a part does not turn it back.
+    pub fn song_tick(&self) -> u64 {
+        self.tick
     }
 
     /// The tick the sequencer has reached (96 per quarter note), for the metronome.

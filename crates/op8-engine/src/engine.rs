@@ -19,6 +19,8 @@ pub const PARAMS_PER_SLOT: usize = 8;
 pub enum EngineCommand {
     Seq(Command),
     Play,
+    /// Start from a tick (96 to the quarter note) instead of the top: what a song position pointer from outside asks for.
+    PlayFrom(u64),
     Stop,
     SetParam {
         track: u8,
@@ -296,6 +298,7 @@ impl Engine {
             match cmd {
                 EngineCommand::Seq(c) => self.seq.apply(&c),
                 EngineCommand::Play => self.seq.play(),
+                EngineCommand::PlayFrom(tick) => self.seq.play_from(tick),
                 EngineCommand::Stop => {
                     self.seq.stop();
                     self.fx.engage(None, 0.0);
@@ -657,6 +660,7 @@ impl Engine {
     fn publish(&self, started: Instant, frames: usize) {
         let s = &self.status;
         s.playing.store(self.seq.is_playing(), Relaxed);
+        s.tick.store(self.seq.song_tick() as u32, Relaxed);
         for t in 0..TRACKS {
             s.playhead[t].store(self.seq.playhead(t).step, Relaxed);
             s.phase[t].store((self.seq.step_phase(t) * 255.0) as u8, Relaxed);
@@ -726,7 +730,7 @@ impl EngineHandle {
         let master = if let EngineCommand::MasterVolume(v) = &cmd { Some(v.clamp(0.0, 1.0)) } else { None };
         let metro = if let EngineCommand::Metronome(on) = &cmd { Some(*on) } else { None };
         let play = match &cmd {
-            EngineCommand::Play => Some(true),
+            EngineCommand::Play | EngineCommand::PlayFrom(_) => Some(true),
             EngineCommand::Stop => Some(false),
             _ => None,
         };

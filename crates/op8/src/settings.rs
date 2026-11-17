@@ -32,6 +32,10 @@ pub struct Settings {
     pub midi_by_channel: bool,
     /// MIDI clock out: start, 24 clocks to the quarter note and stop on the MIDI port while the sequencer runs.
     pub midi_clock: bool,
+    /// MIDI clock in: the tempo, the start and the stop come from the input that is open.
+    pub midi_clock_in: bool,
+    /// The controls learned: which controller (0..=127) turns which parameter (0..=7) of the instrument of the track that plays.
+    pub midi_map: Vec<(u8, u8)>,
     /// The screen backlight as a step of what the supply allows: 1 to 4 (25, 50, 75 and 100 %).
     pub screen: u8,
     /// The highest level of the pad LEDs: 1 to 3.
@@ -40,7 +44,7 @@ pub struct Settings {
 
 impl Default for Settings {
     fn default() -> Self {
-        Self { theme: ThemeId::Chrome, audio_out: None, audio_in: None, buffer: None, midi_out: None, midi_in: None, midi_by_channel: false, midi_clock: true, screen: SCREEN_STEPS, pads: 3 }
+        Self { theme: ThemeId::Chrome, audio_out: None, audio_in: None, buffer: None, midi_out: None, midi_in: None, midi_by_channel: false, midi_clock: true, midi_clock_in: false, midi_map: Vec::new(), screen: SCREEN_STEPS, pads: 3 }
     }
 }
 
@@ -107,6 +111,17 @@ impl Settings {
                         _ => s.midi_clock,
                     }
                 }
+                "midi_clock_in" => s.midi_clock_in = value == "on",
+                "midi_map" => {
+                    s.midi_map = value
+                        .split(',')
+                        .filter_map(|p| {
+                            let (cc, param) = p.split_once(':')?;
+                            let (cc, param) = (cc.trim().parse::<u8>().ok()?, param.trim().parse::<u8>().ok()?);
+                            (cc < 128 && param < 8).then_some((cc, param))
+                        })
+                        .collect()
+                }
                 "buffer" => s.buffer = value.parse().ok().filter(|b| BUFFERS.contains(b)),
                 "screen" => s.screen = value.parse().ok().filter(|v| (1..=SCREEN_STEPS).contains(v)).unwrap_or(s.screen),
                 "pads" => s.pads = value.parse().ok().filter(|v| (1..=3).contains(v)).unwrap_or(s.pads),
@@ -133,6 +148,13 @@ impl Settings {
         }
         if self.midi_clock != d.midi_clock {
             out.push_str(&format!("midi_clock={}\n", if self.midi_clock { "on" } else { "off" }));
+        }
+        if self.midi_clock_in {
+            out.push_str("midi_clock_in=on\n");
+        }
+        if !self.midi_map.is_empty() {
+            let list: Vec<String> = self.midi_map.iter().map(|(cc, p)| format!("{cc}:{p}")).collect();
+            out.push_str(&format!("midi_map={}\n", list.join(",")));
         }
         if self.screen != d.screen {
             out.push_str(&format!("screen={}\n", self.screen));
@@ -261,6 +283,8 @@ mod tests {
             midi_in: Some("Keystation".into()),
             midi_by_channel: true,
             midi_clock: false,
+            midi_clock_in: true,
+            midi_map: vec![(21, 0), (74, 6)],
             screen: 2,
             pads: 1,
         };

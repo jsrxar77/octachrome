@@ -131,6 +131,12 @@ impl Bench {
         app.ctl.midi_in(msg, &mut app.handle);
     }
 
+    /// The same, with the time it came in (microseconds from any fixed moment), as the input thread stamps it: what the clock measures.
+    pub fn midi_in_at(&mut self, msg: &[u8], at_us: u64) {
+        let Self { app, .. } = self;
+        app.ctl.midi_in_at(msg, at_us, &mut app.handle);
+    }
+
     // ---- input, as the MK3 would send it -------------------------------------
 
     pub fn send(&mut self, e: ControlEvent) {

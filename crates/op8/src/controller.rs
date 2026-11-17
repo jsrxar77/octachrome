@@ -153,6 +153,10 @@ pub struct Controller {
     name_target: Option<(std::path::PathBuf, Main)>,
     /// The notes that came in by MIDI and are down: (channel, note) and the track each one sounds on.
     midi_held: std::collections::HashMap<(u8, u8), u8>,
+    /// MIDI clock in: the tempo and the position that the pulses say.
+    clock: crate::clockin::ClockFollower,
+    /// The parameter (0..=7) that `learn` is waiting for a control for, once a knob has been turned.
+    learn_param: Option<u8>,
     /// The fractions of a step the compressor's knobs have turned and not yet applied.
     comp_accum: [f32; op8_seq::COMP_PARAMS],
     eq_accum: [f32; op8_seq::EQ_PARAMS],
@@ -266,6 +270,8 @@ impl Controller {
             ControlEvent::Pad { pad, event } if self.ui.main == Main::Browser => self.browser_pad(pad, event, h),
             ControlEvent::Pad { pad, event } if self.ui.main == Main::Name => self.name_pad(pad, event, h),
             ControlEvent::Encoder { delta } if self.ui.main == Main::Name => self.name_turn(delta),
+            // `learn` waits for a knob of the right screen of an instrument: it is the parameter that the control will turn
+            ControlEvent::Knob { index, .. } if self.ui.settings.learn == 1 && self.ui.main == Main::Settings => self.learn_knob(index as usize),
             ControlEvent::Knob { index, delta } if self.ui.main == Main::Sampling => self.sampling_knob(index as usize, delta, h),
             ControlEvent::Knob { index, delta } if self.ui.main == Main::Mixer => self.mixer_page_knob(index as usize, delta, h),
             ControlEvent::Pad { .. } | ControlEvent::Knob { .. } if self.ui.main != Main::Instrument => {}
@@ -1434,6 +1440,8 @@ impl Controller {
         v.screen = s.screen;
         v.pads = s.pads;
         v.midi_clock = s.midi_clock;
+        v.midi_clock_in = s.midi_clock_in;
+        v.learned = s.midi_map.len();
     }
 
     /// What the hardware answered: the lists and what is open.
@@ -1483,6 +1491,22 @@ impl Controller {
             }
             (2, 12) => self.requests.push(Request::MidiTest),
             (2, 13) => self.requests.push(Request::MidiPanic),
+            (2, 16) => {
+                self.settings.midi_clock_in = !self.settings.midi_clock_in;
+                self.clock = Default::default();
+                self.ui.settings.note = if self.settings.midi_clock_in { "the tempo, start and stop come from the input" } else { "the tempo is its own" }.into();
+            }
+            (2, 17) => {
+                // learn: a knob of the right screen, then a control; again, to give up
+                self.learn_param = None;
+                self.ui.settings.learn = if self.ui.settings.learn == 0 { 1 } else { 0 };
+                self.ui.settings.note = if self.ui.settings.learn == 1 { "turn a knob of the right screen of an instrument".into() } else { String::new() };
+            }
+            (2, 18) => {
+                let n = self.settings.midi_map.len();
+                self.settings.midi_map.clear();
+                self.ui.settings.note = format!("forgot {n} control{}", if n == 1 { "" } else { "s" });
+            }
             (2, 15) => {
                 self.settings.midi_by_channel = !self.settings.midi_by_channel;
                 self.ui.settings.note = if self.settings.midi_by_channel { "channels 1 to 8 play A to H" } else { "notes play the selected track" }.into();
@@ -1496,7 +1520,7 @@ impl Controller {
             (3, 4..=6) => self.settings.pads = n as u8 - 3,
             _ => return,
         }
-        if !matches!((self.ui.settings.page, n), (2, 12 | 13)) {
+        if !matches!((self.ui.settings.page, n), (2, 12 | 13 | 17)) {
             self.settings_changed = true;
         }
         self.sync_settings_view();
@@ -1831,7 +1855,15 @@ impl Controller {
     /// that; they are written by REC like the pads' (on the selected track). Three controllers mix the track they are sent to: 7 is its
     /// level, 10 its pan and 91 its send to the reverb. 120 and 123 let go of every note that is held.
     pub fn midi_in(&mut self, msg: &[u8], h: &mut EngineHandle) {
+        self.midi_in_at(msg, self.now * 1000, h);
+    }
+
+    /// A message that came in at `at_us` (microseconds from any fixed moment: what the clock measures is the time between them).
+    pub fn midi_in_at(&mut self, msg: &[u8], at_us: u64, h: &mut EngineHandle) {
         let Some(&status) = msg.first() else { return };
+        if matches!(status, 0xF2 | 0xF8 | 0xFA | 0xFB | 0xFC) {
+            return self.clock_in(msg, at_us, h);
+        }
         let (kind, channel) = (status & 0xF0, status & 0x0F);
         let target = if self.settings.midi_by_channel {
             if channel as usize >= TRACKS {
@@ -1873,6 +1905,7 @@ impl Controller {
                 let semitones = (raw - 8192) as f32 / 8192.0 * 2.0;
                 h.send(EngineCommand::PitchBend { track: target as u8, semitones });
             }
+            0xB0 if self.learned_control(data(1), data(2), target, h) => {}
             0xB0 => match data(1) {
                 7 => {
                     h.seq(Command::SetLevel { track: target as u8, level: data(2) });
@@ -1890,6 +1923,92 @@ impl Controller {
                 }
                 _ => {}
             },
+            _ => {}
+        }
+    }
+
+    /// `learn`, waiting for a knob: the right screen of the instrument has two pages of four parameters; the knob that turned is the one
+    /// the next control will turn.
+    fn learn_knob(&mut self, k: usize) {
+        if k < 4 {
+            self.ui.settings.note = "turn a knob under the right screen".into();
+            return;
+        }
+        let page = op8_ui::right_page(&self.ui);
+        if page > 1 {
+            self.ui.settings.note = "that page of the instrument has no parameters: use the first or the second".into();
+            return;
+        }
+        self.learn_param = Some((page * 4 + (k - 4)) as u8);
+        self.ui.settings.learn = 2;
+        self.ui.settings.note = format!("page {} knob {}: now move a control", page + 1, k - 3);
+    }
+
+    /// A controller that comes in: the one `learn` is waiting for, or one that was learned and turns its parameter.
+    fn learned_control(&mut self, cc: u8, value: u8, target: usize, h: &mut EngineHandle) -> bool {
+        if self.ui.settings.learn == 2 && !matches!(cc, 120..=127) {
+            let Some(param) = self.learn_param.take() else { return true };
+            self.settings.midi_map.retain(|&(c, _)| c != cc);
+            self.settings.midi_map.push((cc, param));
+            self.settings_changed = true;
+            self.ui.settings.learn = 0;
+            self.ui.settings.note = format!("control {cc} turns page {} knob {}", param / 4 + 1, param % 4 + 1);
+            self.sync_settings_view();
+            return true;
+        }
+        if let Some(&(_, param)) = self.settings.midi_map.iter().find(|&&(c, _)| c == cc) {
+            h.send(EngineCommand::SetParam { track: target as u8, index: param, value: value as f32 / 127.0 });
+            return true;
+        }
+        false
+    }
+
+    /// MIDI clock in: pulses, start, continue, stop and the song position pointer, when the clock in is on.
+    fn clock_in(&mut self, msg: &[u8], at_us: u64, h: &mut EngineHandle) {
+        if !self.settings.midi_clock_in {
+            return;
+        }
+        match msg[0] {
+            0xF8 => {
+                let measured = self.clock.pulse(at_us);
+                let running = self.clock.running && h.is_playing();
+                let expected = running.then(|| self.clock.expected_tick());
+                // the tempo is looked at every sixteenth (6 pulses), so the commands that go to the sequencer are few
+                let Some(measured) = measured else { return };
+                let due = expected.map_or(true, |e| (e / crate::clockin::TICKS_PER_PULSE) % 6 == 0);
+                if !due {
+                    return;
+                }
+                let want = match expected {
+                    Some(e) => {
+                        let at = h.status.tick.load(std::sync::atomic::Ordering::Relaxed) as u64;
+                        // far off (a start that came while it was somewhere else, a tempo that jumped): go to where the clock says
+                        if (e as i64 - at as i64).abs() > crate::clockin::JUMP_TICKS {
+                            h.send(EngineCommand::PlayFrom(e));
+                        }
+                        crate::clockin::ClockFollower::tempo(measured, e, at)
+                    }
+                    None => measured,
+                };
+                let want = (want * 10.0).round() / 10.0;
+                if (want - h.project.bpm).abs() >= 0.1 {
+                    h.seq(Command::SetBpm(want));
+                }
+            }
+            0xFA => {
+                self.clock.start(0);
+                h.send(EngineCommand::Play);
+            }
+            0xFB => {
+                let from = self.clock.position;
+                self.clock.start(from);
+                h.send(if from == 0 { EngineCommand::Play } else { EngineCommand::PlayFrom(from) });
+            }
+            0xFC => {
+                self.clock.stop();
+                h.send(EngineCommand::Stop);
+            }
+            0xF2 if msg.len() == 3 => self.clock.set_position((msg[1] & 0x7F) as u16 | ((msg[2] & 0x7F) as u16) << 7),
             _ => {}
         }
     }

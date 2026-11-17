@@ -310,8 +310,8 @@ fn run(mut script: Option<Script>, theme_given: bool) -> Result<()> {
         }
         // what came in by MIDI plays before the frame is drawn
         if let Some(i) = &midi_in {
-            while let Ok(msg) = i.rx.try_recv() {
-                app.ctl.midi_in(&msg, &mut app.handle);
+            while let Ok((msg, at_us)) = i.rx.try_recv() {
+                app.ctl.midi_in_at(&msg, at_us, &mut app.handle);
             }
         }
         if let Err(e) = app.frame(pacer.now_ms()) {

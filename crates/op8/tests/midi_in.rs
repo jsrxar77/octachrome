@@ -197,3 +197,66 @@ fn f_m05_the_pitch_wheel_bends_what_plays() {
     assert!((down as f32) < centre as f32 * 0.92, "down: {down} against {centre}");
     assert_eq!(mid, centre, "the centre is no bend");
 }
+
+fn focus_pick(b: &mut Bench, n: u8) {
+    for _ in 0..60 {
+        if b.ui().focus == NavKind::Pick(n) {
+            return;
+        }
+        b.encoder(1);
+    }
+    panic!("the focus never reached pick {n}");
+}
+
+// F-M07: `learn` on the midi page waits for a knob of the right screen of an instrument and then for a control: from then on that
+// controller turns that parameter of the instrument of the track that plays; it is kept in the settings; `forget` takes them all away;
+// and the clock in has its button there.
+#[test]
+fn f_m07_a_control_can_be_learned_for_a_parameter() {
+    let d = std::env::temp_dir().join(format!("op8-learn-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&d);
+    let path = d.join("settings");
+    let mut b = Bench::demo();
+    b.app.settings_path = Some(path.clone());
+    b.press(Button::Group(2)); // the FM bass is selected
+    b.press(Button::Settings);
+    b.press(Button::Screen(3));
+    b.run_ms(100);
+    let idle = b.screen_hash(Screen::Right);
+    b.capture("f-m07-midi-page");
+    focus_pick(&mut b, 17);
+    b.press(Button::JogPush);
+    assert_eq!(b.ui().settings.learn, 1, "waiting for a knob");
+    b.run_ms(100);
+    assert_ne!(b.screen_hash(Screen::Right), idle, "the button says so");
+    b.knob(2, 50); // a knob under the left screen is not a parameter
+    assert_eq!(b.ui().settings.learn, 1);
+    b.knob(5, 50); // the second of the right screen: parameter 2 (index 1) of the first page
+    assert_eq!(b.ui().settings.learn, 2, "waiting for a control");
+    b.midi_in(&[0xB0, 21, 100]);
+    assert_eq!(b.ui().settings.learn, 0);
+    assert_eq!(b.app.ctl.settings.midi_map, vec![(21, 1)]);
+    b.midi_in(&[0xB0, 21, 0]);
+    b.run_ms(50);
+    assert!(b.param(2, 1) < 0.02, "the control is the parameter: {}", b.param(2, 1));
+    b.midi_in(&[0xB0, 21, 127]);
+    b.run_ms(50);
+    assert!(b.param(2, 1) > 0.98, "{}", b.param(2, 1));
+    assert!(std::fs::read_to_string(&path).unwrap().contains("midi_map=21:1"));
+    // the controllers that mix are still there until one is learned over them
+    b.midi_in(&[0xB0, 7, 64]);
+    assert_eq!(b.project().tracks[2].level, 64);
+    // forget
+    focus_pick(&mut b, 18);
+    b.press(Button::JogPush);
+    assert!(b.app.ctl.settings.midi_map.is_empty());
+    b.midi_in(&[0xB0, 21, 0]);
+    b.run_ms(50);
+    assert!(b.param(2, 1) > 0.98, "nothing turns it any more");
+    // the clock in
+    focus_pick(&mut b, 16);
+    b.press(Button::JogPush);
+    assert!(b.app.ctl.settings.midi_clock_in);
+    assert!(std::fs::read_to_string(&path).unwrap().contains("midi_clock_in=on"));
+    let _ = std::fs::remove_dir_all(&d);
+}

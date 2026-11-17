@@ -62,6 +62,11 @@ pub struct SettingsView {
     pub pads: u8,
     /// MIDI clock out is on.
     pub midi_clock: bool,
+    /// MIDI clock in is on: the tempo comes from the input.
+    pub midi_clock_in: bool,
+    /// What the `learn` button is waiting for: 0 nothing, 1 a knob of the right screen, 2 a control; and how many controls are learned.
+    pub learn: u8,
+    pub learned: usize,
     /// What the supply allows, in a line.
     pub supply: String,
     /// What just happened.
@@ -90,6 +95,9 @@ impl Default for SettingsView {
             screen: 4,
             pads: 3,
             midi_clock: true,
+            midi_clock_in: false,
+            learn: 0,
+            learned: 0,
             supply: String::new(),
             note: String::new(),
         }
@@ -179,8 +187,16 @@ pub fn draw_right(fb: &mut FrameBuffer480x272, ui: &crate::UiState) {
             }
             button(fb, crate::nav::pick_rect(Page::Midi, 14).1, if s.midi_clock { "clock out: on" } else { "clock out: off" }, s.midi_clock);
             button(fb, crate::nav::pick_rect(Page::Midi, 15).1, if s.midi_by_channel { "in: by channel" } else { "in: selected" }, s.midi_by_channel);
+            button(fb, crate::nav::pick_rect(Page::Midi, 16).1, if s.midi_clock_in { "clock in: on" } else { "clock in: off" }, s.midi_clock_in);
+            let learn = match s.learn {
+                1 => "turn a knob".to_string(),
+                2 => "move a control".to_string(),
+                _ => "learn".to_string(),
+            };
+            button(fb, crate::nav::pick_rect(Page::Midi, 17).1, &learn, s.learn > 0);
+            button(fb, crate::nav::pick_rect(Page::Midi, 18).1, &format!("forget {}", s.learned), false);
             let hint = if s.midi_by_channel { "channels 1 to 8 play the tracks A to H" } else { "notes play the selected track" };
-            text_v(fb, hint, 16, 208, FontSize::Small, t.dim, Align::Left, VAlign::Middle);
+            text_v(fb, hint, 16, 240, FontSize::Small, t.dim, Align::Left, VAlign::Middle);
         }
         Page::Light => {
             bar(fb, "light", 15.0);
