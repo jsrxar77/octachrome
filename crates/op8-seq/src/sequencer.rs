@@ -269,6 +269,11 @@ impl Sequencer {
         }
     }
 
+    /// The mutes that the song's scene sets while it plays (bit `t`: track `t`), if it is following one.
+    pub fn song_mutes(&self) -> Option<u8> {
+        self.song_mute.filter(|_| self.playing)
+    }
+
     /// Which patterns are playing, one for each track.
     pub fn playing_patterns(&self) -> [u8; TRACKS] {
         self.play

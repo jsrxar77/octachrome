@@ -937,6 +937,8 @@ function songUpdate(tick, eff) {
 }
 function stop() { S.playing = false; setPunch(null, 0); S.repeat = null; }
 const spt = () => 60 / (P.bpm * PPQN);
+// the mute as it sounds: the scene of a song that plays decides, else the track's own (EngineStatus::muted)
+const isMuted = t => (S.playing && S.songMute != null ? !!S.songMute[t] : !!P.tracks[t].muted);
 
 function click(time, accent) { const o = actx.createOscillator(), g = actx.createGain(); o.frequency.value = accent ? 1500 : 1000; g.gain.setValueAtTime(0.35, time); g.gain.exponentialRampToValueAtTime(0.001, time + 0.03); o.connect(g).connect(master); o.start(time); o.stop(time + 0.04); }
 function onTick(time) {
@@ -1655,7 +1657,7 @@ function mixView(g) {
   fill(g, 0, 24, 480, 200, BG);
   txt(g, UI.shift ? "pan" : "mix", 20, 38, "l", DIM, "left", "middle"); txt(g, Math.round(VOL * 100) + "%", 460, 38, "l", FG, "right", "middle"); txt(g, "master", 460, 56, "s", DIM, "right", "middle");
   P.tracks.forEach((tr, i) => {
-    const cx = 44 + i * 56, col = tr.muted ? FAINT : TRACK_COLORS[i], top = 62, h = 100, fh = Math.max(2, h * tr.level / 127);
+    const cx = 44 + i * 56, col = isMuted(i) ? FAINT : TRACK_COLORS[i], top = 62, h = 100, fh = Math.max(2, h * tr.level / 127);
     rrect(g, cx - 10, top, 20, h, 4, FAINT); rrect(g, cx - 10, top + h - fh, 20, fh, 4, UI.shift ? mix(col, .4) : col);
     fill(g, cx - 22, 182, 44, 1, FAINT); fill(g, cx, 178, 1, 9, DIM); dot(g, cx + (tr.pan - 64) / 64 * 22, 182.5, 5, UI.shift ? FG : DIM);
     txt(g, String.fromCharCode(65 + i), cx, 206, "m", i === UI.track ? FG : DIM, "center", "middle");
@@ -1957,7 +1959,9 @@ UI.arrNote = "";
 const arrSel = () => (UI.focus && UI.focus.k === "cell" ? UI.focus.i : 0);
 function arrangerPad(pad) {
   const slot = padToStep(pad); UI.focus = { k: "cell", i: slot };
-  if (UI.erase && slot < P.song.steps.length) { P.song.steps.splice(slot, 1); UI.arrNote = `step ${slot + 1} taken out`; } else UI.arrNote = "";
+  if (UI.erase && slot < P.song.steps.length) { P.song.steps.splice(slot, 1); UI.arrNote = `step ${slot + 1} taken out`; }
+  else if (UI.shift && slot <= P.song.steps.length && P.song.steps.length > 0 && slot < 16) { const from = Math.min(slot, P.song.steps.length - 1); P.song.steps.splice(slot, 0, { ...P.song.steps[from] }); if (P.song.steps.length > 16) P.song.steps.pop(); UI.arrNote = `step ${slot + 1} put in`; }
+  else UI.arrNote = "";
 }
 function arrKnob(k, delta) {
   if (k < 4 || k > 6) return;
@@ -1978,7 +1982,7 @@ function arrangerRight(g) {
   fill(g, 0, 0, 480, 272, BG); dot(g, 16, 15, 6, FG); txt(g, "song", 30, 6, "mid", FG);
   const [l1, l2] = sel < st.length ? [`step ${sel + 1} of ${st.length}`, `scene ${st[sel].scene + 1} for ${st[sel].bars} bar${st[sel].bars === 1 ? "" : "s"}`] : [`step ${sel + 1} is free`, "turn knob 5 to put a scene in it"];
   txt(g, l1, 30, 76, "mid", FG); txt(g, l2, 30, 100, "m", DIM);
-  txt(g, "tap a pad", 30, 140, "mid", FG); txt(g, "chooses a step; erase + tap takes it out", 30, 164, "m", DIM);
+  txt(g, "tap a pad", 30, 140, "mid", FG); txt(g, "chooses a step; shift + tap puts one in; erase + tap takes it out", 30, 164, "m", DIM);
   if (UI.arrNote) txt(g, UI.arrNote, 30, 208, "m", FG);
   [["scene", sel < st.length ? String(st[sel].scene + 1) : "-"], ["bars", sel < st.length ? String(st[sel].bars) : "-"], ["song", P.song.on ? "on" : "off"], ["steps", String(st.length)]].forEach(([a, b], i) => { txt(g, a, 60 + i * 120, 236, "s", DIM, "center"); txt(g, b, 60 + i * 120, 254, "m", FG, "center"); });
 }
@@ -2070,7 +2074,7 @@ function mixerLeft(g) {
   for (let c = 0; c < 4; c++) {
     const i = MIX.group * 4 + c, tr = P.tracks[i], cx = c * 120 + 60;
     txt(g, String.fromCharCode(65 + i), cx - 14, 62, "mid", TRACK_COLORS[i], "center", "middle");
-    if (tr.muted) txt(g, "mute", cx + 8, 62, "s", DIM, "left", "middle");
+    if (isMuted(i)) txt(g, "mute", cx + 8, 62, "s", DIM, "left", "middle");
     rrect(g, cx - 9, 78, 18, 96, 9, FAINT);
     const shown = MIX.send === 1 ? tr.sendA : MIX.send === 2 ? tr.sendB : tr.level, h = shown > 0 ? Math.max(6, 96 * shown / 127) : 0; if (h) rrect(g, cx - 9, 78 + 96 - h, 18, h, 9, MIX.send ? FG : tr.muted ? DIM : TRACK_COLORS[i]);
     line(g, cx - 36, 192, cx + 36, 192, FAINT, 1); line(g, cx, 188, cx, 196, DIM, 1); dot(g, cx - 36 + 72 * tr.pan / 127, 192, 4, FG);
@@ -2265,6 +2269,7 @@ function topBar(g, accent) {
   else fill(g, 10, 9 + HDR, 10, 10, DIM);
   txt(g, P.bpm.toFixed(0), 28, 3 + HDR, "mid", FG);
   if (UI.rec) dot(g, 100, 15 + HDR, 5, REC);
+  { const shown = P.tracks[UI.track].cur + 1, now = S.play[UI.track] + 1; let tag = S.playing && now !== shown ? `p${shown}>${now}` : `p${shown}`; if (S.playing && S.songPos != null) tag += ` s${S.songPos + 1}`; txt(g, tag, 116, 8 + HDR, "s", DIM); }
   // tempo pulse: a dot that blinks on each beat
   const beat = S.playing ? (S.playhead[0] % 4 === 0 ? A.hit[0] : 0) : 0;
   dot(g, 72, 15 + HDR, 3, mix("#ffffff", 0.25 + 0.75 * beat));
@@ -2274,7 +2279,7 @@ function topBar(g, accent) {
   // track dots
   for (let t = 0; t < 8; t++) {
     const x = 338 + t * 18, y = 15 + HDR, c = TRACK_COLORS[t], sel = t === UI.track, tr = P.tracks[t];
-    dot(g, x, y, (sel ? 6 : 4) + A.hit[t] * 2, tr.muted ? FAINT : sel ? c : mix(c, 0.55));
+    dot(g, x, y, (sel ? 6 : 4) + A.hit[t] * 2, isMuted(t) ? FAINT : sel ? c : mix(c, 0.55));
     if (tr.link) ring(g, x, y, sel ? 8.5 : 6.5, c, 1);
   }
 }
@@ -2286,7 +2291,7 @@ function rings(g) {
     ring(g, cx, cy, r, sel ? mix(c, 0.35) : "#141414", sel ? 2 : 1);
     for (let s = 0; s < len; s++) {
       const a = -Math.PI / 2 + s / len * Math.PI * 2, x = cx + Math.cos(a) * r, y = cy + Math.sin(a) * r;
-      if (tr.steps[s].active) dot(g, x, y, sel ? 3.6 : 2.6, tr.muted ? FAINT : sel ? c : mix(c, 0.7));
+      if (tr.steps[s].active) dot(g, x, y, sel ? 3.6 : 2.6, isMuted(t) ? FAINT : sel ? c : mix(c, 0.7));
       else if (sel) dot(g, x, y, 1.2, DIM);
     }
     if (S.playing) {
