@@ -26,7 +26,7 @@ use std::sync::Arc;
 const VOICES: usize = 8;
 const PLACES: usize = 16;
 const FACTORY: usize = 8;
-const STATE_VERSION: u8 = 2;
+const STATE_VERSION: u8 = 3;
 /// Columns of the waveform kept for the drawing.
 const COLUMNS: usize = 240;
 /// A window never gets shorter than this many samples.
@@ -36,7 +36,7 @@ const NAMES: [&str; PLACES] = [
     "pluck", "bell", "pad", "voice", "thump", "sweep", "glass", "glitch", "user 1", "user 2", "user 3",
     "user 4", "user 5", "user 6", "user 7", "user 8",
 ];
-const LOOP_NAMES: [&str; 4] = ["one shot", "loop", "slices 8", "slices 16"];
+const LOOP_NAMES: [&str; 5] = ["one shot", "loop", "slices 8", "slices 16", "hits"];
 
 const PARAMS: [ParamDescriptor; 4] = [
     ParamDescriptor::new("SAMPLE", 0.5 / PLACES as f32, ParamUnit::Choice(&NAMES)),
@@ -58,6 +58,58 @@ pub struct Sample {
     data: Arc<[f32]>,
     /// (lowest, highest) of each of `COLUMNS` slices, for the drawing.
     peaks: Vec<(f32, f32)>,
+    /// Where the sound hits (a drum, a note starting), in samples and by how much each stands out: the places `hits` cuts at.
+    onsets: Vec<(usize, f32)>,
+}
+
+/// The shortest slice `hits` makes, and the most slices it makes (the keyboard has 16 pads).
+const MIN_SLICE: usize = 480;
+const MAX_SLICES: usize = 16;
+
+/// Where `data` hits: the places where the loudness (in 5 ms steps over 10 ms) jumps by 9 dB or more over what was just before,
+/// at least 60 ms apart, each as the first sample that is loud for its step less a millisecond (so the attack is not clipped). The
+/// strongest 32 are kept, in order of place, with their strength.
+fn find_onsets(data: &[f32]) -> Vec<(usize, f32)> {
+    const HOP: usize = 240;
+    const WIN: usize = 480;
+    const RISE_DB: f32 = 9.0;
+    const GATE_DB: f32 = -45.0;
+    const APART: usize = 12; // in steps: 60 ms
+    if data.len() < WIN * 2 {
+        return Vec::new();
+    }
+    let n = (data.len() - WIN) / HOP + 1;
+    let level: Vec<f32> = (0..n)
+        .map(|i| {
+            let e = data[i * HOP..i * HOP + WIN].iter().map(|x| x * x).sum::<f32>() / WIN as f32;
+            10.0 * (e + 1e-9).log10()
+        })
+        .collect();
+    let mut cand: Vec<(usize, f32)> = (2..n)
+        .filter_map(|i| {
+            let rise = level[i] - level[i - 1].max(level[i - 2]);
+            (rise >= RISE_DB && level[i] > GATE_DB).then_some((i, rise))
+        })
+        .collect();
+    cand.sort_by(|a, b| b.1.total_cmp(&a.1));
+    let mut kept: Vec<(usize, f32)> = Vec::new();
+    for (i, rise) in cand {
+        if kept.iter().all(|&(j, _)| j.abs_diff(i) >= APART) {
+            kept.push((i, rise));
+        }
+    }
+    kept.truncate(32);
+    let mut out: Vec<(usize, f32)> = kept
+        .into_iter()
+        .map(|(i, rise)| {
+            let seg = &data[i * HOP..i * HOP + WIN];
+            let top = seg.iter().fold(0.0f32, |m, x| m.max(x.abs()));
+            let first = seg.iter().position(|x| x.abs() >= 0.3 * top).unwrap_or(0);
+            ((i * HOP + first).saturating_sub(48), rise)
+        })
+        .collect();
+    out.sort_by_key(|o| o.0);
+    out
 }
 
 impl Sample {
@@ -75,7 +127,29 @@ impl Sample {
                 data.get(a..b).unwrap_or(&[]).iter().fold((0.0f32, 0.0f32), |(lo, hi), &x| (lo.min(x), hi.max(x)))
             })
             .collect();
-        Self { name: name.into(), data: data.into(), peaks }
+        let onsets = find_onsets(&data);
+        Self { name: name.into(), data: data.into(), peaks, onsets }
+    }
+    /// The edges of the slices `hits` makes of the window `start..end`: each slice runs from one hit to the next, the last to the end
+    /// of the window, and what comes before the first hit is not a slice. The strongest hits (up to sixteen) that leave 10 ms to the
+    /// end are used, and one that falls within 10 ms before the start counts as at the start. A window with no hits is one slice.
+    pub fn hit_edges(&self, start: f64, end: f64) -> Vec<f64> {
+        let mut inside: Vec<(usize, f32)> = self
+            .onsets
+            .iter()
+            .copied()
+            .filter(|&(p, _)| p as f64 + MIN_SLICE as f64 >= start && p as f64 + MIN_SLICE as f64 <= end)
+            .collect();
+        inside.sort_by(|a, b| b.1.total_cmp(&a.1));
+        inside.truncate(MAX_SLICES);
+        inside.sort_by_key(|o| o.0);
+        let mut edges: Vec<f64> = inside.into_iter().map(|(p, _)| (p as f64).max(start)).collect();
+        edges.dedup();
+        if edges.is_empty() {
+            edges.push(start);
+        }
+        edges.push(end);
+        edges
     }
     pub fn len(&self) -> usize {
         self.data.len()
@@ -367,6 +441,19 @@ impl Sampler {
         }
     }
 
+    /// `loop` is on `hits`: the window is cut where the sound hits.
+    fn hits(&self) -> bool {
+        choice_index(self.values[6], LOOP_NAMES.len()) == 4
+    }
+
+    /// The knob value that is the same position of `loop` as `v` was when it had four.
+    fn loop_from_four(v: f32) -> f32 {
+        match choice_index(v, 4) {
+            0 => 0.0,
+            i => (i as f32 + 0.5) / LOOP_NAMES.len() as f32,
+        }
+    }
+
     fn looping(&self) -> bool {
         choice_index(self.values[6], LOOP_NAMES.len()) == 1
     }
@@ -394,6 +481,12 @@ impl Sampler {
             let k = (note as i32 - 48).rem_euclid(n as i32) as f64;
             let width = (end - start) / n as f64;
             (start, end) = (start + k * width, start + (k + 1.0) * width);
+            st = self.tune_semitones();
+        } else if self.hits() {
+            // the same, cut where the sound hits: a slice runs from one hit to the next
+            let edges = sample.hit_edges(start, end);
+            let k = (note as i32 - 48).rem_euclid(edges.len() as i32 - 1) as usize;
+            (start, end) = (edges[k], edges[k + 1]);
             st = self.tune_semitones();
         }
         self.clock += 1;
@@ -560,6 +653,14 @@ impl InstrumentCartridge for Sampler {
                 line_aa(frame, x, cy - amp - 6.0, x, cy + amp + 6.0, 1.0, knob(6));
             }
         }
+        if self.hits() {
+            // hits: a tick at each place the sound is cut, so the picture says where the notes will start
+            let edges = s.hit_edges(start, end);
+            for &e in &edges[..edges.len() - 1] {
+                let x = x0 + (e as f32 / s.len() as f32) * w;
+                line_aa(frame, x, cy - amp - 6.0, x, cy + amp + 6.0, 1.0, knob(6));
+            }
+        }
         if self.looping() {
             // loop: two small arrows turning round, over the ends of the window
             ring(frame, xe, cy - amp - 16.0, 4.0, 1.5, knob(6));
@@ -575,11 +676,17 @@ impl InstrumentCartridge for Sampler {
         if state::decode_f32s(STATE_VERSION, data, &mut self.values) {
             return;
         }
-        // version 1: `tune` was ±12 semitones and `loop` was off or on; the same sound as before
+        // version 2: `loop` had four positions and now has five (`hits` is the last): the same position as before
         let mut old = self.values;
+        if state::decode_f32s(2, data, &mut old) {
+            old[6] = Self::loop_from_four(old[6]);
+            self.values = old;
+            return;
+        }
+        // version 1: `tune` was ±12 semitones and `loop` was off or on; the same sound as before
         if state::decode_f32s(1, data, &mut old) {
             old[3] = 0.25 + 0.5 * old[3];
-            old[6] = if old[6] >= 0.5 { 0.375 } else { 0.0 };
+            old[6] = if old[6] >= 0.5 { Self::loop_from_four(0.375) } else { 0.0 };
             self.values = old;
         }
     }
@@ -772,7 +879,7 @@ mod tests {
         let mut s = Sampler::with_user(vec![]);
         choose(&mut s, 1); // the bell, 2 s = 96 000 samples
         s.set_parameter(2, 1.0);
-        s.set_parameter(6, 0.625); // slices 8
+        s.set_parameter(6, 0.5); // slices 8
         assert_eq!(s.slices(), Some(8));
         let len = s.window(s.bank[1].len()).1 - s.window(s.bank[1].len()).0;
         let slice = len / 8.0;
@@ -781,20 +888,20 @@ mod tests {
         let mut s2 = Sampler::with_user(vec![]);
         choose(&mut s2, 1);
         s2.set_parameter(2, 1.0);
-        s2.set_parameter(6, 0.625);
+        s2.set_parameter(6, 0.5);
         let third = slice_sound(&mut s2, 50);
         assert_ne!(first[..4000], third[..4000], "another note is another slice");
         let mut s3 = Sampler::with_user(vec![]);
         choose(&mut s3, 1);
         s3.set_parameter(2, 1.0);
-        s3.set_parameter(6, 0.625);
+        s3.set_parameter(6, 0.5);
         let again = slice_sound(&mut s3, 56); // the ninth: round to the first
         assert_eq!(first, again, "after the eighth the notes go round");
         // the slices keep their pitch whatever the note: no key tracking
         let mut s4 = Sampler::with_user(vec![]);
         choose(&mut s4, 1);
         s4.set_parameter(2, 1.0);
-        s4.set_parameter(6, 0.875); // slices 16
+        s4.set_parameter(6, 0.7); // slices 16
         assert_eq!(s4.slices(), Some(16));
         let a = slice_sound(&mut s4, 48);
         assert!((last_sound(&a) as f64 - len / 16.0).abs() < 700.0, "sixteen: a sixteenth");
@@ -819,6 +926,93 @@ mod tests {
         assert!((t.tune_semitones() - 6.0).abs() < 1e-4, "the same +6: {}", t.tune_semitones());
         assert!(t.looping() && t.slices().is_none(), "the loop is still a loop");
         assert_eq!(t.save_state()[0], STATE_VERSION, "and it is saved as the new version");
+    }
+
+    /// Four noise bursts, 80 ms each, that die away, at 0.1, 0.6, 1.1 and 1.6 s of two seconds of silence.
+    fn four_hits() -> Vec<f32> {
+        let mut n = Noise(0x9e37_79b9);
+        let mut v = vec![0.0f32; 96_000];
+        for k in 0..4 {
+            let at = 4800 + k * 24_000;
+            for i in 0..3840 {
+                v[at + i] = n.next() * (-(i as f32) / 900.0).exp();
+            }
+        }
+        v
+    }
+
+    // F-A26: a sound is searched for where it hits: a burst that stands out by 9 dB or more from what was just before, 60 ms apart at least;
+    // a held tone or a quiet murmur has none.
+    #[test]
+    fn the_hits_of_a_sound_are_found() {
+        let found = find_onsets(&four_hits());
+        let at: Vec<usize> = found.iter().map(|o| o.0).collect();
+        assert_eq!(at.len(), 4, "{at:?}");
+        for (k, p) in at.iter().enumerate() {
+            let want = 4800 + k * 24_000;
+            assert!(p.abs_diff(want) <= 480, "hit {k} at {p}, want about {want}");
+        }
+        let tone: Vec<f32> = (0..96_000).map(|i| (i as f32 * 0.05).sin() * 0.5).collect();
+        assert!(find_onsets(&tone).is_empty(), "a steady tone has no hits");
+        let murmur: Vec<f32> = (0..96_000).map(|i| (i as f32 * 0.3).sin() * 0.001).collect();
+        assert!(find_onsets(&murmur).is_empty(), "nor does a murmur");
+        assert!(find_onsets(&[0.5; 100]).is_empty(), "nor does a sound too short to tell");
+    }
+
+    // F-A26: with `loop` on hits a note plays from one hit to the next (C3 the first; the notes go round after the last), keeps its pitch
+    // and a sound with no hits is one slice.
+    #[test]
+    fn hits_cut_the_window_where_the_sound_hits() {
+        let mut s = Sampler::with_user(vec![Sample::new("hits", four_hits())]);
+        choose(&mut s, 8); // user 1
+        s.set_parameter(2, 1.0);
+        s.set_parameter(6, 0.9); // hits
+        assert!(s.hits() && s.slices().is_none());
+        let sample = s.bank[8].clone();
+        let (a, b) = s.window(sample.len());
+        let edges = sample.hit_edges(a, b);
+        assert_eq!(edges.len(), 5, "four slices: {edges:?}");
+        let voice_of = |note: u8| {
+            let mut x = Sampler::with_user(vec![Sample::new("hits", four_hits())]);
+            choose(&mut x, 8);
+            x.set_parameter(2, 1.0);
+            x.set_parameter(6, 0.9);
+            x.note_on(note, 1.0);
+            let v = x.voices.iter().find(|v| v.active).copied().unwrap();
+            (v.start, v.end, v.step)
+        };
+        let (a1, b1, step) = voice_of(48);
+        assert_eq!((a1, b1), (edges[0], edges[1]), "C3 runs from the first hit to the second");
+        assert!((a1 - 4752.0).abs() <= 480.0, "and the first hit is about where the first burst starts: {a1}");
+        assert_eq!(voice_of(50).0, edges[2], "another note is another slice");
+        assert_eq!(voice_of(51), (edges[3], edges[4], step), "the last runs to the end of the window");
+        assert_eq!(voice_of(52), (a1, b1, step), "after the fourth the notes go round");
+        assert_eq!(voice_of(72).2, step, "a slice keeps its pitch whatever the note");
+        // a sound with no hits is one slice, the whole window
+        let mut t = Sampler::with_user(vec![Sample::new("tone", (0..48_000).map(|i| (i as f32 * 0.05).sin()).collect())]);
+        choose(&mut t, 8);
+        t.set_parameter(2, 1.0);
+        t.set_parameter(6, 0.9);
+        assert_eq!(t.bank[8].hit_edges(0.0, 48_000.0), vec![0.0, 48_000.0]);
+        // the window limits what is found: a window that starts after the first hit does not have it
+        let late = sample.hit_edges(10_000.0, 96_000.0);
+        assert_eq!(late.len(), 4, "{late:?}");
+    }
+
+    // F-A26: a state saved when `loop` had four positions means the same position now that it has five.
+    #[test]
+    fn a_state_of_four_loop_positions_means_the_same() {
+        for (old, index) in [(0.0f32, 0), (0.375, 1), (0.625, 2), (0.875, 3)] {
+            let mut bytes = vec![2u8];
+            for v in [0.2f32, 0.0, 1.0, 0.5, 0.0, 0.3, old, 0.8] {
+                bytes.extend_from_slice(&v.to_le_bytes());
+            }
+            let mut t = Sampler::with_user(vec![]);
+            t.load_state(&bytes);
+            assert_eq!(choice_index(t.values[6], LOOP_NAMES.len()), index, "{old}");
+            assert!(!t.hits(), "a saved state never lands on hits");
+            assert_eq!(t.save_state()[0], STATE_VERSION);
+        }
     }
 
     // F-A16
