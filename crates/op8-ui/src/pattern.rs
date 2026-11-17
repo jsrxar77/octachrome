@@ -17,10 +17,17 @@ pub fn draw_left(fb: &mut FrameBuffer480x272, ui: &crate::UiState, p: &Project, 
     let title = format!("patterns · {}", TRACK_NAMES[track]);
     crate::files::pick_left_rows(fb, ui, st, &title, &cells, Some(p.current[track] as usize), false);
     let playing = st.pattern[track].load(Relaxed) as usize;
-    if st.playing.load(Relaxed) && playing != p.current[track] as usize {
+    if st.playing.load(Relaxed) {
         let (col, row) = ((playing % 4) as f32, (playing / 4) as f32);
         let (x, y) = (12.0 + col * (CELL_W + GAP), 44.0 + row * (CELL_H + GAP));
-        fill_convex(fb, &[(x + CELL_W - 18.0, y + 8.0), (x + CELL_W - 8.0, y + 14.0), (x + CELL_W - 18.0, y + 20.0)], t.fg);
+        if playing != p.current[track] as usize {
+            fill_convex(fb, &[(x + CELL_W - 18.0, y + 8.0), (x + CELL_W - 8.0, y + 14.0), (x + CELL_W - 18.0, y + 20.0)], t.fg);
+        }
+        // where the pattern that plays is in its loop: a bar along the bottom of its cell, that grows with the steps
+        let len = p.pattern(track, playing).map_or(16, |x| x.length.max(1)) as f32;
+        let done = ((st.playhead[track].load(Relaxed) as f32 + 1.0) / len).min(1.0);
+        let (x0, x1, y0, y1) = (x + 8.0, x + 8.0 + (CELL_W - 16.0) * done, y + CELL_H - 9.0, y + CELL_H - 5.0);
+        fill_convex(fb, &[(x0, y0), (x1, y0), (x1, y1), (x0, y1)], t.fg);
     }
 }
 

@@ -144,7 +144,7 @@ The factory projects (FILE, the top two rows) are **eight short pieces in eight 
 
 | # | Piece | Tempo | What it shows |
 | :-- | :-- | :-- | :-- |
-| 1 | **house** | 124 | A kick on every beat, offbeat open hats and a clap, a round bass between the kicks, chord stabs that follow the Brain with an echo, a pad in a room |
+| 1 | **house** | 124 | **A whole song of about two minutes** (60 bars): intro, groove, main, break, build, drop and outro, as seven scenes in a song that plays by itself from PLAY, with other chords in the break and the build. A kick on every beat, offbeat open hats and a clap, a round bass, chord stabs that follow the Brain with an echo, voice chops from the sampler, a granular cloud and a pad in a room: every instrument takes part, and the drums have five patterns that the sections swap |
 | 2 | **boom bap** | 90, heavy swing | A lazy kit, a sub bass under a soft kick, a voice sample, seventh chords on the off beats |
 | 3 | **dub** | 70 | One deep kick, a sub bass whose tone breathes (an LFO), bells thrown into an echo, a pad in a big room |
 | 4 | **polyrhythm** | 96 | Five tracks of 3, 5, 7, 9 and 11 steps that never line up, over a slow chord |

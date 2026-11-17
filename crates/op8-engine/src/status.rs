@@ -46,10 +46,10 @@ pub struct EngineStatus {
 }
 
 impl EngineStatus {
-    /// Whether track `i` is muted as it sounds: the scene of a song that is playing decides, else the track's own mute (`own`).
+    /// Whether track `i` is muted as it sounds: the track's own mute (`own`), or the scene of a song that is playing silencing it.
     pub fn muted(&self, i: usize, own: bool) -> bool {
         let m = self.song_mute.load(Relaxed);
-        if m & 0x100 != 0 { m >> i & 1 == 1 } else { own }
+        own || (m & 0x100 != 0 && m >> i & 1 == 1)
     }
 
     pub fn chord(&self) -> Chord {

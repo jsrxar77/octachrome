@@ -938,11 +938,11 @@ function songUpdate(tick, eff) {
 }
 function stop() { S.playing = false; setPunch(null, 0); S.repeat = null; }
 const spt = () => 60 / (P.bpm * PPQN);
-// the mute as it sounds: the scene of a song that plays decides, else the track's own (EngineStatus::muted)
+// the mute as it sounds: the track's own, or the scene of a song that plays silencing it (EngineStatus::muted)
 // the harmony that sounds (Sequencer::harmony_at): the scene of a song that plays brings its own, its chords counted from the start of the step
 const harmonyAt = eff => S.songBrain ? [S.songBrain, Math.floor(Math.max(0, eff - S.songStart) / 24)] : [P.brain, Math.floor(eff / 24)];
 const chordAtEff = eff => { if (P.brain.live) return P.brain.live; const [b, s] = harmonyAt(eff); return brainChord(b, s); };
-const isMuted = t => (S.playing && S.songMute != null ? !!S.songMute[t] : !!P.tracks[t].muted);
+const isMuted = t => !!P.tracks[t].muted || (S.playing && S.songMute != null && !!S.songMute[t]);
 
 function click(time, accent) { const o = actx.createOscillator(), g = actx.createGain(); o.frequency.value = accent ? 1500 : 1000; g.gain.setValueAtTime(0.35, time); g.gain.exponentialRampToValueAtTime(0.001, time + 0.03); o.connect(g).connect(master); o.start(time); o.stop(time + 0.04); }
 function onTick(time) {
@@ -968,7 +968,7 @@ function onTick(time) {
     if (rel % tps !== 0 && !windowStart) return;
     const g = Math.floor(rel / tps), len = tr.length, step = tr.steps[g % len];
     const r = resolve(step, Math.floor(g / len), S.rng[t]);
-    if ((S.songMute != null ? S.songMute[t] : tr.muted) || !r.fire || !SLOTS[t]) return;
+    if (tr.muted || (S.songMute != null && S.songMute[t]) || !r.fire || !SLOTS[t]) return;
     const note = tr.link ? brainApply(harmonyAt(eff)[0], r.note, chordAtEff(eff)) : r.note;
     const stepDur = tps * spt();
     const swing = g % 2 === 1 ? (P.swing - 0.5) * 2 * stepDur : 0;
@@ -1028,6 +1028,8 @@ function updateVisual() {
     P.tracks.forEach((tr0, t) => { const tr = patView(t, S.play[t]); S.playhead[t] = Math.floor(Math.max(0, v.eff - S.origin[t]) / DIVS[tr.div][1]) % tr.length; });
     S.chordSlot = v.slot; S.chord = v.chord; S.eff = v.eff;
   }
+  // what is shown follows what plays while the song goes (Controller::tick): each track shows the pattern it plays
+  if (S.songPos != null) P.tracks.forEach((tr, t) => { if (S.play[t] !== tr.cur) patSwitch(t, S.play[t]); });
 }
 
 // ======================= Punch-in FX =======================
@@ -1561,6 +1563,35 @@ const PIECE_PRESETS = [ // by track A to H, and the share of each instrument's l
   [["", "tight", "acid", "", "", "swarm", "", ""], 0.5], [["", "click", "growl", "", "", "glitch", "chip", ""], 0.65],
   [["", "", "", "glass", "pad", "cloud", "strings", ""], 1.0], [["", "hard", "growl", "muted", "tick", "glitch", "", ""], 1.0]];
 function brainOf(key, scale, kind, degrees) { return { key, scale, mode: 1, len: degrees.length, live: null, prog: Array.from({ length: 8 }, (_, k) => ({ degree: degrees[k] || 0, kind, length: 16 })) }; }
+// house as a whole song of about two minutes (house_song in factory.rs): more patterns of each track, seven scenes and the song
+function houseSong(p) {
+  const T = p.tracks, st16 = () => Array.from({ length: 16 }, () => newStep());
+  const pat = (t, k, fill, o = {}) => { const st = st16(); fill(st); T[t].pats[k] = { steps: st, length: o.length || 16, div: 2, kit: !!o.kit }; };
+  const kitIn = (st, lanes, at) => at.forEach(s => { st[s].lanes |= lanes; st[s].active = true; });
+  const notes = (st, list) => list.forEach(([s, n, comps, gate]) => { st[s] = { ...newStep(true, n), comps: comps || [] }; if (gate) st[s].gate = gate; });
+  pat(0, 1, st => kitIn(st, CHAT, [0, 2, 4, 6, 8, 10, 12, 14]), { kit: true });
+  pat(0, 2, st => { kitIn(st, CHAT, [0, 4, 8, 12]); kitIn(st, RIM, [7, 15]); }, { kit: true });
+  pat(0, 3, st => { kitIn(st, CLAP, [0, 4, 8, 10, 12, 13, 14, 15]); kitIn(st, OHAT, [2, 6]); kitIn(st, CHAT, [0, 2, 4, 6, 8, 10, 12, 14]); }, { kit: true });
+  pat(0, 4, st => { kitIn(st, OHAT, [2, 6, 10, 14]); kitIn(st, CLAP, [4, 12]); kitIn(st, CHAT, [1, 3, 5, 7, 9, 11, 13, 15]); kitIn(st, CRASH, [0]); kitIn(st, TOM, [13, 15]); }, { kit: true });
+  pat(1, 1, st => notes(st, [0, 4, 8, 10, 12, 13, 14, 15].map(s => [s, 36])));
+  pat(2, 1, st => notes(st, [0, 2, 3, 6, 10, 11, 14].map(s => [s, 36, 0, 40]).concat([[7, 43, 0, 40], [13, 43, 0, 40]])));
+  pat(3, 1, st => notes(st, [[0, 60], [10, 60]]));
+  pat(4, 1, st => notes(st, [[0, 60], [6, 67], [10, 60], [12, 64, [C("ratchet", 2)]]]));
+  T[5].link = true; T[5].steps[0] = { ...newStep(true, 72), comps: [C("hold", 14)] }; T[5].fx = { kind: 2, a: 160, b: 150, c: 80 };
+  pat(5, 1, st => notes(st, [[0, 67, [C("hold", 5)]], [6, 72, [C("hold", 5)]]]), { length: 12 });
+  pat(6, 1, st => notes(st, [[0, 60, [C("hold", 6)]], [8, 60, [C("hold", 6)]]]));
+  T[4].steps[4] = newStep(true, 60); T[4].steps[11] = { ...newStep(true, 67), comps: [C("chance", 70)] }; T[4].steps[14] = newStep(true, 60);
+  const h = d => brainOf(9, 1, "seventh", d), groove = h([0, 5, 2, 6]);
+  const scene = (k, pats, muted, brain) => { p.scenes[k] = { pat: pats, mute: Array.from({ length: 8 }, (_, t) => muted.includes(t)), brain }; };
+  scene(0, [1, 0, 0, 0, 0, 0, 0, 0], [2, 3, 4, 7], h([0, 5]));
+  scene(1, [0, 0, 0, 0, 0, 0, 0, 0], [3, 4, 5, 7], groove);
+  scene(2, [0, 0, 0, 0, 0, 0, 0, 0], [5, 7], groove);
+  scene(3, [2, 0, 0, 1, 1, 1, 0, 0], [1, 2, 7], h([5, 6, 0, 2]));
+  scene(4, [3, 1, 0, 0, 1, 1, 1, 0], [2, 3, 7], h([6]));
+  scene(5, [4, 0, 1, 0, 0, 0, 1, 0], [7], groove);
+  scene(6, [1, 0, 0, 0, 0, 0, 0, 0], [2, 4, 5, 7], h([0, 5]));
+  p.song = { on: true, steps: [[0, 8], [1, 8], [2, 8], [3, 8], [4, 4], [5, 16], [6, 8]].map(([scene, bars]) => ({ scene, bars })) };
+}
 function factoryProject(i) {
   const p = demoProject();
   p.tracks.forEach(t => { t.steps = Array.from({ length: 16 }, () => newStep()); t.length = 16; t.kit = false; t.link = false; t.div = 2; t.pl = null; t.fx = null; t.lfo = null; ensureTrack(t); });
@@ -1577,6 +1608,7 @@ function factoryProject(i) {
     on(1, [0, 4, 8, 12].map(s => [s, 36])); link(2, 3, 6); on(2, [[2, 36, 0, 40], [6, 36, 0, 40], [10, 36, 0, 40], [13, 43, 0, 40]]);
     on(3, [3, 6, 11, 14].map(s => [s, 60])); pl(3, 1, 3, 0, 1); fx(3, 1, 160, 100, 110);
     on(6, [[0, 60, [C("hold", 14)]]]); fx(6, 2, 150, 150, 70);
+    houseSong(p);
   } else if (i === 1) { // boom bap
     p.bpm = 90; p.swing = .60; p.brain = brainOf(0, 2, "seventh", [0, 3, 0, 4]);
     kit(SNARE, [4, 12]); kit(CHAT, [0, 2, 4, 6, 8, 10, 12, 14]); kit(RIM, [15], [C("chance", 50)]);
@@ -1675,7 +1707,7 @@ function mixFooter(g, first) {
     txt(g, String.fromCharCode(65 + i), cx - 34, 248, "l", TRACK_COLORS[i], "center", "middle"); txt(g, v, cx - 18, 248, "l", FG, "left", "middle");
   }
 }
-function loadProject(src) { const q = JSON.parse(JSON.stringify(src)); P.tracks = q.tracks.map(ensureTrack); P.bpm = q.bpm; P.swing = q.swing; P.brain = q.brain; P.comp = fillTo(q.comp, COMP_DEFAULT); P.eq = q.eq ? q.eq.slice() : EQ_DEFAULT.slice(); P.sends = fillTo(q.sends, SENDS_DEFAULT); P.song = q.song ? { on: !!q.song.on, steps: q.song.steps.map(x => ({ ...x })) } : { on: false, steps: [] }; P.scenes = q.scenes ? q.scenes.map(x => x ? { pat: x.pat.slice(), mute: x.mute.slice() } : null) : Array(16).fill(null); S.play = P.tracks.map(tr => tr.cur); S.queued = Array(8).fill(null); S.origin = Array(8).fill(0); if (actx) { for (let t = 0; t < 8; t++) { fxApply(t, true); mixApply(t); } compApply(); eqApply(); sendsApply(); } }
+function loadProject(src) { const q = JSON.parse(JSON.stringify(src)); P.tracks = q.tracks.map(ensureTrack); P.bpm = q.bpm; P.swing = q.swing; P.brain = q.brain; P.comp = fillTo(q.comp, COMP_DEFAULT); P.eq = q.eq ? q.eq.slice() : EQ_DEFAULT.slice(); P.sends = fillTo(q.sends, SENDS_DEFAULT); P.song = q.song ? { on: !!q.song.on, steps: q.song.steps.map(x => ({ ...x })) } : { on: false, steps: [] }; P.scenes = q.scenes ? q.scenes.map(x => x ? { pat: x.pat.slice(), mute: x.mute.slice(), brain: x.brain ? JSON.parse(JSON.stringify(x.brain)) : undefined } : null) : Array(16).fill(null); S.play = P.tracks.map(tr => tr.cur); S.queued = Array(8).fill(null); S.origin = Array(8).fill(0); if (actx) { for (let t = 0; t < 8; t++) { fxApply(t, true); mixApply(t); } compApply(); eqApply(); sendsApply(); } }
 function filePad(pad) {
   const slot = padToStep(pad); UI.fileLast = slot;
   if (UI.select) { const k = userKey(slot - 7); nameBegin(slot, slot >= 8 && !!localStorage.getItem(k), k, "project", "file"); return; }
@@ -1929,12 +1961,20 @@ function patternPad(pad) {
 function patternPadUp(pad) {
   if (UI.main !== "pattern" || patHeld == null || patHeld.pad !== pad) return;
   const h = patHeld; patHeld = null; if (h.copied) return;
+  if (S.playing && S.songPos != null) { UI.patNote = "the song decides what plays: stop it, or turn song off (ARRANGER, knob 7)"; return; }
   const slot = padToStep(pad); patPick(UI.track, slot, UI.shift); UI.patNote = `pattern ${slot + 1}${UI.shift ? " plays now" : ": from the next loop"}`; UI.focus = { k: "cell", i: slot };
 }
 function patternLeft(g) {
   const t = UI.track, cells = Array.from({ length: 16 }, (_, i) => [String(i + 1), !patIsEmpty(patGet(t, i))]);
   pickLeft("patterns · " + "ABCDEFGH"[t], cells, P.tracks[t].cur, false)(g);
-  const pl = S.play[t]; if (S.playing && pl !== P.tracks[t].cur) { const x = 12 + (pl % 4) * 114, y = 44 + Math.floor(pl / 4) * 48; g.fillStyle = FG; g.beginPath(); g.moveTo(x + 90, y + 8); g.lineTo(x + 100, y + 14); g.lineTo(x + 90, y + 20); g.fill(); }
+  const pl = S.play[t];
+  if (S.playing) {
+    const x = 12 + (pl % 4) * 114, y = 44 + Math.floor(pl / 4) * 48; g.fillStyle = FG;
+    if (pl !== P.tracks[t].cur) { g.beginPath(); g.moveTo(x + 90, y + 8); g.lineTo(x + 100, y + 14); g.lineTo(x + 90, y + 20); g.fill(); }
+    // where the pattern that plays is in its loop: a bar along the bottom of its cell
+    const len = Math.max(1, patGet(t, pl).length), done = Math.min(1, ((S.playhead[t] || 0) + 1) / len);
+    g.fillRect(x + 8, y + 33, 92 * done, 4);
+  }
 }
 function patternRight(g) {
   fill(g, 0, 0, 480, 272, BG); dot(g, 16, 15, 6, FG); txt(g, "patterns · " + "ABCDEFGH"[UI.track], 30, 6, "mid", FG);
