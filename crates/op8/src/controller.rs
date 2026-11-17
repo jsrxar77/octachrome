@@ -151,6 +151,7 @@ pub struct Controller {
     smp_drawn: usize,
     /// The fractions of a step the compressor's knobs have turned and not yet applied.
     comp_accum: [f32; op8_seq::COMP_PARAMS],
+    eq_accum: [f32; op8_seq::EQ_PARAMS],
     /// SAMPLING: the count-in that is going before a recording starts.
     countin: Option<CountIn>,
     /// When the last taps of TAP were, to work out a tempo.
@@ -435,7 +436,7 @@ impl Controller {
             Button::Screen(n @ 1..=4) if self.ui.main == Main::Settings => self.set_settings_page(n - 1),
             // in the mixer: 1 and 2 choose the four channels on the left, 5 and 6 the page of the compressor on the right
             Button::Screen(n @ (1 | 2)) if self.ui.main == Main::Mixer => self.ui.mixer.group = n - 1,
-            Button::Screen(n @ (5 | 6)) if self.ui.main == Main::Mixer => {
+            Button::Screen(n @ (5..=7)) if self.ui.main == Main::Mixer => {
                 self.ui.mixer.page = n - 5;
                 self.ui.grabbed = false;
                 // the focus is not left on a value the new page does not have
@@ -1710,6 +1711,15 @@ impl Controller {
     fn mixer_page_knob(&mut self, k: usize, delta: i32, h: &mut EngineHandle) {
         if k < 4 {
             self.mixer_knob(self.ui.mixer.group as usize * 4 + k, delta, h);
+        } else if let Some(i) = op8_ui::mixer_eq_index(self.ui.mixer.page, k) {
+            // the same for the EQ: a sweep of the knob is the whole range of 255
+            self.eq_accum[i] += delta as f32 / SWEEP * 255.0;
+            let whole = self.eq_accum[i].trunc();
+            self.eq_accum[i] -= whole;
+            if whole != 0.0 {
+                let v = (h.project.eq.get(i) as f32 + whole).clamp(0.0, 255.0) as u8;
+                h.seq(Command::SetMasterEq { index: i as u8, value: v });
+            }
         } else if let Some(i) = op8_ui::mixer_comp_index(self.ui.mixer.page, k) {
             // a sweep of the knob (800) is the whole range of 255
             let d = delta as f32 / SWEEP * 255.0;
@@ -1905,6 +1915,7 @@ impl Controller {
         if self.ui.main == Main::Mixer {
             let m = &mut self.ui.mixer;
             m.comp = h.project.comp;
+            m.eq = h.project.eq;
             m.reduction = h.status.comp_reduction();
             m.input = h.status.comp_input();
         }

@@ -13,7 +13,8 @@ use crate::{
 /// Version 2 adds the players, the effect and the LFO of each track; a version 1 file still opens (those are then off).
 /// Version 3 adds the level and the pan of each track; an older file still opens (the tracks are then at the default level, centred).
 /// Version 4 adds the master compressor after the tracks; an older file still opens (it is then at its defaults, which do nothing).
-pub const VERSION: u8 = 4;
+/// Version 5 adds the master EQ after the compressor; an older file still opens (it is then flat).
+pub const VERSION: u8 = 5;
 
 struct W(Vec<u8>);
 impl W {
@@ -172,6 +173,9 @@ pub fn encode(p: &Project) -> Vec<u8> {
     for i in 0..crate::COMP_PARAMS {
         w.u8(p.comp.get(i));
     }
+    for i in 0..crate::EQ_PARAMS {
+        w.u8(p.eq.get(i));
+    }
     w.0
 }
 
@@ -254,6 +258,12 @@ pub fn decode(data: &[u8]) -> Option<Project> {
             p.comp.set(i, v);
         }
     }
+    if version >= 5 {
+        for i in 0..crate::EQ_PARAMS {
+            let v = r.u8()?;
+            p.eq.set(i, v);
+        }
+    }
     Some(p)
 }
 
@@ -264,7 +274,7 @@ mod tests {
     /// The bytes of a version 3 file for `p`: the current ones without the compressor at the end.
     fn as_version_3(p: &Project) -> Vec<u8> {
         let mut v = encode(p);
-        v.truncate(v.len() - crate::COMP_PARAMS);
+        v.truncate(v.len() - crate::COMP_PARAMS - crate::EQ_PARAMS);
         v[0] = 3;
         v
     }
@@ -293,6 +303,7 @@ mod tests {
         p.tracks[2].level = 31;
         p.tracks[2].pan = 120;
         p.comp = crate::MasterComp { threshold: 90, ratio: 200, attack: 10, release: 250, makeup: 77, mix: 128 };
+        p.eq = crate::MasterEq { low: 10, mid: 200, freq: 33, high: 250 };
         let bytes = encode(&p);
         let q = decode(&bytes).expect("decodes");
         assert_eq!(q, p);
@@ -344,6 +355,19 @@ mod tests {
         let q = decode(&as_version_3(&p)).expect("a version 3 file opens");
         assert_eq!(q, p);
         assert_eq!(q.comp, crate::MasterComp::default());
+    }
+
+    // F-F01
+    #[test]
+    fn a_version_4_file_still_opens_with_the_eq_flat() {
+        let mut p = Project::default();
+        p.comp.threshold = 70;
+        let mut v = encode(&p);
+        v.truncate(v.len() - crate::EQ_PARAMS);
+        v[0] = 4;
+        let q = decode(&v).expect("a version 4 file opens");
+        assert_eq!(q, p);
+        assert_eq!(q.eq, crate::MasterEq::default());
     }
 
     // F-F01

@@ -172,6 +172,7 @@ pub struct Engine {
     preview: Option<(usize, usize)>,
     /// MIDI clock out: on or off, the way to the MIDI thread, and the sample time of the block.
     comp: crate::comp::Compressor,
+    eq: crate::eq::Eq,
     midi_clock: bool,
     sync_tx: rtrb::Producer<SyncMessage>,
     sync_time: u64,
@@ -253,6 +254,7 @@ impl Engine {
             preroll_at: 0,
             preview: None,
             comp: crate::comp::Compressor::new(SAMPLE_RATE),
+            eq: crate::eq::Eq::new(SAMPLE_RATE),
             midi_clock: true,
             sync_tx,
             sync_time: 0,
@@ -517,7 +519,8 @@ impl Engine {
 
         let spt = self.seq.samples_per_tick() * 24.0;
         self.fx.process(out_l, out_r, spt);
-        // the compressor of the master sits after the performance effects, before the metronome and the master volume
+        // the EQ and then the compressor of the master sit after the performance effects, before the metronome and the master volume
+        self.eq.process(out_l, out_r, &self.seq.project.eq);
         self.comp.process(out_l, out_r, &self.seq.project.comp);
         self.status.comp_reduction.store(self.comp.block_gr.to_bits(), Relaxed);
         self.status.comp_input.store(self.comp.block_in_db.to_bits(), Relaxed);

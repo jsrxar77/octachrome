@@ -684,6 +684,14 @@ fn recipe_23_the_mixer_and_the_compressor() {
     b.press(Button::Screen(6));
     b.knob(4, 200);
     assert!(b.project().comp.makeup > 40);
+    b.press(Button::Screen(7)); // the EQ
+    b.knob(4, 140); // low up
+    b.knob(5, -180); // mid down
+    b.knob(6, 160); // its frequency up
+    b.knob(7, 260); // high up
+    b.run_ms(200);
+    assert!(b.project().eq.low > 128 && b.project().eq.mid < 128 && b.project().eq.high > 128);
+    b.capture("r23-eq");
     b.press(Button::Mixer);
     assert_eq!(b.ui().main, op8_ui::Main::Instrument);
 }
