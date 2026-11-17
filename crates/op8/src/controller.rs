@@ -149,6 +149,8 @@ pub struct Controller {
     pub presets_dir: Option<std::path::PathBuf>,
     /// How many samples of the take the drawing of its wave was made from.
     smp_drawn: usize,
+    /// NAME: the file that is being named and the view it came from (it goes back there).
+    name_target: Option<(std::path::PathBuf, Main)>,
     /// The fractions of a step the compressor's knobs have turned and not yet applied.
     comp_accum: [f32; op8_seq::COMP_PARAMS],
     eq_accum: [f32; op8_seq::EQ_PARAMS],
@@ -231,6 +233,8 @@ struct Held {
     shift: bool,
     mute: bool,
     erase: bool,
+    /// SELECT is down: a pad of FILE or BROWSER chooses a place to name instead of opening it.
+    select: bool,
 }
 
 impl Controller {
@@ -253,6 +257,8 @@ impl Controller {
             ControlEvent::Pad { pad, event } if self.ui.main == Main::Plugin => self.plugin_pad(pad, event, h),
             ControlEvent::Pad { pad, event } if self.ui.main == Main::Sampling => self.sampling_pad(pad, event, h),
             ControlEvent::Pad { pad, event } if self.ui.main == Main::Browser => self.browser_pad(pad, event, h),
+            ControlEvent::Pad { pad, event } if self.ui.main == Main::Name => self.name_pad(pad, event, h),
+            ControlEvent::Encoder { delta } if self.ui.main == Main::Name => self.name_turn(delta),
             ControlEvent::Knob { index, delta } if self.ui.main == Main::Sampling => self.sampling_knob(index as usize, delta, h),
             ControlEvent::Knob { index, delta } if self.ui.main == Main::Mixer => self.mixer_page_knob(index as usize, delta, h),
             ControlEvent::Pad { .. } | ControlEvent::Knob { .. } if self.ui.main != Main::Instrument => {}
@@ -334,6 +340,7 @@ impl Controller {
             }
             Button::Mute => self.held.mute = pressed,
             Button::Erase => self.held.erase = pressed,
+            Button::Select => self.held.select = pressed,
             _ if !pressed => {}
             Button::Group(_) if self.ui.main != Main::Instrument => {}
             Button::Group(g) => {
@@ -429,6 +436,9 @@ impl Controller {
             Button::JogUp if self.nav_active() => self.nav_dir(0, -1, h),
             Button::JogDown if self.nav_active() => self.nav_dir(0, 1, h),
             Button::JogPush if self.nav_active() || (self.ui.main == Main::Instrument && self.ui.inspect_step.is_some()) => self.nav_push(h),
+            Button::JogLeft if self.ui.main == Main::Name => self.ui.naming.move_cursor(-1),
+            Button::JogRight if self.ui.main == Main::Name => self.ui.naming.move_cursor(1),
+            Button::JogPush if self.ui.main == Main::Name => self.finish_naming(h),
             Button::JogLeft if self.ui.main == Main::Settings => self.step_theme(-1),
             Button::JogRight if self.ui.main == Main::Settings => self.step_theme(1),
             // Screen buttons: 1 = step view, 2 = components of the first step, 5 = sound, 6 = shape.
@@ -671,6 +681,11 @@ impl Controller {
         self.pad_down_at[pad as usize] = Some(0);
         let slot = Self::pad_to_step(pad) as usize;
         self.ui.browse_last = Some(slot);
+        if self.held.select {
+            let file = self.instrument_name(h).and_then(|n| if slot >= 8 { self.preset_file(&n, slot) } else { None });
+            self.begin_naming(slot, file, "preset", Main::Browser, h);
+            return;
+        }
         if self.held.erase {
             let file = self.instrument_name(h).and_then(|n| if slot >= 8 { self.preset_file(&n, slot) } else { None });
             let (note, done) = self.erase_place(slot, file, "preset");
@@ -1034,6 +1049,11 @@ impl Controller {
         self.pad_down_at[pad as usize] = Some(0);
         let slot = Self::pad_to_step(pad) as usize; // reading order: the top two rows are the factory projects
         self.ui.file_last = Some(slot);
+        if self.held.select {
+            let path = (slot >= 8).then(|| self.projects_dir.as_ref().map(|d| crate::projectfile::user_path(d, slot - 8))).flatten();
+            self.begin_naming(slot, path, "project", Main::File, h);
+            return;
+        }
         if self.held.erase {
             let path = (slot >= 8).then(|| self.projects_dir.as_ref().map(|d| crate::projectfile::user_path(d, slot - 8))).flatten();
             let (note, done) = self.erase_place(slot, path, "project");
@@ -1733,6 +1753,74 @@ impl Controller {
         }
     }
 
+    /// SELECT held and a pad of FILE or BROWSER: name that place. Only the player's own places that have something in them can be named.
+    fn begin_naming(&mut self, slot: usize, path: Option<std::path::PathBuf>, what: &str, from: Main, h: &mut EngineHandle) {
+        let say = |s: &mut Self, text: String| {
+            if from == Main::File {
+                s.ui.file_note = text;
+            } else {
+                s.ui.browse_note = text;
+            }
+        };
+        if slot < 8 {
+            return say(self, format!("the {what}s that come with it keep their names"));
+        }
+        let Some(path) = path.filter(|p| p.is_file()) else {
+            return say(self, format!("nothing there to name: save a {what} first"));
+        };
+        let current = crate::projectfile::read_name(&path).unwrap_or_default();
+        self.ui.naming = op8_ui::NameView::new(format!("{what} user {}", slot - 7), &current);
+        self.name_target = Some((path, from));
+        self.set_main(Main::Name, h);
+    }
+
+    /// The 4D encoder in NAME: the letter under the cursor (SHIFT: ten at a time).
+    fn name_turn(&mut self, delta: i32) {
+        self.ui.naming.turn(delta * if self.held.shift { 10 } else { 1 });
+    }
+
+    /// The pads in NAME: the twelve of the top three rows are the places of the name; the last four are `clear`, `delete`, `insert` and
+    /// `save`.
+    fn name_pad(&mut self, pad: u8, ev: PadEvent, h: &mut EngineHandle) {
+        if !matches!(ev, PadEvent::Press | PadEvent::Strike(_)) || self.pad_down_at[pad as usize].is_some() {
+            if ev == PadEvent::Release {
+                self.pad_down_at[pad as usize] = None;
+            }
+            return;
+        }
+        self.pad_down_at[pad as usize] = Some(0);
+        match Self::pad_to_step(pad) as usize {
+            c @ 0..=11 => self.ui.naming.cursor = c,
+            12 => self.ui.naming.clear(),
+            13 => self.ui.naming.delete(),
+            14 => self.ui.naming.insert(),
+            _ => self.finish_naming(h),
+        }
+    }
+
+    /// Save the name next to its file (a name with nothing in it takes the name away, and the place is `user N` again) and go back.
+    fn finish_naming(&mut self, h: &mut EngineHandle) {
+        let Some((path, from)) = self.name_target.take() else {
+            return self.set_main(Main::Instrument, h);
+        };
+        let text = self.ui.naming.text();
+        let what = if text.is_empty() {
+            let _ = std::fs::remove_file(crate::projectfile::name_path(&path));
+            "the name is taken away".to_string()
+        } else {
+            crate::projectfile::write_name(&path, &text);
+            format!("named {text}")
+        };
+        self.set_main(from, h);
+        if from == Main::File {
+            self.refresh_files();
+            self.ui.file_note = what;
+        } else {
+            self.refresh_browser(h);
+            self.ui.browse_note = what;
+        }
+    }
+
     fn detents(&mut self, k: usize, delta: i32) -> i32 {
         self.knob_accum[k] += delta;
         let n = self.knob_accum[k] / DETENT;
@@ -2030,6 +2118,14 @@ impl Controller {
                     Some((_, true)) => 3,
                     _ => 1,
                 };
+                out.set_pad(pad, NiColor::White, level);
+            }
+        }
+        if self.ui.main == Main::Name {
+            // the twelve places of the name (the one with the cursor brighter) and the four actions
+            for pad in 0..16u8 {
+                let slot = Self::pad_to_step(pad) as usize;
+                let level = if slot < 12 { if slot == self.ui.naming.cursor { 3 } else { 1 } } else { 2 };
                 out.set_pad(pad, NiColor::White, level);
             }
         }

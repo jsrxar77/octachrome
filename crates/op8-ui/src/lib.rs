@@ -19,6 +19,7 @@ mod anim;
 mod files;
 mod left;
 mod mixer;
+mod naming;
 mod nav;
 mod pages;
 mod right;
@@ -28,6 +29,7 @@ mod theme;
 
 pub use anim::{animate, Anim};
 pub use left::{comp_glyph, draw_left, left_footer};
+pub use naming::{NameView, ACTIONS as NAME_ACTIONS, NAME_CHARS, NAME_LEN};
 pub use mixer::{comp_index as mixer_comp_index, eq_index as mixer_eq_index, page_values as mixer_page_values, MixerView};
 pub use settings::SettingsView;
 pub use nav::{focused as nav_focused, index as nav_index, items as nav_items, move_dir as nav_move_dir, punch_slot as nav_punch_slot, step as nav_step, NavItem, NavKind};
@@ -57,6 +59,8 @@ pub enum Main {
     Browser,
     /// The mix (MIXER): four channels on the left, the compressor of the master on the right.
     Mixer,
+    /// Naming a project or a preset (SELECT held and a pad of FILE or BROWSER): both screens.
+    Name,
 }
 
 /// What the left screen shows when the step view is open: the steps, or one of the two pages of buttons 3 and 4.
@@ -123,6 +127,8 @@ pub struct UiState {
     pub settings: SettingsView,
     /// What the mixer shows (see `mixer.rs`).
     pub mixer: MixerView,
+    /// The name being typed (see `naming.rs`).
+    pub naming: NameView,
     pub knob_touch: [bool; 8],
     /// Right screen page: 0 = sound, 1 = shape (the second page of the instrument), 2 = fx, 3 = mod.
     pub right_page: usize,
