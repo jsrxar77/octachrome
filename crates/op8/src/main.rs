@@ -125,7 +125,7 @@ fn audio_prefs(s: &op8::settings::Settings) -> op8::audio::Prefs {
 #[cfg(feature = "mk3")]
 fn run(mut script: Option<Script>, theme_given: bool) -> Result<()> {
     use std::sync::{atomic::AtomicBool, Arc};
-    let (engine, mut handle, midi_rx) = demo::rig();
+    let (engine, mut handle, midi_rx) = demo::start_rig();
     let midi_sync = handle.take_midi_sync();
     let stop = Arc::new(AtomicBool::new(false));
     // What the player chose in SETTINGS (the devices, the block, the light): read before anything is opened.

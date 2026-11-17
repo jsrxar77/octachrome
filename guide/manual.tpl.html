@@ -131,7 +131,7 @@ h2.ref small{font-size:14px;color:var(--dim)}
 
 <h4>Starting it</h4>
 <p>On a Mac, plug the MK3 in <i>directly</i> (a hub can starve its screens of power), close Native Instruments' own software, and run <code>scripts/run.sh</code> (or just <code>op8</code>, if you set that alias up). On the Raspberry Pi 5 it starts by itself when the unit is powered. The sound comes out of the MK3's own audio outputs.</p>
-<p>OP-8 starts with a small demo already in it: a drum beat, a kick, a bass, a plucked line, a MIDI arpeggio and a synth line. It is there so there is always something to listen to and take apart.</p>
+<p>OP-8 starts <b>empty</b>: the eight instruments are on their tracks (drums, kick, bass, strings and bells, sampler, granular, synth and the MIDI out) and there is nothing in the steps. To hear something, load one of the eight pieces that come with it (next section); to make something, start with recipe 2.</p>
 
 <h2 id="pieces">Eight pieces to listen to</h2>
 <p class="sub">Before you build anything, hear what it can do. Press <kbd>FILE</kbd>, tap one of the top two rows of pads, and press <kbd>PLAY</kbd>. Each is short and in a different style; turn knobs, mute tracks and take it apart.</p>
@@ -144,12 +144,12 @@ __PIECE_ROWS__
 <h2 id="first">Your first ten minutes</h2>
 <p class="sub">No rules, only things to press.</p>
 <ol class="steps">
-  <li><div>Press <kbd>PLAY</kbd>. The demo plays, and the pad lights run along the steps. Press <kbd>PLAY</kbd> again to pause, and <kbd>STOP</kbd> to stop. <kbd>RESTART</kbd> goes back to step 1 and keeps playing.</div></li>
+  <li><div>Press <kbd>FILE</kbd>, tap a pad of the top row (for example <b>house</b>, the first) and press <kbd>PLAY</kbd>. The piece plays, and the pad lights run along the steps. Press <kbd>PLAY</kbd> again to pause, and <kbd>STOP</kbd> to stop. <kbd>RESTART</kbd> goes back to step 1 and keeps playing.</div></li>
   <li><div>Press the group buttons <kbd>A</kbd> to <kbd>H</kbd> one after another. Each track has its own colour and its own instrument, in the order of <kbd>PLUG-IN</kbd>: drums, kick, bass, strings and bells, sampler, granular (recipe 20), synth, and last the MIDI out. The right screen changes with it.</div></li>
   <li><div>Hold <kbd>MUTE</kbd> and press a group button: that track goes quiet. Do it again to bring it back. Mute everything except the bass and the kick and you have the skeleton of the piece.</div></li>
-  <li><div>Turn knobs 5–8 while the demo plays. The right screen names what each one does, and the picture changes with the sound. This is the main way to shape a sound.</div></li>
+  <li><div>Turn knobs 5–8 while the piece plays. The right screen names what each one does, and the picture changes with the sound. This is the main way to shape a sound.</div></li>
   <li><div>Hold <kbd>TEMPO</kbd> and turn the 4D encoder (the big knob in the corner): the tempo changes, and the left screen shows it in large numbers while you hold the button.</div></li>
-  <li><div>Press <kbd>FILE</kbd>. The sixteen pads are sixteen places for projects: the top two rows are eight that come with OP-8, the bottom two rows are yours. Tap one of the top row to load it. Press <kbd>FILE</kbd> again to leave. Whatever you do, you can always come back to the demo this way.</div></li>
+  <li><div>Press <kbd>FILE</kbd>. The sixteen pads are sixteen places for projects: the top two rows are eight that come with OP-8, the bottom two rows are yours. Tap one of the top row to load it. Press <kbd>FILE</kbd> again to leave. Whatever you do, you can always come back to a piece this way, and an empty place of yours opens a new empty project.</div></li>
 </ol>
 <div class="callout warn"><p><b>There is no undo yet.</b> If you are about to try something bold, save first: <kbd>FILE</kbd>, then <kbd>SHIFT</kbd> and a pad of the bottom two rows (recipe 12).</p></div>
 
@@ -161,9 +161,9 @@ __PIECE_ROWS__
   <h3>1 <span>LISTEN AND TAKE IT APART</span></h3>
   <p class="goal">Hear what the machine does and learn to mute and choose tracks.</p>
   <ol class="steps">
-    <li><div>Press <kbd>PLAY</kbd>.</div></li>
+    <li><div>Press <kbd>FILE</kbd>, tap <b>pad 1</b> of the top row (<b>house</b>): it loads and takes you back to composing. Press <kbd>PLAY</kbd>.</div></li>
     <li><div>Hold <kbd>MUTE</kbd> and press group <kbd>B</kbd>. The kick drops out (its group light goes dark).</div></li>
-    <li><div>Press group <kbd>D</kbd> (no <kbd>MUTE</kbd>). The right screen now shows the <b>resonator</b>, the instrument that plays the plucked line. Turn knob 7 and listen.</div></li>
+    <li><div>Press group <kbd>D</kbd> (no <kbd>MUTE</kbd>). The right screen now shows the <b>resonator</b>, the instrument that plays the chord stabs. Turn knob 7 and listen.</div></li>
     <li><div>Press <kbd>STOP</kbd>.</div></li>
   </ol>
   <figure><div class="pair"><img src="img/r01-playing-left.png" alt="The left screen while playing."><img src="img/r01-playing-right.png" alt="The right screen while playing."></div><figcaption>While it plays, the white pad is the playhead and the rings on the left show where each track is in its own loop.</figcaption></figure>
@@ -492,7 +492,7 @@ __PIECE_ROWS__
   <h3>21 <span>SLICES: A KIT MADE OF A SOUND</span></h3>
   <p class="goal">Cut a sound into equal parts and play each one from a pad or a step.</p>
   <ol class="steps">
-    <li><div>Press group <kbd>E</kbd> (the sampler) and choose a sound with a beat in it: record a bar of the demo with <kbd>SAMPLING</kbd> (recipe 16) and save it, or use the <b>glitch</b>, which has four hits.</div></li>
+    <li><div>Press group <kbd>E</kbd> (the sampler) and choose a sound with a beat in it: record a bar of one of the pieces with <kbd>SAMPLING</kbd> (recipe 16) and save it, or use the <b>glitch</b>, which has four hits.</div></li>
     <li><div>Press <kbd>6</kbd> (<kbd>shape</kbd>) and turn <b>knob 7, loop</b>, to <b>slices 8</b> (the third of the five names of the knob: <b>one shot</b>, <b>loop</b>, <b>slices 8</b>, <b>slices 16</b>, <b>hits</b>). The wave now has seven ticks across it: the part between <b>start</b> and <b>length</b>, cut into eight equal parts.</div></li>
     <li><div>Press <kbd>KEYBOARD</kbd> and tap the pads. The bottom-left pad (C3) is the first slice, the next pad the second, and so on; with eight slices the pads above the eighth go round to the first again. With <b>slices 16</b> every pad is its own slice.</div></li>
     <li><div>A slice always plays at its own pitch, whatever the pad (<b>tune</b> moves them all together), and it plays through and fades over <b>release</b>.</div></li>
@@ -503,7 +503,7 @@ __PIECE_ROWS__
     <li><div><b>Cut where the sound hits.</b> Turn <b>knob 7, loop</b>, on to <b>hits</b>. Instead of equal parts, OP-8 looks for the places where the sound <i>hits</i> (a drum, a note that starts) and cuts there: a tick appears at each hit and a slice runs from one hit to the next. The first pad (C3) is the first hit, the next pad the next one, and the pads go round after the last. It finds up to sixteen, at least 60 ms apart, and what comes before the first hit is not a slice. A sound with no hits (a held tone, a pad) is one slice. <b>Start</b> and <b>length</b> still choose the part that is cut.</div></li>
   </ol>
   <figure><div class="pair one"><img src="img/r21-hits-right.png" alt="The sampler on hits: ticks where the sound hits."></div><figcaption>A phrase of four drum hits on <b>hits</b>: a tick at each one.</figcaption></figure>
-  <p class="next"><b>Try next:</b> record a drum loop from the demo, slice it in 16, and play the slices from the steps of another track in a new order.</p>
+  <p class="next"><b>Try next:</b> record a drum loop from one of the pieces, slice it in 16, and play the slices from the steps of another track in a new order.</p>
 </div>
 
 <div class="recipe" id="r22">
@@ -543,7 +543,7 @@ __PIECE_ROWS__
   <figure><div class="pair"><img src="img/r23-send-left.png" alt="The mixer with the delay send lit."><img src="img/r23-send-right.png" alt="The page of the sends: the delay and the reverb."></div><figcaption>Left: the faders show what each channel sends to the delay. Right: the delay and the reverb.</figcaption></figure>
   <figure><div class="pair"><img src="img/r23-side-chain-right.png" alt="The output page with the side-chain on a track."><img src="img/r23-taps-right.png" alt="The taps page: the delay taken before the fader."></div><figcaption>Left: <b>output</b>, with the compressor listening to track A. Right: <b>taps</b>, with the delay taken before the fader and the reverb after it.</figcaption></figure>
   <figure><div class="pair one"><img src="img/r23-eq-right.png" alt="The EQ page of the mixer."></div><figcaption>The EQ: a little bass lifted, a dip in the middle and the treble lifted; the dots are where the bands are set.</figcaption></figure>
-  <p class="next"><b>Try next:</b> play the demo, put the threshold at about −20 dB with a ratio of 4:1 and a slow attack, add a little make-up, and press <kbd>MIXER</kbd> to compare; then put the mix at half.</p>
+  <p class="next"><b>Try next:</b> play one of the pieces, put the threshold at about −20 dB with a ratio of 4:1 and a slow attack, add a little make-up, and press <kbd>MIXER</kbd> to compare; then put the mix at half.</p>
 </div>
 
 

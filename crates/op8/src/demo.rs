@@ -104,6 +104,11 @@ pub fn rig() -> (Engine, EngineHandle, rtrb::Consumer<MidiMessage>) {
     (e, h, midi)
 }
 
+/// What the unit starts with (`op8 run`): the eight standard instruments and nothing in the steps. A piece is loaded from FILE.
+pub fn start_rig() -> (Engine, EngineHandle, rtrb::Consumer<MidiMessage>) {
+    empty_rig()
+}
+
 /// Same slots, empty pattern.
 pub fn empty_rig() -> (Engine, EngineHandle, rtrb::Consumer<MidiMessage>) {
     let (slots, midi) = slots();

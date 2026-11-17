@@ -154,6 +154,8 @@ Saved on 2026-11-16, after the batch of section 8, and kept current since. Devel
 
 19. Done (2026-11-17): ARRANGER: a song of up to sixteen steps, each a scene for 1 to 16 bars; when it is followed (knob 7) the sequencer plays the steps one after another and goes back to the first at the end; saved with the project (format version 10) (F-S17, F-K27). Also fixed: a pad tap in a view other than composing could open the step inspector when the mode was STEP (the hold was counted from time zero). Not tried on the unit. Left: the mutes that a scene sets while the song plays are not drawn on the screens and a step cannot be inserted between others (a step is put at its place and the later ones are kept).
 
+21. Done (2026-11-17): the unit starts empty (`demo::start_rig`: the eight standard instruments and nothing in the steps) and a piece is loaded from FILE; the manual and the twin follow (F-I07). The simulator (`op8 sim`) and the bench still use the demo project.
+
 **To try on the unit, all together**
 
 - The audio input and SAMPLING; BROWSER and the factory presets; the eight pieces; the focus of the 4D everywhere (PERFORM included, and the 4 % step of its intensity turn); ink over colour and the rings at the edges (F-D19, F-N13); the sounds of a kit chosen with the 4D (F-N14); the themes.
