@@ -93,7 +93,7 @@ fn draw_left_view(fb: &mut FrameBuffer480x272, ui: &UiState, p: &Project, st: &E
     draw_footer(fb, &cells, 0);
     touch_overlay(fb, &cells, 0, &ui.anim);
     if ui.held == Some(crate::Held::Volume) {
-        mixer_view(fb, ui, p);
+        mixer_view(fb, ui, p, st);
         return mixer_footer(fb, ui, 0);
     }
     if let Some(held) = ui.held {
@@ -113,7 +113,7 @@ fn draw_left_view(fb: &mut FrameBuffer480x272, ui: &UiState, p: &Project, st: &E
 /// open has its letter in `fg`), each with its pan under it: a marker on a line, with a tick at the centre. The knobs under the screen
 /// are the faders; with SHIFT held they are the pans, and then the pans are drawn in `fg` and the faders step back. The master volume,
 /// which the 4D encoder turns, is the big number at the top right.
-fn mixer_view(fb: &mut FrameBuffer480x272, ui: &UiState, p: &Project) {
+fn mixer_view(fb: &mut FrameBuffer480x272, ui: &UiState, p: &Project, st: &EngineStatus) {
     let t = theme();
     fb.fill_rect(0, STRIP_H, 480, FOOTER_Y - STRIP_H, t.bg);
     text_v(fb, if ui.shift { "pan" } else { "mix" }, 20, 38, FontSize::Large, t.dim, Align::Left, VAlign::Middle);
@@ -122,7 +122,7 @@ fn mixer_view(fb: &mut FrameBuffer480x272, ui: &UiState, p: &Project) {
     for i in 0..TRACKS {
         let tr = &p.tracks[i];
         let cx = 44.0 + i as f32 * 56.0;
-        let col = if tr.muted { t.faint } else { track_color(i) };
+        let col = if st.muted(i, tr.muted) { t.faint } else { track_color(i) };
         let (top, h) = (62.0, 100.0);
         fill_round_rect(fb, cx - 10.0, top, 20.0, h, 4.0, t.faint);
         let fill = (h * tr.level as f32 / 127.0).max(2.0);
@@ -204,6 +204,14 @@ fn top_bar(
     if ui.rec {
         fill_circle(fb, end as f32 + 26.0, HEADER_CY + 1.0, 5.0, t.rec);
     }
+    // the pattern of the selected track that is shown (and, when another one plays, which), and the step of the song that plays
+    let (shown, now) = (p.current[ui.track] as usize + 1, st.pattern[ui.track].load(Relaxed) as usize + 1);
+    let mut tag = if playing && now != shown { format!("p{shown}>{now}") } else { format!("p{shown}") };
+    let step = st.song_step.load(Relaxed);
+    if playing && step != 255 {
+        tag.push_str(&format!(" s{}", step + 1));
+    }
+    text_v(fb, &tag, end + 44, HEADER_CY as i32, FontSize::Small, t.dim, Align::Left, VAlign::Middle);
     // Brain chord, centred; brightens when it changes
     let chord = if playing {
         st.chord()
@@ -230,7 +238,7 @@ fn top_bar(
         let (x, y) = (338.0 + i as f32 * 18.0, HEADER_CY + 1.0);
         let (col, sel, tr) = (track_color(i), i == ui.track, &p.tracks[i]);
         let r = if sel { 6.0 } else { 4.0 } + ui.anim.hit[i] * 2.0;
-        let fill = if tr.muted {
+        let fill = if st.muted(i, tr.muted) {
             t.faint
         } else if sel {
             col
@@ -279,7 +287,7 @@ fn rings(fb: &mut FrameBuffer480x272, ui: &UiState, p: &Project, st: &EngineStat
                 -FRAC_PI_2 + s as f32 / len as f32 * TAU,
             );
             if tr.steps[s].active {
-                let c = if tr.muted {
+                let c = if st.muted(i, tr.muted) {
                     t.faint
                 } else if sel {
                     col

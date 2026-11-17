@@ -131,7 +131,8 @@ pub fn draw_left(fb: &mut FrameBuffer480x272, ui: &crate::UiState, p: &Project, 
         let cx = c as f32 * FOOTER_COL as f32 + FOOTER_COL as f32 / 2.0;
         // the letter of the track, in its colour
         text_v(fb, TRACK_NAMES[i], cx as i32 - 14, 62, FontSize::Value, track_color(i), Align::Center, VAlign::Middle);
-        if track.muted {
+        let muted = st.muted(i, track.muted);
+        if muted {
             text_v(fb, "mute", cx as i32 + 8, 62, FontSize::Small, t.dim, Align::Left, VAlign::Middle);
         }
         // the fader: a rounded slot with the level filled from below
@@ -146,7 +147,7 @@ pub fn draw_left(fb: &mut FrameBuffer480x272, ui: &crate::UiState, p: &Project, 
         let lv = (shown as f32 / 127.0).clamp(0.0, 1.0);
         let h = (fh * lv).max(if shown > 0 { 6.0 } else { 0.0 });
         if h > 0.0 {
-            let colour = if ui.mixer.send > 0 { t.fg } else if track.muted { t.dim } else { track_color(i) };
+            let colour = if ui.mixer.send > 0 { t.fg } else if muted { t.dim } else { track_color(i) };
             fill_round_rect(fb, fx, fy + fh - h, fw, h, 9.0, colour);
         }
         // the pan: a short line with a dot, centre marked

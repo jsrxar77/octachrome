@@ -1,6 +1,6 @@
 use op8_seq::{Chord, TRACKS};
 use std::sync::{
-    atomic::{AtomicBool, AtomicU32, AtomicU8, Ordering::Relaxed},
+    atomic::{AtomicBool, AtomicU16, AtomicU32, AtomicU8, Ordering::Relaxed},
     Mutex,
 };
 
@@ -14,6 +14,8 @@ pub struct EngineStatus {
     pub playhead: [AtomicU8; TRACKS],
     /// Which pattern of each track is playing.
     pub pattern: [AtomicU8; TRACKS],
+    /// The mutes the song's scene sets while it plays: bits 0 to 7 the tracks, bit 8 set when the song is the one that decides.
+    pub song_mute: AtomicU16,
     /// The step of the song that plays, 255 when the song is not being followed.
     pub song_step: AtomicU8,
     /// How far into its step each track is, 0..=255 (the fraction of the step that has passed).
@@ -44,6 +46,12 @@ pub struct EngineStatus {
 }
 
 impl EngineStatus {
+    /// Whether track `i` is muted as it sounds: the scene of a song that is playing decides, else the track's own mute (`own`).
+    pub fn muted(&self, i: usize, own: bool) -> bool {
+        let m = self.song_mute.load(Relaxed);
+        if m & 0x100 != 0 { m >> i & 1 == 1 } else { own }
+    }
+
     pub fn chord(&self) -> Chord {
         Chord {
             root: self.chord_root.load(Relaxed),

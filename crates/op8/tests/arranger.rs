@@ -75,3 +75,47 @@ fn f_k27_a_followed_song_plays_the_scenes() {
     assert_eq!(b.status().pattern[1].load(Relaxed), 1, "the song says pattern 2 although pattern 1 is the one shown");
     let _ = Main::Arranger;
 }
+
+// F-K27: SHIFT + a tap puts a step in front of the one tapped (a copy of it) and the later ones move down; the mutes a scene sets while the
+// song plays are what the screens and the track LEDs show; the top bar says which pattern is shown and which step of the song plays.
+#[test]
+fn f_k27_insert_a_step_and_the_mutes_of_a_playing_song_show() {
+    let mut b = Bench::empty();
+    b.press(Button::Group(2));
+    b.button_down(Button::Mute);
+    b.press(Button::Group(2));
+    b.button_up(Button::Mute);
+    assert!(b.project().tracks[2].muted);
+    b.press(Button::Scene);
+    b.button_down(Button::Shift);
+    b.tap(pad_of(0)); // scene 1: track C muted
+    b.button_up(Button::Shift);
+    b.press(Button::Scene);
+    b.button_down(Button::Mute);
+    b.press(Button::Group(2));
+    b.button_up(Button::Mute);
+    assert!(!b.project().tracks[2].muted);
+    b.press(Button::Arranger);
+    b.tap(pad_of(0));
+    b.knob(4, 40);
+    b.tap(pad_of(1));
+    b.knob(4, 40);
+    b.knob(4, -40);
+    assert_eq!(b.project().song.len, 2);
+    b.button_down(Button::Shift);
+    b.tap(pad_of(0));
+    b.button_up(Button::Shift);
+    assert_eq!(b.project().song.len, 3, "one more");
+    assert_eq!(b.project().song.steps[0], b.project().song.steps[1], "a copy of the one tapped");
+    b.knob(6, 40);
+    b.press(Button::Arranger);
+    b.press(Button::Play);
+    b.run_ms(300);
+    assert!(!b.project().tracks[2].muted, "the project's own mute is not touched");
+    assert!(b.status().muted(2, false), "but the scene of the song mutes it");
+    assert!(!b.status().muted(3, false));
+    assert_eq!(b.status().song_step.load(Relaxed), 0);
+    b.press(Button::Stop);
+    b.run_ms(100);
+    assert!(!b.status().muted(2, false), "stopped: the track's own mute again");
+}

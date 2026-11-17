@@ -152,7 +152,9 @@ Saved on 2026-11-16, after the batch of section 8, and kept current since. Devel
 
 18. Done (2026-11-17): SCENE: sixteen scenes in the project, each the pattern every track shows and the mutes; a tap on a pad brings one back (each track at the start of its own next loop, the mutes at once), SHIFT + a tap stores, ERASE + a tap empties; saved with the project (format version 9) (F-S16, F-K26). Not tried on the unit. Left: ARRANGER, the song as a chain of scenes with repeats that goes round at its end.
 
-19. Done (2026-11-17): ARRANGER: a song of up to sixteen steps, each a scene for 1 to 16 bars; when it is followed (knob 7) the sequencer plays the steps one after another and goes back to the first at the end; saved with the project (format version 10) (F-S17, F-K27). Also fixed: a pad tap in a view other than composing could open the step inspector when the mode was STEP (the hold was counted from time zero). Not tried on the unit. Left: the mutes that a scene sets while the song plays are not drawn on the screens and a step cannot be inserted between others (a step is put at its place and the later ones are kept).
+19. Done (2026-11-17): ARRANGER: a song of up to sixteen steps, each a scene for 1 to 16 bars; when it is followed (knob 7) the sequencer plays the steps one after another and goes back to the first at the end; saved with the project (format version 10) (F-S17, F-K27). Also fixed: a pad tap in a view other than composing could open the step inspector when the mode was STEP (the hold was counted from time zero). Not tried on the unit. Left then: the mutes that a scene sets while the song plays were not drawn, a step could not be inserted, and the top bar did not say the pattern. Done after (item 20).
+
+20. Done (2026-11-17): the three that item 19 left: the top bar of composing says the shown pattern and the step of the song that plays (`p2>3 s3`), the mutes a playing song's scene sets are drawn and lit (`EngineStatus::muted`), and SHIFT + a tap in ARRANGER puts a step in front of the one tapped (F-K27). Not tried on the unit.
 
 **To try on the unit, all together**
 
