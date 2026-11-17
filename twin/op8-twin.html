@@ -906,11 +906,11 @@ function playMidiPreview(t, time, note, vel, dur) {
 }
 
 // ======================= sequencer clock (mirrors op8-seq Sequencer) =======================
-const S = { songPos: null, songStart: 0, songMute: null, songFresh: false, play: Array(8).fill(0), queued: Array(8).fill(null), origin: Array(8).fill(0), playing: false, tick: 0, nextTime: 0, repeat: null, repeatReq: null, rng: [], playhead: Array(8).fill(0), chordSlot: 0, chord: brainChord(P.brain, 0), vis: [], noteCount: Array(8).fill(0), gateOn: false, gateLen: 1 };
+const S = { songPos: null, songStart: 0, songMute: null, songBrain: null, songFresh: false, play: Array(8).fill(0), queued: Array(8).fill(null), origin: Array(8).fill(0), playing: false, tick: 0, nextTime: 0, repeat: null, repeatReq: null, rng: [], playhead: Array(8).fill(0), chordSlot: 0, chord: brainChord(P.brain, 0), vis: [], noteCount: Array(8).fill(0), gateOn: false, gateLen: 1 };
 function play() {
   initAudio(); if (actx.state === "suspended") actx.resume();
   for (let t = 0; t < 8; t++) fxApply(t);
-  S.play = P.tracks.map(tr => tr.cur); S.queued = Array(8).fill(null); S.origin = Array(8).fill(0); S.songPos = null; S.songMute = null; S.songFresh = true;
+  S.play = P.tracks.map(tr => tr.cur); S.queued = Array(8).fill(null); S.origin = Array(8).fill(0); S.songPos = null; S.songMute = null; S.songBrain = null; S.songFresh = true;
   S.playing = true; S.tick = 0; S.repeat = null; S.nextTime = actx.currentTime + 0.06;
   S.rng = Array.from({ length: 8 }, (_, i) => makeRng(P.seed ^ (i + 1) * 7919)); S.vis = [];
 }
@@ -919,6 +919,7 @@ function songEnter(pos, start, atStart, eff) {
   S.songPos = pos; S.songStart = start;
   const sc = P.scenes[P.song.steps[pos].scene]; if (!sc) return;
   S.songMute = sc.mute.slice();
+  S.songBrain = sc.brain || P.brain;
   for (let t = 0; t < 8; t++) {
     if (atStart) { S.play[t] = sc.pat[t]; S.queued[t] = null; S.origin[t] = eff; }
     else { S.queued[t] = sc.pat[t] !== S.play[t] ? sc.pat[t] : null; }
@@ -926,7 +927,7 @@ function songEnter(pos, start, atStart, eff) {
 }
 function songUpdate(tick, eff) {
   const st = P.song.steps, len = st.length;
-  if (!P.song.on || len === 0) { S.songPos = null; S.songMute = null; return; }
+  if (!P.song.on || len === 0) { S.songPos = null; S.songMute = null; S.songBrain = null; return; }
   const span = i => st[i].bars * 384;
   if (S.songPos == null || S.songPos >= len) {
     let total = 0; for (let i = 0; i < len; i++) total += span(i);
@@ -938,6 +939,9 @@ function songUpdate(tick, eff) {
 function stop() { S.playing = false; setPunch(null, 0); S.repeat = null; }
 const spt = () => 60 / (P.bpm * PPQN);
 // the mute as it sounds: the scene of a song that plays decides, else the track's own (EngineStatus::muted)
+// the harmony that sounds (Sequencer::harmony_at): the scene of a song that plays brings its own, its chords counted from the start of the step
+const harmonyAt = eff => S.songBrain ? [S.songBrain, Math.floor(Math.max(0, eff - S.songStart) / 24)] : [P.brain, Math.floor(eff / 24)];
+const chordAtEff = eff => { if (P.brain.live) return P.brain.live; const [b, s] = harmonyAt(eff); return brainChord(b, s); };
 const isMuted = t => (S.playing && S.songMute != null ? !!S.songMute[t] : !!P.tracks[t].muted);
 
 function click(time, accent) { const o = actx.createOscillator(), g = actx.createGain(); o.frequency.value = accent ? 1500 : 1000; g.gain.setValueAtTime(0.35, time); g.gain.exponentialRampToValueAtTime(0.001, time + 0.03); o.connect(g).connect(master); o.start(time); o.stop(time + 0.04); }
@@ -948,8 +952,8 @@ function onTick(time) {
   let eff = tick, windowStart = false;
   if (S.repeat) { const o = (tick - S.repeat.start) % S.repeat.len; eff = S.repeat.start + o; windowStart = o === 0; }
   songUpdate(tick, eff);
-  const step16 = Math.floor(eff / 24);
-  S.vis.push({ time, eff, slot: brainSlot(P.brain, step16), chord: brainChord(P.brain, step16) });
+  const [hb, hs] = harmonyAt(eff);
+  S.vis.push({ time, eff, slot: brainSlot(hb, hs), chord: chordAtEff(eff) });
   if (S.gateOn && tick % (S.gateLen * 24) === 0) {
     const half = S.gateLen * 24 * spt() / 2;
     fx.gate.gain.setValueAtTime(1, time); fx.gate.gain.setValueAtTime(Math.max(0, 1 - punchState.amount), time + half);
@@ -965,7 +969,7 @@ function onTick(time) {
     const g = Math.floor(rel / tps), len = tr.length, step = tr.steps[g % len];
     const r = resolve(step, Math.floor(g / len), S.rng[t]);
     if ((S.songMute != null ? S.songMute[t] : tr.muted) || !r.fire || !SLOTS[t]) return;
-    const note = tr.link ? brainApply(P.brain, r.note, brainChord(P.brain, step16)) : r.note;
+    const note = tr.link ? brainApply(harmonyAt(eff)[0], r.note, chordAtEff(eff)) : r.note;
     const stepDur = tps * spt();
     const swing = g % 2 === 1 ? (P.swing - 0.5) * 2 * stepDur : 0;
     const start = time + swing + r.delay * spt();
@@ -1939,8 +1943,8 @@ function patternRight(g) {
 }
 // SCENE (crates/op8-ui/src/scene.rs, Controller::scene_pad): the sixteen pads are the sixteen scenes of the project
 UI.sceneNote = ""; UI.sceneLast = null;
-function sceneStore(i) { P.scenes[i] = { pat: P.tracks.map(tr => tr.cur), mute: P.tracks.map(tr => !!tr.muted) }; }
-function sceneLaunch(i) { const sc = P.scenes[i]; if (!sc) return false; P.tracks.forEach((tr, t) => { patPick(t, sc.pat[t], false); tr.muted = sc.mute[t]; }); return true; }
+function sceneStore(i) { P.scenes[i] = { pat: P.tracks.map(tr => tr.cur), mute: P.tracks.map(tr => !!tr.muted), brain: { ...P.brain, live: null, prog: P.brain.prog.map(s => ({ ...s })) } }; }
+function sceneLaunch(i) { const sc = P.scenes[i]; if (!sc) return false; P.tracks.forEach((tr, t) => { patPick(t, sc.pat[t], false); tr.muted = sc.mute[t]; }); if (sc.brain) P.brain = { ...sc.brain, live: P.brain.live, prog: sc.brain.prog.map(s => ({ ...s })) }; return true; }
 function scenePad(pad) {
   const slot = padToStep(pad); UI.focus = { k: "cell", i: slot };
   if (UI.erase) { P.scenes[slot] = null; UI.sceneNote = `scene ${slot + 1} is empty`; }

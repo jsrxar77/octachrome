@@ -326,13 +326,15 @@ pub struct Song {
 /// How many scenes a project keeps.
 pub const SCENES: usize = 16;
 
-/// A scene: the pattern of each track and which tracks are muted. An unused one has never been stored.
+/// A scene: the pattern of each track, which tracks are muted and the harmony. An unused one has never been stored.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct Scene {
     pub used: bool,
     pub pattern: [u8; TRACKS],
     /// Bit `t` is set when track `t` is muted.
     pub mute: u8,
+    /// The harmony: key, scale, mode and chord progression (never a live chord).
+    pub brain: Brain,
 }
 
 impl Default for Project {
@@ -501,7 +503,7 @@ pub enum Command {
     StoreScene { index: u8 },
     /// Empty a scene.
     ClearScene { index: u8 },
-    /// Bring a scene back: every track's pattern is asked for (it plays from the track's next loop) and the mutes are set at once.
+    /// Bring a scene back: every track's pattern is asked for (it plays from the track's next loop) and the mutes and the harmony are set at once.
     /// An empty scene does nothing.
     LaunchScene { index: u8 },
     /// Set a step of the song (scene 0 to 15, bars 1 to 16). A step past the end adds it, with the ones between it and the end set to
@@ -560,7 +562,7 @@ impl Project {
                     for (t, tr) in self.tracks.iter().enumerate() {
                         mute |= (tr.muted as u8) << t;
                     }
-                    self.scenes[index as usize] = Scene { used: true, pattern: self.current, mute };
+                    self.scenes[index as usize] = Scene { used: true, pattern: self.current, mute, brain: Brain { live: None, ..self.brain } };
                 }
             }
             SetSongStep { index, scene, bars } => {
@@ -602,6 +604,8 @@ impl Project {
                         self.apply(&SetPattern { track: t as u8, index: sc.pattern[t], now: false });
                         self.tracks[t].muted = sc.mute >> t & 1 == 1;
                     }
+                    // the harmony comes back too (a chord held live from the pads stays)
+                    self.brain = Brain { live: self.brain.live, ..sc.brain };
                 }
             }
             CopyPattern { track, from, to } => {

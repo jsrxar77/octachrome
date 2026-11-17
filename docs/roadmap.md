@@ -157,6 +157,7 @@ Saved on 2026-11-16, after the batch of section 8, and kept current since. Devel
 20. Done (2026-11-17): the three that item 19 left: the top bar of composing says the shown pattern and the step of the song that plays (`p2>3 s3`), the mutes a playing song's scene sets are drawn and lit (`EngineStatus::muted`), and SHIFT + a tap in ARRANGER puts a step in front of the one tapped (F-K27). Not tried on the unit.
 
 21. Done (2026-11-17): the unit starts empty (`demo::start_rig`: the eight standard instruments and nothing in the steps) and a piece is loaded from FILE; the manual and the twin follow (F-I07). The simulator (`op8 sim`) and the bench still use the demo project.
+22. Done (2026-11-17): the harmony of each scene (project format 11): a scene stores the key, scale, mode and chords of the Brain; launching it brings them back at once, and while the song is followed the scene of the step brings its own to the tracks linked to the Brain, counted from the start of the step (F-S16, F-S18; the twin too). Known limit: while the song plays, the Brain pages draw the project's own chords (the chord that sounds is the right one: top bar and rings follow it), as with the mutes. Next: house as a complete song.
 
 **To try on the unit, all together**
 
