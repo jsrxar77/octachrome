@@ -370,10 +370,13 @@ const lfoNow = (t, ms) => { const l = P.tracks[t].lfo; return lfoWave(l, ms / 10
 // ---- the mixer: four channels on the left, the compressor of the master on the right (crates/op8-ui/src/mixer.rs, crates/op8-engine/src/comp.rs).
 // The six settings are 0..255 of their own range and go with the project. The sound is WebAudio's own compressor, which is an approximation:
 // the twin's has its own make-up gain; the screen's curve is the Rust one. A threshold of 0 dB with no make-up does nothing at all.
-const COMP_DEFAULT = [255, 102, 128, 128, 0, 255], EQ_DEFAULT = [128, 128, 128, 128], SENDS_DEFAULT = [100, 100, 150, 128];
-const MIX = { page: 0, group: 0, send: 0 }, compAccum = [0, 0, 0, 0, 0, 0], eqAccum = [0, 0, 0, 0], sendsAccum = [0, 0, 0, 0];
+const COMP_DEFAULT = [255, 102, 128, 128, 0, 255, 0], EQ_DEFAULT = [128, 128, 128, 128], SENDS_DEFAULT = [100, 100, 150, 128, 0, 0]; // comp[6] is the side-chain (0 the mix, else track A..H), sends[4], [5] the taps (128 and up: before the fader)
+const fillTo = (a, d) => d.map((v, i) => a && a[i] != null ? a[i] : v);
+const MIX = { page: 0, group: 0, send: 0 }, compAccum = [0, 0, 0, 0, 0, 0, 0], eqAccum = [0, 0, 0, 0], sendsAccum = [0, 0, 0, 0, 0, 0];
 const CD = { thr: v => -40 + 40 * v / 255, ratio: v => 1 + 19 * (v / 255) ** 2, atk: v => .1 * Math.pow(1000, v / 255), rel: v => 20 * Math.pow(50, v / 255), make: v => 24 * v / 255, mix: v => v / 255 };
-const mixPageValues = () => MIX.page === 1 ? 2 : 4;
+const mixPageValues = () => MIX.page === 1 ? 3 : MIX.page === 4 ? 2 : 4;
+const sideTrack = v => Math.floor(v * 9 / 256) - 1; // the track the compressor listens to (-1: the mix itself)
+const isPre = bus => (P.sends[4 + bus] || 0) >= 128;
 const compIndex = k => MIX.page < 2 && k >= 4 && k - 4 < mixPageValues() ? (MIX.page === 0 ? k - 4 : 4 + k - 4) : -1, eqIndex = k => MIX.page === 2 && k >= 4 && k < 8 ? k - 4 : -1;
 // the EQ of the master (crates/op8-engine/src/eq.rs): a low shelf at 100 Hz, a band of the middle (200 Hz to 5 kHz) and a high shelf at 8 kHz, of -15 to +15 dB each;
 // 128 is no gain. The sound is WebAudio's shelves and peak; the curve on the screen is the Rust one (the same biquads of the Audio EQ Cookbook).
@@ -415,7 +418,20 @@ function curveOut(inDb, c) { // what comes out for what goes in, with the make-u
 function compApply() {
   if (!actx || !fx.mcComp) return; const c = P.comp || COMP_DEFAULT, off = c[0] === 255 && c[4] === 0, m = off ? 0 : CD.mix(c[5]);
   fx.mcComp.threshold.value = CD.thr(c[0]); fx.mcComp.ratio.value = Math.max(1, CD.ratio(c[1])); fx.mcComp.attack.value = CD.atk(c[2]) / 1000; fx.mcComp.release.value = CD.rel(c[3]) / 1000;
-  fx.mcMake.gain.value = 10 ** (CD.make(c[4]) / 20); fx.mcWet.gain.value = m; fx.mcDry.gain.value = 1 - m;
+  fx.mcMake.gain.value = 10 ** (CD.make(c[4]) / 20); const side = sideTrack(c[6]) >= 0;
+  fx.mcWet.gain.value = side ? 0 : m; fx.mcDry.gain.value = 1 - m; fx.mcSideWet.gain.value = side ? m : 0;
+}
+// A side-chain (the third value of `output`): WebAudio's compressor listens to its own input only, so the twin follows the other track by hand:
+// the loudness of the chosen track (after its level), the same curve, attack and release as the Rust one, applied as a gain on the mix.
+const SIDE = { gr: 0, inDb: -90, t: 0 };
+function sideTick() {
+  if (!actx || !fx.mcSide) return; const c = P.comp, tr = sideTrack(c[6]);
+  if (tr < 0 || (c[0] === 255 && c[4] === 0) || !analysers[tr]) { SIDE.gr = 0; SIDE.inDb = -90; fx.mcSide.gain.value = 1; return; }
+  const an = analysers[tr], b = new Float32Array(an.fftSize); an.getFloatTimeDomainData(b); let pk = 0; for (const v of b) pk = Math.max(pk, Math.abs(v));
+  const now = performance.now(), dt = Math.min(.1, (now - SIDE.t) / 1000 || .016); SIDE.t = now;
+  const inDb = 20 * Math.log10(Math.max(pk, 1e-6)), target = compReduction(inDb, CD.thr(c[0]), CD.ratio(c[1])), ms = target < SIDE.gr ? CD.atk(c[2]) : CD.rel(c[3]);
+  SIDE.gr += (target - SIDE.gr) * (1 - Math.exp(-dt / (ms / 1000))); SIDE.inDb = inDb;
+  fx.mcSide.gain.setTargetAtTime(10 ** ((SIDE.gr + CD.make(c[4])) / 20), actx.currentTime, .01);
 }
 function mixPage(p) { MIX.page = p; UI.grabbed = false; if (UI.focus.k === "value" && UI.focus.i >= 4 && UI.focus.i - 4 >= mixPageValues()) UI.focus = { k: "value", i: 4 }; }
 function mixPageKnob(k, delta) {
@@ -424,6 +440,7 @@ function mixPageKnob(k, delta) {
     else mixKnob(MIX.group * 4 + k, delta);
     return;
   }
+  if (MIX.page === 4) { if (k >= 6) return; sendsAccum[k] += delta / 800 * 255; const w = Math.trunc(sendsAccum[k]); sendsAccum[k] -= w; if (w) { P.sends[k] = clamp(P.sends[k] + w, 0, 255); mixApply(0); for (let t = 1; t < 8; t++) mixApply(t); } return; }
   if (MIX.page === 3) { const j = k - 4; sendsAccum[j] += delta / 800 * 255; const w = Math.trunc(sendsAccum[j]); sendsAccum[j] -= w; if (w) { P.sends[j] = clamp(P.sends[j] + w, 0, 255); sendsApply(); } return; }
   const j = eqIndex(k); if (j >= 0) { eqAccum[j] += delta / 800 * 255; const w = Math.trunc(eqAccum[j]); eqAccum[j] -= w; if (w) { P.eq[j] = clamp(P.eq[j] + w, 0, 255); eqApply(); } return; }
   const i = compIndex(k); if (i < 0) return;
@@ -433,7 +450,8 @@ function mixPageKnob(k, delta) {
 let compSeen = { inDb: -90, red: 0 };
 function compMeter() { // how loud it is going in and how far it is being brought down, held a moment so the eye can follow
   let inDb = -90, red = 0;
-  if (actx && fx.mcAn && S.playing) { const b = new Float32Array(fx.mcAn.fftSize); fx.mcAn.getFloatTimeDomainData(b); let pk = 0; for (const v of b) pk = Math.max(pk, Math.abs(v)); inDb = 20 * Math.log10(Math.max(pk, 1e-4)); red = (P.comp[0] === 255 && P.comp[4] === 0) ? 0 : fx.mcComp.reduction; }
+  if (sideTrack(P.comp[6]) >= 0 && !(P.comp[0] === 255 && P.comp[4] === 0)) { inDb = SIDE.inDb; red = SIDE.gr; }
+  else if (actx && fx.mcAn && S.playing) { const b = new Float32Array(fx.mcAn.fftSize); fx.mcAn.getFloatTimeDomainData(b); let pk = 0; for (const v of b) pk = Math.max(pk, Math.abs(v)); inDb = 20 * Math.log10(Math.max(pk, 1e-4)); red = (P.comp[0] === 255 && P.comp[4] === 0) ? 0 : fx.mcComp.reduction; }
   compSeen = { inDb: Math.max(inDb, compSeen.inDb - 1.5), red: Math.min(red, compSeen.red + .6) };
   return compSeen;
 }
@@ -517,7 +535,7 @@ function drumsSync(t, i) {
 if (SLOTS[0] === "drums") PARAMS[0][7] = .5 / 8;
 const recentMidi = [];
 
-let actx = null, master = null, trackOut = [], trackPan = [], trackSend = [], analysers = [], fx = {};
+let actx = null, master = null, trackOut = [], trackLvl = [], trackPan = [], trackSend = [], analysers = [], fx = {};
 function initAudio() {
   if (actx) return;
   actx = new (window.AudioContext || window.webkitAudioContext)({ latencyHint: "interactive", sampleRate: 48000 });
@@ -553,6 +571,7 @@ function initAudio() {
   // the EQ comes first, then the compressor (the dry and the compressed sound, mixed)
   fx.eqLow = actx.createBiquadFilter(); fx.eqLow.type = "lowshelf"; fx.eqLow.frequency.value = 100; fx.eqMid = actx.createBiquadFilter(); fx.eqMid.type = "peaking"; fx.eqMid.Q.value = .9; fx.eqHigh = actx.createBiquadFilter(); fx.eqHigh.type = "highshelf"; fx.eqHigh.frequency.value = 8000;
   fx.kill.connect(fx.eqLow).connect(fx.eqMid).connect(fx.eqHigh);
+  fx.mcSide = actx.createGain(); fx.mcSideWet = actx.createGain(); fx.mcSideWet.gain.value = 0; fx.eqHigh.connect(fx.mcSide).connect(fx.mcSideWet).connect(fx.limiter); // the side-chained compressor: a gain that follows another track
   fx.eqHigh.connect(fx.mcDry).connect(fx.limiter); fx.eqHigh.connect(fx.mcComp).connect(fx.mcMake).connect(fx.mcWet).connect(fx.limiter); fx.eqHigh.connect(fx.mcAn); fx.limiter.connect(dest);
   compApply(); eqApply();
   fx.kill.connect(fx.echoSend).connect(fx.delay); fx.delay.connect(fx.fb).connect(fx.delay); fx.delay.connect(fx.limiter);
@@ -562,11 +581,14 @@ function initAudio() {
   fx.sendReverb = actx.createGain(); fx.sConv = actx.createConvolver(); fx.sRevTone = actx.createBiquadFilter(); fx.sRevTone.type = "lowpass"; fx.sendReverb.connect(fx.sConv).connect(fx.sRevTone).connect(master);
   sendsApply(true);
   for (let t = 0; t < 8; t++) {
-    const g = actx.createGain(); g.gain.value = 0.8;
+    const g = actx.createGain(); g.gain.value = 1; // where the instrument comes in: before the level (the pre-fader taps of the sends are here)
+    const lv = actx.createGain(); lv.gain.value = 0.8; trackLvl.push(lv);
     const an = actx.createAnalyser(); an.fftSize = 2048;
     const tin = actx.createGain(), tout = actx.createGain(), pn = actx.createStereoPanner ? actx.createStereoPanner() : null;
-    g.connect(an); an.connect(tin); tin.connect(tout); if (pn) tout.connect(pn).connect(master); else tout.connect(master); trackPan.push(pn);
-    const sA = actx.createGain(), sB = actx.createGain(); sA.gain.value = 0; sB.gain.value = 0; (pn || tout).connect(sA).connect(fx.sendDelay); (pn || tout).connect(sB).connect(fx.sendReverb); trackSend.push([sA, sB]);
+    g.connect(lv).connect(an); an.connect(tin); tin.connect(tout); if (pn) tout.connect(pn).connect(master); else tout.connect(master); trackPan.push(pn);
+    const sA = actx.createGain(), sB = actx.createGain(); sA.gain.value = 0; sB.gain.value = 0; (pn || tout).connect(sA).connect(fx.sendDelay); (pn || tout).connect(sB).connect(fx.sendReverb);
+    const sAp = actx.createGain(), sBp = actx.createGain(); sAp.gain.value = 0; sBp.gain.value = 0; g.connect(sAp).connect(fx.sendDelay); g.connect(sBp).connect(fx.sendReverb); // the same two, taken before the level and the pan
+    trackSend.push([sA, sB, sAp, sBp]);
     TFX.push({ in: tin, out: tout, nodes: [], kind: 0, params: {} });
     trackOut.push(g); analysers.push(an);
   }
@@ -668,11 +690,11 @@ function audition(t, note, vel, throttle) {
   const at = actx.currentTime + 0.01;
   if (SLOTS[t] === "drums") playDrums(t, at, note, vel);
   else if (SLOTS[t] === "kick") playKick(t, at, note, vel);
-  else if (SLOTS[t] === "resonator") playResonator(t, at, note, vel);
+  else if (SLOTS[t] === "resonator") playResonator(t, at, note + BEND[t], vel);
   else if (SLOTS[t] === "sampler") playSampler(t, at, note, vel, 0.2);
-  else if (SLOTS[t] === "granular") playGranular(t, at, note, vel, 0.25);
-  else if (SLOTS[t] === "fm") playFm(t, at, note, vel, 0.25);
-  else if (SLOTS[t] === "macro") playMacro(t, at, note, vel, 0.25);
+  else if (SLOTS[t] === "granular") playGranular(t, at, note + BEND[t], vel, 0.25);
+  else if (SLOTS[t] === "fm") playFm(t, at, note + BEND[t], vel, 0.25);
+  else if (SLOTS[t] === "macro") playMacro(t, at, note + BEND[t], vel, 0.25);
 }
 // sampler (crates/op8-cartridges/src/sampler.rs): the eight sounds that come with it, made the same way (the twin has no folder of the player's own).
 const LOOP_NAMES = ["one shot", "loop", "slices 8", "slices 16", "hits"]; // Sampler: `loop` is also the slices
@@ -1091,7 +1113,12 @@ function knob(k, delta) {
   if (UI.held === "volume" && UI.main === "instrument") { mixKnob(k, delta); return; } // VOLUME held: the eight knobs are the mix (SHIFT: the pans)
   if (UI.main === "sampling") { smpKnob(k, delta); return; }
   if (UI.main === "mixer") { mixPageKnob(k, delta); return; }
-  if (UI.main === "settings") return;
+  if (UI.main === "settings") { // `learn` waits for a knob of the right screen of an instrument: the parameter the next control will turn
+    if (SET.learn !== 1) return;
+    if (k < 4) { SET.note = "turn a knob under the right screen"; return; }
+    if (UI.page > 1) { SET.note = "that page of the instrument has no parameters: use the first or the second"; return; }
+    SET.learnParam = UI.page * 4 + (k - 4); SET.learn = 2; SET.note = `page ${UI.page + 1} knob ${k - 3}: now move a control`; return;
+  }
   if (k >= 4 && UI.page === 2) { fxKnob(k, delta); return; }
   if (k >= 4 && UI.page === 3) { lfoKnob(k, delta); return; }
   if (k >= 4) {
@@ -1383,7 +1410,7 @@ function touchOverlay(g, cells, base) {
 function settingsBar(g, title, cy = 15) { dot(g, 16, cy, 6, FG); txt(g, title, 30, cy - 9, "mid", FG); }
 // ---- settings in four pages (crates/op8-ui/src/settings.rs, Controller::settings_pick): theme, audio, midi, light. The twin has no devices: it
 // lists some for the look, and what is chosen is only remembered; the light (the backlight step and the pad level) does dim the twin.
-const SET = { page: 0, outs: ["Maschine MK3", "MacBook Pro Speakers", "USB Audio"], ins: ["Maschine MK3", "Scarlett 2i2"], ports: ["Maschine MK3 MIDI", "IAC Driver Bus 1"], out: 0, inp: 0, port: 0, buffer: 128, clock: true, midiIns: [], minSel: 0, byChannel: false, midiAccess: null, midiOpen: null, note: "" };
+const SET = { page: 0, outs: ["Maschine MK3", "MacBook Pro Speakers", "USB Audio"], ins: ["Maschine MK3", "Scarlett 2i2"], ports: ["Maschine MK3 MIDI", "IAC Driver Bus 1"], out: 0, inp: 0, port: 0, buffer: 128, clock: true, midiIns: [], minSel: 0, byChannel: false, midiAccess: null, midiOpen: null, note: "", clockIn: false, learn: 0, learnParam: null, midiMap: [] };
 const PAGES = ["theme", "audio", "midi", "light"], BUFFERS = [64, 128, 256];
 const listLen = (n, screen) => Math.min(1 + n, screen === 0 ? 8 : 4);
 function pickRect(page, n) { // [screen, x, y, w, h]
@@ -1391,14 +1418,15 @@ function pickRect(page, n) { // [screen, x, y, w, h]
   if (page === 1 && n >= 8 && n < 12) return [1, 12, 40 + (n - 8) * 26, 456, 24];
   if (page === 1 && n >= 16 && n < 19) return [1, 12 + (n - 16) * 152, 176, 144, 30];
   if (page === 2 && n >= 8 && n < 12) return [1, 12, 40 + (n - 8) * 26, 456, 24];
-  if (page === 2 && n >= 12 && n < 16) return [1, 12 + (n - 12) * 114, 156, 108, 34];
+  if (page === 2 && n >= 12 && n < 16) return [1, 12 + (n - 12) * 114, 148, 108, 30];
+  if (page === 2 && n >= 16 && n < 19) return [1, 12 + (n - 16) * 114, 186, 108, 30];
   if (page === 3 && n < 4) return [0, 12 + n * 114, 72, 108, 60];
   if (page === 3 && n >= 4 && n < 7) return [0, 12 + (n - 4) * 152, 176, 144, 70];
   return [0, 0, 0, 0, 0];
 }
 function settingsItems() {
   const ids = SET.page === 1 ? [...Array(listLen(SET.outs.length, 0)).keys(), ...Array.from({ length: listLen(SET.ins.length, 1) }, (_, i) => 8 + i), 16, 17, 18]
-    : SET.page === 2 ? [...Array(listLen(SET.ports.length, 0)).keys(), ...Array.from({ length: listLen(SET.midiIns.length, 1) }, (_, i) => 8 + i), 12, 13, 14, 15] : SET.page === 3 ? [...Array(7).keys()] : [];
+    : SET.page === 2 ? [...Array(listLen(SET.ports.length, 0)).keys(), ...Array.from({ length: listLen(SET.midiIns.length, 1) }, (_, i) => 8 + i), 12, 13, 14, 15, 16, 17, 18] : SET.page === 3 ? [...Array(7).keys()] : [];
   return ids.map(n => { const [sc, x, y, w, h] = pickRect(SET.page, n); return { k: "pick", i: n, s: sc, x, y, w, h }; });
 }
 function settingsPage(n) { SET.page = n; SET.note = ""; UI.grabbed = false; UI.focus = { k: "pick", i: 0 }; if (n === 2) midiScan(); }
@@ -1413,13 +1441,35 @@ function midiInOpen(r) {
   if (SET.midiOpen) { SET.midiOpen.onmidimessage = null; SET.midiOpen = null; }
   SET.minSel = r; if (r === 0) { SET.note = "midi in: off"; return; }
   const inp = SET.midiAccess && [...SET.midiAccess.inputs.values()][r - 1]; if (!inp) { SET.note = "midi in: it is not there"; return; }
-  inp.onmidimessage = e => midiIn([...e.data]); SET.midiOpen = inp; SET.note = "midi in: " + inp.name;
+  inp.onmidimessage = e => midiIn([...e.data], e.timeStamp); SET.midiOpen = inp; SET.note = "midi in: " + inp.name;
 }
-function midiIn(m) {
-  const [st, a = 0, b = 0] = m, kind = st & 0xF0, ch = st & 15; if (st >= 0xF0) return;
+// A program change (0 to 7) puts the instrument of that place of PLUG-IN on the track; the pitch wheel bends the notes that start after it (the twin
+// does not bend a note that is already sounding, nor the sampler, whose slices go by the note); a learned controller sets a parameter; and
+// the clock in follows the tempo, the start, the continue and the stop of the input (not its position: the twin starts from the top).
+const BEND = Array(8).fill(0);
+const clockIn = { stamps: [], running: false };
+function clockPulse(ts) {
+  const st = clockIn.stamps; if (st.length && ts < st[st.length - 1]) st.length = 0; st.push(ts); if (st.length > 49) st.shift();
+  if (st.length <= 12 || !SET.clockIn) return;
+  const bpm = (st.length - 1) / 24 * 60000 / (ts - st[0]); if (isFinite(bpm) && Math.abs(bpm - P.bpm) >= .1) P.bpm = clamp(Math.round(bpm * 10) / 10, 20, 300);
+}
+function midiIn(m, ts = performance.now()) {
+  const [st, a = 0, b = 0] = m, kind = st & 0xF0, ch = st & 15;
+  if (st >= 0xF0) {
+    if (!SET.clockIn) return;
+    if (st === 0xF8) clockPulse(ts); else if (st === 0xFA || st === 0xFB) { initAudio(); play(); } else if (st === 0xFC) stop();
+    return;
+  }
   const t = SET.byChannel ? (ch < 8 ? ch : -1) : UI.track; if (t < 0) return;
   if (kind === 0x90 && b > 0) { initAudio(); audition(t, a, Math.max(.1, b / 127), false); if (t === UI.track) recordNote(a, Math.max(.1, b / 127)); }
-  else if (kind === 0xB0) { const tr = P.tracks[t]; if (a === 7) tr.level = b; else if (a === 10) tr.pan = b; else if (a === 91) tr.sendB = b; mixApply(t); }
+  else if (kind === 0xC0) { const was = UI.track; UI.track = t; plugPut(t, a); UI.track = was; }
+  else if (kind === 0xE0) BEND[t] = ((a | b << 7) - 8192) / 8192 * 2;
+  else if (kind === 0xB0) {
+    if (SET.learn === 2 && SET.learnParam != null && a < 120) { SET.midiMap = SET.midiMap.filter(([c]) => c !== a); SET.midiMap.push([a, SET.learnParam]); SET.learn = 0; SET.note = `control ${a} turns page ${Math.floor(SET.learnParam / 4) + 1} knob ${SET.learnParam % 4 + 1}`; return; }
+    const mapped = SET.midiMap.find(([c]) => c === a);
+    if (mapped && PARAMS[t]) { PARAMS[t][mapped[1]] = b / 127; return; }
+    const tr = P.tracks[t]; if (a === 7) tr.level = b; else if (a === 10) tr.pan = b; else if (a === 91) tr.sendB = b; mixApply(t);
+  }
 }
 function settingsPick(n) {
   const pg = SET.page, name = (list, r) => r > 0 ? list[r - 1] : null;
@@ -1431,6 +1481,9 @@ function settingsPick(n) {
   else if (pg === 2 && n === 12) SET.note = "a note goes out of the port (not in the twin)";
   else if (pg === 2 && n === 13) SET.note = "everything silenced";
   else if (pg === 2 && n === 15) { SET.byChannel = !SET.byChannel; SET.note = SET.byChannel ? "channels 1 to 8 play A to H" : "notes play the selected track"; }
+  else if (pg === 2 && n === 16) { SET.clockIn = !SET.clockIn; clockIn.stamps = []; SET.note = SET.clockIn ? "the tempo, start and stop come from the input" : "the tempo is its own"; }
+  else if (pg === 2 && n === 17) { SET.learnParam = null; SET.learn = SET.learn === 0 ? 1 : 0; SET.note = SET.learn === 1 ? "turn a knob of the right screen of an instrument" : ""; }
+  else if (pg === 2 && n === 18) { const k = SET.midiMap.length; SET.midiMap = []; SET.note = `forgot ${k} control${k === 1 ? "" : "s"}`; }
   else if (pg === 2 && n === 14) { SET.clock = !SET.clock; SET.note = SET.clock ? "the clock goes out on the port (not in the twin)" : "no clock on the port"; }
   else if (pg === 3 && n < 4) { LOOK.screen = n + 1; applyLook(); }
   else if (pg === 3) { LOOK.pads = n - 3; applyLook(); }
@@ -1540,7 +1593,7 @@ function erasePlace(slot, has, label, key, kind) {
 }
 function fileSlots() { return Array.from({ length: 16 }, (_, i) => i < 8 ? [FILE_NAMES[i], true] : (localStorage.getItem(userKey(i - 7)) ? [getName(userKey(i - 7), i - 7), true] : ["", false])); }
 // the mix (Engine: level / 127 as the gain, a balance for the pan: the centre is unity, the far side fades to nothing at the edge)
-function mixApply(t) { if (!actx || !trackOut[t]) return; const tr = P.tracks[t]; trackOut[t].gain.value = tr.level / 127; if (trackPan[t]) trackPan[t].pan.value = clamp((tr.pan - 64) / 63, -1, 1); if (trackSend[t]) { trackSend[t][0].gain.value = tr.sendA / 127; trackSend[t][1].gain.value = tr.sendB / 127; } }
+function mixApply(t) { if (!actx || !trackOut[t]) return; const tr = P.tracks[t]; trackLvl[t].gain.value = tr.level / 127; if (trackPan[t]) trackPan[t].pan.value = clamp((tr.pan - 64) / 63, -1, 1); if (trackSend[t]) { const [a, b] = [tr.sendA / 127, tr.sendB / 127], [pa, pb] = [isPre(0), isPre(1)]; trackSend[t][0].gain.value = pa ? 0 : a; trackSend[t][1].gain.value = pb ? 0 : b; trackSend[t][2].gain.value = pa ? a : 0; trackSend[t][3].gain.value = pb ? b : 0; } }
 function mixKnob(k, delta) { const n = detents(k, delta); if (!n || k >= 8) return; const tr = P.tracks[k]; if (UI.shift) tr.pan = clamp(tr.pan + n * 4, 0, 127); else tr.level = clamp(tr.level + n * 4, 0, 127); mixApply(k); }
 function mixView(g) {
   fill(g, 0, 24, 480, 200, BG);
@@ -1560,7 +1613,7 @@ function mixFooter(g, first) {
     txt(g, String.fromCharCode(65 + i), cx - 34, 248, "l", TRACK_COLORS[i], "center", "middle"); txt(g, v, cx - 18, 248, "l", FG, "left", "middle");
   }
 }
-function loadProject(src) { const q = JSON.parse(JSON.stringify(src)); P.tracks = q.tracks.map(ensureTrack); P.bpm = q.bpm; P.swing = q.swing; P.brain = q.brain; P.comp = q.comp ? q.comp.slice() : COMP_DEFAULT.slice(); P.eq = q.eq ? q.eq.slice() : EQ_DEFAULT.slice(); P.sends = q.sends ? q.sends.slice() : SENDS_DEFAULT.slice(); if (actx) { for (let t = 0; t < 8; t++) { fxApply(t, true); mixApply(t); } compApply(); eqApply(); sendsApply(); } }
+function loadProject(src) { const q = JSON.parse(JSON.stringify(src)); P.tracks = q.tracks.map(ensureTrack); P.bpm = q.bpm; P.swing = q.swing; P.brain = q.brain; P.comp = fillTo(q.comp, COMP_DEFAULT); P.eq = q.eq ? q.eq.slice() : EQ_DEFAULT.slice(); P.sends = fillTo(q.sends, SENDS_DEFAULT); if (actx) { for (let t = 0; t < 8; t++) { fxApply(t, true); mixApply(t); } compApply(); eqApply(); sendsApply(); } }
 function filePad(pad) {
   const slot = padToStep(pad); UI.fileLast = slot;
   if (UI.select) { const k = userKey(slot - 7); nameBegin(slot, slot >= 8 && !!localStorage.getItem(k), k, "project", "file"); return; }
@@ -1616,8 +1669,9 @@ function smpKept() {
 }
 function smpPad(pad) {
   if (SMP.rec || SMP.armed || SMP.counting) { SMP.note = "stop recording first (REC)"; return; }
-  const d = smpKept(); if (!d) { SMP.note = "nothing recorded yet (REC)"; return; }
   const slot = padToStep(pad);
+  if (UI.select && slot < 8) { nameBegin(slot + 8, SMP.saved[slot], "smp-" + slot, "recording", "sampling"); return; } // SELECT held: name the recording kept in that place
+  const d = smpKept(); if (!d) { SMP.note = "nothing recorded yet (REC)"; return; }
   if (slot >= 8) { initAudio(); smpListen(0); return; }
   if (!sampleBank) sampleBank = makeBank();
   sampleBank[8 + slot] = d; SMP.saved[slot] = true; SMP.note = "saved in user " + (slot + 1);
@@ -1646,7 +1700,7 @@ function smpKnob(k, delta) {
   else if (k === 6) { SMP.end = clamp(SMP.end + d, Math.min(1, SMP.start + .01), 1); smpFollowCut(); }
   else SMP.fade = clamp(SMP.fade + d, 0, 1);
 }
-function smpLeft(g) { pickLeft("sampling", [...Array.from({ length: 8 }, (_, i) => ["user " + (i + 1), SMP.saved[i]]), ...Array.from({ length: 8 }, () => ["listen", SMP.len > 0])], null)(g); }
+function smpLeft(g) { pickLeft("sampling", [...Array.from({ length: 8 }, (_, i) => [SMP.saved[i] ? getName("smp-" + i, i + 1) : "user " + (i + 1), SMP.saved[i]]), ...Array.from({ length: 8 }, () => ["listen", SMP.len > 0])], null)(g); }
 function smpTickLevel() { SMP.level *= SMP.rec || SMP.armed ? .97 : .9; }
 function smpRight(g) {
   const sec = v => v.toFixed(2) + "s", ph = (performance.now() % 2000) / 2000, secs = SMP.len / 48000;
@@ -1773,17 +1827,18 @@ function brRight(g) {
 }
 // ---- PLUG-IN: the instrument of the selected track (Controller::plugin_pad). The factory eight, then eight places for installed ones.
 const FACTORY_INSTRUMENTS = [["drums", "drums", true], ["KickSyn", "kick", true], ["FmBass", "fm", true], ["resonator", "resonator", true], ["sampler", "sampler", true], ["granular", "granular", true], ["macro", "macro", true], ["midi out", "midi", true]];
-function plugPad(pad) {
-  const slot = padToStep(pad), t = UI.track, f = FACTORY_INSTRUMENTS[slot];
-  if (!f) { UI.plugNote = "empty: installed instruments will go here"; return; }
-  if (!f[2]) { UI.plugNote = f[0] + " is not built yet"; return; }
+function plugPad(pad) { if (plugPut(UI.track, padToStep(pad))) { UI.page = 0; UI.main = "instrument"; UI.plugNote = ""; } }
+function plugPut(t, slot) { // the instrument of place `slot` of PLUG-IN on track `t` (a pad of PLUG-IN, or a program change); false, with the reason, if it cannot
+  const f = FACTORY_INSTRUMENTS[slot];
+  if (!f) { UI.plugNote = "empty: installed instruments will go here"; return false; }
+  if (!f[2]) { UI.plugNote = f[0] + " is not built yet"; return false; }
   if (SLOTS[t] !== f[1]) {
-    if (f[1] === "midi") { const from = SLOTS.indexOf("midi"); if (from < 0) { UI.plugNote = "no MIDI out is running"; return; } PARAMS[t] = PARAMS[from]; SLOTS[from] = null; PARAMS[from] = null; }
+    if (f[1] === "midi") { const from = SLOTS.indexOf("midi"); if (from < 0) { UI.plugNote = "no MIDI out is running"; return false; } PARAMS[t] = PARAMS[from]; SLOTS[from] = null; PARAMS[from] = null; }
     else { PARAMS[t] = CARTS[f[1]].params.map(p => p[1]); if (f[1] === "drums") PARAMS[t][7] = .5 / 8; }
     SLOTS[t] = f[1];
     if (f[1] !== "drums" && P.tracks[t].kit) { P.tracks[t].kit = false; P.tracks[t].steps.forEach(st => { if (st.lanes) { st.note = 60 + Math.log2(st.lanes & -st.lanes); st.lanes = 0; } }); }
   }
-  UI.page = 0; UI.main = "instrument"; UI.plugNote = "";
+  return true;
 }
 function plugCells() { const cur = FACTORY_INSTRUMENTS.findIndex(f => f[1] === SLOTS[UI.track]); return { cells: Array.from({ length: 16 }, (_, i) => FACTORY_INSTRUMENTS[i] ? [FACTORY_INSTRUMENTS[i][0], FACTORY_INSTRUMENTS[i][2]] : ["", false]), cur }; }
 function pickLeft(title, cells, last) {
@@ -1841,7 +1896,7 @@ const NAME_CHARS = " abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456
 const NM = { what: "", chars: Array(12).fill(" "), cursor: 0, key: null, from: "file" };
 const nameText = () => NM.chars.join("").trim();
 function nameBegin(slot, has, key, kind, from) {
-  const say = t => { if (from === "file") UI.fileNote = t; else UI.brNote = t; };
+  const say = t => { if (from === "file") UI.fileNote = t; else if (from === "sampling") SMP.note = t; else UI.brNote = t; };
   if (slot < 8) { say(`the ${kind}s that come with it keep their names`); return; }
   if (!has) { say(`nothing there to name: save a ${kind} first`); return; }
   let cur = ""; try { cur = localStorage.getItem(nameKey(key)) || ""; } catch {}
@@ -1857,7 +1912,7 @@ function namePad(pad) {
 }
 function nameFinish() {
   const t = nameText(); try { if (t) localStorage.setItem(nameKey(NM.key), t); else localStorage.removeItem(nameKey(NM.key)); } catch {}
-  const from = NM.from; setMain(from); const note = t ? "named " + t : "the name is taken away"; if (from === "file") UI.fileNote = note; else UI.brNote = note;
+  const from = NM.from; setMain(from); const note = t ? "named " + t : "the name is taken away"; if (from === "file") UI.fileNote = note; else if (from === "sampling") SMP.note = note; else UI.brNote = note;
 }
 function nameLeft(g) {
   fill(g, 0, 0, 480, 272, BG); dot(g, 16, 37, 6, FG); txt(g, "name", 30, 28, "mid", FG); txt(g, NM.what, 150, 37, "m", DIM, "left", "middle");
@@ -1910,6 +1965,17 @@ function sendsRight(g) { // the page `sends`: the delay as the taps it makes, th
   [["time", SD.names[SD.idx(s[0])]], ["feedback", Math.round(fbk * 100) + "%"], ["size", Math.round(s[2] / 255 * 100) + "%"], ["tone", Math.round(s[3] / 255 * 100) + "%"]].forEach(([n, v], i) => { txt(g, n, 60 + i * 120, 236, "s", DIM, "center", "middle"); txt(g, v, 60 + i * 120, 254, "m", KC[4 + i], "center", "middle"); });
   navRing(g, 1);
 }
+function tapsRight(g) { // the page `taps`: where the delay and the reverb are taken from, the path of a track to the mix with the line that leaves it
+  buttonStrip(g, [["comp", false], ["output", false], ["eq", false], ["taps", true]]);
+  settingsBar(g, "send taps", 37);
+  ["delay", "reverb"].forEach((name, n) => {
+    const x0 = 30 + n * 220, y0 = 56, y = y0 + 60, [xa, xf, xb] = [x0 + 16, x0 + 90, x0 + 184], pre = isPre(n), tap = pre ? xf - 32 : xf + 34;
+    rrect(g, x0, y0, 200, 130, 6, PANEL); txt(g, name, x0 + 8, y0 + 12, "s", DIM, "left", "middle");
+    line(g, xa, y, xb, y, DIM, 2); rrect(g, xf - 12, y - 12, 24, 24, 4, FAINT); line(g, tap, y, tap, y + 40, FG, 3); dot(g, tap, y, 4, FG); dot(g, tap, y + 40, 4, FG);
+  });
+  [["delay", isPre(0)], ["reverb", isPre(1)]].forEach(([n, pre], i) => { txt(g, n, 60 + i * 120, 236, "s", DIM, "center", "middle"); txt(g, pre ? "before the fader" : "after the fader", 60 + i * 120, 254, "s", KC[4 + i], "center", "middle"); });
+  navRing(g, 1);
+}
 function eqRight(g) { // the page `eq`: the curve of the three bands across the screen, the dots where they are set, the four values under it
   const e = P.eq, [x0, y0, w, h] = [30, 52, 420, 130], lo = Math.log(20), hi = Math.log(20000);
   const fx_ = hz => x0 + w * Math.min(1, Math.max(0, (Math.log(hz) - lo) / (hi - lo))), gy = db => y0 + h / 2 - h / 2 * Math.min(1, Math.max(-1, db / 15));
@@ -1929,6 +1995,7 @@ function mixerRight(g) {
   fill(g, 0, 0, 480, 272, BG);
   if (MIX.page === 2) { eqRight(g); return; }
   if (MIX.page === 3) { sendsRight(g); return; }
+  if (MIX.page === 4) { tapsRight(g); return; }
   buttonStrip(g, [["comp", MIX.page === 0], ["output", MIX.page === 1], ["eq", false], ["sends", false]]);
   settingsBar(g, "compressor", 37);
   const c = P.comp, [x0, y0, side] = [30, 52, 150], FLOOR = -48, fr = db => Math.min(1, Math.max(0, (db - FLOOR) / -FLOOR));
@@ -1944,7 +2011,7 @@ function mixerRight(g) {
   txt(g, red.toFixed(1) + " dB", rx + rw, ry + 24, "m", DIM, "right", "middle");
   if (c[0] === 255 && c[4] === 0) txt(g, "it does nothing yet: lower the threshold", rx, 160, "s", DIM, "left", "middle");
   const ms = v => v >= 10 ? v.toFixed(0) + " ms" : v.toFixed(1) + " ms";
-  const vals = MIX.page === 0 ? [["threshold", CD.thr(c[0]).toFixed(0) + " dB"], ["ratio", CD.ratio(c[1]).toFixed(1) + ":1"], ["attack", ms(CD.atk(c[2]))], ["release", ms(CD.rel(c[3]))]] : [["make-up", "+" + CD.make(c[4]).toFixed(0) + " dB"], ["mix", Math.round(CD.mix(c[5]) * 100) + "%"]];
+  const vals = MIX.page === 0 ? [["threshold", CD.thr(c[0]).toFixed(0) + " dB"], ["ratio", CD.ratio(c[1]).toFixed(1) + ":1"], ["attack", ms(CD.atk(c[2]))], ["release", ms(CD.rel(c[3]))]] : [["make-up", "+" + CD.make(c[4]).toFixed(0) + " dB"], ["mix", Math.round(CD.mix(c[5]) * 100) + "%"], ["side-chain", sideTrack(c[6]) < 0 ? "the mix" : "track " + "ABCDEFGH"[sideTrack(c[6])]]];
   vals.forEach(([n, v], i) => { txt(g, n, 60 + i * 120, 236, "s", DIM, "center", "middle"); txt(g, v, 60 + i * 120, 254, "m", KC[4 + i], "center", "middle"); });
   navRing(g, 1);
 }
@@ -1994,7 +2061,10 @@ function settingsRight(g) {
     ["play a note", "silence all"].forEach((l, k) => setButton(g, pickRect(2, 12 + k), l, false));
     setButton(g, pickRect(2, 14), SET.clock ? "clock out: on" : "clock out: off", SET.clock);
     setButton(g, pickRect(2, 15), SET.byChannel ? "in: by channel" : "in: selected", SET.byChannel);
-    txt(g, SET.byChannel ? "channels 1 to 8 play the tracks A to H" : "notes play the selected track", 16, 208, "s", DIM, "left", "middle");
+    setButton(g, pickRect(2, 16), SET.clockIn ? "clock in: on" : "clock in: off", SET.clockIn);
+    setButton(g, pickRect(2, 17), SET.learn === 1 ? "turn a knob" : SET.learn === 2 ? "move a control" : "learn", SET.learn > 0);
+    setButton(g, pickRect(2, 18), "forget " + SET.midiMap.length, false);
+    txt(g, SET.byChannel ? "channels 1 to 8 play the tracks A to H" : "notes play the selected track", 16, 240, "s", DIM, "left", "middle");
   } else if (SET.page === 3) {
     settingsBar(g, "light");
     ["the twin is a simulation: the supply allows", "all of it (a real MK3 may allow less)."].forEach((l, i) => txt(g, l, 16, 70 + i * 22, "m", FG, "left", "middle"));
@@ -2611,7 +2681,7 @@ $("sb4").addEventListener("click", () => { if (UI.main === "mixer") MIX.send = M
 $("sb5").addEventListener("click", () => { if (UI.main === "instrument") UI.page = 0; else if (UI.main === "mixer") mixPage(0); });
 $("sb6").addEventListener("click", () => { if (UI.main === "instrument") UI.page = 1; else if (UI.main === "mixer") mixPage(1); });
 $("sb7").addEventListener("click", () => { if (UI.main === "instrument") UI.page = 2; else if (UI.main === "mixer") mixPage(2); });
-$("sb8").addEventListener("click", () => { if (UI.main === "instrument") UI.page = 3; else if (UI.main === "mixer") mixPage(3); });
+$("sb8").addEventListener("click", () => { if (UI.main === "instrument") UI.page = 3; else if (UI.main === "mixer") mixPage(MIX.page === 3 ? 4 : 3); }); // `sends` again is its second page, `taps`, and again the first
 $("jogL").addEventListener("click", () => jog(-1));
 $("jogR").addEventListener("click", () => jog(1));
 $("jogU").addEventListener("click", () => { if (UI.main === "name") nameMove(-1); else if (navOn()) navMove(0, -1); });
@@ -2694,7 +2764,7 @@ function updateLeds() {
 }
 
 function frame() {
-  updateVisual(); controllerTick();
+  updateVisual(); controllerTick(); sideTick();
   drawLeft(lcdL); drawRight(lcdR); if (UI.main === "instrument") { navRing(lcdL, 0); navRing(lcdR, 1); } updateLeds();
   requestAnimationFrame(frame);
 }
