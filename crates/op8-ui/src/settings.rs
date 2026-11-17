@@ -8,7 +8,8 @@
 //! **audio.** Left: the audio outputs, one to a row (the first row is `automatic`); the chosen one has a dot and the one that is open is
 //! tagged `in use`. Right: the audio inputs the same way, then the size of the audio block, and what is open.
 //!
-//! **midi.** Left: the MIDI output ports the same way. Right: a button that plays a note, one that silences everything and one that turns the MIDI clock out on and off.
+//! **midi.** Left: the MIDI output ports the same way. Right: the MIDI inputs (`off` first), and under them four buttons: one that plays a
+//! note, one that silences everything, one that turns the MIDI clock out on and off and one that chooses what a note that comes in plays.
 //!
 //! **light.** Left: the step of the screen backlight and the highest level of the pad LEDs, which are shares of what the supply allows,
 //! never more. Right: what the supply is and what that means.
@@ -39,14 +40,20 @@ pub struct SettingsView {
     pub outs: Vec<String>,
     pub ins: Vec<String>,
     pub ports: Vec<String>,
+    /// The MIDI inputs there are.
+    pub midi_ins: Vec<String>,
     /// The chosen entry of each list: 0 is `automatic`, `n` is the `n`-th name.
     pub out_sel: usize,
     pub in_sel: usize,
     pub port_sel: usize,
+    pub midi_in_sel: usize,
     /// What is open now, as the device says it.
     pub out_now: String,
     pub in_now: String,
     pub port_now: String,
+    pub midi_in_now: String,
+    /// What a note that comes in plays: the selected track (`false`) or the track of its MIDI channel.
+    pub midi_by_channel: bool,
     /// The audio block chosen (64, 128 or 256) and what the stream says it has.
     pub buffer: u32,
     pub stream_now: String,
@@ -68,12 +75,16 @@ impl Default for SettingsView {
             outs: Vec::new(),
             ins: Vec::new(),
             ports: Vec::new(),
+            midi_ins: Vec::new(),
             out_sel: 0,
             in_sel: 0,
             port_sel: 0,
+            midi_in_sel: 0,
             out_now: String::new(),
             in_now: String::new(),
             port_now: String::new(),
+            midi_in_now: String::new(),
+            midi_by_channel: false,
             buffer: 128,
             stream_now: String::new(),
             screen: 4,
@@ -161,14 +172,15 @@ pub fn draw_right(fb: &mut FrameBuffer480x272, ui: &crate::UiState) {
             text_v(fb, &s.stream_now, 16, 226, FontSize::Medium, t.dim, Align::Left, VAlign::Middle);
         }
         Page::Midi => {
-            bar(fb, "midi", 15.0);
+            bar(fb, "midi in", 15.0);
+            rows(fb, s, "off", &s.midi_ins, s.midi_in_sel, &s.midi_in_now, 1);
             for (k, label) in ["play a note", "silence all"].into_iter().enumerate() {
-                button(fb, crate::nav::pick_rect(Page::Midi, 8 + k).1, label, false);
+                button(fb, crate::nav::pick_rect(Page::Midi, 12 + k).1, label, false);
             }
-            button(fb, crate::nav::pick_rect(Page::Midi, 10).1, if s.midi_clock { "clock out: on" } else { "clock out: off" }, s.midi_clock);
-            text_v(fb, "the port that is open", 16, 168, FontSize::Small, t.dim, Align::Left, VAlign::Middle);
-            let now = if s.port_now.is_empty() { "none" } else { &s.port_now };
-            text_v(fb, &fit(now, 40), 16, 190, FontSize::Medium, t.fg, Align::Left, VAlign::Middle);
+            button(fb, crate::nav::pick_rect(Page::Midi, 14).1, if s.midi_clock { "clock out: on" } else { "clock out: off" }, s.midi_clock);
+            button(fb, crate::nav::pick_rect(Page::Midi, 15).1, if s.midi_by_channel { "in: by channel" } else { "in: selected" }, s.midi_by_channel);
+            let hint = if s.midi_by_channel { "channels 1 to 8 play the tracks A to H" } else { "notes play the selected track" };
+            text_v(fb, hint, 16, 208, FontSize::Small, t.dim, Align::Left, VAlign::Middle);
         }
         Page::Light => {
             bar(fb, "light", 15.0);

@@ -137,6 +137,152 @@ pub fn open_port(_: Option<&str>) -> anyhow::Result<Box<dyn MidiPort>> {
     anyhow::bail!("no MIDI backend on this platform/feature set")
 }
 
+// ---- MIDI in ------------------------------------------------------------------------------------------------------------------------
+
+/// A MIDI input that is open: messages come out of `rx` as whole messages (a status byte and its data), until it is dropped. Real-time
+/// messages (the clock and the rest of 0xF8 to 0xFF) and system exclusive are left out.
+pub struct MidiIn {
+    pub rx: std::sync::mpsc::Receiver<Vec<u8>>,
+    pub name: String,
+    /// What keeps the port open: the connection, or the thread that reads the node (stopped when this is dropped).
+    _keep: Box<dyn std::any::Any + Send>,
+}
+
+/// Puts a stream of bytes together into messages, with running status (a status byte is not repeated while it stays the same).
+#[derive(Default)]
+pub struct Parser {
+    status: u8,
+    data: Vec<u8>,
+    skipping: bool,
+}
+
+impl Parser {
+    /// Feed one byte; a whole message comes back when it is complete.
+    pub fn push(&mut self, b: u8) -> Option<Vec<u8>> {
+        if b >= 0xF8 {
+            return None; // real time: it may fall in the middle of anything and means nothing here
+        }
+        if b >= 0x80 {
+            self.data.clear();
+            self.skipping = b == 0xF0; // system exclusive runs until the byte that ends it
+            self.status = if b >= 0xF0 { 0 } else { b };
+            return None;
+        }
+        if self.skipping || self.status == 0 {
+            return None;
+        }
+        self.data.push(b);
+        let need = match self.status & 0xF0 {
+            0xC0 | 0xD0 => 1,
+            _ => 2,
+        };
+        if self.data.len() == need {
+            let mut m = vec![self.status];
+            m.append(&mut self.data);
+            return Some(m);
+        }
+        None
+    }
+}
+
+#[cfg(target_os = "linux")]
+pub fn list_inputs() -> Vec<String> {
+    linux_ports().into_iter().map(|(label, _)| label).collect()
+}
+
+#[cfg(target_os = "linux")]
+pub fn open_input(want: &str) -> anyhow::Result<MidiIn> {
+    use anyhow::Context;
+    use std::os::unix::fs::OpenOptionsExt;
+    let (label, path) = match want {
+        w if w.starts_with("/dev/") => (w.to_string(), w.to_string()),
+        w => linux_ports().into_iter().find(|(l, _)| l.contains(w)).with_context(|| format!("no MIDI port matching {w:?}"))?,
+    };
+    // read without waiting, so that the thread can see that it has been told to stop
+    let mut f = std::fs::OpenOptions::new().read(true).custom_flags(libc::O_NONBLOCK).open(&path).with_context(|| format!("opening {path}"))?;
+    let (tx, rx) = std::sync::mpsc::channel();
+    let stop = Arc::new(AtomicBool::new(false));
+    let flag = stop.clone();
+    let handle = thread::Builder::new()
+        .name("op8-midi-in".into())
+        .spawn(move || {
+            use std::io::Read;
+            let (mut parser, mut buf) = (Parser::default(), [0u8; 64]);
+            while !flag.load(Ordering::Relaxed) {
+                match f.read(&mut buf) {
+                    Ok(0) => thread::sleep(Duration::from_millis(2)),
+                    Ok(n) => {
+                        for &b in &buf[..n] {
+                            if let Some(m) = parser.push(b) {
+                                if tx.send(m).is_err() {
+                                    return;
+                                }
+                            }
+                        }
+                    }
+                    Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => thread::sleep(Duration::from_millis(2)),
+                    Err(_) => return,
+                }
+            }
+        })
+        .context("starting the MIDI input thread")?;
+    struct Keep(Arc<AtomicBool>, Option<thread::JoinHandle<()>>);
+    impl Drop for Keep {
+        fn drop(&mut self) {
+            self.0.store(true, Ordering::Relaxed);
+            if let Some(h) = self.1.take() {
+                let _ = h.join();
+            }
+        }
+    }
+    Ok(MidiIn { rx, name: label, _keep: Box::new(Keep(stop, Some(handle))) })
+}
+
+#[cfg(all(target_os = "macos", feature = "midi"))]
+pub fn list_inputs() -> Vec<String> {
+    midir::MidiInput::new("OP-8").map(|i| i.ports().iter().filter_map(|p| i.port_name(p).ok()).collect()).unwrap_or_default()
+}
+
+#[cfg(all(target_os = "macos", feature = "midi"))]
+pub fn open_input(want: &str) -> anyhow::Result<MidiIn> {
+    use anyhow::{anyhow, Context};
+    let input = midir::MidiInput::new("OP-8").context("CoreMIDI")?;
+    let port = input
+        .ports()
+        .into_iter()
+        .find(|p| input.port_name(p).map_or(false, |n| n.contains(want)))
+        .with_context(|| format!("no MIDI input matching {want:?}"))?;
+    let name = input.port_name(&port).unwrap_or_default();
+    let (tx, rx) = std::sync::mpsc::channel();
+    let mut parser = Parser::default();
+    // CoreMIDI hands over whole messages; the parser only drops what is not wanted and keeps the same shape for every port
+    let conn = input
+        .connect(
+            &port,
+            "op8-in",
+            move |_, bytes, _| {
+                for &b in bytes {
+                    if let Some(m) = parser.push(b) {
+                        let _ = tx.send(m);
+                    }
+                }
+            },
+            (),
+        )
+        .map_err(|e| anyhow!("{e}"))?;
+    Ok(MidiIn { rx, name, _keep: Box::new(conn) })
+}
+
+#[cfg(not(any(target_os = "linux", all(target_os = "macos", feature = "midi"))))]
+pub fn list_inputs() -> Vec<String> {
+    Vec::new()
+}
+
+#[cfg(not(any(target_os = "linux", all(target_os = "macos", feature = "midi"))))]
+pub fn open_input(_: &str) -> anyhow::Result<MidiIn> {
+    anyhow::bail!("no MIDI backend on this platform/feature set")
+}
+
 /// The port that is opened when the player has chosen none: the MK3's own.
 pub fn open_default() -> anyhow::Result<Box<dyn MidiPort>> {
     open_port(None)
@@ -249,6 +395,21 @@ pub fn spawn_linked(
 mod tests {
     use super::*;
     use std::sync::Mutex;
+
+    // F-M04
+    #[test]
+    fn the_parser_makes_whole_messages_of_a_stream() {
+        let mut p = Parser::default();
+        let mut got = Vec::new();
+        // a note on, the clock in the middle of the next one, running status (no status byte), a program change, a sysex, then a note off
+        for b in [0x90, 60, 100, 0xF8, 0x3E, 0xF8, 0x64, 0xC1, 5, 0xF0, 1, 2, 3, 0xF7, 0x80, 60, 0] {
+            if let Some(m) = p.push(b) {
+                got.push(m);
+            }
+        }
+        assert_eq!(got, vec![vec![0x90, 60, 100], vec![0x90, 0x3E, 0x64], vec![0xC1, 5], vec![0x80, 60, 0]]);
+        assert_eq!(p.push(0x20), None, "data with no status is dropped");
+    }
 
     #[derive(Clone, Default)]
     struct Log(Arc<Mutex<Vec<Vec<u8>>>>, &'static str);

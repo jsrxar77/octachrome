@@ -178,6 +178,14 @@ fn run(mut script: Option<Script>, theme_given: bool) -> Result<()> {
         app.settings_path = Some(path);
     }
     app.ctl.settings = saved.clone();
+    // the MIDI input the player chose last time (none by default: nothing is listened to until they ask)
+    let mut midi_in: Option<op8::midi::MidiIn> = saved.midi_in.as_deref().and_then(|n| match op8::midi::open_input(n) {
+        Ok(i) => Some(i),
+        Err(e) => {
+            eprintln!("midi in: {e}");
+            None
+        }
+    });
     app.handle.send(op8_engine::EngineCommand::MidiClock(saved.midi_clock));
     app.ctl.ui.settings.supply = app.surface.power_note().to_string();
     app.ctl.projects_dir = op8::projectfile::default_dir();
@@ -254,6 +262,20 @@ fn run(mut script: Option<Script>, theme_given: bool) -> Result<()> {
                             Err(e) => format!("midi: {e}; it stays as it was"),
                         });
                     }
+                    op8::controller::Request::MidiIn(name) => {
+                        midi_in = None; // the old one is closed first
+                        note = Some(match name {
+                            None => "midi in: off".to_string(),
+                            Some(n) => match op8::midi::open_input(&n) {
+                                Ok(i) => {
+                                    let shown = i.name.clone();
+                                    midi_in = Some(i);
+                                    format!("midi in: {shown}")
+                                }
+                                Err(e) => format!("midi in: {e}"),
+                            },
+                        });
+                    }
                     op8::controller::Request::MidiTest => midi_link.test(),
                     op8::controller::Request::MidiPanic => {
                         midi_link.panic();
@@ -276,6 +298,8 @@ fn run(mut script: Option<Script>, theme_given: bool) -> Result<()> {
                 outs,
                 ins,
                 ports: op8::midi::list_ports(),
+                midi_ins: op8::midi::list_inputs(),
+                midi_in_now: midi_in.as_ref().map(|i| i.name.clone()).unwrap_or_default(),
                 out_now,
                 in_now,
                 port_now: midi_link.name(),
@@ -283,6 +307,12 @@ fn run(mut script: Option<Script>, theme_given: bool) -> Result<()> {
                 supply: app.surface.power_note().to_string(),
                 note,
             });
+        }
+        // what came in by MIDI plays before the frame is drawn
+        if let Some(i) = &midi_in {
+            while let Ok(msg) = i.rx.try_recv() {
+                app.ctl.midi_in(&msg, &mut app.handle);
+            }
         }
         if let Err(e) = app.frame(pacer.now_ms()) {
             // Let go of the screens first: while the old surface holds

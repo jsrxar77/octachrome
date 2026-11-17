@@ -125,6 +125,12 @@ impl Bench {
         }
     }
 
+    /// A MIDI message arriving at the MIDI input, as the port would hand it over.
+    pub fn midi_in(&mut self, msg: &[u8]) {
+        let Self { app, .. } = self;
+        app.ctl.midi_in(msg, &mut app.handle);
+    }
+
     // ---- input, as the MK3 would send it -------------------------------------
 
     pub fn send(&mut self, e: ControlEvent) {

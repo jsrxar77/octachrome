@@ -1383,35 +1383,55 @@ function touchOverlay(g, cells, base) {
 function settingsBar(g, title, cy = 15) { dot(g, 16, cy, 6, FG); txt(g, title, 30, cy - 9, "mid", FG); }
 // ---- settings in four pages (crates/op8-ui/src/settings.rs, Controller::settings_pick): theme, audio, midi, light. The twin has no devices: it
 // lists some for the look, and what is chosen is only remembered; the light (the backlight step and the pad level) does dim the twin.
-const SET = { page: 0, outs: ["Maschine MK3", "MacBook Pro Speakers", "USB Audio"], ins: ["Maschine MK3", "Scarlett 2i2"], ports: ["Maschine MK3 MIDI", "IAC Driver Bus 1"], out: 0, inp: 0, port: 0, buffer: 128, clock: true, note: "" };
+const SET = { page: 0, outs: ["Maschine MK3", "MacBook Pro Speakers", "USB Audio"], ins: ["Maschine MK3", "Scarlett 2i2"], ports: ["Maschine MK3 MIDI", "IAC Driver Bus 1"], out: 0, inp: 0, port: 0, buffer: 128, clock: true, midiIns: [], minSel: 0, byChannel: false, midiAccess: null, midiOpen: null, note: "" };
 const PAGES = ["theme", "audio", "midi", "light"], BUFFERS = [64, 128, 256];
 const listLen = (n, screen) => Math.min(1 + n, screen === 0 ? 8 : 4);
 function pickRect(page, n) { // [screen, x, y, w, h]
   if ((page === 1 || page === 2) && n < 8) return [0, 12, 52 + n * 26, 456, 24];
   if (page === 1 && n >= 8 && n < 12) return [1, 12, 40 + (n - 8) * 26, 456, 24];
   if (page === 1 && n >= 16 && n < 19) return [1, 12 + (n - 16) * 152, 176, 144, 30];
-  if (page === 2 && n === 8) return [1, 12, 60, 224, 36];
-  if (page === 2 && n === 9) return [1, 244, 60, 224, 36];
-  if (page === 2 && n === 10) return [1, 12, 108, 224, 36];
+  if (page === 2 && n >= 8 && n < 12) return [1, 12, 40 + (n - 8) * 26, 456, 24];
+  if (page === 2 && n >= 12 && n < 16) return [1, 12 + (n - 12) * 114, 156, 108, 34];
   if (page === 3 && n < 4) return [0, 12 + n * 114, 72, 108, 60];
   if (page === 3 && n >= 4 && n < 7) return [0, 12 + (n - 4) * 152, 176, 144, 70];
   return [0, 0, 0, 0, 0];
 }
 function settingsItems() {
   const ids = SET.page === 1 ? [...Array(listLen(SET.outs.length, 0)).keys(), ...Array.from({ length: listLen(SET.ins.length, 1) }, (_, i) => 8 + i), 16, 17, 18]
-    : SET.page === 2 ? [...Array(listLen(SET.ports.length, 0)).keys(), 8, 9, 10] : SET.page === 3 ? [...Array(7).keys()] : [];
+    : SET.page === 2 ? [...Array(listLen(SET.ports.length, 0)).keys(), ...Array.from({ length: listLen(SET.midiIns.length, 1) }, (_, i) => 8 + i), 12, 13, 14, 15] : SET.page === 3 ? [...Array(7).keys()] : [];
   return ids.map(n => { const [sc, x, y, w, h] = pickRect(SET.page, n); return { k: "pick", i: n, s: sc, x, y, w, h }; });
 }
-function settingsPage(n) { SET.page = n; SET.note = ""; UI.grabbed = false; UI.focus = { k: "pick", i: 0 }; }
+function settingsPage(n) { SET.page = n; SET.note = ""; UI.grabbed = false; UI.focus = { k: "pick", i: 0 }; if (n === 2) midiScan(); }
+// ---- MIDI in (crates/op8/src/midi.rs, Controller::midi_in): the twin listens to the MIDI inputs the browser has (Web MIDI). A note plays the
+// selected track, or the track of its channel (1 to 8 are A to H) with "in: by channel"; it is written by REC. Controllers 7, 10 and 91 are the
+// level, the pan and the reverb send of that track. The twin's notes play through (a one shot) and do not wait for the note off.
+function midiScan() {
+  if (!navigator.requestMIDIAccess) { SET.note = "this browser has no MIDI"; return; }
+  navigator.requestMIDIAccess().then(a => { SET.midiAccess = a; SET.midiIns = [...a.inputs.values()].map(i => i.name); }).catch(() => { SET.note = "the browser did not give access to MIDI"; });
+}
+function midiInOpen(r) {
+  if (SET.midiOpen) { SET.midiOpen.onmidimessage = null; SET.midiOpen = null; }
+  SET.minSel = r; if (r === 0) { SET.note = "midi in: off"; return; }
+  const inp = SET.midiAccess && [...SET.midiAccess.inputs.values()][r - 1]; if (!inp) { SET.note = "midi in: it is not there"; return; }
+  inp.onmidimessage = e => midiIn([...e.data]); SET.midiOpen = inp; SET.note = "midi in: " + inp.name;
+}
+function midiIn(m) {
+  const [st, a = 0, b = 0] = m, kind = st & 0xF0, ch = st & 15; if (st >= 0xF0) return;
+  const t = SET.byChannel ? (ch < 8 ? ch : -1) : UI.track; if (t < 0) return;
+  if (kind === 0x90 && b > 0) { initAudio(); audition(t, a, Math.max(.1, b / 127), false); if (t === UI.track) recordNote(a, Math.max(.1, b / 127)); }
+  else if (kind === 0xB0) { const tr = P.tracks[t]; if (a === 7) tr.level = b; else if (a === 10) tr.pan = b; else if (a === 91) tr.sendB = b; mixApply(t); }
+}
 function settingsPick(n) {
   const pg = SET.page, name = (list, r) => r > 0 ? list[r - 1] : null;
   if (pg === 1 && n < 8) { SET.out = n; SET.note = "opening it… (the twin has no audio devices)"; }
   else if (pg === 1 && n < 12) { SET.inp = n - 8; SET.note = "it opens when SAMPLING needs it"; }
   else if (pg === 1) { SET.buffer = BUFFERS[n - 16]; SET.note = "reopening the audio… (not in the twin)"; }
   else if (pg === 2 && n < 8) { SET.port = n; SET.note = "opening it… (the twin has no MIDI ports)"; }
-  else if (pg === 2 && n === 8) SET.note = "a note goes out of the port (not in the twin)";
-  else if (pg === 2 && n === 9) SET.note = "everything silenced";
-  else if (pg === 2 && n === 10) { SET.clock = !SET.clock; SET.note = SET.clock ? "the clock goes out on the port (not in the twin)" : "no clock on the port"; }
+  else if (pg === 2 && n >= 8 && n < 12) midiInOpen(n - 8);
+  else if (pg === 2 && n === 12) SET.note = "a note goes out of the port (not in the twin)";
+  else if (pg === 2 && n === 13) SET.note = "everything silenced";
+  else if (pg === 2 && n === 15) { SET.byChannel = !SET.byChannel; SET.note = SET.byChannel ? "channels 1 to 8 play A to H" : "notes play the selected track"; }
+  else if (pg === 2 && n === 14) { SET.clock = !SET.clock; SET.note = SET.clock ? "the clock goes out on the port (not in the twin)" : "no clock on the port"; }
   else if (pg === 3 && n < 4) { LOOK.screen = n + 1; applyLook(); }
   else if (pg === 3) { LOOK.pads = n - 3; applyLook(); }
 }
@@ -1803,10 +1823,10 @@ function fileRight(g) {
   [["tap a pad", "opens it"], ["shift + tap", "saves into your slots"], ["erase + tap twice", "erases one of yours"]].forEach(([a, b], i) => { txt(g, a, 30, 76 + i * 50, "mid", FG); txt(g, b, 30, 102 + i * 50, "m", DIM); });
   if (UI.fileNote) txt(g, UI.fileNote, 30, 236, "mid", FG);
 }
-function listRows(g, list, chosen, screen, pageNow) {
+function listRows(g, list, chosen, screen, pageNow, auto = "automatic") {
   const rows = listLen(list.length, screen), base = screen === 0 ? 0 : 8;
   for (let r = 0; r < rows; r++) {
-    const [, x, y, w, h] = pickRect(SET.page, base + r), on = r === chosen, name = r === 0 ? "automatic" : list[r - 1];
+    const [, x, y, w, h] = pickRect(SET.page, base + r), on = r === chosen, name = r === 0 ? auto : list[r - 1];
     rrect(g, x, y, w, h, 6, on ? PANEL : BG); rrect(g, x + .5, y + .5, w - 1, h - 1, 6, on ? DIM : FAINT, 1);
     if (on) dot(g, x + 14, y + h / 2, 4, FG);
     txt(g, name.length > 40 ? name.slice(0, 39) + "…" : name, x + 28, y + h / 2, "m", on ? FG : DIM, "left", "middle");
@@ -1969,10 +1989,12 @@ function settingsRight(g) {
     BUFFERS.forEach((b, k) => setButton(g, pickRect(1, 16 + k), String(b), SET.buffer === b));
     txt(g, "48 kHz · 2 ch · buffer " + SET.buffer, 16, 226, "m", DIM, "left", "middle");
   } else if (SET.page === 2) {
-    settingsBar(g, "midi");
-    ["play a note", "silence all"].forEach((l, k) => setButton(g, pickRect(2, 8 + k), l, false));
-    setButton(g, pickRect(2, 10), SET.clock ? "clock out: on" : "clock out: off", SET.clock);
-    txt(g, "the port that is open", 16, 168, "s", DIM, "left", "middle"); txt(g, SET.ports[0], 16, 190, "m", FG, "left", "middle");
+    settingsBar(g, "midi in");
+    listRows(g, SET.midiIns, SET.minSel, 1, SET.midiOpen ? SET.midiOpen.name : "", "off");
+    ["play a note", "silence all"].forEach((l, k) => setButton(g, pickRect(2, 12 + k), l, false));
+    setButton(g, pickRect(2, 14), SET.clock ? "clock out: on" : "clock out: off", SET.clock);
+    setButton(g, pickRect(2, 15), SET.byChannel ? "in: by channel" : "in: selected", SET.byChannel);
+    txt(g, SET.byChannel ? "channels 1 to 8 play the tracks A to H" : "notes play the selected track", 16, 208, "s", DIM, "left", "middle");
   } else if (SET.page === 3) {
     settingsBar(g, "light");
     ["the twin is a simulation: the supply allows", "all of it (a real MK3 may allow less)."].forEach((l, i) => txt(g, l, 16, 70 + i * 22, "m", FG, "left", "middle"));

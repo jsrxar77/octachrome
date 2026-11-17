@@ -117,17 +117,15 @@ pub fn list_len(names: usize, _page: Page, screen: u8) -> usize {
 }
 
 /// The screen and the box of choice `n` of a page of settings. Audio: 0..8 the outputs (left), 8..12 the inputs (right), 16..19 the audio
-/// block (right). MIDI: 0..8 the ports (left), 8 and 9 the two buttons and 10 the clock (right). Light: 0..4 the backlight steps and 4..7 the pad levels
+/// block (right). MIDI: 0..8 the output ports (left), 8..12 the inputs (right), 12 to 15 the four buttons under them: a note, silence, the clock and what an input plays. Light: 0..4 the backlight steps and 4..7 the pad levels
 /// (left).
 pub fn pick_rect(page: Page, n: usize) -> (u8, (f32, f32, f32, f32)) {
     let (i, f) = (n as f32, |k: usize| k as f32);
     match (page, n) {
         (Page::Audio | Page::Midi, 0..=7) => (0, (12.0, 52.0 + i * 26.0, 456.0, 24.0)),
-        (Page::Audio, 8..=11) => (1, (12.0, 40.0 + f(n - 8) * 26.0, 456.0, 24.0)),
         (Page::Audio, 16..=18) => (1, (12.0 + f(n - 16) * 152.0, 176.0, 144.0, 30.0)),
-        (Page::Midi, 8) => (1, (12.0, 60.0, 224.0, 36.0)),
-        (Page::Midi, 9) => (1, (244.0, 60.0, 224.0, 36.0)),
-        (Page::Midi, 10) => (1, (12.0, 108.0, 224.0, 36.0)),
+        (Page::Audio | Page::Midi, 8..=11) => (1, (12.0, 40.0 + f(n - 8) * 26.0, 456.0, 24.0)),
+        (Page::Midi, 12..=15) => (1, (12.0 + f(n - 12) * 114.0, 156.0, 108.0, 34.0)),
         (Page::Light, 0..=3) => (0, (12.0 + i * 114.0, 72.0, 108.0, 60.0)),
         (Page::Light, 4..=6) => (0, (12.0 + f(n - 4) * 152.0, 176.0, 144.0, 70.0)),
         _ => (0, (0.0, 0.0, 0.0, 0.0)),
@@ -153,7 +151,8 @@ pub fn pick_items(ui: &UiState) -> Vec<NavItem> {
         }
         Page::Midi => {
             (0..list_len(s.ports.len(), page, 0)).for_each(&mut add);
-            (8..11).for_each(&mut add);
+            (8..8 + list_len(s.midi_ins.len(), page, 1)).for_each(&mut add);
+            (12..16).for_each(&mut add);
         }
         Page::Light => (0..7).for_each(&mut add),
     }
