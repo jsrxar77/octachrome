@@ -23,7 +23,7 @@ fn f_k21_the_mixer_has_channels_and_a_compressor() {
     assert_eq!(b.ui().main, Main::Mixer);
     b.run_ms(100);
     let labels = op8_ui::screen_buttons(b.ui());
-    assert_eq!(labels.iter().flatten().map(|l| l.0).collect::<Vec<_>>(), ["a–d", "e–h", "comp", "output"]);
+    assert_eq!(labels.iter().flatten().map(|l| l.0).collect::<Vec<_>>(), ["a–d", "e–h", "comp", "output", "eq"]);
     b.capture("f-k21-mixer");
     // knobs 1 to 4: the levels of A to D
     let before = b.project().tracks[1].level;
@@ -112,4 +112,53 @@ fn f_a27_the_master_compressor_brings_the_sound_down() {
     // saved with the project
     let bytes = op8_seq::io::encode(b.project());
     assert_eq!(op8_seq::io::decode(&bytes).unwrap().comp, b.project().comp);
+}
+
+// F-K22: button 7 of MIXER is the EQ of the master: the screen draws its curve, knobs 5 to 8 are the low shelf, the middle band, its
+// frequency and the high shelf (all four values, none of the page is empty), the 4D reaches them, and the settings are saved with the project.
+#[test]
+fn f_k22_the_eq_page_has_four_values_and_a_curve() {
+    let mut b = Bench::demo();
+    b.press(Button::Mixer);
+    b.press(Button::Screen(7));
+    assert_eq!(b.ui().mixer.page, 2);
+    b.run_ms(100);
+    assert_eq!(b.project().eq, op8_seq::MasterEq::default(), "flat to begin with");
+    let flat = b.screen_hash(Screen::Right);
+    b.capture("f-k22-eq-flat");
+    b.knob(4, 200); // low up
+    b.knob(5, -200); // mid down
+    b.knob(6, 200); // freq up
+    b.knob(7, 400); // high up
+    let e = b.project().eq;
+    assert!(e.low > 128 && e.mid < 128 && e.freq > 128 && e.high > e.low, "{e:?}");
+    b.run_ms(100);
+    assert_ne!(b.screen_hash(Screen::Right), flat, "the curve moved");
+    b.capture("f-k22-eq-set");
+    assert_eq!(op8_ui::nav_items(b.ui()).len(), 4 + 4, "four levels and four values");
+    focus_on(&mut b, NavKind::Value(7));
+    let h = b.project().eq.high;
+    b.press(Button::JogPush);
+    b.encoder(-3);
+    assert!(b.project().eq.high < h, "the 4D turned the high shelf");
+    b.press(Button::Screen(5));
+    assert_eq!(b.ui().mixer.page, 0, "button 5 is the compressor again");
+    let bytes = op8_seq::io::encode(b.project());
+    assert_eq!(op8_seq::io::decode(&bytes).unwrap().eq, b.project().eq);
+}
+
+// F-A28: the EQ changes what plays: the bass of the demo cut away makes the mix quieter, and with the EQ flat the sound is as it was.
+#[test]
+fn f_a28_the_master_eq_changes_the_sound() {
+    let level = |low: u8| {
+        let mut b = Bench::demo();
+        b.app.handle.seq(op8_seq::Command::SetMasterEq { index: 0, value: low });
+        b.press(Button::Play);
+        b.run_ms(3000);
+        b.rms_db(1000, 3000)
+    };
+    let flat = level(128);
+    let cut = level(0);
+    assert!(cut < flat - 0.5, "less bass, quieter: {flat} dB and then {cut} dB");
+    assert_eq!(level(128), flat, "flat is flat, the same every time");
 }

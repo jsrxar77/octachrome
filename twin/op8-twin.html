@@ -367,11 +367,30 @@ const lfoNow = (t, ms) => { const l = P.tracks[t].lfo; return lfoWave(l, ms / 10
 // ---- the mixer: four channels on the left, the compressor of the master on the right (crates/op8-ui/src/mixer.rs, crates/op8-engine/src/comp.rs).
 // The six settings are 0..255 of their own range and go with the project. The sound is WebAudio's own compressor, which is an approximation:
 // the twin's has its own make-up gain; the screen's curve is the Rust one. A threshold of 0 dB with no make-up does nothing at all.
-const COMP_DEFAULT = [255, 102, 128, 128, 0, 255];
-const MIX = { page: 0, group: 0 }, compAccum = [0, 0, 0, 0, 0, 0];
+const COMP_DEFAULT = [255, 102, 128, 128, 0, 255], EQ_DEFAULT = [128, 128, 128, 128];
+const MIX = { page: 0, group: 0 }, compAccum = [0, 0, 0, 0, 0, 0], eqAccum = [0, 0, 0, 0];
 const CD = { thr: v => -40 + 40 * v / 255, ratio: v => 1 + 19 * (v / 255) ** 2, atk: v => .1 * Math.pow(1000, v / 255), rel: v => 20 * Math.pow(50, v / 255), make: v => 24 * v / 255, mix: v => v / 255 };
-const mixPageValues = () => MIX.page === 0 ? 4 : 2;
-const compIndex = k => k >= 4 && k - 4 < mixPageValues() ? (MIX.page === 0 ? k - 4 : 4 + k - 4) : -1;
+const mixPageValues = () => MIX.page === 1 ? 2 : 4;
+const compIndex = k => MIX.page < 2 && k >= 4 && k - 4 < mixPageValues() ? (MIX.page === 0 ? k - 4 : 4 + k - 4) : -1, eqIndex = k => MIX.page === 2 && k >= 4 && k < 8 ? k - 4 : -1;
+// the EQ of the master (crates/op8-engine/src/eq.rs): a low shelf at 100 Hz, a band of the middle (200 Hz to 5 kHz) and a high shelf at 8 kHz, of -15 to +15 dB each;
+// 128 is no gain. The sound is WebAudio's shelves and peak; the curve on the screen is the Rust one (the same biquads of the Audio EQ Cookbook).
+const EQ = { gain: v => Math.max(-15, Math.min(15, (v - 128) / 127 * 15)), freq: v => 200 * Math.pow(25, v / 255) };
+function eqResponse(e, hz) { // the gain of the three bands together at `hz`, in dB
+  const R = 48000, w = 2 * Math.PI * hz / R, cw = Math.cos(w), sw = Math.sin(w), c2 = Math.cos(2 * w), s2 = Math.sin(2 * w);
+  const db = ([b, a]) => { const nr = b[0] + b[1] * cw + b[2] * c2, ni = b[1] * sw + b[2] * s2, dr = a[0] + a[1] * cw + a[2] * c2, di = a[1] * sw + a[2] * s2; return 10 * Math.log10(Math.max(1e-20, (nr * nr + ni * ni) / Math.max(1e-20, dr * dr + di * di))); };
+  const bq = (type, f, g, q) => {
+    const A = Math.pow(10, g / 40), W = 2 * Math.PI * f / R, [s, c] = [Math.sin(W), Math.cos(W)];
+    if (type === "peak") { const al = s / (2 * q); return [[1 + al * A, -2 * c, 1 - al * A], [1 + al / A, -2 * c, 1 - al / A]]; }
+    const t = 2 * Math.sqrt(A) * (s / 2 * Math.SQRT2);
+    return type === "low" ? [[A * ((A + 1) - (A - 1) * c + t), 2 * A * ((A - 1) - (A + 1) * c), A * ((A + 1) - (A - 1) * c - t)], [(A + 1) + (A - 1) * c + t, -2 * ((A - 1) + (A + 1) * c), (A + 1) + (A - 1) * c - t]]
+      : [[A * ((A + 1) + (A - 1) * c + t), -2 * A * ((A - 1) + (A + 1) * c), A * ((A + 1) + (A - 1) * c - t)], [(A + 1) - (A - 1) * c + t, 2 * ((A - 1) - (A + 1) * c), (A + 1) - (A - 1) * c - t]];
+  };
+  return db(bq("low", 100, EQ.gain(e[0]))) + db(bq("peak", EQ.freq(e[2]), EQ.gain(e[1]), .9)) + db(bq("high", 8000, EQ.gain(e[3])));
+}
+function eqApply() {
+  if (!actx || !fx.eqLow) return; const e = P.eq || EQ_DEFAULT;
+  fx.eqLow.gain.value = EQ.gain(e[0]); fx.eqMid.gain.value = EQ.gain(e[1]); fx.eqMid.frequency.value = EQ.freq(e[2]); fx.eqHigh.gain.value = EQ.gain(e[3]);
+}
 function compReduction(inDb, thr, ratio) { // by how many dB a level is brought down (0 or less), with a soft knee of 6 dB
   const over = inDb - thr, K = 6;
   const out = 2 * over < -K ? inDb : 2 * Math.abs(over) <= K ? inDb + (1 / ratio - 1) * (over + K / 2) ** 2 / (2 * K) : thr + over / ratio;
@@ -389,6 +408,7 @@ function compApply() {
 function mixPage(p) { MIX.page = p; UI.grabbed = false; if (UI.focus.k === "value" && UI.focus.i >= 4 && UI.focus.i - 4 >= mixPageValues()) UI.focus = { k: "value", i: 4 }; }
 function mixPageKnob(k, delta) {
   if (k < 4) { mixKnob(MIX.group * 4 + k, delta); return; }
+  const j = eqIndex(k); if (j >= 0) { eqAccum[j] += delta / 800 * 255; const w = Math.trunc(eqAccum[j]); eqAccum[j] -= w; if (w) { P.eq[j] = clamp(P.eq[j] + w, 0, 255); eqApply(); } return; }
   const i = compIndex(k); if (i < 0) return;
   compAccum[i] += delta / 800 * 255; const w = Math.trunc(compAccum[i]); compAccum[i] -= w;
   if (w) { P.comp[i] = clamp(P.comp[i] + w, 0, 255); compApply(); }
@@ -403,7 +423,7 @@ function compMeter() { // how loud it is going in and how far it is being brough
 // ---- project (same demo set as op8 sim) ----
 function demoProject() {
   const tracks = Array.from({ length: 8 }, () => ensureTrack({ steps: Array.from({ length: 16 }, () => newStep()), length: 16, div: 2, link: false, muted: false }));
-  const p = { tracks, bpm: 122, swing: 0.54, seed: 0x35EED, comp: COMP_DEFAULT.slice(),
+  const p = { tracks, bpm: 122, swing: 0.54, seed: 0x35EED, comp: COMP_DEFAULT.slice(), eq: EQ_DEFAULT.slice(),
     brain: { key: 0, scale: 0, mode: 1, len: 4, live: null,
       prog: [0,5,3,4,0,0,0,0].map(d => ({ degree: d, kind: "triad", length: 16 })) } };
   for (const s of [0,4,8,12]) tracks[1].steps[s] = newStep(true, 36);
@@ -513,8 +533,11 @@ function initAudio() {
   // the compressor of the master (MIXER) sits after the performance effects: the sound as it was and the compressed one, in the mix the project says
   fx.mcDry = actx.createGain(); fx.mcComp = actx.createDynamicsCompressor(); fx.mcComp.knee.value = 6; fx.mcMake = actx.createGain(); fx.mcWet = actx.createGain(); fx.mcAn = actx.createAnalyser(); fx.mcAn.fftSize = 1024;
   master.connect(fx.strip).connect(fx.punch).connect(fx.crush).connect(fx.gate).connect(fx.kill);
-  fx.kill.connect(fx.mcDry).connect(fx.limiter); fx.kill.connect(fx.mcComp).connect(fx.mcMake).connect(fx.mcWet).connect(fx.limiter); fx.kill.connect(fx.mcAn); fx.limiter.connect(dest);
-  compApply();
+  // the EQ comes first, then the compressor (the dry and the compressed sound, mixed)
+  fx.eqLow = actx.createBiquadFilter(); fx.eqLow.type = "lowshelf"; fx.eqLow.frequency.value = 100; fx.eqMid = actx.createBiquadFilter(); fx.eqMid.type = "peaking"; fx.eqMid.Q.value = .9; fx.eqHigh = actx.createBiquadFilter(); fx.eqHigh.type = "highshelf"; fx.eqHigh.frequency.value = 8000;
+  fx.kill.connect(fx.eqLow).connect(fx.eqMid).connect(fx.eqHigh);
+  fx.eqHigh.connect(fx.mcDry).connect(fx.limiter); fx.eqHigh.connect(fx.mcComp).connect(fx.mcMake).connect(fx.mcWet).connect(fx.limiter); fx.eqHigh.connect(fx.mcAn); fx.limiter.connect(dest);
+  compApply(); eqApply();
   fx.kill.connect(fx.echoSend).connect(fx.delay); fx.delay.connect(fx.fb).connect(fx.delay); fx.delay.connect(fx.limiter);
   for (let t = 0; t < 8; t++) {
     const g = actx.createGain(); g.gain.value = 0.8;
@@ -1492,7 +1515,7 @@ function mixFooter(g, first) {
     txt(g, String.fromCharCode(65 + i), cx - 34, 248, "l", TRACK_COLORS[i], "center", "middle"); txt(g, v, cx - 18, 248, "l", FG, "left", "middle");
   }
 }
-function loadProject(src) { const q = JSON.parse(JSON.stringify(src)); P.tracks = q.tracks.map(ensureTrack); P.bpm = q.bpm; P.swing = q.swing; P.brain = q.brain; P.comp = q.comp ? q.comp.slice() : COMP_DEFAULT.slice(); if (actx) { for (let t = 0; t < 8; t++) { fxApply(t, true); mixApply(t); } compApply(); } }
+function loadProject(src) { const q = JSON.parse(JSON.stringify(src)); P.tracks = q.tracks.map(ensureTrack); P.bpm = q.bpm; P.swing = q.swing; P.brain = q.brain; P.comp = q.comp ? q.comp.slice() : COMP_DEFAULT.slice(); P.eq = q.eq ? q.eq.slice() : EQ_DEFAULT.slice(); if (actx) { for (let t = 0; t < 8; t++) { fxApply(t, true); mixApply(t); } compApply(); eqApply(); } }
 function filePad(pad) {
   const slot = padToStep(pad); UI.fileLast = slot;
   if (UI.erase) { const k = userKey(slot - 7); UI.fileNote = erasePlace(slot, slot >= 8 && !!localStorage.getItem(k), slot >= 8 ? getName(k, slot - 7) : "", k, "project")[0]; return; }
@@ -1782,9 +1805,25 @@ function mixerLeft(g) {
   }
   navRing(g, 0);
 }
+function eqRight(g) { // the page `eq`: the curve of the three bands across the screen, the dots where they are set, the four values under it
+  const e = P.eq, [x0, y0, w, h] = [30, 52, 420, 130], lo = Math.log(20), hi = Math.log(20000);
+  const fx_ = hz => x0 + w * Math.min(1, Math.max(0, (Math.log(hz) - lo) / (hi - lo))), gy = db => y0 + h / 2 - h / 2 * Math.min(1, Math.max(-1, db / 15));
+  buttonStrip(g, [["comp", false], ["output", false], ["eq", true], ["", false]]);
+  settingsBar(g, "eq", 37);
+  rrect(g, x0, y0, w, h, 6, PANEL); line(g, x0, gy(0), x0 + w, gy(0), FAINT, 1);
+  for (const [hz, l] of [[100, "100"], [1000, "1k"], [10000, "10k"]]) { line(g, fx_(hz), y0 + 4, fx_(hz), y0 + h - 4, FAINT, 1); txt(g, l, fx_(hz), y0 + h + 10, "s", DIM, "center", "middle"); }
+  let prev = [x0, gy(eqResponse(e, 20))]; for (let k = 1; k <= 84; k++) { const hz = Math.exp(lo + (hi - lo) * k / 84), now = [fx_(hz), gy(eqResponse(e, hz))]; line(g, prev[0], prev[1], now[0], now[1], FG, 2); prev = now; }
+  dot(g, fx_(100), gy(EQ.gain(e[0])), 5, KC[4]); dot(g, fx_(EQ.freq(e[2])), gy(EQ.gain(e[1])), 5, KC[5]); dot(g, fx_(8000), gy(EQ.gain(e[3])), 5, KC[7]);
+  line(g, fx_(EQ.freq(e[2])), y0 + h - 6, fx_(EQ.freq(e[2])), y0 + h + 2, KC[6], 2);
+  if (EQ.gain(e[0]) === 0 && EQ.gain(e[1]) === 0 && EQ.gain(e[3]) === 0) txt(g, "flat: it does nothing yet", 240, y0 + h + 28, "s", DIM, "center", "middle");
+  const db = v => (EQ.gain(v) >= 0 ? "+" : "") + EQ.gain(v).toFixed(0) + " dB", hz = EQ.freq(e[2]);
+  [["low", db(e[0])], ["mid", db(e[1])], ["freq", hz >= 1000 ? (hz / 1000).toFixed(1) + " kHz" : hz.toFixed(0) + " Hz"], ["high", db(e[3])]].forEach(([n, v], i) => { txt(g, n, 60 + i * 120, 236, "s", DIM, "center", "middle"); txt(g, v, 60 + i * 120, 254, "m", KC[4 + i], "center", "middle"); });
+  navRing(g, 1);
+}
 function mixerRight(g) {
   fill(g, 0, 0, 480, 272, BG);
-  buttonStrip(g, [["comp", MIX.page === 0], ["output", MIX.page === 1], ["", false], ["", false]]);
+  if (MIX.page === 2) { eqRight(g); return; }
+  buttonStrip(g, [["comp", MIX.page === 0], ["output", MIX.page === 1], ["eq", false], ["", false]]);
   settingsBar(g, "compressor", 37);
   const c = P.comp, [x0, y0, side] = [30, 52, 150], FLOOR = -48, fr = db => Math.min(1, Math.max(0, (db - FLOOR) / -FLOOR));
   const at = (i, o) => [x0 + side * fr(i), y0 + side * (1 - fr(o))];
@@ -2461,7 +2500,7 @@ $("sb3").addEventListener("click", () => { if (UI.main === "settings") settingsP
 $("sb4").addEventListener("click", () => { if (UI.main === "settings") settingsPage(3); else openLeft("bar"); });
 $("sb5").addEventListener("click", () => { if (UI.main === "instrument") UI.page = 0; else if (UI.main === "mixer") mixPage(0); });
 $("sb6").addEventListener("click", () => { if (UI.main === "instrument") UI.page = 1; else if (UI.main === "mixer") mixPage(1); });
-$("sb7").addEventListener("click", () => { if (UI.main === "instrument") UI.page = 2; });
+$("sb7").addEventListener("click", () => { if (UI.main === "instrument") UI.page = 2; else if (UI.main === "mixer") mixPage(2); });
 $("sb8").addEventListener("click", () => { if (UI.main === "instrument") UI.page = 3; });
 $("jogL").addEventListener("click", () => jog(-1));
 $("jogR").addEventListener("click", () => jog(1));
@@ -2530,7 +2569,7 @@ function updateLeds() {
     sb1: composing ? (UI.mode === "step" && UI.inspect == null && UI.leftPage === "steps" ? 2 : 1) : UI.main === "settings" ? (SET.page === 0 ? 2 : 1) : UI.main === "mixer" ? (MIX.group === 0 ? 2 : 1) : 0, sb2: composing ? (UI.inspect != null ? 2 : 1) : UI.main === "settings" ? (SET.page === 1 ? 2 : 1) : UI.main === "mixer" ? (MIX.group === 1 ? 2 : 1) : 0,
     sb3: composing ? (stepsOpen && UI.leftPage === "players" ? 2 : 1) : UI.main === "settings" ? (SET.page === 2 ? 2 : 1) : 0, sb4: composing ? (stepsOpen && UI.leftPage === "bar" ? 2 : 1) : UI.main === "settings" ? (SET.page === 3 ? 2 : 1) : 0,
     sb5: composing ? (rp === 0 ? 2 : 1) : UI.main === "mixer" ? (MIX.page === 0 ? 2 : 1) : 0, sb6: composing && second ? (rp === 1 ? 2 : 1) : UI.main === "mixer" ? (MIX.page === 1 ? 2 : 1) : 0,
-    sb7: composing ? (rp === 2 ? 2 : 1) : 0, sb8: composing ? (rp === 3 ? 2 : 1) : 0,
+    sb7: composing ? (rp === 2 ? 2 : 1) : UI.main === "mixer" ? (MIX.page === 2 ? 2 : 1) : 0, sb8: composing ? (rp === 3 ? 2 : 1) : 0,
   };
   for (const id in L) { const e = $(id); if (!e) continue; e.classList.toggle("avail", L[id] === 1); e.classList.toggle("on", L[id] === 2); e.classList.remove("lit"); }
   knobEls.forEach((k, i) => k.classList.toggle("touched", UI.touch[i]));

@@ -141,6 +141,42 @@ impl MasterComp {
     }
 }
 
+/// The EQ on the master: the gain of the low and high shelves, the gain and the frequency of the middle band, each 0..=255 of its own
+/// range (what they mean is `op8-engine`'s `eq.rs`). Saved with the project. 128 is no gain at all (and the middle of the frequency), so
+/// the defaults do nothing.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct MasterEq {
+    pub low: u8,
+    pub mid: u8,
+    pub freq: u8,
+    pub high: u8,
+}
+
+/// How many settings the master EQ has.
+pub const EQ_PARAMS: usize = 4;
+
+impl Default for MasterEq {
+    fn default() -> Self {
+        Self { low: 128, mid: 128, freq: 128, high: 128 }
+    }
+}
+
+impl MasterEq {
+    /// Setting `i` (low, mid, freq, high), 0..=255.
+    pub fn get(&self, i: usize) -> u8 {
+        [self.low, self.mid, self.freq, self.high].get(i).copied().unwrap_or(0)
+    }
+    pub fn set(&mut self, i: usize, v: u8) {
+        match i {
+            0 => self.low = v,
+            1 => self.mid = v,
+            2 => self.freq = v,
+            3 => self.high = v,
+            _ => {}
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Project {
     pub tracks: [Track; TRACKS],
@@ -152,6 +188,8 @@ pub struct Project {
     pub seed: u64,
     /// The compressor on the master.
     pub comp: MasterComp,
+    /// The EQ on the master.
+    pub eq: MasterEq,
 }
 
 impl Default for Project {
@@ -163,6 +201,7 @@ impl Default for Project {
             swing: 0.5,
             seed: 0x0003_5EED,
             comp: MasterComp::default(),
+            eq: MasterEq::default(),
         }
     }
 }
@@ -258,6 +297,11 @@ pub enum Command {
     SetLevel {
         track: u8,
         level: u8,
+    },
+    /// One setting of the master EQ (`MasterEq::set`).
+    SetMasterEq {
+        index: u8,
+        value: u8,
     },
     /// One setting of the master compressor (`MasterComp::set`).
     SetMasterComp {
@@ -426,6 +470,7 @@ impl Project {
                 }
             }
             SetMasterComp { index, value } => self.comp.set(index as usize, value),
+            SetMasterEq { index, value } => self.eq.set(index as usize, value),
             SetLevel { track, level } => {
                 if let Some(t) = self.tracks.get_mut(track as usize) {
                     t.level = level.min(127);
