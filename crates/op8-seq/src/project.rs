@@ -515,6 +515,9 @@ pub enum Command {
     InsertSongStep { index: u8, scene: u8, bars: u8 },
     /// Make the sequencer follow the song, or not.
     SetSongOn(bool),
+    /// Show pattern `index` of a track (what is shown moves to the one that plays) without asking the sequencer to play it: it changes nothing of
+    /// what plays. The song's followers use it to keep the view on what sounds.
+    ShowPattern { track: u8, index: u8 },
 }
 
 impl Project {
@@ -546,7 +549,7 @@ impl Project {
     pub fn apply(&mut self, cmd: &Command) {
         use Command::*;
         match *cmd {
-            SetPattern { track, index, .. } => {
+            SetPattern { track, index, .. } | ShowPattern { track, index } => {
                 let (t, i) = (track as usize, index as usize);
                 if t < TRACKS && i < PATTERNS && i != self.current[t] as usize {
                     // what is shown goes to its place, and the one asked for comes out of its own

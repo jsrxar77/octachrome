@@ -1028,6 +1028,8 @@ function updateVisual() {
     P.tracks.forEach((tr0, t) => { const tr = patView(t, S.play[t]); S.playhead[t] = Math.floor(Math.max(0, v.eff - S.origin[t]) / DIVS[tr.div][1]) % tr.length; });
     S.chordSlot = v.slot; S.chord = v.chord; S.eff = v.eff;
   }
+  // what is shown follows what plays while the song goes (Controller::tick): each track shows the pattern it plays
+  if (S.songPos != null) P.tracks.forEach((tr, t) => { if (S.play[t] !== tr.cur) patSwitch(t, S.play[t]); });
 }
 
 // ======================= Punch-in FX =======================
@@ -1959,12 +1961,20 @@ function patternPad(pad) {
 function patternPadUp(pad) {
   if (UI.main !== "pattern" || patHeld == null || patHeld.pad !== pad) return;
   const h = patHeld; patHeld = null; if (h.copied) return;
+  if (S.playing && S.songPos != null) { UI.patNote = "the song decides what plays: stop it, or turn song off (ARRANGER, knob 7)"; return; }
   const slot = padToStep(pad); patPick(UI.track, slot, UI.shift); UI.patNote = `pattern ${slot + 1}${UI.shift ? " plays now" : ": from the next loop"}`; UI.focus = { k: "cell", i: slot };
 }
 function patternLeft(g) {
   const t = UI.track, cells = Array.from({ length: 16 }, (_, i) => [String(i + 1), !patIsEmpty(patGet(t, i))]);
   pickLeft("patterns · " + "ABCDEFGH"[t], cells, P.tracks[t].cur, false)(g);
-  const pl = S.play[t]; if (S.playing && pl !== P.tracks[t].cur) { const x = 12 + (pl % 4) * 114, y = 44 + Math.floor(pl / 4) * 48; g.fillStyle = FG; g.beginPath(); g.moveTo(x + 90, y + 8); g.lineTo(x + 100, y + 14); g.lineTo(x + 90, y + 20); g.fill(); }
+  const pl = S.play[t];
+  if (S.playing) {
+    const x = 12 + (pl % 4) * 114, y = 44 + Math.floor(pl / 4) * 48; g.fillStyle = FG;
+    if (pl !== P.tracks[t].cur) { g.beginPath(); g.moveTo(x + 90, y + 8); g.lineTo(x + 100, y + 14); g.lineTo(x + 90, y + 20); g.fill(); }
+    // where the pattern that plays is in its loop: a bar along the bottom of its cell
+    const len = Math.max(1, patGet(t, pl).length), done = Math.min(1, ((S.playhead[t] || 0) + 1) / len);
+    g.fillRect(x + 8, y + 33, 92 * done, 4);
+  }
 }
 function patternRight(g) {
   fill(g, 0, 0, 480, 272, BG); dot(g, 16, 15, 6, FG); txt(g, "patterns · " + "ABCDEFGH"[UI.track], 30, 6, "mid", FG);

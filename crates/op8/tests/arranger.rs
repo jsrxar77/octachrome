@@ -72,7 +72,22 @@ fn f_k27_a_followed_song_plays_the_scenes() {
     b.press(Button::Play);
     b.run_ms(300);
     assert_eq!(b.status().song_step.load(Relaxed), 0);
-    assert_eq!(b.status().pattern[1].load(Relaxed), 1, "the song says pattern 2 although pattern 1 is the one shown");
+    assert_eq!(b.status().pattern[1].load(Relaxed), 1, "the song says pattern 2 although pattern 1 was the one shown");
+    // what is shown follows what plays, by itself
+    assert_eq!(b.project().current[1], 1, "the view moved to pattern 2");
+    b.press(Button::Group(1));
+    b.press(Button::Pattern);
+    b.run_ms(300);
+    b.capture("f-k27-song-follows");
+    assert!(b.leds().pad(pad_of(1)) & 3 == 3, "its pad is the brightest");
+    // a tap on another pattern while the song goes does nothing, and says why
+    b.tap(pad_of(5));
+    assert_eq!(b.project().current[1], 1);
+    assert!(b.ui().pattern_note.contains("the song decides"), "{}", b.ui().pattern_note);
+    // stopped, a tap works again
+    b.press(Button::Stop);
+    b.tap(pad_of(5));
+    assert_eq!(b.project().current[1], 5);
     let _ = Main::Arranger;
 }
 

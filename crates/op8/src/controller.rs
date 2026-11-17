@@ -1122,7 +1122,9 @@ impl Controller {
                 if let Some((first, copied)) = self.pattern_held {
                     if first == pad {
                         self.pattern_held = None;
-                        if was_down && !copied {
+                        if was_down && !copied && Self::song_plays(h) {
+                            self.ui.pattern_note = "the song decides what plays: stop it, or turn song off (ARRANGER, knob 7)".into();
+                        } else if was_down && !copied {
                             let now = self.held.shift;
                             h.seq(Command::SetPattern { track, index: slot, now });
                             self.ui.pattern_note = format!("pattern {}{}", slot + 1, if now { " plays now" } else { ": from the next loop" });
@@ -2428,8 +2430,23 @@ impl Controller {
 
     /// Once per UI frame: promote long holds to the inspector, age the
     /// activity LEDs.
+    /// A song is being followed while it plays.
+    fn song_plays(h: &EngineHandle) -> bool {
+        h.status.playing.load(Relaxed) && h.status.song_step.load(Relaxed) != 255
+    }
+
     pub fn tick(&mut self, h: &mut EngineHandle, now_ms: u64) {
         self.ui.master = h.master;
+        // What is shown follows what plays while the song goes: each track shows the pattern it is playing (it changes at the start of the
+        // track's own loop, so the steps, PATTERN and the lights move by themselves, section after section).
+        if Self::song_plays(h) {
+            for t in 0..TRACKS {
+                let now = h.status.pattern[t].load(Relaxed);
+                if now != h.project.current[t] {
+                    h.seq(Command::ShowPattern { track: t as u8, index: now });
+                }
+            }
+        }
         if self.ui.main == Main::Arranger {
             let s = &h.project.song;
             self.ui.arr.steps = s.steps[..s.len as usize].iter().map(|x| (x.scene, x.bars)).collect();
