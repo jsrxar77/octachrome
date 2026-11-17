@@ -662,6 +662,34 @@ fn recipe_21_slices_a_kit_made_of_a_sound() {
 
 // F-G04
 #[test]
+fn recipe_23_the_mixer_and_the_compressor() {
+    let _one_at_a_time = serial();
+    let mut b = Bench::demo();
+    b.press(Button::Play);
+    b.run_ms(1200);
+    b.press(Button::Mixer);
+    b.run_ms(200);
+    assert_eq!(b.ui().main, op8_ui::Main::Mixer);
+    b.knob(1, 120); // knob 2: the level of B
+    b.knob(2, -200); // knob 3: the level of C
+    b.run_ms(100);
+    b.capture("r23-mixer");
+    assert_eq!(b.project().comp, op8_seq::MasterComp::default());
+    b.knob(4, -500); // threshold
+    b.knob(5, 130); // ratio
+    b.run_ms(1500);
+    b.capture("r23-compressing");
+    assert!(b.project().comp.threshold < 120, "{}", b.project().comp.threshold);
+    assert!(b.ui().mixer.reduction < -1.0, "it is bringing the sound down: {}", b.ui().mixer.reduction);
+    b.press(Button::Screen(6));
+    b.knob(4, 200);
+    assert!(b.project().comp.makeup > 40);
+    b.press(Button::Mixer);
+    assert_eq!(b.ui().main, op8_ui::Main::Instrument);
+}
+
+// F-G04
+#[test]
 fn recipe_22_settings_audio_midi_and_light() {
     use op8::controller::{DeviceList, Request};
     use op8_ui::NavKind;

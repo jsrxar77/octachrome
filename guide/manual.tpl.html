@@ -4,7 +4,7 @@
 <link rel="icon" href="brand/op8-mark.svg" type="image/svg+xml">
 <link rel="stylesheet" href="site.css">
 <!--SOCIAL-->
-<meta name="description" content="The OP-8 manual: how the machine works, twenty-two recipes you can follow from the first minute, and every button.">
+<meta name="description" content="The OP-8 manual: how the machine works, twenty-three recipes you can follow from the first minute, and every button.">
 <style>
 @font-face{font-family:Jost;font-weight:300;src:url(fonts/Jost-Light.ttf)}
 @font-face{font-family:Jost;font-weight:400;src:url(fonts/Jost-Regular.ttf)}
@@ -75,7 +75,7 @@ h2.ref small{font-size:14px;color:var(--dim)}
 <!--HEADER-->
 <main id="main">
 <h1>Manual</h1>
-<p class="dim" style="font-size:22px;max-width:40ch;margin-top:14px">How OP-8 works, from the first minute. Eighteen recipes you can follow with the unit in front of you, and then every button.</p>
+<p class="dim" style="font-size:22px;max-width:40ch;margin-top:14px">How OP-8 works, from the first minute. Twenty-three recipes you can follow with the unit in front of you, and then every button.</p>
 
 <nav class="toc" aria-label="Contents">
   <a href="#map">The unit, part by part</a><a href="#welcome">What it is</a><a href="#unit">Five facts</a><a href="#pieces">Eight pieces</a><a href="#first">First ten minutes</a><a href="#recipes">Recipes</a><a href="#ideas">The ideas behind it</a><a href="#instruments">Instruments</a><a href="#reference">Every button</a><a href="#saved">Where things are kept</a><a href="#help">If something is odd</a><a href="#notyet">Not yet</a>
@@ -95,7 +95,7 @@ h2.ref small{font-size:14px;color:var(--dim)}
   <li><i style="border-color:var(--k5)">5</i><div><b>Group buttons A–H</b><span>Eight buttons, four and four: the eight tracks. Press one to choose the track you work on; the screens and pads follow it.</span></div></li>
   <li><i style="border-color:var(--k6)">6</i><div><b>Transport</b><span><kbd>PLAY</kbd>, <kbd>STOP</kbd>, <kbd>RESTART</kbd>, <kbd>REC</kbd>, <kbd>TAP</kbd>, <kbd>ERASE</kbd>, <kbd>SHIFT</kbd> (the second function of many buttons) and <kbd>FOLLOW</kbd>.</span></div></li>
   <li><i style="border-color:var(--k7)">7</i><div><b>Mode buttons</b><span>Above the pads: <kbd>STEP</kbd>, <kbd>CHORDS</kbd>, <kbd>KEYBOARD</kbd>, <kbd>PAD MODE</kbd> and <kbd>FIXED VEL</kbd>. They decide what the pads are.</span></div></li>
-  <li><i style="border-color:var(--k1)">8</i><div><b>Main-mode buttons</b><span>The block at the top left: <kbd>CHANNEL</kbd> (composing), <kbd>PLUG-IN</kbd>, <kbd>BROWSER</kbd>, <kbd>SAMPLING</kbd>, <kbd>FILE</kbd>, <kbd>SETTINGS</kbd> and the ones still to come (<kbd>ARRANGER</kbd>, <kbd>MIXER</kbd>, <kbd>AUTO</kbd>, <kbd>MACRO</kbd>, <kbd>PAGE</kbd>). Several take both screens.</span></div></li>
+  <li><i style="border-color:var(--k1)">8</i><div><b>Main-mode buttons</b><span>The block at the top left: <kbd>CHANNEL</kbd> (composing), <kbd>PLUG-IN</kbd>, <kbd>BROWSER</kbd>, <kbd>SAMPLING</kbd>, <kbd>FILE</kbd>, <kbd>SETTINGS</kbd>, <kbd>MIXER</kbd> (recipe 23) and the ones still to come (<kbd>ARRANGER</kbd>, <kbd>AUTO</kbd>, <kbd>MACRO</kbd>, <kbd>PAGE</kbd>). Several take both screens.</span></div></li>
   <li><i style="border-color:var(--k2)">9</i><div><b>The 4D encoder</b><span>The wheel that moves you around: <b>turn</b> it to move the ring (the <b>focus</b>) from one thing to the next on the screens, its <b>arrows</b> to move across, and <b>push</b> it to choose what the ring is on. Hold <kbd>TEMPO</kbd>, <kbd>SWING</kbd> or <kbd>VOLUME</kbd> and turn it to change those. Recipe 18.</span></div></li>
   <li><i style="border-color:var(--k3)">10</i><div><b>The Smart Strip</b><span>Touch it for the master filter: the left half closes it, the right half thins it.</span></div></li>
   <li><i style="border-color:var(--k4)">11</i><div><b>Volume, swing and tempo</b><span><kbd>VOLUME</kbd>, <kbd>SWING</kbd> and <kbd>TEMPO</kbd>: hold one and turn the 4D encoder. Hold <kbd>VOLUME</kbd> and turn the <i>knobs</i> for the mix of each track (recipe 19). <kbd>NOTE REPEAT</kbd> and <kbd>LOCK</kbd> are here too.</span></div></li>
@@ -521,6 +521,23 @@ __PIECE_ROWS__
   <p class="next"><b>Try next:</b> plug a second sound card in and choose it as the output; or turn the screen down to 50 % and the pads to 2 for a dark room.</p>
 </div>
 
+<div class="recipe" id="r23">
+  <h3>23 <span>THE MIXER AND THE COMPRESSOR</span></h3>
+  <p class="goal">Set the level and pan of every track in one place, and glue the whole mix together with a compressor on the master.</p>
+  <ol class="steps">
+    <li><div>Press <kbd>MIXER</kbd> (it lights). The <b>left screen</b> shows four channels, one in each of the columns of the knobs under it: the letter of the track in its colour, a <b>fader</b> that shows its level, a small line with a dot for its <b>pan</b>, and the level as a percentage. The buttons <kbd>1</kbd> and <kbd>2</kbd> choose which four: <b>a–d</b> or <b>e–h</b>.</div></li>
+    <li><div>Turn the <b>knobs 1 to 4</b>: they are the levels of the four channels you see. Hold <kbd>SHIFT</kbd> and the numbers under the screen say <b>pan</b> and the knobs turn the pans. (Holding <kbd>VOLUME</kbd> still gives you all eight tracks at once, recipe 19.)</div></li>
+    <li><div>The <b>right screen</b> is the <b>compressor</b> of the master, the last thing the sound goes through before the volume. It does nothing to begin with. The picture is a <b>curve</b>: what goes in across, what comes out up, with the straight line of a sound that is left alone behind it. A mark under the curve is the <b>threshold</b>, a dot on the curve is where the sound is right now, and the bar on the right says how many decibels it is being <b>brought down</b>.</div></li>
+    <li><div>Turn <b>knob 5, threshold</b>, down: the curve bends at that level, and everything louder is held back. <b>Knob 6, ratio</b>, is how hard (2:1 is gentle, 10:1 and more is a limiter). <b>Knob 7, attack</b>, is how fast it takes hold (a slow one lets the hit of a drum through), and <b>knob 8, release</b>, how fast it lets go.</div></li>
+    <li><div>Press <kbd>6</kbd> (<b>output</b>) for the other page: <b>make-up</b> gives back the level the compressor took (up to +24 dB), and <b>mix</b> blends the compressed sound with the original: half and half is the <i>parallel</i> compression that keeps the punch.</div></li>
+    <li><div>The 4D encoder reaches the same things: turn it to put the frame on a value, push to grab it, turn to change it, push to let go. <kbd>MIXER</kbd> again goes back to composing. The compressor is saved with the project.</div></li>
+  </ol>
+  <figure><div class="pair"><img src="img/r23-mixer-left.png" alt="The mixer: four channels."><img src="img/r23-mixer-right.png" alt="The compressor of the master, still doing nothing."></div><figcaption>Left: the channels A to D. Right: the compressor at its start, doing nothing.</figcaption></figure>
+  <figure><div class="pair one"><img src="img/r23-compressing-right.png" alt="The compressor at work."></div><figcaption>With the threshold low: the curve bends, the dot sits on it and the bar says how much it is bringing down.</figcaption></figure>
+  <p class="next"><b>Try next:</b> play the demo, put the threshold at about −20 dB with a ratio of 4:1 and a slow attack, add a little make-up, and press <kbd>MIXER</kbd> to compare; then put the mix at half.</p>
+</div>
+
+
 <h2 id="ideas">The ideas behind it</h2>
 <p class="sub">Short, so you can keep them in your head.</p>
 
@@ -622,7 +639,7 @@ __PRESET_ROWS__
   <li><b>Undo.</b> Save with <kbd>FILE</kbd> before something bold.</li>
   <li><b>Patterns, scenes and a song.</b> A project is one pattern for now. <kbd>PATTERN</kbd>, <kbd>SCENE</kbd> and <kbd>ARRANGER</kbd> are planned.</li>
   <li><b>More of sampling.</b> <kbd>SAMPLING</kbd> records mono, up to ten seconds; the slices can be equal parts or cut where the sound hits (recipe 21).</li>
-  <li><b>More of the mixer.</b> Level and pan of each track are there (recipe 19). A master compressor, sends and a page of its own for the <kbd>MIXER</kbd> button are planned.</li>
+  <li><b>More of the mixer.</b> Level and pan of each track and a compressor on the master are there (recipes 19 and 23). A master EQ and sends are planned.</li>
   <li><b>Recording chords and knob movements.</b> <kbd>REC</kbd> writes notes and drum hits. Automation (<kbd>AUTO</kbd>) and a count-in for it are planned (<kbd>SAMPLING</kbd> already has one, recipe 16). The LFO of button <kbd>8</kbd> already moves knobs by itself.</li>
   <li><b>MIDI in.</b> OP-8 sends MIDI clock (recipe 22) but does not follow an outside clock or play from an outside keyboard yet, and it sends no song position.</li>
   <li><b>Naming on the unit.</b> What you save is named by the day (a project also by its tempo), and you can rename it by editing the small <code>.name</code> file next to it (recipe 12). Typing a name on the unit itself is planned. The presets that come with the instruments are a first set and will be tuned on the unit.</li>

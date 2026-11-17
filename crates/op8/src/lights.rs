@@ -59,6 +59,7 @@ pub fn light(ui: &UiState, c: &Context, b: Button) -> Light {
         // Going back to composing, or into settings
         ChannelMidi => state(composing),
         Settings => state(ui.main == Main::Settings),
+        Mixer => state(ui.main == Main::Mixer),
         File => state(ui.main == Main::File),
         PlugIn => state(ui.main == Main::Plugin),
         Sampling => state(ui.main == Main::Sampling),

@@ -14,6 +14,7 @@
 //! handle for drawing — kept identical by applying the same `Command`s to
 //! both. Nothing on the audio path allocates or takes a contended lock.
 
+pub mod comp;
 mod engine;
 pub mod fx;
 mod status;

@@ -12,7 +12,8 @@ use crate::{
 
 /// Version 2 adds the players, the effect and the LFO of each track; a version 1 file still opens (those are then off).
 /// Version 3 adds the level and the pan of each track; an older file still opens (the tracks are then at the default level, centred).
-pub const VERSION: u8 = 3;
+/// Version 4 adds the master compressor after the tracks; an older file still opens (it is then at its defaults, which do nothing).
+pub const VERSION: u8 = 4;
 
 struct W(Vec<u8>);
 impl W {
@@ -168,6 +169,9 @@ pub fn encode(p: &Project) -> Vec<u8> {
             }
         }
     }
+    for i in 0..crate::COMP_PARAMS {
+        w.u8(p.comp.get(i));
+    }
     w.0
 }
 
@@ -244,12 +248,26 @@ pub fn decode(data: &[u8]) -> Option<Project> {
         }
         *t = tr;
     }
+    if version >= 4 {
+        for i in 0..crate::COMP_PARAMS {
+            let v = r.u8()?;
+            p.comp.set(i, v);
+        }
+    }
     Some(p)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The bytes of a version 3 file for `p`: the current ones without the compressor at the end.
+    fn as_version_3(p: &Project) -> Vec<u8> {
+        let mut v = encode(p);
+        v.truncate(v.len() - crate::COMP_PARAMS);
+        v[0] = 3;
+        v
+    }
 
     // F-F01
     #[test]
@@ -274,6 +292,7 @@ mod tests {
         p.tracks[1].lfo = Lfo { shape: LfoShape::Saw, rate: 33, depth: 250, target: 4 };
         p.tracks[2].level = 31;
         p.tracks[2].pan = 120;
+        p.comp = crate::MasterComp { threshold: 90, ratio: 200, attack: 10, release: 250, makeup: 77, mix: 128 };
         let bytes = encode(&p);
         let q = decode(&bytes).expect("decodes");
         assert_eq!(q, p);
@@ -285,7 +304,7 @@ mod tests {
         let mut p = Project::default();
         p.bpm = 101.0;
         p.tracks[3].steps[2] = Step::on(50);
-        let v3 = encode(&p);
+        let v3 = as_version_3(&p);
         // no components in this project, so each track is 3 header bytes, 14 extras (version 2's 12 and the level and pan) and 16 steps of 6 bytes
         let head = v3.len() - TRACKS * (3 + 14 + MAX_STEPS * 6);
         let mut v1 = v3[..head].to_vec();
@@ -304,7 +323,7 @@ mod tests {
         let mut p = Project::default();
         p.tracks[3].steps[2] = Step::on(50);
         p.tracks[4].lfo = Lfo { shape: LfoShape::Saw, rate: 33, depth: 250, target: 4 };
-        let v3 = encode(&p);
+        let v3 = as_version_3(&p);
         let per_track = 3 + 14 + MAX_STEPS * 6;
         let head = v3.len() - TRACKS * per_track;
         let mut v2 = v3[..head].to_vec();
@@ -315,6 +334,16 @@ mod tests {
             v2.extend_from_slice(&v3[at + 17..at + per_track]); // not the level and the pan
         }
         assert_eq!(decode(&v2).expect("a version 2 file opens"), p, "the mix is at its defaults, as the project made it");
+    }
+
+    // F-F01
+    #[test]
+    fn a_version_3_file_still_opens_with_the_compressor_doing_nothing() {
+        let mut p = Project::default();
+        p.tracks[1].level = 40;
+        let q = decode(&as_version_3(&p)).expect("a version 3 file opens");
+        assert_eq!(q, p);
+        assert_eq!(q.comp, crate::MasterComp::default());
     }
 
     // F-F01

@@ -18,6 +18,7 @@
 mod anim;
 mod files;
 mod left;
+mod mixer;
 mod nav;
 mod pages;
 mod right;
@@ -27,6 +28,7 @@ mod theme;
 
 pub use anim::{animate, Anim};
 pub use left::{comp_glyph, draw_left, left_footer};
+pub use mixer::{comp_index as mixer_comp_index, page_values as mixer_page_values, MixerView};
 pub use settings::SettingsView;
 pub use nav::{focused as nav_focused, index as nav_index, items as nav_items, move_dir as nav_move_dir, punch_slot as nav_punch_slot, step as nav_step, NavItem, NavKind};
 pub use pages::{fx_footer, lfo_footer};
@@ -53,6 +55,8 @@ pub enum Main {
     Sampling,
     /// The presets of the selected track's instrument (BROWSER): both screens.
     Browser,
+    /// The mix (MIXER): four channels on the left, the compressor of the master on the right.
+    Mixer,
 }
 
 /// What the left screen shows when the step view is open: the steps, or one of the two pages of buttons 3 and 4.
@@ -117,6 +121,8 @@ pub struct UiState {
     pub comp_count: usize,
     /// What the pages of settings show and keep (see `settings.rs`).
     pub settings: SettingsView,
+    /// What the mixer shows (see `mixer.rs`).
+    pub mixer: MixerView,
     pub knob_touch: [bool; 8],
     /// Right screen page: 0 = sound, 1 = shape (the second page of the instrument), 2 = fx, 3 = mod.
     pub right_page: usize,
@@ -217,6 +223,9 @@ pub fn screen_buttons(ui: &UiState) -> [Option<(&'static str, bool)>; 8] {
             b[i] = Some((name, ui.settings.page as usize == i));
         }
         return b;
+    }
+    if ui.main == Main::Mixer {
+        return mixer::buttons(&ui.mixer);
     }
     if ui.main != Main::Instrument {
         return b;

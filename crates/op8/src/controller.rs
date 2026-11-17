@@ -149,6 +149,8 @@ pub struct Controller {
     pub presets_dir: Option<std::path::PathBuf>,
     /// How many samples of the take the drawing of its wave was made from.
     smp_drawn: usize,
+    /// The fractions of a step the compressor's knobs have turned and not yet applied.
+    comp_accum: [f32; op8_seq::COMP_PARAMS],
     /// SAMPLING: the count-in that is going before a recording starts.
     countin: Option<CountIn>,
     /// When the last taps of TAP were, to work out a tempo.
@@ -251,6 +253,7 @@ impl Controller {
             ControlEvent::Pad { pad, event } if self.ui.main == Main::Sampling => self.sampling_pad(pad, event, h),
             ControlEvent::Pad { pad, event } if self.ui.main == Main::Browser => self.browser_pad(pad, event, h),
             ControlEvent::Knob { index, delta } if self.ui.main == Main::Sampling => self.sampling_knob(index as usize, delta, h),
+            ControlEvent::Knob { index, delta } if self.ui.main == Main::Mixer => self.mixer_page_knob(index as usize, delta, h),
             ControlEvent::Pad { .. } | ControlEvent::Knob { .. } if self.ui.main != Main::Instrument => {}
             ControlEvent::Encoder { delta } if self.ui.main == Main::Settings && self.ui.settings.page == 0 => {
                 self.step_theme(delta)
@@ -383,6 +386,11 @@ impl Controller {
                 };
                 self.set_main(to, h);
             }
+            // MIXER toggles the mixer view (both screens), the way SETTINGS toggles its own
+            Button::Mixer => {
+                let to = if self.ui.main == Main::Mixer { Main::Instrument } else { Main::Mixer };
+                self.set_main(to, h);
+            }
             Button::Rec if self.ui.main == Main::Instrument => self.ui.rec = !self.ui.rec,
             Button::Rec if self.ui.main == Main::Sampling => self.toggle_record(h),
             Button::Tap if self.ui.main == Main::Sampling => {
@@ -425,6 +433,18 @@ impl Controller {
             // Screen buttons: 1 = step view, 2 = components of the first step, 5 = sound, 6 = shape.
             // the four pages of settings are the buttons over the left screen
             Button::Screen(n @ 1..=4) if self.ui.main == Main::Settings => self.set_settings_page(n - 1),
+            // in the mixer: 1 and 2 choose the four channels on the left, 5 and 6 the page of the compressor on the right
+            Button::Screen(n @ (1 | 2)) if self.ui.main == Main::Mixer => self.ui.mixer.group = n - 1,
+            Button::Screen(n @ (5 | 6)) if self.ui.main == Main::Mixer => {
+                self.ui.mixer.page = n - 5;
+                self.ui.grabbed = false;
+                // the focus is not left on a value the new page does not have
+                if let NavKind::Value(k) = self.ui.focus {
+                    if k >= 4 && (k as usize - 4) >= op8_ui::mixer_page_values(self.ui.mixer.page) {
+                        self.ui.focus = NavKind::Value(4);
+                    }
+                }
+            }
             Button::Screen(1) if self.ui.main == Main::Instrument => self.set_mode(Mode::Step, h),
             Button::Screen(3) if self.ui.main == Main::Instrument => self.open_left(LeftPage::Players, h),
             Button::Screen(4) if self.ui.main == Main::Instrument => self.open_left(LeftPage::Bar, h),
@@ -503,6 +523,8 @@ impl Controller {
             if let NavKind::Value(k) = self.ui.focus {
                 if self.ui.main == Main::Sampling {
                     self.sampling_knob(k as usize, delta * DETENT, h);
+                } else if self.ui.main == Main::Mixer {
+                    self.mixer_page_knob(k as usize, delta * DETENT, h);
                 } else {
                     self.knob(k as usize, delta * DETENT, h, self.now);
                 }
@@ -1683,6 +1705,24 @@ impl Controller {
         }
     }
 
+    /// The knobs in MIXER: the four under the left screen are the levels of the four channels that are shown (with SHIFT their pans),
+    /// the four under the right screen are the values of the compressor's page.
+    fn mixer_page_knob(&mut self, k: usize, delta: i32, h: &mut EngineHandle) {
+        if k < 4 {
+            self.mixer_knob(self.ui.mixer.group as usize * 4 + k, delta, h);
+        } else if let Some(i) = op8_ui::mixer_comp_index(self.ui.mixer.page, k) {
+            // a sweep of the knob (800) is the whole range of 255
+            let d = delta as f32 / SWEEP * 255.0;
+            self.comp_accum[i] += d;
+            let whole = self.comp_accum[i].trunc();
+            self.comp_accum[i] -= whole;
+            if whole != 0.0 {
+                let v = (h.project.comp.get(i) as f32 + whole).clamp(0.0, 255.0) as u8;
+                h.seq(Command::SetMasterComp { index: i as u8, value: v });
+            }
+        }
+    }
+
     fn detents(&mut self, k: usize, delta: i32) -> i32 {
         self.knob_accum[k] += delta;
         let n = self.knob_accum[k] / DETENT;
@@ -1862,6 +1902,12 @@ impl Controller {
     /// activity LEDs.
     pub fn tick(&mut self, h: &mut EngineHandle, now_ms: u64) {
         self.ui.master = h.master;
+        if self.ui.main == Main::Mixer {
+            let m = &mut self.ui.mixer;
+            m.comp = h.project.comp;
+            m.reduction = h.status.comp_reduction();
+            m.input = h.status.comp_input();
+        }
         if self.ui.main != Main::Sampling && self.countin.take().is_some() {
             self.ui.smp.counting = 0; // leaving SAMPLING cancels a count-in
         }
