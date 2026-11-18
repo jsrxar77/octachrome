@@ -23,7 +23,7 @@ jobs:
       - run: cargo clippy --workspace --all-targets
       - name: Simulator smoke run
         run: cargo run --release -p octachrome -- sim -s 6 -o sim-out
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: sim-screenshots
           path: sim-out
