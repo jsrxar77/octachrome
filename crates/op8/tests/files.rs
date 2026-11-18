@@ -24,13 +24,18 @@ fn f_f04_a_pad_opens_a_factory_project() {
     assert_eq!(b.ui().files.len(), 16);
     assert!(b.ui().files[..8].iter().all(|f| f.1), "the factory projects are there");
     b.run_ms(100);
-    b.tap(pad_of(1)); // boom bap: 90 bpm, a snare and a hat on the kit
+    let demo = b.project().clone();
+    b.tap(pad_of(1)); // techno
     b.run_ms(100);
     assert_eq!(b.ui().main, Main::Instrument, "opening goes back to composing");
     assert_eq!(b.ui().mode, Mode::Step);
-    assert_eq!(b.project().bpm, 90.0);
-    assert!(b.project().tracks[0].kit && b.project().tracks[0].steps[4].lanes & 0b100 == 0b100, "a hat and the snare together on step 5");
-    assert!(b.project().tracks[1].steps[0].active && b.project().tracks[1].steps[4].lanes == 0 && !b.project().tracks[1].steps[4].active, "the demo's four on the floor is gone");
+    let piece = op8::factory::project(1);
+    assert_eq!(b.project().bpm, piece.bpm);
+    assert_ne!(b.project().bpm, demo.bpm, "the demo's tempo is gone");
+    for t in 0..8 {
+        assert_eq!(b.project().tracks[t].steps, piece.tracks[t].steps, "track {t} holds the piece's steps");
+    }
+    assert!(b.project().tracks[0].kit, "its drums are a kit");
     // the second tap of the button leaves FILE too
     b.press(Button::File);
     assert_eq!(b.ui().main, Main::File);

@@ -1559,11 +1559,11 @@ function settingsPick(n) {
 }
 function lightShare() { return (LOOK.screen || 4) / 4; } // a function, so that applyLook() can call it when the page loads
 // ---- FILE: projects (crates/op8/src/factory.rs and projectfile.rs). The factory eight, and the player's eight kept in localStorage.
-const FILE_NAMES = ["house", "boom bap", "dub", "polyrhythm", "acid", "electro", "ambient", "breaks"];
+const FILE_NAMES = ["house", "techno", "dub", "polyrhythm", "acid", "electro", "ambient", "breaks"];
 // The eight pieces that come with the machine (crates/op8/src/factory.rs): the same steps, components, chords, effects and LFOs.
 const KICK = 1, SNARE = 2, CHAT = 4, OHAT = 8, TOM = 16, CLAP = 32, RIM = 64, CRASH = 128;
 const PIECE_PRESETS = [ // by track A to H, and the share of each instrument's level that the piece keeps (the same as PRESETS in factory.rs)
-  [["", "punch", "round", "nylon", "bell", "bells", "", ""], 0.67], [["", "soft", "sub", "nylon", "voice", "rumble", "", ""], 1.0],
+  [["", "punch", "round", "nylon", "bell", "bells", "", ""], 0.67], [["", "punch", "pluck", "harp", "bell", "bells", "", ""], 0.7],
   [["", "boom", "sub", "bell", "", "dust", "swarm", ""], 0.8], [["", "soft", "", "harp", "bell", "bells", "strings", ""], 1.0],
   [["", "tight", "acid", "", "", "swarm", "", ""], 0.5], [["", "click", "growl", "", "", "glitch", "chip", ""], 0.65],
   [["", "", "", "glass", "pad", "cloud", "strings", ""], 1.0], [["", "hard", "growl", "muted", "tick", "glitch", "", ""], 1.0]];
@@ -1620,6 +1620,54 @@ function houseSong(p) {
   scene(10, [1, 0, 0, 0, 0, 0, 0, 0], [2, 3, 6, 7], vamp);
   p.song = { on: true, steps: [[0, 8], [1, 8], [2, 8], [3, 1], [4, 8], [5, 4], [6, 4], [7, 1], [8, 8], [3, 1], [9, 8], [10, 8]].map(([scene, bars]) => ({ scene, bars })) };
 }
+// techno as a whole melodic techno song (techno_song in factory.rs): the same patterns, scenes and song. The twin has no parameter
+// locks yet, so the arpeggio's filter does not open in the build.
+function technoSong(p) {
+  const T = p.tracks, st16 = () => Array.from({ length: 16 }, () => newStep());
+  const P = (t, k, fill, o = {}) => { const st = k === 0 ? T[t].steps : st16(); fill(st); if (k === 0) { if (o.kit) T[t].kit = true; } else T[t].pats[k] = { steps: st, length: o.length || 16, div: 2, kit: !!o.kit }; };
+  const hits = (st, list) => list.forEach(([s, lanes, vel, comps]) => { st[s].lanes |= lanes; st[s].active = true; st[s].vel = vel; if (comps) st[s].comps = st[s].comps.concat(comps); });
+  const nt = (st, list) => list.forEach(([s, n, vel, gate, comps]) => { st[s] = { ...newStep(true, n), vel, gate, comps: comps || [] }; });
+  const ev = n => C("every", [n, 2]), K = { kit: true };
+  p.bpm = 124; p.swing = .5; p.brain = brainOf(2, 1, "triad", [0]);
+  T[2].link = true; T[2].lfo = { shape: 1, rate: 40, depth: 70, target: 3 };
+  T[3].link = true; T[3].fx = { kind: 1, a: 170, b: 120, c: 110 };
+  T[4].link = true; T[4].pl = { mode: 1, chord: 4, speed: 0, oct: 1 }; T[4].fx = { kind: 2, a: 200, b: 170, c: 90 };
+  T[5].link = true; T[5].fx = { kind: 2, a: 190, b: 120, c: 100 };
+  T[6].link = true; T[6].fx = { kind: 1, a: 150, b: 100, c: 90 };
+  const mainHats = st => { for (let s = 0; s < 16; s++) hits(st, [[s, s % 4 === 2 ? OHAT : CHAT, [70, 42, 85, 58][s % 4]]]); };
+  P(0, 0, st => { mainHats(st); hits(st, [[4, CLAP, 100], [12, CLAP, 100], [3, RIM, 60], [11, RIM, 55], [15, RIM, 50, [ev(2)]]]); }, K);
+  P(0, 1, st => { for (let s = 0; s < 16; s++) hits(st, [[s, s % 4 === 2 ? OHAT : CHAT, [45, 30, 60, 38][s % 4]]]); }, K);
+  P(0, 2, st => { for (let s = 0; s < 16; s++) hits(st, [[s, CHAT, [40, 25, 35, 28][s % 4], s % 2 ? [C("chance", 70)] : null]]); hits(st, [[6, RIM, 45], [14, RIM, 40]]); }, K);
+  P(0, 3, st => { mainHats(st); hits(st, [[0, SNARE, 60], [4, SNARE, 75], [8, SNARE, 90], [12, SNARE, 105]]); }, K);
+  P(0, 4, st => { for (let s = 0; s < 16; s++) hits(st, [[s, SNARE, 40 + 5 * s]]); hits(st, [[2, OHAT, 80], [6, OHAT, 85], [10, OHAT, 90], [14, OHAT, 100]]); }, K);
+  P(0, 5, st => { mainHats(st); hits(st, [[0, CRASH, 110], [4, CLAP, 105], [12, CLAP, 105], [3, RIM, 65], [6, RIM, 55], [11, RIM, 60], [13, TOM, 60, [ev(2)]]]); }, K);
+  P(0, 6, st => hits(st, [[0, CHAT, 70], [2, OHAT, 85], [4, CLAP, 100], [6, OHAT, 85], [8, TOM, 80], [10, TOM, 85], [12, SNARE, 95], [13, SNARE, 100], [14, SNARE, 110], [15, SNARE, 120]]), K);
+  P(1, 0, st => nt(st, [[0, 36, 120, 50], [4, 36, 112, 50], [8, 36, 116, 50], [12, 36, 112, 50]]));
+  P(2, 0, st => { for (let s = 0; s < 16; s++) if (s % 4) nt(st, [[s, 36, [0, 72, 100, 82][s % 4], 30]]); });
+  P(2, 1, st => { for (let s = 0; s < 16; s++) if (s % 4) nt(st, [[s, 36, [0, 75, 105, 85][s % 4], 30]]); nt(st, [[7, 48, 85, 25, [ev(2)]], [14, 43, 100, 30], [15, 48, 80, 25, [ev(1)]]]); });
+  const arp = [60, 67, 72, 64, 67, 72, 76, 67, 60, 67, 72, 64, 79, 76, 72, 67];
+  for (let k = 0; k < 3; k++) P(6, k, st => arp.forEach((n, s) => nt(st, [[s, n, s % 3 === 0 ? 110 : 72, 45]])));
+  P(3, 0, st => nt(st, [[0, 79, 100, 90, [C("hold", 2)]], [3, 76, 85, 60], [6, 72, 90, 80], [8, 74, 80, 50], [10, 76, 95, 80, [C("hold", 2)]], [13, 79, 85, 50], [15, 81, 70, 40, [ev(2)]]]));
+  P(3, 1, st => nt(st, [[0, 76, 90, 100, [C("hold", 5)]], [6, 79, 80, 70], [8, 72, 85, 100, [C("hold", 5)]], [14, 74, 70, 60]]));
+  P(4, 0, st => nt(st, [[0, 48, 85, 100, [C("hold", 15)]]]));
+  P(4, 1, st => { for (let s = 0; s < 16; s += 2) nt(st, [[s, 48, 60 + 4 * s, 40]]); });
+  P(5, 0, st => nt(st, [[0, 60, 100, 100, [C("hold", 15)]]]));
+  P(5, 1, st => nt(st, [[0, 60, 100, 100, [C("hold", 7)]], [8, 67, 110, 100, [C("hold", 7)]]]));
+  const h = d => brainOf(2, 1, "triad", d), full = h([0, 5, 2, 6]);
+  const scene = (k, pats, muted, brain) => { p.scenes[k] = { pat: pats, mute: Array.from({ length: 8 }, (_, t) => muted.includes(t)), brain }; };
+  scene(0, [1, 0, 0, 0, 0, 0, 0, 0], [2, 3, 4, 6, 7], h([0]));
+  scene(1, [0, 0, 0, 0, 0, 0, 0, 0], [3, 4, 6, 7], h([0]));
+  scene(2, [0, 0, 0, 0, 0, 0, 0, 0], [3, 4, 7], h([0, 5]));
+  scene(3, [0, 0, 1, 0, 0, 0, 2, 0], [3, 7], full);
+  scene(4, [2, 0, 0, 1, 0, 0, 0, 0], [1, 2, 7], full);
+  scene(5, [3, 0, 0, 1, 1, 1, 1, 0], [1, 2, 7], h([5, 6]));
+  scene(6, [4, 0, 0, 1, 1, 1, 1, 0], [1, 2, 7], h([6]));
+  scene(7, [0, 0, 0, 1, 0, 0, 0, 0], [0, 1, 2, 5, 6, 7], h([0]));
+  scene(8, [5, 0, 1, 0, 0, 0, 2, 0], [7], full);
+  scene(9, [6, 0, 1, 0, 0, 0, 2, 0], [7], full);
+  scene(10, [0, 0, 0, 0, 0, 0, 0, 0], [3, 4, 7], h([0]));
+  p.song = { on: true, steps: [[0, 8], [1, 8], [2, 8], [3, 8], [4, 8], [5, 4], [6, 4], [7, 1], [8, 16], [9, 1], [10, 8]].map(([scene, bars]) => ({ scene, bars })) };
+}
 function factoryProject(i) {
   const p = demoProject();
   p.tracks.forEach(t => { t.steps = Array.from({ length: 16 }, () => newStep()); t.length = 16; t.kit = false; t.link = false; t.div = 2; t.pl = null; t.fx = null; t.lfo = null; ensureTrack(t); });
@@ -1645,12 +1693,8 @@ function factoryProject(i) {
     g(6, [[3, 60, 100, 45], [6, 60, 80, 40], [11, 60, 100, 45], [14, 60, 75, 40], [10, 60, 70, 35, [C("every", [1, 2])]], [9, 60, 65, 35, [C("every", [2, 2])]]]);
     pl(6, 1, 3, 0, 1); fx(6, 1, 150, 90, 90);
     houseSong(p);
-  } else if (i === 1) { // boom bap
-    p.bpm = 90; p.swing = .60; p.brain = brainOf(0, 2, "seventh", [0, 3, 0, 4]);
-    kit(SNARE, [4, 12]); kit(CHAT, [0, 2, 4, 6, 8, 10, 12, 14]); kit(RIM, [15], [C("chance", 50)]);
-    on(1, [[0, 36], [7, 36], [10, 36]]); link(2, 3, 4); on(2, [[0, 36, 0, 75], [7, 36, 0, 75], [10, 38, 0, 75]]);
-    on(3, [[3, 60], [11, 60]]); pl(3, 1, 3, 2, 1); fx(3, 2, 140, 130, 70);
-    on(4, [[0, 60], [11, 67, [C("chance", 70)]]]);
+  } else if (i === 1) { // techno
+    technoSong(p);
   } else if (i === 2) { // dub
     p.bpm = 70; p.swing = .5; p.brain = brainOf(9, 1, "triad", [0, 0, 0, 3]);
     kit(RIM, [12]); kit(CHAT, [6, 14]); fx(0, 1, 200, 140, 120);
@@ -1695,9 +1739,12 @@ function factoryProject(i) {
   return p;
 }
 // the standard tracks, in the order of PLUG-IN: A drums, B kick, C fm, D resonator, E sampler, F empty (the granular), G macro, H MIDI out
-// what house changes in its instruments after the preset (HOUSE_KNOBS and HOUSE_KIT in factory.rs): track -> [knob, value] (a level given here is not scaled)
+// what each piece changes in its instruments after the preset (KNOBS and KITS in factory.rs): track -> [knob, value] (a level given here is not scaled), and its kit: sound -> its seven values
 const HOUSE_KNOBS = { 3: [[7, 1.0]], 4: [[4, .25], [5, .6], [7, .14]], 5: [[2, .6], [4, .25], [7, .18]], 6: [[0, .4375], [2, .3], [7, .6]] };
 const HOUSE_KIT = { 1: [.5, .40, .45, .55, .60, .95, .5], 2: [.5, .12, .42, .5, .5, .42, .38], 3: [.5, .30, .42, .5, .5, .44, .62], 5: [.5, .38, .55, .5, .55, 1.0, .5], 6: [.5, .12, .45, .5, .5, .65, .45], 7: [.5, .80, .50, .5, .5, .35, .6] };
+const TECHNO_KNOBS = { 2: [[7, .85]], 3: [[2, .45], [7, .8]], 4: [[4, .45], [5, .7], [7, .16]], 5: [[2, .6], [4, .25], [7, .3]], 6: [[0, .0208], [2, .3], [4, .35], [7, .55]] };
+const TECHNO_KIT = { 1: [.5, .35, .50, .65, .50, .80, .5], 2: [.5, .10, .45, .5, .5, .30, .40], 3: [.5, .25, .45, .5, .5, .32, .60], 4: [.5, .35, .45, .5, .5, .55, .55], 5: [.5, .30, .50, .6, .45, 1.0, .5], 6: [.5, .10, .50, .5, .5, .55, .40], 7: [.5, .85, .45, .5, .5, .35, .5] };
+const PIECE_KNOBS = [HOUSE_KNOBS, TECHNO_KNOBS], PIECE_KIT = [HOUSE_KIT, TECHNO_KIT];
 function applyPiece(i) {
   const [names, gain] = PIECE_PRESETS[i];
   SLOTS.splice(0, 8, "drums", "kick", "fm", "resonator", "sampler", "granular", "macro", "midi");
@@ -1707,11 +1754,12 @@ function applyPiece(i) {
     if (s === "drums") PARAMS[t][7] = .5 / 8;
     const f = factoryPresets(s).find(x => x[0] === names[t]);
     if (f) f[1].forEach((v, k) => { if (v != null && k < PARAMS[t].length) PARAMS[t][k] = v; });
-    const extra = i === 0 ? HOUSE_KNOBS[t] : null;
+    const extra = PIECE_KNOBS[i] ? PIECE_KNOBS[i][t] : null;
     if (extra) extra.forEach(([k, v]) => PARAMS[t][k] = v);
     if (s !== "drums" && PARAMS[t].length > 7 && !(extra && extra.some(e => e[0] === 7))) PARAMS[t][7] = Math.min(1, PARAMS[t][7] * gain);
   });
-  if (i === 0) Object.entries(HOUSE_KIT).forEach(([k, v]) => DRUMS.vals[k] = v.slice()); else DRUMS.vals = DRUM_DEFAULTS.map(v => v.slice());
+  DRUMS.vals = DRUM_DEFAULTS.map(v => v.slice());
+  if (PIECE_KIT[i]) Object.entries(PIECE_KIT[i]).forEach(([k, v]) => DRUMS.vals[k] = v.slice());
   if (actx) for (let t = 0; t < 8; t++) fxApply(t, true);
 }
 function blankProject() { const p = factoryProject(0); p.tracks.forEach(t => { t.steps = Array.from({ length: 16 }, () => newStep()); t.length = 16; t.kit = false; t.link = false; t.pl = null; t.fx = null; t.lfo = null; ensureTrack(t); }); p.bpm = 120; p.swing = .5; p.brain = brainOf(0, 0, "triad", [0, 5, 3, 4]); return p; }
