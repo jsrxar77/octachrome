@@ -1,6 +1,6 @@
 /* The three themes, ONE definition for the guide and the brand page (docs/design.md §2).
-   Mirrors crates/op8-gfx/src/theme.rs: keep the two in step.
-   OP8.cur is shared between pages through localStorage, so choosing a theme in one changes the other. */
+   Mirrors crates/octachrome-gfx/src/theme.rs: keep the two in step.
+   OCTACHROME.cur is shared between pages through localStorage, so choosing a theme in one changes the other. */
 (function () {
   const RB = ["#FF2D2D","#FF8A1F","#FFD21F","#00E56A","#0099FF","#4B4BFF","#B15CFF","#F2F4F8"];
   const CH = ["#D633FF","#A442FF","#8652FF","#7361FF","#707AFF","#809DFF","#8FBCFF","#EEF0F5"];
@@ -22,22 +22,22 @@
       light:{ bl:.8, level:3, mono:.85 }, cap:"Chrome · one range",
       note:"Monochrome: magenta-violet to blue, strong to soft, then white. Screens at 80 % of the backlight, pads and groups at level 3. To be tuned on the unit." },
   };
-  const ORDER = ["matte", "glossy", "chrome"], KEY = "op8-theme", subs = [];
+  const ORDER = ["matte", "glossy", "chrome"], KEY = "octachrome-theme", subs = [];
   let cur = "matte";
   try { const s = localStorage.getItem(KEY); if (THEMES[s]) cur = s; } catch (e) {}
-  const OP8 = { THEMES, ORDER, get cur() { return cur; },
+  const OCTACHROME = { THEMES, ORDER, get cur() { return cur; },
     set(n) { if (!THEMES[n]) return; cur = n; try { localStorage.setItem(KEY, n); } catch (e) {} subs.forEach(f => f(n)); },
     on(f) { subs.push(f); } };
   addEventListener("storage", e => { if (e.key === KEY && THEMES[e.newValue]) { cur = e.newValue; subs.forEach(f => f(cur)); } });
   /* a tab row bound to the shared theme */
-  OP8.tabs = function (box) {
+  OCTACHROME.tabs = function (box) {
     box.innerHTML = "";
-    ORDER.forEach(n => { const b = document.createElement("button"); b.textContent = n; b.dataset.t = n; b.onclick = () => OP8.set(n); box.append(b); });
+    ORDER.forEach(n => { const b = document.createElement("button"); b.textContent = n; b.dataset.t = n; b.onclick = () => OCTACHROME.set(n); box.append(b); });
     const sync = n => [...box.children].forEach(b => b.classList.toggle("on", b.dataset.t === n));
-    OP8.on(sync); sync(cur);
+    OCTACHROME.on(sync); sync(cur);
   };
   /* the whole unit in the current theme: screens, knobs, pad LEDs (needs mk3.js) */
-  OP8.mount = function (svg, capEl) {
+  OCTACHROME.mount = function (svg, capEl) {
     svg.setAttribute("viewBox", `0 0 ${MK3.W} ${MK3.H}`);
     const NS = "http://www.w3.org/2000/svg", mk = (n, a, p) => { const e = document.createElementNS(NS, n); for (const k in a) e.setAttribute(k, a[k]); (p || svg).append(e); return e; };
     const [bx, by, bw, bh] = MK3.body, body = mk("rect", { x: bx, y: by, width: bw, height: bh, rx: 34, stroke: "#232831" });
@@ -53,7 +53,7 @@
     const pads = MK3.pads.map(p => mk("rect", { x: p[0], y: p[1], width: p[2], height: p[3], rx: 8 }));
     const ACTIVE = [0, 3, 4, 7, 8, 10, 12, 15], LV = [0, .38, .68, 1];
     const caption = () => { if (capEl) capEl.innerHTML = `${THEMES[cur].cap}<small>${THEMES[cur].note}</small>`; };
-    OP8.on(caption); caption();
+    OCTACHROME.on(caption); caption();
     (function frame(ms) {
       const t = ms / 1000, T = THEMES[cur], step = Math.floor(t * 6) % 16, lv = LV[T.light.level];
       body.setAttribute("fill", T.panel); sg.style.filter = `brightness(${.35 + .65 * T.light.bl})`;
@@ -67,5 +67,5 @@
       requestAnimationFrame(frame);
     })(0);
   };
-  window.OP8 = OP8;
+  window.OCTACHROME = OCTACHROME;
 })();

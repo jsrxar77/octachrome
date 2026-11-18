@@ -2,8 +2,8 @@ name: Guide
 
 # Publishes the site (built by scripts/build-site.py from guide/, twin/ and docs/buttons.md) as a GitHub Pages site.
 # Needs Settings > Pages > Source: GitHub Actions (and a public repository, or a plan that includes Pages for private ones).
-# The address of the repository for the "Source" and docs links comes from the repository variable OP8_REPO_URL
-# (Settings > Secrets and variables > Actions > Variables); until it is set the placeholder in guide/site.json stays.
+# The address of the repository for the "Source" and docs links is the one this workflow runs in; the repository variable
+# OCTACHROME_REPO_URL (Settings > Secrets and variables > Actions > Variables) overrides it (a custom address, say).
 on:
   push:
     branches: [main]
@@ -31,8 +31,8 @@ jobs:
         id: pages
       - name: Build and check the site
         env:
-          OP8_SITE_URL: ${{ steps.pages.outputs.base_url }}
-          OP8_REPO_URL: ${{ vars.OP8_REPO_URL }}
+          OCTACHROME_SITE_URL: ${{ steps.pages.outputs.base_url }}
+          OCTACHROME_REPO_URL: ${{ vars.OCTACHROME_REPO_URL || format('{0}/{1}', github.server_url, github.repository) }}
         run: |
           python3 scripts/build-site.py
           python3 scripts/check-site.py

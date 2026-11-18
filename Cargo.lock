@@ -771,58 +771,52 @@ dependencies = [
 ]
 
 [[package]]
-name = "once_cell"
-version = "1.21.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9f7c3e4beb33f85d45ae3e3a1792185706c8e16d043238c593331cc7cd313b50"
-
-[[package]]
-name = "op8"
+name = "octachrome"
 version = "0.1.0"
 dependencies = [
  "anyhow",
  "cpal",
  "libc",
  "midir",
- "op8-cartridge",
- "op8-cartridges",
- "op8-engine",
- "op8-gfx",
- "op8-hw",
- "op8-seq",
- "op8-ui",
+ "octachrome-cartridge",
+ "octachrome-cartridges",
+ "octachrome-engine",
+ "octachrome-gfx",
+ "octachrome-hw",
+ "octachrome-seq",
+ "octachrome-ui",
  "rtrb",
 ]
 
 [[package]]
-name = "op8-cartridge"
+name = "octachrome-cartridge"
 version = "0.1.0"
 dependencies = [
- "op8-gfx",
+ "octachrome-gfx",
 ]
 
 [[package]]
-name = "op8-cartridges"
+name = "octachrome-cartridges"
 version = "0.1.0"
 dependencies = [
- "op8-cartridge",
- "op8-gfx",
- "op8-plaits",
+ "octachrome-cartridge",
+ "octachrome-gfx",
+ "octachrome-plaits",
  "rtrb",
 ]
 
 [[package]]
-name = "op8-engine"
+name = "octachrome-engine"
 version = "0.1.0"
 dependencies = [
- "op8-cartridge",
- "op8-cartridges",
- "op8-seq",
+ "octachrome-cartridge",
+ "octachrome-cartridges",
+ "octachrome-seq",
  "rtrb",
 ]
 
 [[package]]
-name = "op8-gfx"
+name = "octachrome-gfx"
 version = "0.1.0"
 dependencies = [
  "embedded-graphics",
@@ -830,40 +824,46 @@ dependencies = [
 ]
 
 [[package]]
-name = "op8-hw"
+name = "octachrome-hw"
 version = "0.1.0"
 dependencies = [
  "futures-lite",
  "hidapi",
  "libc",
  "nusb",
- "op8-gfx",
+ "octachrome-gfx",
 ]
 
 [[package]]
-name = "op8-plaits"
+name = "octachrome-plaits"
 version = "0.1.0"
 dependencies = [
  "cc",
 ]
 
 [[package]]
-name = "op8-seq"
+name = "octachrome-seq"
 version = "0.1.0"
 dependencies = [
- "op8-cartridge",
+ "octachrome-cartridge",
 ]
 
 [[package]]
-name = "op8-ui"
+name = "octachrome-ui"
 version = "0.1.0"
 dependencies = [
- "op8-cartridge",
- "op8-cartridges",
- "op8-engine",
- "op8-gfx",
- "op8-seq",
+ "octachrome-cartridge",
+ "octachrome-cartridges",
+ "octachrome-engine",
+ "octachrome-gfx",
+ "octachrome-seq",
 ]
+
+[[package]]
+name = "once_cell"
+version = "1.21.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9f7c3e4beb33f85d45ae3e3a1792185706c8e16d043238c593331cc7cd313b50"
 
 [[package]]
 name = "parking"

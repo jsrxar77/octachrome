@@ -1,0 +1,36 @@
+[package]
+name = "octachrome"
+description = "Octachrome: standalone groovebox on a Maschine MK3"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+default-run = "octachrome"
+
+[features]
+default = ["audio", "mk3", "midi"]
+# Real audio output through cpal (CoreAudio / ALSA).
+audio = ["dep:cpal"]
+# Real Maschine MK3 over USB.
+mk3 = ["octachrome-hw/mk3"]
+# CoreMIDI output on macOS (Linux writes ALSA raw MIDI directly).
+midi = ["dep:midir"]
+
+[dependencies]
+octachrome-gfx.workspace = true
+octachrome-cartridge.workspace = true
+octachrome-seq.workspace = true
+octachrome-engine.workspace = true
+octachrome-cartridges.workspace = true
+octachrome-hw.workspace = true
+octachrome-ui.workspace = true
+rtrb.workspace = true
+anyhow.workspace = true
+cpal = { version = "0.15", optional = true }
+# Ctrl-C / SIGTERM: `octachrome run` leaves the MK3 clean (see `App::shutdown`).
+libc = "0.2"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+midir = { version = "0.10", optional = true }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+

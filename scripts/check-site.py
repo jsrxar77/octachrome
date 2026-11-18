@@ -73,9 +73,9 @@ for f, (p, text) in pages.items():
     for ref in p.refs:
         if re.match(r"^(https?:|mailto:|data:|tel:|javascript:)", ref) or ref.startswith("//"):
             if "SITE-URL-PENDING" in ref:
-                warnings.append("the address of the site is still the placeholder (guide/site.json or OP8_SITE_URL)")
+                warnings.append("the address of the site is still the placeholder (guide/site.json or OCTACHROME_SITE_URL)")
             if "REPO-OWNER-PENDING" in ref:
-                warnings.append("the address of the repository is still the placeholder (guide/site.json or OP8_REPO_URL)")
+                warnings.append("the address of the repository is still the placeholder (guide/site.json or OCTACHROME_REPO_URL)")
             continue
         target, _, frag = ref.partition("#")
         path = (f.parent / target) if target else f
@@ -95,7 +95,7 @@ for f, (p, text) in pages.items():
             if f'"{frag}"' not in pages[path][1] and f"'{frag}'" not in pages[path][1] and f'id="{frag}"' not in pages[path][1]:
                 errors.append(f"{name}: no #{frag} in {path.relative_to(site)}")
 
-for needed in ("robots.txt", "sitemap.xml", "404.html", "og.png", "brand/op8-mark.svg"):
+for needed in ("robots.txt", "sitemap.xml", "404.html", "og.png", "brand/octachrome-mark.svg"):
     if not (site / needed).exists():
         errors.append(f"missing {needed}")
 if "brand.html" in (site / "sitemap.xml").read_text():

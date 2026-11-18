@@ -1,18 +1,18 @@
 #!/usr/bin/env bash
 # One-time Raspberry Pi setup (run as root on the Pi):
-#   sudo bash pi-setup.sh <dir containing op8, op8.service, 99-maschine-mk3.rules>
+#   sudo bash pi-setup.sh <dir containing octachrome, octachrome.service, 99-maschine-mk3.rules>
 set -euo pipefail
 SRC="${1:-.}"
 
-id op8 >/dev/null 2>&1 || useradd --system --create-home --groups audio,plugdev op8
+id octachrome >/dev/null 2>&1 || useradd --system --create-home --groups audio,plugdev octachrome
 
-install -m 0755 "$SRC/op8" /usr/local/bin/op8
+install -m 0755 "$SRC/octachrome" /usr/local/bin/octachrome
 install -m 0644 "$SRC/99-maschine-mk3.rules" /etc/udev/rules.d/99-maschine-mk3.rules
-install -m 0644 "$SRC/op8.service" /etc/systemd/system/op8.service
+install -m 0644 "$SRC/octachrome.service" /etc/systemd/system/octachrome.service
 udevadm control --reload-rules && udevadm trigger
 
 # Real-time limits for the audio group.
-cat > /etc/security/limits.d/95-op8-audio.conf <<'LIMITS'
+cat > /etc/security/limits.d/95-octachrome-audio.conf <<'LIMITS'
 @audio - rtprio 95
 @audio - memlock unlimited
 LIMITS
@@ -36,5 +36,5 @@ UNIT
 fi
 
 systemctl daemon-reload
-systemctl enable --now op8.service
-echo "OP-8 installed. Logs: journalctl -u op8 -f"
+systemctl enable --now octachrome.service
+echo "Octachrome installed. Logs: journalctl -u octachrome -f"

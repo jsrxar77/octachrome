@@ -1,0 +1,25 @@
+[package]
+name = "octachrome-hw"
+description = "Control-surface abstraction, a mock surface for tests, and the Maschine MK3 USB/HID driver"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[features]
+default = []
+# Real Maschine MK3 over USB. Off by default so tests and CI need no device
+# libraries.
+mk3 = ["dep:nusb", "dep:futures-lite", "dep:libc", "dep:hidapi"]
+
+[dependencies]
+octachrome-gfx.workspace = true
+nusb = { version = "0.1", optional = true }
+futures-lite = { version = "2", optional = true }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+libc = { version = "0.2", optional = true }
+
+# macOS keeps its own driver on the HID interface, so go through IOKit via
+# hidapi there. Linux reads /dev/hidraw directly and needs no C library.
+[target.'cfg(target_os = "macos")'.dependencies]
+hidapi = { version = "2", optional = true, default-features = false, features = ["macos-shared-device"] }

@@ -1,16 +1,16 @@
-# OP-8 — What Each Button Does
+# Octachrome — What Each Button Does
 
 Part of the [UX/UI Treatise](design.md). The rules that rule here: each button means one idea, similar to its OP-XY equivalent and to what its silkscreen says; Shift gives the secondary function, never a different idea (rule 12). Above each screen you see what the buttons above it do, and below it what the knobs do (rule 11).
 
 The buttons and the sequencer always do the same and do not grow much further. What grows is the instruments ([instruments.md](instruments.md)).
 
-For each MK3 button: its function in the Maschine software (per the [NI manual](https://docs.native-instruments.com/online-guides/maschine-mk3-manual/en/quick-reference)), its equivalent idea on the OP-XY (per the [TE guide](https://teenage.engineering/guides/chrome/layout)), and what it does in OP-8. **Status:** ✓ done, ◐ partial, ○ to do (see [roadmap.md](roadmap.md)).
+For each MK3 button: its function in the Maschine software (per the [NI manual](https://docs.native-instruments.com/online-guides/maschine-mk3-manual/en/quick-reference)), its equivalent idea on the OP-XY (per the [TE guide](https://teenage.engineering/guides/chrome/layout)), and what it does in Octachrome. **Status:** ✓ done, ◐ partial, ○ to do (see [roadmap.md](roadmap.md)).
 
 ## 1. Main modes (the equivalents of the OP-XY's instrument, auxiliary, arrange and mix)
 
 The left screen always shows time and the right screen always shows sound. A main mode changes which modules the screen buttons 1–8 offer, like M1–M4 on the OP-XY.
 
-| MK3 button | In Maschine | On the OP-XY | In OP-8 | Status |
+| MK3 button | In Maschine | On the OP-XY | In Octachrome | Status |
 | :-- | :-- | :-- | :-- | :-- |
 | CHANNEL | Channel properties | instrument | **Instrument**: the default mode, for composing. Sequencer on the left, the track's cartridge on the right. CHANNEL goes back here from settings | ✓ |
 | PLUG-IN | Channel plug-ins | instrument (engine) | **Instruments**: a main mode that takes both screens. The 16 pads are the 16 places (the top two rows are the factory instruments from the most guttural to the most refined, the bottom two are for installed ones); a tap puts that instrument on the selected track and goes back to composing. The MIDI out (the last of the eight, and on track H) moves from the track that has it. PLUG-IN again leaves ([instruments.md §7](instruments.md)) | ✓ |
@@ -18,7 +18,7 @@ The left screen always shows time and the right screen always shows sound. A mai
 | ARRANGER | Ideas and song | arrange | **Song** (2026-11-17): both screens, the pads are the steps of a chain of scenes; a tap chooses a step (while the song plays it jumps there at the next bar, SHIFT + tap at once), holding a pad and tapping another, or knob 4, moves the step, knob 5 is its scene (a free step is put in), knob 6 its bars, knob 7 follows the song or not; SHIFT + a tap (stopped) puts a step in front of it, ERASE + a tap takes it out. The song goes round at its end; its scene's mutes are the ones shown while it plays. Again goes back | ✓ |
 | MIXER | Mix | mix | **Mixer** (2026-11-17): a main mode that takes both screens (see [design.md §4](design.md)). Left, four channels (buttons 1 and 2 choose A to D or E to H) whose levels are the knobs 1 to 4 and, with SHIFT, their pans; right, the compressor of the master (threshold, ratio, attack, release on the page `comp`, make-up and mix on the page `output`, buttons 5 and 6) and its EQ (page `eq`, button 7: low shelf, mid, mid frequency, high shelf; 2026-11-17). Pressing MIXER again goes back. Buttons 3 and 4 are the sends (`delay`, `reverb`) and button 8 the page of their effects, and again the page `taps` where each is taken from, before or after the fader (2026-11-17); `output` also has the side-chain of the compressor (a track whose sound brings the mix down) | ✓ |
 | BROWSER | Browser | (presets) | A main mode (both screens): the sixteen pads are the sixteen presets of the selected track's instrument. A tap loads one (the knobs take its values, and a note plays); SHIFT + tap on the bottom two rows saves the instrument's knobs into that place. Per instrument: the top two rows are the eight presets that come with it ([instruments.md §8](instruments.md); a tap loads one, SHIFT does not write over them), the bottom two rows are the player's. The places are named (the day when saved, or the name the player wrote in the text file next to the preset) and ERASE + a tap, twice, erases one of the player's (2026-11-16). Not yet: naming on the unit | ◐ |
-| SAMPLING | Sample editor | sample | A main mode (both screens). REC records the source (`resample`, what OP-8 plays, or `input`, the audio interface) and REC again stops, up to ten seconds; knobs 5–8 are `source`, `start`, `end` and `fade`; the top two rows of pads save the kept part into one of the sampler's eight places of its own, the bottom two listen to it. **SHIFT + REC** arms it: it waits for a sound louder than −36 dB and starts ten milliseconds before it (REC again cancels). On entering, the samples folder is read again and the new WAV files are put in the instruments (2026-11-16). Pressing SAMPLING again goes back. **TAP** turns the count-in on (its LED lights): REC then counts three beats of the project's tempo, with a click on each and the number on the right screen, before it records (REC again cancels). Moving knobs 6 and 7 while a part plays moves what is heard (2026-11-16). Not yet: slices cut at the hits | ◐ |
+| SAMPLING | Sample editor | sample | A main mode (both screens). REC records the source (`resample`, what Octachrome plays, or `input`, the audio interface) and REC again stops, up to ten seconds; knobs 5–8 are `source`, `start`, `end` and `fade`; the top two rows of pads save the kept part into one of the sampler's eight places of its own, the bottom two listen to it. **SHIFT + REC** arms it: it waits for a sound louder than −36 dB and starts ten milliseconds before it (REC again cancels). On entering, the samples folder is read again and the new WAV files are put in the instruments (2026-11-16). Pressing SAMPLING again goes back. **TAP** turns the count-in on (its LED lights): REC then counts three beats of the project's tempo, with a click on each and the number on the right screen, before it records (REC again cancels). Moving knobs 6 and 7 while a part plays moves what is heard (2026-11-16). Not yet: slices cut at the hits | ◐ |
 | FILE · Shift: save | Files | projects | **Projects**: a main mode that takes both screens. The 16 pads are the 16 projects (the top two rows are the factory eight, the bottom two are yours); a tap opens one and goes back to composing (a tap on an empty place of yours opens a new empty project), SHIFT + a tap on one of yours saves into it (named by the day and the tempo, e.g. `16 nov 122`, unless it has a name already), ERASE + a tap marks one of yours in red and a second tap erases it (2026-11-16). FILE again leaves. Inside, only the pads, the transport and the pad-mode buttons work | ✓ |
 | SETTINGS | Preferences | com | **Settings**: a main mode that takes both screens (see [design.md §4](design.md)). Four pages (2026-11-16), the screen buttons 1 to 4: `theme`, `audio` (the output, the input and the audio block), `midi` (the output port, the input, a test note, silence all, the MIDI clock out on or off, and what an input plays) and `light` (the steps of the backlight and of the pad LEDs); the 4D chooses on them. Pressing SETTINGS again, CHANNEL, STEP, CHORDS or PERFORM goes back to composing. Inside, the pads, knobs and groups do nothing; PLAY, STOP and RESTART still work | ◐ (not tried on the unit) |
 | AUTO · Shift: lock | Record modulation | record + encoder | Hold AUTO and turn a knob to record automation on the track; with Shift it stays fixed | ○ |
@@ -41,7 +41,7 @@ They are the modules of the current mode, like M1–M4 on the OP-XY. Their name 
 
 ## 3. Pads and their modes
 
-| MK3 button | In Maschine | On the OP-XY | In OP-8 | Status |
+| MK3 button | In Maschine | On the OP-XY | In Octachrome | Status |
 | :-- | :-- | :-- | :-- | :-- |
 | STEP | Step sequencer | seq (steps) | Pads = the 16 steps of the track. Holding a pad opens its components | ✓ |
 | KEYBOARD | Chromatic pads | keyboard | Pads = a chromatic keyboard from C3 that plays the track's instrument while a pad is held. 4D encoder ◀ ▶ (or knob 1) = octave (the − and + of the OP-XY). On a drum kit it is PAD MODE (the eight sounds, no octave; 2026-11-16). Pressing KEYBOARD again goes back to STEP. Not recorded yet (REC) | ✓ |
@@ -53,7 +53,7 @@ They are the modules of the current mode, like M1–M4 on the OP-XY. Their name 
 
 ## 4. Editing
 
-| MK3 button | In Maschine | On the OP-XY | In OP-8 | Status |
+| MK3 button | In Maschine | On the OP-XY | In Octachrome | Status |
 | :-- | :-- | :-- | :-- | :-- |
 | Groups A–H | Groups | tracks 1–8 | Choose a track. Shift + group connects or disconnects it from the Brain | ✓ |
 | SELECT | Select without triggering | — | Held in FILE or BROWSER, a tap on one of your own places (that has something in it) **names it** (2026-11-17): the NAME view opens on both screens. 4D encoder turns the letter under the cursor (SHIFT: ten at a time), the arrows ◀ ▶ and the pads of the top three rows move the cursor, the last four pads are `clear`, `delete`, `insert` and `save`; push saves the name next to the file; FILE or BROWSER cancels. The same in SAMPLING, with a pad, names a recording (2026-11-17). Not yet: choosing a pad or group without sounding it | ◐ |
@@ -69,7 +69,7 @@ They are the modules of the current mode, like M1–M4 on the OP-XY. Their name 
 
 ## 5. Transport and tempo
 
-| MK3 button | In Maschine | On the OP-XY | In OP-8 | Status |
+| MK3 button | In Maschine | On the OP-XY | In Octachrome | Status |
 | :-- | :-- | :-- | :-- | :-- |
 | PLAY | Play | play | Play / pause | ✓ |
 | STOP | Stop | stop (twice: silence) | Stop; twice silences all notes | ◐ (the second press is missing) |
@@ -85,7 +85,7 @@ They are the modules of the current mode, like M1–M4 on the OP-XY. Their name 
 
 ## 6. Other controls
 
-| Control | In OP-8 | Status |
+| Control | In Octachrome | Status |
 | :-- | :-- | :-- |
 | Knobs 1–4 | What the left footer shows (sequencer or the open module) | ✓ |
 | Knobs 5–8 | What the right footer shows (cartridge) | ✓ |

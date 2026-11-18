@@ -1,0 +1,27 @@
+# /etc/systemd/system/octachrome.service
+# Boots straight into Octachrome: no desktop, restarts on crash or unplug.
+[Unit]
+Description=Octachrome groovebox (Maschine MK3)
+After=sound.target systemd-udev-settle.service
+Wants=systemd-udev-settle.service
+
+[Service]
+Type=simple
+User=octachrome
+Group=audio
+SupplementaryGroups=plugdev
+ExecStart=/usr/local/bin/octachrome run
+Restart=always
+RestartSec=1
+# Low-latency audio: 64-frame buffer at 48 kHz = 1.3 ms per block.
+Environment=OCTACHROME_BUFFER=64
+Environment=OCTACHROME_AUDIO_DEVICE=Maschine
+# Allow real-time scheduling for the audio thread and locked memory.
+LimitRTPRIO=95
+LimitMEMLOCK=infinity
+Nice=-10
+# Keep Octachrome off the core the kernel uses most (see README: isolcpus).
+CPUAffinity=1-3
+
+[Install]
+WantedBy=multi-user.target
