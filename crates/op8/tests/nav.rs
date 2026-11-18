@@ -36,12 +36,12 @@ fn f_n01_the_focus_moves_and_pushing_opens() {
     b.press(Button::JogRight);
     b.press(Button::JogRight);
     assert_eq!(op8_ui::nav_index(b.ui()), 11, "the last column has nothing to its right");
-    // back on place 2 (dub), push it
+    // back on place 2 (garage), push it
     b.encoder(2 - op8_ui::nav_index(b.ui()) as i32);
     assert_eq!(op8_ui::nav_index(b.ui()), 2);
     b.press(Button::JogPush);
     assert_eq!(b.ui().main, Main::Instrument, "it opened and went back to composing");
-    assert_eq!(b.project().bpm, 70.0, "the dub: 70 bpm");
+    assert_eq!(b.project().bpm, op8::factory::project(2).bpm, "the garage, at its own tempo");
 }
 
 // F-N02: the 4D encoder does not turn the tempo by itself any more: only while TEMPO is held.
@@ -134,8 +134,10 @@ fn f_n06_opening_a_piece_shows_its_music() {
     b.run_ms(100);
     assert_eq!(b.ui().lane, Some(2), "the kit shows the closed hat, the first sound that has steps, not the empty kick");
     b.press(Button::File);
-    b.tap(pad_of(6)); // ambient: nothing hits, the music starts on the resonator
-    assert_eq!(b.ui().track, 3);
+    b.tap(pad_of(6)); // ambient: the first track that has steps, whichever it is
+    let p = op8::factory::project(6);
+    let first = (0..8).find(|&t| p.tracks[t].steps.iter().any(|s| s.active)).unwrap();
+    assert_eq!(b.ui().track, first);
     assert_eq!(b.ui().right_page, 0);
 }
 

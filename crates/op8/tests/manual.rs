@@ -342,11 +342,14 @@ fn recipe_12_save_and_come_back() {
     b.tap(pad(9)); // the first of your own
     b.button_up(Button::Shift);
     assert!(b.ui().file_note.starts_with("saved"));
-    b.tap(pad(7)); // open the ambient piece, which has no kick
-    assert!(!b.project().tracks[1].steps[0].active);
+    let own_bpm = b.project().bpm;
+    b.tap(pad(7)); // open the ambient piece, slower than the demo
+    assert_eq!(b.project().bpm, op8::factory::project(6).bpm);
+    assert_ne!(b.project().bpm, own_bpm);
     b.press(Button::File);
     b.tap(pad(9));
-    assert!(b.project().tracks[1].steps[0].active, "your project is back");
+    assert_eq!(b.project().bpm, own_bpm, "your project is back");
+    assert!(b.project().tracks[1].steps[0].active, "with its kick");
     assert!(dir.join("user-1.name").is_file(), "it carries a name, the day and the tempo");
     // to name it: SELECT and the place
     b.press(Button::File);
@@ -565,8 +568,8 @@ fn recipe_18_move_without_the_pads() {
     b.run_ms(60);
     b.capture("r18-file");
     b.encoder(1);
-    b.press(Button::JogPush); // the dub
-    assert_eq!(b.project().bpm, 70.0);
+    b.press(Button::JogPush); // the garage
+    assert_eq!(b.project().bpm, op8::factory::project(2).bpm);
     // composing: a value of the right screen, grabbed
     for _ in 0..80 {
         if b.ui().focus == NavKind::Value(5) {
