@@ -37,18 +37,22 @@ header.top p { margin: 0; color: var(--ink-dim); font-size: 13px; max-width: 62c
   display: grid; gap: clamp(14px, 2vw, 22px);
   box-shadow: 0 30px 60px -30px rgba(0,0,0,.8), inset 0 1px 0 rgba(255,255,255,.04);
 }
-.screens { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-.screen-col { display: grid; gap: 8px; min-width: 0; }
-.screen-btns { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
-canvas.lcd {
-  width: 100%; max-width: 100%; aspect-ratio: 480 / 272; display: block;
-  background: #000; border-radius: 4px; image-rendering: pixelated;
-  box-shadow: 0 0 0 3px #08090a, 0 0 0 4px #2e3036;
-}
-.knobs { display: grid; grid-template-columns: repeat(8, 1fr); gap: 6px; }
-.knob { display: grid; justify-items: center; gap: 4px; touch-action: none; cursor: ns-resize; user-select: none; -webkit-user-select: none; }
+/* The unit seen from above: one box with the proportions of the front panel; every part is placed in it by layoutUnit() from PANEL. */
+.unitwrap { overflow-x: auto; }
+.unit { position: relative; min-width: 720px; container-type: inline-size; background: #101113; border-radius: 10px; box-shadow: inset 0 0 0 1px #24262b; }
+.unit > .btn, .unit .groups .btn, .unit .encoder .btn { position: absolute; margin: 0; padding: 0; min-width: 0; display: flex; align-items: center; justify-content: center; text-align: center; overflow: hidden; white-space: nowrap; font-size: clamp(7px, 1.12cqw, 13px); letter-spacing: .03em; }
+.unit .btn.inert { cursor: default; color: rgba(255,255,255,.14); box-shadow: 0 2px 0 #0a0a0b; }
+.unit .groups, .unit .pads, .unit #knobs { display: contents; }
+.unit canvas.lcd { position: absolute; height: auto; aspect-ratio: 480 / 272; display: block; background: #000; border-radius: 3px; image-rendering: pixelated; box-shadow: 0 0 0 2px #08090a, 0 0 0 3px #2e3036; }
+.unit .strip, .unit .pad, .unit .knob, .unit .encoder { position: absolute; }
+.unit .encoder { border-radius: 50%; background: radial-gradient(circle at 40% 35%, #34363b, #131416 70%); box-shadow: 0 3px 0 #050505, inset 0 0 0 1px #3a3c42; }
+.unit .encoder .btn { width: 22%; height: 22%; border-radius: 50%; font-size: clamp(7px, 1.2cqw, 13px); }
+.unit .encoder #jogU { left: 39%; top: 6%; } .unit .encoder #jogD { left: 39%; top: 72%; }
+.unit .encoder #jogL { left: 6%; top: 39%; } .unit .encoder #jogR { left: 72%; top: 39%; }
+.unit .encoder #jogP { left: 33%; top: 33%; width: 34%; height: 34%; font-size: clamp(6px, .9cqw, 11px); }
+.knob { display: grid; justify-items: center; align-content: start; touch-action: none; cursor: ns-resize; user-select: none; -webkit-user-select: none; }
 .knob .dial {
-  width: clamp(34px, 5vw, 52px); aspect-ratio: 1; border-radius: 50%;
+  width: 100%; aspect-ratio: 1; border-radius: 50%;
   background: radial-gradient(circle at 35% 30%, #4a4c52, #232428 70%);
   box-shadow: 0 2px 0 #050505, inset 0 0 0 1px #3a3c42; position: relative;
 }
@@ -59,11 +63,6 @@ canvas.lcd {
 .knob.touched .dial { box-shadow: 0 2px 0 #050505, 0 0 0 2px var(--ink); }
 .knob span { font: 600 10px var(--font-mono); color: var(--ink-faint); }
 
-.lower { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr); gap: clamp(14px, 2.5vw, 28px); align-items: start; }
-.controls { display: grid; gap: 14px; min-width: 0; }
-.row { display: flex; flex-wrap: wrap; gap: 6px; }
-.lbl { font: 600 10px var(--font-mono); letter-spacing: .12em; color: var(--ink-faint); text-transform: uppercase; }
-.grp { display: grid; gap: 6px; }
 .btn {
   font: 600 11px var(--font-mono); letter-spacing: .06em; color: var(--ink-dim);
   background: var(--rubber); border: 1px solid #34363c; border-radius: 5px;
@@ -76,14 +75,13 @@ canvas.lcd {
 /* a button that has something to do here: a very faint white (dark = nothing to do, strong = pressed or in focus) */
 .btn.avail { color: rgba(255,255,255,.30); box-shadow: 0 2px 0 #0a0a0b, inset 0 0 0 1px rgba(255,255,255,.07); }
 .btn:focus-visible, .pad:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.groups { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
 .groups .btn { --c: #888; border-bottom: 3px solid color-mix(in srgb, var(--c) 45%, transparent); }
 .groups .btn.sel { color: var(--ink); border-color: var(--c); box-shadow: 0 2px 0 #0a0a0b, 0 0 14px -4px var(--c); }
 .groups .btn.flash { background: color-mix(in srgb, var(--c) 30%, var(--rubber)); }
 .btn.play.on { background: #34c759; color: #04140a; }
 
 .strip {
-  position: relative; height: 34px; border-radius: 6px; background: #0b0c0d;
+  border-radius: 6px; background: #0b0c0d;
   box-shadow: inset 0 0 0 1px #2c2e33; touch-action: none; cursor: ew-resize; overflow: hidden;
 }
 .strip .leds { position: absolute; inset: 0; display: grid; grid-template-columns: repeat(25, 1fr); gap: 2px; padding: 13px 8px; }
@@ -91,9 +89,9 @@ canvas.lcd {
 .strip .leds i.on { background: var(--accent); box-shadow: 0 0 8px var(--accent); }
 .strip .mid { position: absolute; left: 50%; top: 6px; bottom: 6px; width: 1px; background: #2c2e33; }
 
-.pads { display: grid; grid-template-columns: repeat(4, 1fr); gap: clamp(6px, 1vw, 10px); touch-action: none; }
+.pads { touch-action: none; }
 .pad {
-  aspect-ratio: 1; border-radius: 8px; border: 0; cursor: pointer; position: relative;
+  border-radius: 8px; border: 0; cursor: pointer; position: relative;
   background: var(--rubber); box-shadow: inset 0 -3px 0 rgba(0,0,0,.35), 0 2px 0 #060607;
   --glow: transparent; --lvl: 0;
   background-image: radial-gradient(circle at 50% 55%, color-mix(in srgb, var(--glow) calc(var(--lvl) * 100%), transparent), transparent 75%);
@@ -109,12 +107,6 @@ canvas.lcd {
 .notes code, .notes kbd { font-family: var(--font-mono); font-size: 12px; color: var(--ink); }
 .toast { font: 600 11px var(--font-mono); color: var(--ink-dim); min-height: 1.2em; }
 
-@media (max-width: 760px) {
-  .screens { grid-template-columns: 1fr; }
-  .knobs { grid-template-columns: repeat(4, 1fr); row-gap: 10px; }
-  .lower { grid-template-columns: 1fr; }
-  .pads-col { order: -1; }
-}
 .look { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; width: 100%; font-size: 12px; }
 .look span { color: var(--ink-dim); margin: 0 2px 0 8px; }
 .look span:first-child { margin-left: 0; }
@@ -133,86 +125,60 @@ canvas.lcd {
   </header>
 
   <section class="plate" aria-label="Maschine MK3">
-    <div class="screens">
-      <div class="screen-col">
-        <div class="screen-btns">
-          <button class="btn" id="sb1" title="Sin asignar">1</button><button class="btn" id="sb2" title="Sin asignar">2</button><button class="btn" id="sb3" title="Players: arpegio o acorde sobre cada nota">3 PLAYERS</button><button class="btn" id="sb4" title="Bar: largo, división y shift de la pista">4 BAR</button>
-        </div>
-        <canvas class="lcd" id="lcdL" width="480" height="272" aria-label="Pantalla izquierda: secuenciador"></canvas>
+    <!-- The panel is the unit's, seen from above: every part is placed by PANEL (below), which is a copy of guide/mk3.js
+         checked by tests/twin_panel.rs. -->
+    <div class="unitwrap"><div class="unit" id="unit">
+      <canvas class="lcd" id="lcdL" width="480" height="272" aria-label="Pantalla izquierda: secuenciador"></canvas>
+      <canvas class="lcd" id="lcdR" width="480" height="272" aria-label="Pantalla derecha: instrumento"></canvas>
+      <div id="knobs"></div>
+      <div class="groups" id="groups"></div>
+      <div class="pads" id="pads"></div>
+      <div class="strip" id="strip"><div class="mid"></div><div class="leds" id="stripLeds"></div></div>
+      <div class="encoder" id="encoder">
+        <button class="btn" id="jogL">◀ JOG</button>
+        <button class="btn" id="jogR">JOG ▶</button>
+        <button class="btn" id="jogU" title="Foco: una fila arriba (flecha ↑)">▲</button>
+        <button class="btn" id="jogD" title="Foco: una fila abajo (flecha ↓)">▼</button>
+        <button class="btn" id="jogP" title="Apretar el 4D: activar lo que tiene el foco (Enter)">PUSH</button>
       </div>
-      <div class="screen-col">
-        <div class="screen-btns">
-          <button class="btn" id="sb5" title="Sonido (página 1 del instrumento)">5 SOUND</button><button class="btn" id="sb6" title="Forma (página 2 del instrumento)">6 SHAPE</button><button class="btn" id="sb7" title="Fx: el efecto de la pista">7 FX</button><button class="btn" id="sb8" title="Mod: el LFO de la pista">8 MOD</button>
-        </div>
-        <canvas class="lcd" id="lcdR" width="480" height="272" aria-label="Pantalla derecha: instrumento"></canvas>
-      </div>
-    </div>
-    <div class="knobs" id="knobs"></div>
-
-    <div class="lower">
-      <div class="controls">
-        <div class="grp">
-          <span class="lbl">Transporte</span>
-          <div class="row">
-            <button class="btn" id="bRestart">RESTART</button>
-            <button class="btn play" id="bPlay">PLAY</button>
-            <button class="btn" id="bStop">STOP</button>
-            <button class="btn" id="bRec" title="Grabar lo que tocás">REC</button>
-            <button class="btn" id="bTap" title="Tap tempo · SHIFT + TAP: metrónomo">TAP</button>
-            <button class="btn" id="bTempo" title="Tempo: con el botón activo, JOG ◀ ▶ lo cambia">TEMPO</button>
-            <button class="btn" id="bSwing" title="Swing">SWING</button>
-            <button class="btn" id="bVolume" title="Volumen general">VOLUME</button>
-            <button class="btn" id="bFixed" title="Velocity fija">FIXED VEL</button>
-            <button class="btn" id="bShift">SHIFT</button>
-          </div>
-        </div>
-        <div class="grp">
-          <span class="lbl">Modo</span>
-          <div class="row">
-            <button class="btn" id="bStep">STEP</button>
-            <button class="btn" id="bChords">CHORDS</button>
-            <button class="btn" id="bPerform">PERFORM</button>
-            <button class="btn" id="bPads" title="Los pads tocan el instrumento">PAD MODE</button>
-            <button class="btn" id="bKeys" title="Los pads son un teclado cromático">KEYBOARD</button>
-            <button class="btn" id="bErase">ERASE</button>
-            <button class="btn" id="bMute">MUTE</button>
-            <button class="btn" id="bSelect" title="SELECT + a pad of FILE or BROWSER: name that place (letters with the 4D, ◀ ▶ or ▲ ▼ move)">SELECT</button>
-            <button class="btn" id="bChannel" title="Compose: the sequencer on the left, the instrument on the right">CHANNEL</button>
-            <button class="btn" id="bSettings" title="Settings: both screens">SETTINGS</button>
-            <button class="btn" id="bMixer" title="Mixer: the channels on the left, the compressor of the master on the right">MIXER</button>
-            <button class="btn" id="bFile" title="Proyectos: abrir y guardar">FILE</button>
-            <button class="btn" id="bPlug" title="Elegir el instrumento de la pista">PLUG-IN</button>
-            <button class="btn" id="bPattern" title="PATTERN: the sixteen pads are the sixteen patterns of the track. Tap: shown, plays from the next loop; SHIFT + tap: at once; hold + tap another: copy; ERASE + tap: empty">PATTERN</button>
-            <button class="btn" id="bScene" title="SCENE: the sixteen pads are the sixteen scenes. Tap: every track goes to the pattern it had (from its next loop) and the mutes come back at once; SHIFT + tap: store what is now; ERASE + tap: empty">SCENE</button>
-            <button class="btn" id="bArranger" title="ARRANGER: the song, a chain of scenes. Tap a pad to choose a step; knob 5: its scene, knob 6: its bars, knob 7: follow the song; ERASE + tap: take a step out">ARRANGER</button>
-            <button class="btn" id="bBrowser" title="Presets del instrumento: tocar carga, SHIFT + tocar guarda (filas de abajo)">BROWSER</button>
-            <button class="btn" id="bSampling" title="Grabar un sonido: REC graba, los pads de arriba lo guardan, los de abajo lo escuchan">SAMPLING</button>
-          </div>
-        </div>
-        <div class="grp">
-          <span class="lbl">Grupos (pistas)</span>
-          <div class="groups" id="groups"></div>
-        </div>
-        <div class="grp">
-          <span class="lbl">Encoder 4D</span>
-          <div class="row">
-            <button class="btn" id="jogL">◀ JOG</button>
-            <button class="btn" id="jogR">JOG ▶</button>
-            <button class="btn" id="jogU" title="Foco: una fila arriba (flecha ↑)">▲</button>
-            <button class="btn" id="jogD" title="Foco: una fila abajo (flecha ↓)">▼</button>
-            <button class="btn" id="jogP" title="Apretar el 4D: activar lo que tiene el foco (Enter)">PUSH</button>
-          </div>
-        </div>
-        <div class="grp">
-          <span class="lbl">Smart Strip · filtro master</span>
-          <div class="strip" id="strip"><div class="mid"></div><div class="leds" id="stripLeds"></div></div>
-        </div>
-        <div class="toast" id="toast" aria-live="polite"></div>
-      </div>
-      <div class="pads-col">
-        <div class="pads" id="pads"></div>
-      </div>
-    </div>
+      <button class="btn" id="sb1" title="Sin asignar">1</button>
+      <button class="btn" id="sb2" title="Sin asignar">2</button>
+      <button class="btn" id="sb3" title="Players: arpegio o acorde sobre cada nota">3 PLAYERS</button>
+      <button class="btn" id="sb4" title="Bar: largo, división y shift de la pista">4 BAR</button>
+      <button class="btn" id="sb5" title="Sonido (página 1 del instrumento)">5 SOUND</button>
+      <button class="btn" id="sb6" title="Forma (página 2 del instrumento)">6 SHAPE</button>
+      <button class="btn" id="sb7" title="Fx: el efecto de la pista">7 FX</button>
+      <button class="btn" id="sb8" title="Mod: el LFO de la pista">8 MOD</button>
+      <button class="btn" id="bChannel" title="Compose: the sequencer on the left, the instrument on the right">CHANNEL</button>
+      <button class="btn" id="bPlug" title="Elegir el instrumento de la pista">PLUG-IN</button>
+      <button class="btn" id="bArranger" title="ARRANGER: the song, a chain of scenes. Tap a pad to choose a step; knob 5: its scene, knob 6: its bars, knob 7: follow the song; ERASE + tap: take a step out">ARRANGER</button>
+      <button class="btn" id="bMixer" title="Mixer: the channels on the left, the compressor of the master on the right">MIXER</button>
+      <button class="btn" id="bBrowser" title="Presets del instrumento: tocar carga, SHIFT + tocar guarda (filas de abajo)">BROWSER</button>
+      <button class="btn" id="bSampling" title="Grabar un sonido: REC graba, los pads de arriba lo guardan, los de abajo lo escuchan">SAMPLING</button>
+      <button class="btn" id="bFile" title="Proyectos: abrir y guardar">FILE</button>
+      <button class="btn" id="bSettings" title="Settings: both screens">SETTINGS</button>
+      <button class="btn" id="bVolume" title="Volumen general">VOLUME</button>
+      <button class="btn" id="bSwing" title="Swing">SWING</button>
+      <button class="btn" id="bTempo" title="Tempo: con el botón activo, JOG ◀ ▶ lo cambia">TEMPO</button>
+      <button class="btn" id="bFixed" title="Velocity fija">FIXED VEL</button>
+      <button class="btn" id="bPads" title="Los pads tocan el instrumento">PAD MODE</button>
+      <button class="btn" id="bKeys" title="Los pads son un teclado cromático">KEYBOARD</button>
+      <button class="btn" id="bChords">CHORDS</button>
+      <button class="btn" id="bStep">STEP</button>
+      <button class="btn" id="bScene" title="SCENE: the sixteen pads are the sixteen scenes. Tap: every track goes to the pattern it had (from its next loop) and the mutes come back at once; SHIFT + tap: store what is now; ERASE + tap: empty">SCENE</button>
+      <button class="btn" id="bPattern" title="PATTERN: the sixteen pads are the sixteen patterns of the track. Tap: shown, plays from the next loop; SHIFT + tap: at once; hold + tap another: copy; ERASE + tap: empty">PATTERN</button>
+      <button class="btn" id="bSelect" title="SELECT + a pad of FILE or BROWSER: name that place (letters with the 4D, ◀ ▶ or ▲ ▼ move)">SELECT</button>
+      <button class="btn" id="bMute">MUTE</button>
+      <button class="btn" id="bPerform">PERFORM</button>
+      <button class="btn" id="bRestart">RESTART</button>
+      <button class="btn" id="bErase">ERASE</button>
+      <button class="btn" id="bTap" title="Tap tempo · SHIFT + TAP: metrónomo">TAP</button>
+      <button class="btn play" id="bPlay">PLAY</button>
+      <button class="btn" id="bRec" title="Grabar lo que tocás">REC</button>
+      <button class="btn" id="bStop">STOP</button>
+      <button class="btn" id="bShift">SHIFT</button>
+    </div></div>
+    <div class="toast" id="toast" aria-live="polite"></div>
   </section>
 
   <section class="notes">
@@ -2797,6 +2763,38 @@ const stripLeds = Array.from({ length: 25 }, () => { const i = document.createEl
   const end = () => { on = false; setStrip(null); };
   el.addEventListener("pointerup", end); el.addEventListener("pointercancel", end);
 })();
+
+// ---- the panel: every part of the unit where the unit has it ----
+// <panel>
+const UNIT_PANEL = {"body":[0,0,988.8,935.7],"screens":[[270.2,100.3,297.4,166.4],[619.5,99.1,297.4,166.4]],"knobs":[[286.7,323.3,26],[375.7,323.3,26],[464.7,323.3,26],[553.7,323.3,26],[642.6,323.3,26],[731.6,323.3,26],[820.6,323.3,26],[909.5,323.3,26]],"pads":[[525.1,435.4,106.2,107.4],[640.4,435.4,106.2,107.4],[755.7,435.4,106.2,107.4],[871,435.4,106.2,107.4],[525.1,552.2,106.2,107.4],[640.4,552.2,106.2,107.4],[755.7,552.2,106.2,107.4],[871,552.2,106.2,107.4],[525.1,669.1,106.2,107.4],[640.4,669.1,106.2,107.4],[755.7,669.1,106.2,107.4],[871,669.1,106.2,107.4],[525.1,785.9,106.2,107.4],[640.4,785.9,106.2,107.4],[755.7,785.9,106.2,107.4],[871,785.9,106.2,107.4]],"encoder":[99.1,437.8,44.8],"strip":[28.3,581.7,330.4,51.9],"btn":[["1",250.2,23.6,76.7,28.3],["2",338.7,23.6,76.7,28.3],["3",424.8,23.6,76.7,28.3],["4",510.9,23.6,76.7,28.3],["5",598.3,23.6,76.7,28.3],["6",685.6,23.6,76.7,28.3],["7",770.5,23.6,76.7,28.3],["8",857.9,23.6,76.7,28.3],["CHANNEL",18.9,26,79.1,26],["PLUG-IN",107.4,26,79.1,26],["ARRANGER",18.9,73.2,79.1,44.8],["MIXER",107.4,73.2,79.1,44.8],["BROWSER",18.9,128.6,79.1,47.2],["SAMPLING",107.4,128.6,79.1,47.2],["PAGE ◀",18.9,184.1,79.1,27.1],["PAGE ▶",107.4,184.1,79.1,27.1],["FILE",18.9,219.5,79.1,28.3],["SETTINGS",107.4,219.5,79.1,28.3],["AUTO",18.9,258.4,79.1,29.5],["MACRO",107.4,258.4,79.1,29.5],["VOLUME",194.7,384.7,80.2,28.3],["NOTE REPEAT",285.6,384.7,79.1,63.7],["SWING",194.7,421.3,80.2,27.1],["TEMPO",194.7,460.2,80.2,28.3],["LOCK",285.6,460.2,79.1,28.3],["FIXED VEL",424.8,383.5,77.9,28.3],["PAD MODE",525.1,383.5,105,28.3],["KEYBOARD",639.6,383.5,105,28.3],["CHORDS",755.2,383.5,105,28.3],["STEP",870.8,383.5,105,28.3],["SCENE",427.2,434.2,77.9,48.4],["PATTERN",427.2,493.2,77.9,48.4],["EVENTS",427.2,553.4,77.9,48.4],["VARIATION",427.2,612.4,77.9,48.4],["DUPLICATE",427.2,671.4,77.9,48.4],["SELECT",427.2,731.6,77.9,48.4],["SOLO",427.2,790.6,77.9,48.4],["MUTE",427.2,850.8,77.9,48.4],["PITCH",8.3,527.5,81.4,28.3],["MOD",99.1,527.5,81.4,28.3],["PERFORM",194.7,527.5,81.4,28.3],["NOTES",285.6,527.5,81.4,28.3],["A",3.5,663.2,82.6,46],["B",95.6,663.2,82.6,46],["C",190,663.2,82.6,46],["D",283.2,663.2,82.6,46],["E",3.5,723.3,82.6,46],["F",95.6,723.3,82.6,46],["G",190,723.3,82.6,46],["H",283.2,723.3,82.6,46],["RESTART",3.5,813,80.2,30.7],["ERASE",95.6,813,80.2,30.7],["TAP",190,813,80.2,30.7],["FOLLOW",283.2,813,80.2,30.7],["PLAY",3.5,852,80.2,48.4],["REC",95.6,852,80.2,48.4],["STOP",190,852,80.2,48.4],["SHIFT",283.2,852,80.2,48.4]]};
+// </panel>
+const BTN_IDS = {
+  "1": "sb1", "2": "sb2", "3": "sb3", "4": "sb4", "5": "sb5", "6": "sb6", "7": "sb7", "8": "sb8",
+  CHANNEL: "bChannel", "PLUG-IN": "bPlug", ARRANGER: "bArranger", MIXER: "bMixer", BROWSER: "bBrowser", SAMPLING: "bSampling", FILE: "bFile", SETTINGS: "bSettings",
+  VOLUME: "bVolume", SWING: "bSwing", TEMPO: "bTempo", "FIXED VEL": "bFixed", "PAD MODE": "bPads", KEYBOARD: "bKeys", CHORDS: "bChords", STEP: "bStep",
+  SCENE: "bScene", PATTERN: "bPattern", SELECT: "bSelect", MUTE: "bMute", PERFORM: "bPerform",
+  RESTART: "bRestart", ERASE: "bErase", TAP: "bTap", PLAY: "bPlay", REC: "bRec", STOP: "bStop", SHIFT: "bShift",
+};
+function layoutUnit() {
+  const BW = UNIT_PANEL.body[2], BH = UNIT_PANEL.body[3], pc = (v, t) => (v / t * 100) + "%";
+  const put = (el, r, h = true) => { el.style.left = pc(r[0], BW); el.style.top = pc(r[1], BH); el.style.width = pc(r[2], BW); if (h) el.style.height = pc(r[3], BH); };
+  $("unit").style.aspectRatio = BW + " / " + BH;
+  put($("lcdL"), UNIT_PANEL.screens[0], false); put($("lcdR"), UNIT_PANEL.screens[1], false);
+  knobEls.forEach((el, k) => { const [cx, cy, r] = UNIT_PANEL.knobs[k]; put(el, [cx - r, cy - r, 2 * r], false); });
+  padEls.forEach((el, p) => put(el, UNIT_PANEL.pads[(3 - Math.floor(p / 4)) * 4 + (p % 4)]));
+  put($("strip"), UNIT_PANEL.strip);
+  const [ex, ey, er] = UNIT_PANEL.encoder; put($("encoder"), [ex - er, ey - er, 2 * er, 2 * er]);
+  for (const [label, x, y, w, h] of UNIT_PANEL.btn) {
+    const g = TRACK_NAMES.indexOf(label);
+    let el = g >= 0 ? groupEls[g] : BTN_IDS[label] ? $(BTN_IDS[label]) : null;
+    if (!el) { // a button of the unit that Octachrome does not use yet: it is there, dark, so the panel is the unit's
+      el = document.createElement("button"); el.className = "btn inert"; el.textContent = label; el.tabIndex = -1; el.title = "Sin función todavía";
+      el.setAttribute("aria-disabled", "true"); $("unit").appendChild(el);
+    }
+    put(el, [x, y, w, h]);
+  }
+}
+layoutUnit();
 
 // buttons
 $("bPlay").addEventListener("click", () => S.playing ? stop() : play());
