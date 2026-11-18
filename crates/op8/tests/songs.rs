@@ -31,7 +31,8 @@ fn f_f07_the_eight_pieces_play() {
         let (rms, peak) = (b.rms_db(2_000, 12_000), b.peak_db(0, 12_000));
         b.save_audio(&format!("piece-{}-{}", i + 1, name.replace(' ', "-"))); // with OP8_BENCH_DIR set: a WAV to listen to
         eprintln!("{i} {name:12} rms {rms:6.1} peak {peak:5.1} bpm {}", b.project().bpm);
-        if rms < -30.0 {
+        // a song starts with an intro that is quiet on purpose: its own test measures its sections
+        if !b.project().song.on && rms < -30.0 {
             problems.push(format!("{name} is too quiet: {rms:.1} dB"));
         }
         if peak > -0.5 {
@@ -187,4 +188,104 @@ fn f_f10_house_is_composed() {
     // the second part of the build has more claps than the first
     let claps = |pat: &Vec<op8_seq::Step>| pat.iter().filter(|s| s.lanes & (1 << 5) != 0).count();
     assert!(claps(&drums[6]) > claps(&drums[5]), "the build speeds up");
+}
+
+/// Every pattern of a track of factory piece `piece`, as the steps it has when it plays (empty ones left out).
+fn patterns_of(piece: usize, track: usize) -> Vec<Vec<op8_seq::Step>> {
+    let mut p = op8::factory::project(piece);
+    (0..16u8)
+        .filter_map(|i| {
+            p.apply(&op8_seq::Command::SetPattern { track: track as u8, index: i, now: false });
+            let t = &p.tracks[track];
+            let steps = t.steps[..t.length as usize].to_vec();
+            steps.iter().any(|s| s.active).then_some(steps)
+        })
+        .collect()
+}
+
+fn lanes_at(pat: &[op8_seq::Step], lanes: u8) -> Vec<usize> {
+    (0..pat.len()).filter(|&s| pat[s].lanes & lanes != 0).collect()
+}
+
+// F-F13: garage is a whole song (the checks of every song); it is two-step: the kick never lands on two or four (steps 4 and 12), the
+// snare does, and the swing is heavy.
+#[test]
+fn f_f13_garage_is_a_whole_two_step_song() {
+    let (_, _, levels) = whole_song(2, "garage");
+    assert!(levels[6] > levels[0] + 4.0, "the last hook is fuller than the intro: {levels:?}");
+    for pat in patterns_of(2, 1) {
+        assert!(!pat[4].active && !pat[12].active, "the kick skips two and four");
+    }
+    assert!(lanes_at(&patterns_of(2, 0)[0], 1 << 1).contains(&4), "a snare on two");
+    assert!(op8::factory::project(2).swing >= 0.6);
+}
+
+// F-F14: dnb is a whole song (the checks of every song); it runs at drum & bass tempo (170 or more) on a two-step break: the snare on
+// two and four, the kick on one and the "and" of three.
+#[test]
+fn f_f14_dnb_is_a_whole_song() {
+    let (_, _, levels) = whole_song(3, "dnb");
+    assert!(levels[3] > levels[0] + 4.0, "the drop is fuller than the intro: {levels:?}");
+    assert!(levels[3] > levels[4] + 2.0, "and than the break: {levels:?}");
+    assert!(op8::factory::project(3).bpm >= 170.0);
+    let snares = lanes_at(&patterns_of(3, 0)[0], 1 << 1);
+    assert!(snares.contains(&4) && snares.contains(&12), "the snare on two and four: {snares:?}");
+    let kick = &patterns_of(3, 1)[0];
+    assert!(kick[0].active && kick[10].active);
+}
+
+// F-F15: trance is a whole song (the checks of every song); its bass gallops between the kicks (never on one of them), its pad has a
+// gated pattern (a note on every sixteenth), and the drop is fuller than the breakdown.
+#[test]
+fn f_f15_trance_is_a_whole_song() {
+    let (_, _, levels) = whole_song(4, "trance");
+    assert!(levels[7] > levels[3] + 4.0, "the drop is fuller than the breakdown: {levels:?}");
+    for pat in patterns_of(4, 2) {
+        for s in [0, 4, 8, 12] {
+            assert!(!pat[s].active, "the bass leaves the kick alone");
+        }
+    }
+    assert!(patterns_of(4, 4).iter().any(|p| p.iter().all(|s| s.active)), "a gated pad");
+}
+
+// F-F16: amapiano is a whole song (the checks of every song); its log drum (the KickSyn) follows the chord and plays a line of at least
+// three notes, and the kit's own kick is on every beat.
+#[test]
+fn f_f16_amapiano_is_a_whole_song() {
+    let (_, _, levels) = whole_song(5, "amapiano");
+    assert!(levels[5] > levels[0] + 4.0, "the drop is fuller than the intro: {levels:?}");
+    let p = op8::factory::project(5);
+    assert!(p.tracks[1].brain_link, "the log drum follows the chord");
+    let mut notes: Vec<u8> = patterns_of(5, 1).iter().flat_map(|p| p.iter().filter(|s| s.active).map(|s| s.note).collect::<Vec<_>>()).collect();
+    notes.sort();
+    notes.dedup();
+    assert!(notes.len() >= 3, "a line, not one note: {notes:?}");
+    assert_eq!(lanes_at(&patterns_of(5, 0)[0], 1), vec![0, 4, 8, 12], "the soft kick on every beat");
+}
+
+// F-F17: ambient is a whole song (the checks of every song); nothing hits hard: no snare, clap or crash anywhere, a kick at most twice
+// a bar, and every chord lasts two bars.
+#[test]
+fn f_f17_ambient_is_a_whole_song() {
+    whole_song(6, "ambient");
+    for pat in patterns_of(6, 0) {
+        assert!(lanes_at(&pat, (1 << 1) | (1 << 5) | (1 << 7)).is_empty(), "no snare, clap or crash");
+    }
+    for pat in patterns_of(6, 1) {
+        assert!(pat.iter().filter(|s| s.active).count() <= 2, "a heartbeat, not a beat");
+    }
+    let p = op8::factory::project(6);
+    assert!(p.scenes.iter().filter(|s| s.used).all(|s| s.brain.progression[..s.brain.len as usize].iter().all(|c| c.length == 32)));
+}
+
+// F-F18: lo-fi is a whole song (the checks of every song) with a heavy swing, and its keys come in after the beat, as a hand plays
+// (a delay on their steps).
+#[test]
+fn f_f18_lofi_is_a_whole_song() {
+    let (_, _, levels) = whole_song(7, "lo-fi");
+    assert!(levels[1] > levels[0] + 4.0, "the beat makes it fuller than the intro: {levels:?}");
+    let p = op8::factory::project(7);
+    assert!(p.swing >= 0.6);
+    let keys = &patterns_of(7, 6)[0];
+    assert!(keys.iter().filter(|s| s.active).all(|s| s.components.iter().any(|c| matches!(c, op8_seq::StepComponent::Delay(_)))), "every chord a little late");
 }
