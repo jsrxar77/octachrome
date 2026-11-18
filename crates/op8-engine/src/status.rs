@@ -18,6 +18,8 @@ pub struct EngineStatus {
     pub song_mute: AtomicU16,
     /// The step of the song that plays, 255 when the song is not being followed.
     pub song_step: AtomicU8,
+    /// Ticks since the step of the song that plays began (a bar is 384).
+    pub song_tick: AtomicU32,
     /// How far into its step each track is, 0..=255 (the fraction of the step that has passed).
     pub phase: [AtomicU8; TRACKS],
     /// Incremented on every note-on, per track (drives activity LEDs).

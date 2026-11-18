@@ -155,6 +155,8 @@ pub struct Controller {
     midi_held: std::collections::HashMap<(u8, u8), u8>,
     /// PATTERN: the pad that is held (to copy it over another) and whether it has copied.
     pattern_held: Option<(u8, bool)>,
+    /// ARRANGER: the pad that is held (to move its step to another place) and whether it has moved.
+    arranger_held: Option<(u8, bool)>,
     /// MIDI clock in: the tempo and the position that the pulses say.
     clock: crate::clockin::ClockFollower,
     /// The parameter (0..=7) that `learn` is waiting for a control for, once a knob has been turned.
@@ -1185,21 +1187,50 @@ impl Controller {
                     return;
                 }
                 self.pad_down_at[pad as usize] = Some(0);
-                self.ui.focus = NavKind::Cell(slot);
-                if self.held.erase && (slot as usize) < h.project.song.len as usize {
+                let len = h.project.song.len as usize;
+                let playing = Self::song_plays(h);
+                if self.held.erase && (slot as usize) < len {
+                    self.ui.focus = NavKind::Cell(slot);
                     h.seq(Command::RemoveSongStep { index: slot });
                     self.ui.arr_note = format!("step {} taken out", slot + 1);
-                } else if self.held.shift && (slot as usize) <= h.project.song.len as usize && h.project.song.len > 0 {
+                } else if self.held.shift && !playing && (slot as usize) <= len && len > 0 {
                     // a step in front of the one tapped: a copy of it (of the last one, on the free place after the end)
-                    let from = (slot as usize).min(h.project.song.len as usize - 1);
+                    self.ui.focus = NavKind::Cell(slot);
+                    let from = (slot as usize).min(len - 1);
                     let s = h.project.song.steps[from];
                     h.seq(Command::InsertSongStep { index: slot, scene: s.scene, bars: s.bars });
                     self.ui.arr_note = format!("step {} put in", slot + 1);
-                } else {
-                    self.ui.arr_note.clear();
+                } else if let Some((first, _)) = self.arranger_held.filter(|(first, _)| *first != pad) {
+                    // a pad held and another tapped: the step of the first goes to the place of the second
+                    let from = Self::pad_to_step(first);
+                    if (from as usize) < len && (slot as usize) < len {
+                        h.seq(Command::MoveSongStep { from, to: slot });
+                        self.ui.focus = NavKind::Cell(slot);
+                        self.ui.arr_note = format!("step {} moved to {}", from + 1, slot + 1);
+                    }
+                    self.arranger_held = Some((first, true));
+                } else if self.arranger_held.is_none() {
+                    self.arranger_held = Some((pad, false));
                 }
             }
-            PadEvent::Release => self.pad_down_at[pad as usize] = None,
+            PadEvent::Release => {
+                self.pad_down_at[pad as usize] = None;
+                if let Some((first, moved)) = self.arranger_held {
+                    if first == pad {
+                        self.arranger_held = None;
+                        // a plain tap: it chooses the step, and a song that plays goes there (from the next bar, SHIFT: at once)
+                        if !moved {
+                            self.ui.focus = NavKind::Cell(slot);
+                            self.ui.arr_note.clear();
+                            if Self::song_plays(h) && (slot as usize) < h.project.song.len as usize {
+                                let now = self.held.shift;
+                                h.seq(Command::SongJump { step: slot, now });
+                                self.ui.arr_note = if now { format!("step {}: now", slot + 1) } else { format!("step {}: from the next bar", slot + 1) };
+                            }
+                        }
+                    }
+                }
+            }
             PadEvent::Pressure(_) => {}
         }
     }
@@ -1207,7 +1238,7 @@ impl Controller {
     /// ARRANGER, the knobs under the right screen: 5 the scene of the chosen step (a free one is added), 6 its bars, 7 whether the song is
     /// followed (turn right: on, left: off).
     fn arranger_knob(&mut self, k: usize, delta: i32, h: &mut EngineHandle) {
-        if !(4..7).contains(&k) {
+        if !(3..7).contains(&k) {
             return;
         }
         let n = self.detents(k, delta);
@@ -1217,6 +1248,18 @@ impl Controller {
         let sel = self.arranger_sel();
         let song = h.project.song;
         match k {
+            3 => {
+                // move the chosen step one place earlier or later for each detent (the ones it passes move over)
+                let len = song.len as usize;
+                if sel < len {
+                    let to = (sel as i32 + n).clamp(0, len as i32 - 1) as usize;
+                    if to != sel {
+                        h.seq(Command::MoveSongStep { from: sel as u8, to: to as u8 });
+                        self.ui.focus = NavKind::Cell(to as u8);
+                        self.ui.arr_note = format!("step {} moved to {}", sel + 1, to + 1);
+                    }
+                }
+            }
             6 => {
                 let on = n > 0;
                 h.seq(Command::SetSongOn(on));
@@ -1553,6 +1596,9 @@ impl Controller {
         if m == Main::Pattern {
             self.ui.pattern_note.clear();
             self.pattern_held = None;
+        }
+        if m == Main::Arranger {
+            self.arranger_held = None;
         }
         if m == Main::Scene {
             self.ui.scene_note.clear();
@@ -2452,6 +2498,11 @@ impl Controller {
             self.ui.arr.steps = s.steps[..s.len as usize].iter().map(|x| (x.scene, x.bars)).collect();
             self.ui.arr.on = s.on;
             self.ui.arr.sel = self.arranger_sel();
+            let p = h.status.song_step.load(Relaxed) as usize;
+            self.ui.arr.playing = (h.status.playing.load(Relaxed) && p < s.len as usize).then(|| {
+                let bars = s.steps[p].bars as u32;
+                (p, (h.status.song_tick.load(Relaxed) / 384 + 1).min(bars), bars)
+            });
         }
         if self.ui.main == Main::Mixer {
             let m = &mut self.ui.mixer;

@@ -518,6 +518,10 @@ pub enum Command {
     /// Show pattern `index` of a track (what is shown moves to the one that plays) without asking the sequencer to play it: it changes nothing of
     /// what plays. The song's followers use it to keep the view on what sounds.
     ShowPattern { track: u8, index: u8 },
+    /// Take the step at `from` of the song to `to` (the ones between move over by one).
+    MoveSongStep { from: u8, to: u8 },
+    /// Make a song that is playing go to step `step`: from the next bar, or at once. It changes nothing of the project.
+    SongJump { step: u8, now: bool },
 }
 
 impl Project {
@@ -578,6 +582,19 @@ impl Project {
                     self.song.len = self.song.len.max(index + 1);
                 }
             }
+            MoveSongStep { from, to } => {
+                let (f, t, n) = (from as usize, to as usize, self.song.len as usize);
+                if f < n && t < n && f != t {
+                    let s = self.song.steps[f];
+                    if f < t {
+                        self.song.steps.copy_within(f + 1..=t, f);
+                    } else {
+                        self.song.steps.copy_within(t..f, t + 1);
+                    }
+                    self.song.steps[t] = s;
+                }
+            }
+            SongJump { .. } => {}
             RemoveSongStep { index } => {
                 let (i, n) = (index as usize, self.song.len as usize);
                 if i < n {
