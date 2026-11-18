@@ -2,9 +2,23 @@
 
 <p align="center"><img src="guide/brand/octachrome-mark.svg" width="360" alt="Octachrome: eight keys, four and four, in rainbow order, the eighth white"></p>
 
-A standalone groovebox in Rust for the **Raspberry Pi 4/5** (developed and tested on **macOS Apple Silicon**) that uses a **Native Instruments Maschine MK3** as its only control surface: pads, knobs, Smart Strip, LEDs and the two 480×272 screens.
+<p align="center">
+  <a href="https://github.com/jsrxar77/octachrome/actions/workflows/ci.yml"><img src="https://github.com/jsrxar77/octachrome/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="#licence"><img src="https://img.shields.io/badge/licence-MIT%20or%20Apache--2.0-informational" alt="Licence: MIT or Apache-2.0"></a>
+</p>
 
-The sequencer is inspired by the OP-XY: per-track polymeter, stackable *Step Components*, a harmony track (*Brain*) and *Punch-in FX*. Instruments are **cartridges** that implement a single trait and know nothing about the sequencer or the hardware.
+A standalone groovebox in Rust for the **Raspberry Pi 4/5** (developed and tested on **macOS Apple Silicon**) that uses a **Native Instruments Maschine MK3** as its only control surface: pads, knobs, Smart Strip, LEDs and the two 480×272 screens. No computer in the loop once it runs, and no hardware needed to try it: there is a simulator, a test bench and an interactive twin that runs in a browser.
+
+![The two screens of Octachrome: the step sequencer on the left, the drum kit on the right](guide/og.png)
+
+**What is in it**
+
+* A sequencer inspired by the OP-XY: per-track polymeter, stackable *Step Components* (ratchet, chance, every, velocity, parameter locks…), a harmony track (*Brain*) that puts the notes of every linked track on the chord, scenes and a song (ARRANGER), a mixer with a compressor, an EQ and two sends.
+* Eight instruments that know nothing about the sequencer or the hardware (they are **cartridges** that implement one trait): drums, a kick, an FM bass, a plucked-string and bell resonator, a **sampler**, a **granular** cloud, a 24-engine macro oscillator (from Mutable Instruments' Plaits) and a MIDI out.
+* **Eight whole songs that come with it**, each about two minutes and made as its style is made ([the list](#the-eight-songs)): house, techno, UK garage, drum & bass, trance, amapiano, ambient and lo-fi.
+* Every screen, light and button of the MK3 has a job and is designed as one system ([docs/design.md](docs/design.md)): eight colours, absolute black, drawings instead of text, one typeface.
+
+**Try it in a minute, with nothing connected:** open `twin/octachrome-twin.html` in Safari or Chrome (no server, no install; it works on an iPad too), press FILE, a pad of the top row, and PLAY.
 
 ## Get it and try it
 
@@ -25,13 +39,34 @@ cargo run --release -- -t chrome              # another theme: matte (default), 
 
 On macOS, close NI's services first (`NIHardwareAgent`, `NIHostIntegrationAgent`, `NTKDaemon`): if they hold USB interface 5, Octachrome keeps working but without screens, and says so on the console. On Linux install `deploy/99-maschine-mk3.rules` to avoid needing root.
 
-**Guide and manual:** `python3 scripts/build-site.py && open site/index.html` (static, no server; it becomes a public site with GitHub Pages, see [architecture.md](docs/architecture.md)).
+**Listen to the eight songs without hardware** (writes `out/song-N-name.wav`, a few seconds in a release build):
+
+```sh
+OCTACHROME_BENCH_DIR=$PWD/out cargo test --release -p octachrome --test songs
+```
+
+**Guide and manual:** `python3 scripts/build-site.py && open site/index.html` (static, no server). The same site is published with GitHub Pages: [jsrxar77.github.io/octachrome](https://jsrxar77.github.io/octachrome).
 
 The interactive twin in HTML (`twin/octachrome-twin.html`) reproduces the two screens, the pads and the knobs with sound in WebAudio and opens in Safari or Chrome, even on the iPad: just open the file, no server needed.
 
 **To continue the work** (person or AI): start with [docs/architecture.md](docs/architecture.md) and [docs/roadmap.md](docs/roadmap.md).
 
 **Documents.** `docs/` has six: [architecture](docs/architecture.md) (how it is built, decisions, how to build and test), [design](docs/design.md) (the UX/UI treatise: eight encoders with eight colours, absolute black, drawings instead of text, one typeface), [buttons](docs/buttons.md) (what each button does), [instruments](docs/instruments.md) (the centre of Octachrome), [features](docs/features.md) (the verifiable behaviours and their tests) and [roadmap](docs/roadmap.md) (status and order of work).
+
+### The eight songs
+
+They open from FILE (the top two rows of pads) and play by themselves from PLAY, with their scenes and chords; mute a track, turn a knob, take them apart. Each was voiced by rendering every track alone and measuring its level, brightness and pitch ([docs/instruments.md §9](docs/instruments.md)).
+
+| # | Song | Tempo | In short |
+| :-- | :-- | :-- | :-- |
+| 1 | **house** | 122 | Deep Chicago house: electric-piano stabs on minor sevenths, a bass between the kicks, a hook, a build, a bar of breath, the drop |
+| 2 | **techno** | 124 | Melodic techno in D minor: a rolling bass, an arpeggio whose filter opens in the build, a breakdown |
+| 3 | **garage** | 132 | UK 2-step in F minor: the kick skips two and four, dragged hats, organ stabs, vocal chops |
+| 4 | **dnb** | 174 | Liquid drum & bass: a two-step break, a reese, open pads, a harp melody in an echo |
+| 5 | **trance** | 138 | Uplifting trance on Am F C G: a galloping bass, a sixteenth arpeggio, a lead, a gated pad |
+| 6 | **amapiano** | 113 | The kick synth tuned to a note as the log drum, shakers, a jazzy piano |
+| 7 | **ambient** | 70 | F Lydian, two-bar chords, a drifting cloud, a heartbeat, nothing hits hard |
+| 8 | **lo-fi** | 80 | Lo-fi hip hop: a dusty kit, an electric piano that comes in after the beat, a guitar phrase |
 
 Screenshots of the simulator (step, inspector, Brain, Punch FX, end), generated with `octachrome sim`:
 
@@ -76,15 +111,15 @@ With `sim` no hardware is needed: it writes `out.wav`, the captures and a table 
 
 | crate | what it does | depends on |
 |---|---|---|
-| `octachrome-gfx` | `Rgb565`, `FrameBuffer480x272` (implements embedded-graphics' `DrawTarget`), primitives, `DirtyTracker` | – |
+| `octachrome-gfx` | `Rgb565`, `FrameBuffer480x272` (implements embedded-graphics' `DrawTarget`), primitives, the typeface, the themes, `DirtyTracker` | – |
 | `octachrome-cartridge` | the `InstrumentCartridge` contract, plus `NoteEvent`, `ParamDescriptor`, etc. | gfx |
-| `octachrome-seq` | deterministic sequencer: steps, components, Brain, clock, command model | cartridge (only `NoteEvent`) |
-| `octachrome-engine` | audio engine: sequencer + 8 slots + mix + Punch-in FX + command queue | seq, cartridge |
+| `octachrome-seq` | deterministic sequencer: steps, components, Brain, scenes and song, clock, command model | cartridge (only `NoteEvent`) |
+| `octachrome-engine` | audio engine: sequencer + 8 slots + track effects and LFO + mixer, compressor, EQ and sends + command queue | seq, cartridge |
 | `octachrome-plaits` | the macro oscillator from Plaits (C++, MIT, unchanged) behind a Rust interface; 24 engines | – |
-| `octachrome-cartridges` | **drums**, **KickSyn**, **FmBass**, **resonator**, **MidiOutBridge**, **macro** | cartridge, plaits |
+| `octachrome-cartridges` | **drums**, **KickSyn**, **FmBass**, **resonator**, **sampler**, **granular**, **macro**, **MidiOutBridge**, and the presets | cartridge, plaits |
 | `octachrome-hw` | `ControlSurface` trait, `MockSurface`, MK3 protocol (pure functions) and USB transport (feature `mk3`) | gfx |
-| `octachrome-ui` | layouts of the left and right screens | gfx, seq, engine |
-| `octachrome` | binary: controller, frame loop, cpal audio, MIDI output, simulator, `hw-test`, test bench | everything |
+| `octachrome-ui` | the layouts of the two screens (step, instrument, arranger, mixer, files, browser, sampling, settings) | gfx, seq, engine |
+| `octachrome` | binary: controller, frame loop, cpal audio, MIDI in and out, simulator, `hw-test`, the test bench, the eight songs | everything |
 
 The sequencer and the cartridges **do not depend on any driver**. Hardware enters only through `octachrome-hw` and the binary. The full description is in [docs/architecture.md](docs/architecture.md).
 
@@ -101,11 +136,13 @@ The sequencer and the cartridges **do not depend on any driver**. Hardware enter
 
 The trait has six mandatory methods and **optional methods with a default implementation** (`secondary_parameters`, `parameter_value`, `all_notes_off`), so a cartridge that implements only the mandatory ones compiles anyway.
 
-* **drums**: eight percussion sounds on one track, chosen by the pitch of the note (C kick, C# snare, D closed hat, D# open hat, E tom, F clap, F# rim, G crash). Demo track A.
-* **resonator**: plucked strings and struck bells, four voices, built on the Plaits string and modal engines. Demo track D.
+* **drums**: eight percussion sounds on one track, chosen by the pitch of the note (C kick, C# snare, D closed hat, D# open hat, E tom, F clap, F# rim, G crash); each keeps its own tune, decay, tone, snap, body, level and pan.
+* **resonator**: plucked strings and struck bells, four voices, built on the Plaits string and modal engines.
 * **KickSyn**: a sine with a pitch sweep, a noise click and drive. The screen shows amplitude and pitch envelopes and an oscilloscope.
 * **FmBass**: 2-operator FM, monophonic with last-note priority, glide and a sub-oscillator. The screen shows the MOD→CAR topology, ADSR and an oscilloscope.
 * **macro**: 24 synthesis engines (analogue, FM, wavetable, chords, voice, strings, modal, percussion) from Mutable Instruments' Plaits code (MIT). Four sound knobs (engine, harmonics, timbre, morph) and four shape knobs (decay, color, variant, level).
+* **sampler**: plays sounds from the keyboard and the steps: eight that come with it (made by the code, the pitched ones on a C, so a note plays that note) and eight for your own WAV files; one shot, loop, slices or hits; SAMPLING records what Octachrome plays or the audio input into it.
+* **granular**: plays a sound of the sampler as a cloud of grains (position, size, density, tune, texture, spread).
 * **MidiOutBridge**: generates no audio. It converts notes to MIDI (channel, transposition, CC74) towards the MK3's DIN MIDI (ALSA rawmidi on Linux, CoreMIDI on macOS).
 
 To add an instrument: a new crate or module that implements `InstrumentCartridge`, loaded into a slot with `EngineHandle::load_cartridge`. The sequencer and the drivers do not need to be touched. The real-time rules are documented on the trait; the rules for an instrument are in [docs/instruments.md](docs/instruments.md).
@@ -126,26 +163,32 @@ To add an instrument: a new crate or module that implements `InstrumentCartridge
 
 ## Controls
 
-| control | STEP mode | BRAIN mode | PUNCH FX mode |
-|---|---|---|---|
-| pad (tap) | toggle step (step 1 = top-left pad) | *live* chord while held | momentary effect |
-| pad held > 300 ms | Step Components inspector | – | – |
-| pad pressure | – | – | effect intensity |
-| Groups A–H | select track | | |
-| Shift + Group / Mute + Group | link to the Brain / mute | | |
-| Erase + pad | erase step | | |
-| knobs 1–4 | length · division · swing · BPM (inspector: note · velocity · gate · component) | key · scale · mode · number of chords | – · – · – · BPM |
-| knobs 5–8 | instrument parameters (screen buttons 5/6 change page) | | |
-| 4D encoder | BPM (Shift = fine); in the inspector it picks the component slot | | |
-| Smart Strip | master filter: left half low-pass, right half high-pass | | |
-| Step / Chords / Perform | change mode | | |
+The two screens always say what the eight knobs under them do, and every button that has a function in the current context is lit (and only those). The main modes:
 
-Punch-in FX pads (from bottom left): LPF, HPF, CRUSH, DOWNSMP · GATE16, GATE8, TAPESTOP, KILL · RPT 1/4, 1/8, 1/16, 1/32 · RPT 1/16T, STUT 1/16, STUT 1/32, ECHO. The `RPT` are *beat repeat* in the sequencer; the rest are audio effects on the master bus. What every button does is in [docs/buttons.md](docs/buttons.md).
+* **CHANNEL**: composing. The step sequencer on the left, the track's instrument on the right; the 16 pads are the 16 steps, a tap toggles one, holding one opens its Step Components.
+* **PLUG-IN**: the 16 places of instruments for the selected track. **BROWSER**: the 16 presets of that instrument (the top rows come with it, yours below).
+* **ARRANGER**: scenes and the song; while a song plays a tap on a step jumps to it at the next bar (SHIFT: at once).
+* **MIXER**: four channels at a time, the compressor of the master, the EQ and the sends. **SAMPLING**: record, cut and keep a sound. **FILE**: the 16 projects (the top two rows are the eight songs).
+* **SETTINGS**: the theme (matte, glossy, chrome), the audio and MIDI devices, the light.
+* **Groups A–H** select a track; **MUTE** + group mutes it; **SHIFT** + group links it to the Brain; **ERASE** + pad erases a step; **PERFORM** turns the pads into punch-in effects; the **Smart Strip** is, for now, a master filter; the **4D encoder** moves the focus everywhere.
+
+What every button does, in each context, is in [docs/buttons.md](docs/buttons.md).
 
 ## Status and what is unverified on hardware
 
 Status, hardware status and the next steps are kept in [docs/roadmap.md](docs/roadmap.md). In short: the screens, the colour order and the buttons have been checked on a real MK3; the LED palette beyond red and orange and the CPU load on the Pi 5 have not.
 
+## Contributing
+
+Issues and pull requests are welcome: [CONTRIBUTING.md](CONTRIBUTING.md) says how to build, what the tests are and the few rules of the project (English in the repository, no GPL code, the six documents kept current). Security reports: [SECURITY.md](SECURITY.md). Be kind: [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
+
 ## Licence
 
-MIT or Apache-2.0, at your choice. The code in `crates/octachrome-plaits/vendor` is by Mutable Instruments (MIT, see its `README.md` and licences); Octachrome does not use their module names.
+MIT or Apache-2.0, at your choice ([LICENSE-MIT](LICENSE-MIT), [LICENSE-APACHE](LICENSE-APACHE)).
+
+## Credits and trademarks
+
+* The code in `crates/octachrome-plaits/vendor` is by Mutable Instruments (MIT, see its `README.md` and licences); Octachrome does not use their module names. The grain scheduler of the granular instrument follows the one of Clouds (MIT, Copyright 2014 Emilie Gillet, kept in the source).
+* The typeface is Jost (SIL Open Font License, `guide/fonts/OFL.txt`).
+* The sequencer is inspired by the workflow of Teenage Engineering's OP-XY. The MK3 protocol is implemented separately, from facts only, with no code from GPL projects.
+* **Octachrome is an independent project.** It is not made, endorsed or supported by Native Instruments or by Teenage Engineering. Maschine, Maschine MK3 and Native Instruments are trademarks of Native Instruments GmbH; OP-XY and Teenage Engineering are names of Teenage Engineering AB. They are used here only to say what Octachrome works with and what inspired it.
