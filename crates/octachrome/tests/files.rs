@@ -81,7 +81,7 @@ fn f_f06_empty_factory_and_damaged_slots() {
     let dir = temp_dir("damaged");
     let mut b = Bench::demo();
     b.set_projects_dir(dir.clone());
-    let before = b.project().clone();
+    let _before = b.project().clone();
     b.press(Button::File);
     b.tap(pad_of(10)); // an empty slot of the player's: a new project
     assert_eq!(b.ui().main, Main::Instrument, "opening goes back to composing");

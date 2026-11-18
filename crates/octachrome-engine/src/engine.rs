@@ -572,7 +572,7 @@ impl Engine {
                 self.last_beat = beat;
                 self.click_left = (SAMPLE_RATE * 0.03) as u32;
                 self.click_phase = 0.0;
-                self.click_hz = if beat % 4 == 0 { 1500.0 } else { 1000.0 };
+                self.click_hz = if beat.is_multiple_of(4) { 1500.0 } else { 1000.0 };
             }
         }
         if self.click_left > 0 {

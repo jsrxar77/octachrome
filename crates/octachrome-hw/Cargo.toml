@@ -23,3 +23,6 @@ libc = { version = "0.2", optional = true }
 # hidapi there. Linux reads /dev/hidraw directly and needs no C library.
 [target.'cfg(target_os = "macos")'.dependencies]
 hidapi = { version = "2", optional = true, default-features = false, features = ["macos-shared-device"] }
+
+[lints]
+workspace = true

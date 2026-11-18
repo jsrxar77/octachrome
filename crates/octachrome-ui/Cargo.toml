@@ -13,3 +13,6 @@ octachrome-engine.workspace = true
 
 [dev-dependencies]
 octachrome-cartridges.workspace = true
+
+[lints]
+workspace = true

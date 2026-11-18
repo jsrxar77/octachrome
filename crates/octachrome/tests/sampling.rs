@@ -161,7 +161,7 @@ fn f_d16_both_screens_draw_and_move() {
     b.press(Button::Rec);
     b.press(Button::Play);
     b.run_ms(500);
-    let m = b.leds().clone();
+    let m = *b.leds();
     let _ = m;
     assert!(b.ui().smp.recording);
 }

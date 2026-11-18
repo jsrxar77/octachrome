@@ -172,8 +172,8 @@ mod tests {
         s.attack = 200; // slow: tens of ms
         s.release = 128;
         let mut c = Compressor::new(48_000.0);
-        let mut l = tone(0.9, 4800);
-        let mut r = l.clone();
+        let l = tone(0.9, 4800);
+        let r = l.clone();
         c.process(&mut l[..480].to_vec(), &mut r[..480].to_vec(), None, &s);
         let early = c.block_gr;
         let (mut l2, mut r2) = (tone(0.9, 24_000), tone(0.9, 24_000));

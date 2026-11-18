@@ -8,6 +8,7 @@ use octachrome_ui::{Main, NavKind};
 static ONE: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
 /// The theme is global: these tests run one at a time and put it back.
+#[allow(dead_code)] // the guard is held for its lifetime, never read
 struct Fresh(std::sync::MutexGuard<'static, ()>);
 fn fresh() -> Fresh {
     let g = ONE.lock().unwrap_or_else(|e| e.into_inner());

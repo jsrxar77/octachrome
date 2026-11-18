@@ -110,11 +110,6 @@ fn bar(fb: &mut FrameBuffer480x272, title: &str) {
     text_v(fb, title, 30, HEADER_CY as i32, FontSize::Large, t.fg, Align::Left, VAlign::Middle);
 }
 
-/// The box of the fader of channel column `c` (0..4): where the level is drawn and where the focus rings it.
-pub fn fader_rect(c: usize) -> (f32, f32, f32, f32) {
-    (c as f32 * FOOTER_COL as f32 + 6.0, 44.0, FOOTER_COL as f32 - 12.0, 176.0)
-}
-
 pub fn draw_left(fb: &mut FrameBuffer480x272, ui: &crate::UiState, p: &Project, st: &EngineStatus) {
     let t = theme();
     fb.clear(t.bg);
@@ -432,9 +427,7 @@ fn draw_eq(fb: &mut FrameBuffer480x272, ui: &crate::UiState) {
 }
 
 fn ms_text(ms: f32) -> String {
-    if ms >= 100.0 {
-        format!("{ms:.0} ms")
-    } else if ms >= 10.0 {
+    if ms >= 10.0 {
         format!("{ms:.0} ms")
     } else {
         format!("{ms:.1} ms")

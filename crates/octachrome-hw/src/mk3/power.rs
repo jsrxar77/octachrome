@@ -199,7 +199,7 @@ mod tests {
         assert!(plan_for(None).limited, "unknown is limited");
         assert!(!plan_for(Some(500)).limited);
         assert!(!plan_for(Some(900)).limited);
-        assert!(LIMITED.brightness < FULL.brightness);
+        const { assert!(LIMITED.brightness < FULL.brightness) };
     }
 
     // F-H07

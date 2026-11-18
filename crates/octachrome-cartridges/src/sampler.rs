@@ -705,6 +705,17 @@ impl InstrumentCartridge for Sampler {
     }
 }
 
+impl PartialEq for Sample {
+    fn eq(&self, other: &Self) -> bool {
+        self.name == other.name && self.data == other.data
+    }
+}
+impl std::fmt::Debug for Sample {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Sample({}, {} samples)", self.name, self.data.len())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1063,16 +1074,5 @@ mod tests {
         assert_ne!(fb.pixels(), fb2.pixels(), "a playing voice is marked");
         choose(&mut s, 12);
         s.draw_ui(&mut fb2, Rgb565::from_hex(0x30d5c8));
-    }
-}
-
-impl PartialEq for Sample {
-    fn eq(&self, other: &Self) -> bool {
-        self.name == other.name && self.data == other.data
-    }
-}
-impl std::fmt::Debug for Sample {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Sample({}, {} samples)", self.name, self.data.len())
     }
 }

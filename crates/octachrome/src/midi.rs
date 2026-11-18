@@ -120,7 +120,7 @@ pub fn open_port(want: Option<&str>) -> anyhow::Result<Box<dyn MidiPort>> {
     let port = out
         .ports()
         .into_iter()
-        .find(|p| out.port_name(p).map_or(false, |n| n.contains(&want)))
+        .find(|p| out.port_name(p).is_ok_and(|n| n.contains(&want)))
         .with_context(|| format!("no MIDI output matching {want:?}"))?;
     let name = out.port_name(&port).unwrap_or_default();
     let conn = out.connect(&port, "octachrome-out").map_err(|e| anyhow!("{e}"))?;
@@ -257,7 +257,7 @@ pub fn open_input(want: &str) -> anyhow::Result<MidiIn> {
     let port = input
         .ports()
         .into_iter()
-        .find(|p| input.port_name(p).map_or(false, |n| n.contains(want)))
+        .find(|p| input.port_name(p).is_ok_and(|n| n.contains(want)))
         .with_context(|| format!("no MIDI input matching {want:?}"))?;
     let name = input.port_name(&port).unwrap_or_default();
     let (tx, rx) = std::sync::mpsc::channel();

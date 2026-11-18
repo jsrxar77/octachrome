@@ -8,3 +8,6 @@ license.workspace = true
 [dependencies]
 embedded-graphics.workspace = true
 fontdue.workspace = true
+
+[lints]
+workspace = true
