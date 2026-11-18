@@ -21,8 +21,9 @@ const CLAP: u8 = 1 << 5;
 const RIM: u8 = 1 << 6;
 const CRASH: u8 = 1 << 7;
 
-/// An instrument in its place, with one of its own presets applied (`""`: as it comes).
-fn inst(name: &str, preset: &str, gain: f32) -> Option<(String, Vec<u8>)> {
+/// An instrument in its place, with one of its own presets applied (`""`: as it comes). `extra` sets knobs after the preset (a level
+/// given there is kept as it is, not scaled by `gain`); `kit` voices the sounds of a drum kit: (sound, tune, decay, tone, snap, body, level, pan).
+fn inst_with(name: &str, preset: &str, gain: f32, extra: &[(usize, f32)], kit: &[(usize, [f32; 7])]) -> Option<(String, Vec<u8>)> {
     let mut c = op8_cartridges::create(name);
     let found = op8_cartridges::presets::factory(name).into_iter().find(|p| p.0 == preset);
     let state = match (c.as_mut(), found) {
@@ -32,8 +33,20 @@ fn inst(name: &str, preset: &str, gain: f32) -> Option<(String, Vec<u8>)> {
                     c.set_parameter(i, *v);
                 }
             }
+            for &(i, v) in extra {
+                c.set_parameter(i, v);
+            }
+            for &(sound, values) in kit {
+                c.set_parameter(7, (sound as f32 + 0.5) / 8.0); // the knobs edit the sound that is chosen
+                for (i, v) in values.iter().enumerate() {
+                    c.set_parameter(i, *v);
+                }
+            }
+            if !kit.is_empty() {
+                c.set_parameter(7, 0.5 / 8.0);
+            }
             // the `level` knob is the last of every instrument but the kit (whose level is per sound)
-            if name != "drums" {
+            if name != "drums" && !extra.iter().any(|e| e.0 == 7) {
                 if let Some(level) = c.parameter_value(7) {
                     c.set_parameter(7, (level * gain).clamp(0.0, 1.0));
                 }
@@ -43,6 +56,10 @@ fn inst(name: &str, preset: &str, gain: f32) -> Option<(String, Vec<u8>)> {
         _ => Vec::new(),
     };
     Some((name.to_string(), state))
+}
+
+fn inst(name: &str, preset: &str, gain: f32) -> Option<(String, Vec<u8>)> {
+    inst_with(name, preset, gain, &[], &[])
 }
 
 /// The instruments of a piece, by track: the standard layout, with a preset on each that plays and the level of each brought by `gain`
@@ -97,81 +114,185 @@ fn scene(p: &mut Project, index: u8, patterns: [u8; 8], muted: &[usize], harmony
     p.apply(&Command::StoreScene { index });
 }
 
-/// House as a whole song of about two minutes (60 bars at 124): intro, groove, main, break, build, drop and outro. What is in the steps
-/// when it loads is the first pattern of each track (the groove); the rest are more patterns of the tracks and seven scenes that
-/// choose which ones play, which tracks are heard and the chords. The song is followed from the start.
+/// Notes on a track's current pattern: (step, note, velocity, gate %). The accents and the short ghost notes are what make it groove.
+fn notes(steps: &mut [Step], list: &[(usize, u8, u8, u8)]) {
+    for &(s, n, velocity, gate) in list {
+        steps[s] = Step::on(n);
+        steps[s].velocity = velocity;
+        steps[s].gate = gate;
+    }
+}
+
+/// Drum steps on a kit pattern: (step, lanes, velocity).
+fn hits(steps: &mut [Step], list: &[(usize, u8, u8)]) {
+    for &(s, lanes, velocity) in list {
+        steps[s].lanes |= lanes;
+        steps[s].active = true;
+        steps[s].velocity = velocity;
+    }
+}
+
+/// A rising lock on a step (the build): parameter `index` of the instrument goes to `value`/255 on that step.
+fn lock(step: &mut Step, index: u8, value: u8) {
+    step.components.push(C::ParamLock { index, value });
+}
+
+/// House as a whole song of about two minutes (67 bars at 122): intro, groove, main, a fill, break, a two-part build, a bar of breath,
+/// the drop, a fill, the drop again with other chords, and the outro. It is made as a deep Chicago house is: the kick on every beat and
+/// nothing else on it, a bass that lives between the kicks (short ghost notes, accents on the fifth and the octave), stabs on the
+/// off-beats whose rhythm changes from bar to bar, hats with accents and ghost notes, voice chops of different pitches, and a build that
+/// rises (a clap roll, stabs that speed up, locks that open the pad and the cloud) into a bar with no drums. Every pattern has 16 steps:
+/// what changes from bar to bar inside it is done with `Every`. What is in the steps when it loads is pattern 0 of each track (the
+/// groove); the rest are more patterns and eleven scenes that choose which ones play, which tracks are heard and the chords.
 fn house_song(p: &mut Project) {
     const F: usize = 5;
+    const G: usize = MACRO;
     let own = p.brain;
-    // ---- more patterns of each track (pattern 1 and on; pattern 0 is the groove that is already in) ----
-    // A, the drums: 1 intro (hats), 2 break, 3 build (a roll of claps), 4 drop (every sixteenth, a crash and a fill)
+    let every = |n: u8| C::Every { n, of: 2 };
+    // ---- A, the drums (a kit): the lanes, with the velocity of each step ----
+    // 0 groove: offbeat open hats, a clap on 2 and 4, closed hats with accents and ghost notes
+    pattern(p, A, 0);
+    p.tracks[A].kit = true;
+    hits(&mut p.tracks[A].steps, &[(0, CHAT, 80), (1, CHAT, 40), (2, OHAT, 95), (3, CHAT, 65), (4, CLAP, 105), (5, CHAT, 40), (6, OHAT, 90), (7, CHAT, 70)]);
+    hits(&mut p.tracks[A].steps, &[(8, CHAT, 80), (9, CHAT, 40), (10, OHAT, 95), (11, CHAT, 60), (12, CLAP, 105), (13, CHAT, 40), (14, OHAT, 90), (15, CHAT, 75)]);
+    // 1 intro: only hats, half as many, and the last one open
     pattern(p, A, 1);
     p.tracks[A].kit = true;
-    kit(&mut p.tracks[A].steps, CHAT, &[0, 2, 4, 6, 8, 10, 12, 14]);
+    hits(&mut p.tracks[A].steps, &[(0, CHAT, 70), (2, CHAT, 40), (4, CHAT, 65), (6, CHAT, 40), (8, CHAT, 70), (10, CHAT, 40), (12, CHAT, 65), (14, OHAT, 60)]);
+    // 2 main: the groove with a rim in place of a ghost hat, and a rim and a hat every second bar
     pattern(p, A, 2);
     p.tracks[A].kit = true;
-    kit(&mut p.tracks[A].steps, CHAT, &[0, 4, 8, 12]);
-    kit(&mut p.tracks[A].steps, RIM, &[7, 15]);
+    hits(&mut p.tracks[A].steps, &[(0, CHAT, 85), (1, CHAT, 40), (2, OHAT, 95), (3, CHAT, 65), (4, CLAP, 108), (5, CHAT, 40), (6, OHAT, 90), (7, CHAT, 70)]);
+    hits(&mut p.tracks[A].steps, &[(8, CHAT, 85), (9, RIM, 55), (10, OHAT, 95), (11, CHAT, 60), (12, CLAP, 108), (13, CHAT, 40), (14, OHAT, 90), (15, CHAT | RIM, 70)]);
+    p.tracks[A].steps[15].components.push(every(2));
+    // 3 fill (one bar): the groove for half a bar, then a snare run that grows into the next section
     pattern(p, A, 3);
     p.tracks[A].kit = true;
-    kit(&mut p.tracks[A].steps, CLAP, &[0, 4, 8, 10, 12, 13, 14, 15]);
-    kit(&mut p.tracks[A].steps, OHAT, &[2, 6]);
-    kit(&mut p.tracks[A].steps, CHAT, &[0, 2, 4, 6, 8, 10, 12, 14]);
+    hits(&mut p.tracks[A].steps, &[(0, CHAT, 80), (2, OHAT, 90), (4, CLAP, 100), (6, CHAT, 60), (8, SNARE, 85), (9, SNARE, 60), (10, SNARE, 75)]);
+    hits(&mut p.tracks[A].steps, &[(11, SNARE, 85), (12, SNARE, 95), (13, TOM, 95), (14, SNARE, 105), (15, CLAP | SNARE, 122)]);
+    // 4 break: no clap, a few hats and rims
     pattern(p, A, 4);
     p.tracks[A].kit = true;
-    kit(&mut p.tracks[A].steps, OHAT, &[2, 6, 10, 14]);
-    kit(&mut p.tracks[A].steps, CLAP, &[4, 12]);
-    kit(&mut p.tracks[A].steps, CHAT, &[1, 3, 5, 7, 9, 11, 13, 15]);
-    kit(&mut p.tracks[A].steps, CRASH, &[0]);
-    kit(&mut p.tracks[A].steps, TOM, &[13, 15]);
-    // B, the kick: 1 a roll for the build
-    pattern(p, B, 1);
-    put(&mut p.tracks[B].steps, &[(0, 36), (4, 36), (8, 36), (10, 36), (12, 36), (13, 36), (14, 36), (15, 36)]);
-    // C, the bass: 1 busier, for the drop
-    pattern(p, CC, 1);
-    put(&mut p.tracks[CC].steps, &[(0, 36), (2, 36), (3, 36), (6, 36), (7, 43), (10, 36), (11, 36), (13, 43), (14, 36)]);
-    for s in [0, 2, 3, 6, 7, 10, 11, 13, 14] {
-        p.tracks[CC].steps[s].gate = 40;
+    hits(&mut p.tracks[A].steps, &[(0, CHAT, 60), (4, CHAT, 50), (7, RIM, 60), (8, CHAT, 60), (10, OHAT, 45), (12, CHAT, 50), (15, RIM, 55)]);
+    // 5 build, part one: claps that get louder on the beats, open hats that get louder between them
+    pattern(p, A, 5);
+    p.tracks[A].kit = true;
+    hits(&mut p.tracks[A].steps, &[(0, CLAP, 40), (4, CLAP, 55), (8, CLAP, 70), (12, CLAP, 90), (2, OHAT, 50), (6, OHAT, 60), (10, OHAT, 70), (14, OHAT, 85)]);
+    // 6 build, part two: a clap on every sixteenth, from soft to loud
+    pattern(p, A, 6);
+    p.tracks[A].kit = true;
+    for s in 0..16 {
+        hits(&mut p.tracks[A].steps, &[(s, CLAP, 35 + 6 * s as u8)]);
     }
-    // D, the stabs: 1 sparse, for the break
-    pattern(p, D, 1);
-    put(&mut p.tracks[D].steps, &[(0, 60), (10, 60)]);
-    // E, the sampler (a voice): 0 chops, 1 more of them, for the break and the build
+    // 7 drop: a crash on the first step, every sixteenth, open hats and a clap with their full velocity
+    pattern(p, A, 7);
+    p.tracks[A].kit = true;
+    hits(&mut p.tracks[A].steps, &[(0, CRASH | CHAT, 110), (1, CHAT, 50), (2, OHAT, 100), (3, CHAT, 70), (4, CLAP, 112), (5, CHAT, 50), (6, OHAT, 95), (7, CHAT, 80)]);
+    hits(&mut p.tracks[A].steps, &[(8, CHAT, 88), (9, CHAT, 50), (10, OHAT, 100), (11, CHAT, 70), (12, CLAP, 112), (13, CHAT, 50), (14, OHAT, 95), (15, CHAT, 80)]);
+    // 8 drop again: no crash, a tom and a ghost clap that come every second bar
+    pattern(p, A, 8);
+    p.tracks[A].kit = true;
+    hits(&mut p.tracks[A].steps, &[(0, CHAT, 92), (1, CHAT, 50), (2, OHAT, 100), (3, CHAT, 70), (4, CLAP, 112), (5, CHAT, 50), (6, OHAT, 95), (7, CHAT | RIM, 80)]);
+    hits(&mut p.tracks[A].steps, &[(8, CHAT, 88), (9, CHAT, 50), (10, OHAT, 100), (11, CLAP, 45), (12, CLAP, 112), (13, CHAT, 50), (14, OHAT, 95), (15, TOM, 78)]);
+    p.tracks[A].steps[11].components.push(every(1));
+    p.tracks[A].steps[15].components.push(every(2));
+    // ---- B, the kick: always on the beat ----
+    pattern(p, B, 0);
+    notes(&mut p.tracks[B].steps, &[(0, 36, 115, 50), (4, 36, 105, 50), (8, 36, 110, 50), (12, 36, 105, 50)]);
+    pattern(p, B, 1); // half time, for the first part of the build
+    notes(&mut p.tracks[B].steps, &[(0, 36, 115, 50), (8, 36, 110, 50)]);
+    pattern(p, B, 2); // a roll, for the second
+    notes(&mut p.tracks[B].steps, &[(0, 36, 100, 50), (4, 36, 105, 50), (8, 36, 110, 50), (10, 36, 100, 50), (12, 36, 110, 50), (13, 36, 105, 50), (14, 36, 115, 50), (15, 36, 120, 50)]);
+    // ---- C, the bass: never on a kick (steps 0, 4, 8 and 12); the fifth and the octave are the accents, the short ones are ghosts ----
+    pattern(p, CC, 0);
+    notes(&mut p.tracks[CC].steps, &[(2, 36, 100, 40), (3, 36, 60, 25), (6, 43, 85, 40), (10, 36, 100, 40), (11, 36, 60, 25), (14, 48, 80, 35)]);
+    notes(&mut p.tracks[CC].steps, &[(7, 36, 70, 25), (15, 43, 70, 25)]);
+    p.tracks[CC].steps[7].components.push(every(1));
+    p.tracks[CC].steps[15].components.push(every(2));
+    pattern(p, CC, 1); // busier, for the first drop
+    notes(&mut p.tracks[CC].steps, &[(2, 36, 105, 40), (3, 36, 65, 25), (5, 36, 70, 25), (6, 43, 90, 40), (7, 36, 70, 25), (10, 36, 105, 40)]);
+    notes(&mut p.tracks[CC].steps, &[(11, 43, 80, 30), (13, 36, 70, 25), (14, 48, 90, 35), (15, 36, 70, 20)]);
+    pattern(p, CC, 2); // another line, for the second
+    notes(&mut p.tracks[CC].steps, &[(2, 36, 100, 45), (5, 48, 85, 30), (6, 36, 95, 40), (9, 43, 80, 35), (10, 36, 100, 40), (13, 48, 85, 30), (14, 36, 95, 40), (15, 43, 70, 20)]);
+    p.tracks[CC].steps[15].components.push(every(2));
+    // ---- G, the organ: the chord of the song (a minor seventh on the chord that sounds). Stabs on the off-beats, a different rhythm in
+    // every second bar; long chords for the break; a roll that speeds up for the build ----
+    pattern(p, G, 0); // main: stabs
+    notes(&mut p.tracks[G].steps, &[(3, 60, 100, 45), (6, 60, 80, 40), (11, 60, 100, 45), (14, 60, 75, 40), (10, 60, 70, 35), (9, 60, 65, 35)]);
+    p.tracks[G].steps[10].components.push(every(1));
+    p.tracks[G].steps[9].components.push(every(2));
+    pattern(p, G, 1); // break: two long chords
+    notes(&mut p.tracks[G].steps, &[(0, 60, 85, 100), (8, 60, 80, 100)]);
+    p.tracks[G].steps[0].components.push(C::Hold(6));
+    p.tracks[G].steps[8].components.push(C::Hold(6));
+    pattern(p, G, 2); // drop: dense stabs, one of them an octave up
+    notes(&mut p.tracks[G].steps, &[(2, 60, 95, 45), (3, 60, 70, 35), (6, 60, 100, 45), (7, 60, 75, 35), (10, 60, 95, 45), (11, 60, 100, 45), (14, 60, 95, 45), (15, 60, 70, 35)]);
+    p.tracks[G].steps[14].components.push(C::Octave(1));
+    p.tracks[G].steps[7].components.push(C::Chance(60));
+    p.tracks[G].steps[15].components.push(every(2));
+    pattern(p, G, 3); // build: stabs that come faster and louder
+    notes(&mut p.tracks[G].steps, &[(0, 60, 50, 40), (3, 60, 60, 40), (6, 60, 70, 40), (9, 60, 80, 40), (12, 60, 95, 40), (14, 60, 105, 40), (15, 60, 120, 40)]);
+    // ---- E, the pad (the sampler's pad sound, played as a chord): one long chord in every bar; two that breathe in the break ----
+    pattern(p, SAMP, 0);
+    notes(&mut p.tracks[SAMP].steps, &[(0, 48, 80, 100)]);
+    p.tracks[SAMP].steps[0].components.push(C::Hold(15));
     pattern(p, SAMP, 1);
-    put(&mut p.tracks[SAMP].steps, &[(0, 60), (6, 67), (10, 60), (12, 64)]);
-    p.tracks[SAMP].steps[12].components.push(C::Ratchet(2));
-    // F, the granular cloud: 0 a long grain, 1 two of them, three quarters of a bar long so that it drifts against the rest
+    notes(&mut p.tracks[SAMP].steps, &[(0, 48, 85, 100), (8, 55, 75, 100)]);
+    p.tracks[SAMP].steps[0].components.push(C::Hold(7));
+    p.tracks[SAMP].steps[8].components.push(C::Hold(7));
+    // ---- D, the hook (a plucked string): a short phrase on the notes of the chord, answered in the second bar ----
+    pattern(p, D, 0);
+    notes(&mut p.tracks[D].steps, &[(0, 72, 95, 60), (3, 67, 80, 50), (6, 64, 85, 50), (8, 69, 90, 60), (11, 72, 85, 50), (14, 67, 80, 50)]);
+    notes(&mut p.tracks[D].steps, &[(1, 76, 70, 40), (13, 64, 70, 40)]);
+    p.tracks[D].steps[3].components.push(every(1));
+    p.tracks[D].steps[6].components.push(every(2));
+    p.tracks[D].steps[1].components.push(every(2));
+    p.tracks[D].steps[13].components.push(every(1));
+    pattern(p, D, 1); // break: slow, high and sparse
+    notes(&mut p.tracks[D].steps, &[(0, 76, 80, 80), (6, 72, 70, 60), (10, 76, 75, 60), (14, 79, 65, 60)]);
+    p.tracks[D].steps[14].components.push(every(2));
+    pattern(p, D, 2); // drop: the phrase twice as busy
+    notes(&mut p.tracks[D].steps, &[(0, 72, 100, 50), (2, 76, 75, 40), (3, 67, 85, 45), (6, 64, 90, 45), (8, 69, 95, 50), (10, 72, 80, 40), (11, 76, 90, 45), (14, 67, 85, 45), (15, 72, 70, 35)]);
+    p.tracks[D].steps[2].components.push(every(1));
+    p.tracks[D].steps[10].components.push(every(2));
+    p.tracks[D].steps[15].components.push(C::Ratchet(2));
+    // ---- F, the cloud (the granular): low and dark, a long grain; two of them three quarters of a bar long, so that it drifts; the same, denser ----
     pattern(p, F, 0);
     p.tracks[F].brain_link = true;
-    p.tracks[F].steps[0] = Step::on(72).with(C::Hold(14));
-    p.tracks[F].fx = TrackFx { kind: FxKind::Reverb, a: 160, b: 150, c: 80 };
+    p.tracks[F].steps[0] = Step::on(48).with(C::Hold(14));
+    p.tracks[F].fx = TrackFx { kind: FxKind::Reverb, a: 180, b: 170, c: 90 };
     pattern(p, F, 1);
     p.tracks[F].length = 12;
-    put(&mut p.tracks[F].steps, &[(0, 67), (6, 72)]);
+    put(&mut p.tracks[F].steps, &[(0, 43), (6, 48)]);
     p.tracks[F].steps[0].components.push(C::Hold(5));
     p.tracks[F].steps[6].components.push(C::Hold(5));
-    // G, the pad: 1 two short chords, for the build
-    pattern(p, MACRO, 1);
-    put(&mut p.tracks[MACRO].steps, &[(0, 60), (8, 60)]);
-    p.tracks[MACRO].steps[0].components.push(C::Hold(6));
-    p.tracks[MACRO].steps[8].components.push(C::Hold(6));
-    // sampler: pattern 0 is the chops of the main part
-    pattern(p, SAMP, 0);
-    put(&mut p.tracks[SAMP].steps, &[(4, 60), (11, 67), (14, 60)]);
-    p.tracks[SAMP].steps[11].components.push(C::Chance(70));
-    // ---- the scenes: the patterns of A to H, the tracks that are silent and the chords ----
+    pattern(p, F, 2);
+    p.tracks[F].length = 12;
+    put(&mut p.tracks[F].steps, &[(0, 43), (6, 48)]);
+    p.tracks[F].steps[0].components.push(C::Hold(5));
+    p.tracks[F].steps[6].components.push(C::Hold(5));
+    lock(&mut p.tracks[F].steps[0], 3, 200); // DENSITY
+    lock(&mut p.tracks[F].steps[6], 3, 250);
+    // ---- the scenes: the patterns of A to H, the tracks that are silent and the chords. Every chord is a minor seventh (the organ and the pad
+    // stack one on the note that sounds), so the harmony moves between Am7, Dm7 and Em7 ----
     let h = |degrees: &[u8]| brain(9, Scale::Minor, ChordKind::Seventh, degrees);
-    let groove = h(&[0, 5, 2, 6]);
+    let vamp = h(&[0, 3]); // Am7 and Dm7, a bar each: the chord of Chicago
+    let song = h(&[0, 3, 0, 4]); // and with the Em7 that pulls back to the Am7
     //                      A  B  C  D  E  F  G  H
-    scene(p, 0, [1, 0, 0, 0, 0, 0, 0, 0], &[CC, D, SAMP, 7], h(&[0, 5])); // intro: hats, kick, pad and the cloud
-    scene(p, 1, [0, 0, 0, 0, 0, 0, 0, 0], &[D, SAMP, F, 7], groove); // groove: the bass comes in
-    scene(p, 2, [0, 0, 0, 0, 0, 0, 0, 0], &[F, 7], groove); // main: the stabs and the voice
-    scene(p, 3, [2, 0, 0, 1, 1, 1, 0, 0], &[B, CC, 7], h(&[5, 6, 0, 2])); // break: no kick, no bass, other chords
-    scene(p, 4, [3, 1, 0, 0, 1, 1, 1, 0], &[CC, D, 7], h(&[6])); // build: the roll on one chord, the stabs out until the drop
-    scene(p, 5, [4, 0, 1, 0, 0, 0, 1, 0], &[7], groove); // drop: everything, a busier bass
-    scene(p, 6, [1, 0, 0, 0, 0, 0, 0, 0], &[CC, SAMP, F, 7], h(&[0, 5])); // outro: it thins out
+    scene(p, 0, [1, 0, 0, 0, 0, 0, 0, 0], &[CC, D, G, 7], vamp); // intro: hats, kick, pad and the cloud
+    scene(p, 1, [0, 0, 0, 0, 0, 0, 0, 0], &[D, G, F, 7], vamp); // groove: the bass comes in
+    scene(p, 2, [2, 0, 0, 0, 0, 0, 0, 0], &[F, 7], song); // main: the organ and the hook
+    scene(p, 3, [3, 0, 0, 0, 0, 0, 0, 0], &[D, G, F, 7], vamp); // a fill: one bar of snares, without the organ and the hook
+    scene(p, 4, [4, 0, 0, 1, 1, 1, 1, 0], &[B, CC, 7], h(&[3, 4])); // break: no kick, no bass; long chords, Dm7 and Em7
+    scene(p, 5, [5, 1, 0, 1, 1, 1, 3, 0], &[CC, 7], h(&[4])); // build, one: half-time kick, claps, on one chord
+    scene(p, 6, [6, 2, 0, 1, 1, 2, 3, 0], &[CC, 7], h(&[4])); // build, two: a kick roll, claps on every sixteenth, organ that speeds up
+    scene(p, 7, [0, 0, 0, 0, 0, 0, 0, 0], &[A, B, CC, D, G, 7], h(&[0])); // a bar of breath: only the pad and the cloud ring
+    scene(p, 8, [7, 0, 1, 2, 0, 1, 2, 0], &[7], song); // drop: everything, a busier bass
+    scene(p, 9, [8, 0, 2, 2, 0, 1, 2, 0], &[7], song); // the drop again: another bass line
+    scene(p, 10, [1, 0, 0, 0, 0, 0, 0, 0], &[CC, D, G, 7], vamp); // outro: it thins out
     // ---- the song, and back to the groove as the piece loads ----
-    for (i, (scene, bars)) in [(0, 8), (1, 8), (2, 8), (3, 8), (4, 4), (5, 16), (6, 8)].into_iter().enumerate() {
+    let steps = [(0, 8), (1, 8), (2, 8), (3, 1), (4, 8), (5, 4), (6, 4), (7, 1), (8, 8), (3, 1), (9, 8), (10, 8)];
+    for (i, (scene, bars)) in steps.into_iter().enumerate() {
         p.apply(&Command::SetSongStep { index: i as u8, scene, bars });
     }
     p.apply(&Command::SetSongOn(true));
@@ -185,30 +306,22 @@ fn house_song(p: &mut Project) {
 pub fn project(i: usize) -> Project {
     let mut p = Project::default();
     match i {
-        // 0 · house: a kick on every beat, offbeat open hats and a clap, a round bass between the kicks, stabs that follow the chords
+        // 0 · house: a whole song (see `house_song`); here the settings of the tracks, the patterns are made there
         0 => {
-            p.bpm = 124.0;
+            p.bpm = 122.0;
             p.swing = 0.54;
-            p.brain = brain(9, Scale::Minor, ChordKind::Seventh, &[0, 5, 2, 6]);
-            p.tracks[A].kit = true;
-            kit(&mut p.tracks[A].steps, OHAT, &[2, 6, 10, 14]);
-            kit(&mut p.tracks[A].steps, CLAP, &[4, 12]);
-            kit(&mut p.tracks[A].steps, CHAT, &[0, 8, 15]);
-            put(&mut p.tracks[B].steps, &[(0, 36), (4, 36), (8, 36), (12, 36)]);
+            p.brain = brain(9, Scale::Minor, ChordKind::Seventh, &[0, 3]);
             p.tracks[CC].brain_link = true;
-            put(&mut p.tracks[CC].steps, &[(2, 36), (6, 36), (10, 36), (13, 43)]);
-            for s in [2, 6, 10, 13] {
-                p.tracks[CC].steps[s].gate = 40;
-            }
-            let stab = &mut p.tracks[D];
-            stab.brain_link = true;
-            put(&mut stab.steps, &[(3, 60), (6, 60), (11, 60), (14, 60)]);
-            stab.players = Players { mode: PlayMode::Chord, chord: ChordType::MinorSeventh, speed: 0, octaves: 1 };
-            stab.fx = TrackFx { kind: FxKind::Delay, a: 160, b: 100, c: 110 };
-            let pad = &mut p.tracks[MACRO];
+            p.tracks[D].brain_link = true; // the hook: notes on the chord that sounds
+            p.tracks[D].fx = TrackFx { kind: FxKind::Delay, a: 150, b: 90, c: 100 };
+            let organ = &mut p.tracks[MACRO];
+            organ.brain_link = true;
+            organ.players = Players { mode: PlayMode::Chord, chord: ChordType::MinorSeventh, speed: 0, octaves: 1 };
+            organ.fx = TrackFx { kind: FxKind::Delay, a: 150, b: 90, c: 90 };
+            let pad = &mut p.tracks[SAMP];
             pad.brain_link = true;
-            pad.steps[0] = Step::on(60).with(C::Hold(14));
-            pad.fx = TrackFx { kind: FxKind::Reverb, a: 150, b: 150, c: 70 };
+            pad.players = Players { mode: PlayMode::Chord, chord: ChordType::MinorSeventh, speed: 0, octaves: 1 };
+            pad.fx = TrackFx { kind: FxKind::Reverb, a: 170, b: 150, c: 80 };
             house_song(&mut p);
         }
         // 1 · boom bap: a lazy swing, a sub bass under a soft kick, a voice sample and chords on the off beats
@@ -387,7 +500,7 @@ pub fn project(i: usize) -> Project {
 
 /// The presets of each piece, by track A to H (`""`: as it comes), and how much of the level of its instruments it keeps.
 const PRESETS: [([&str; 8], f32); 8] = [
-    (["", "punch", "round", "steel", "voice", "shimmer", "chords", ""], 0.7),
+    (["", "punch", "round", "nylon", "bell", "bells", "", ""], 0.55),
     (["", "soft", "sub", "nylon", "voice", "rumble", "", ""], 1.0),
     (["", "boom", "sub", "bell", "", "dust", "swarm", ""], 0.8),
     (["", "soft", "", "harp", "bell", "bells", "strings", ""], 1.0),
@@ -404,9 +517,35 @@ pub fn blank() -> ProjectFile {
     ProjectFile { project, instruments: instruments([""; 8], 1.0) }
 }
 
+/// House voices its instruments after the preset: the hook is a soft string, the chords are an electric piano (the macro's `fm`), the pad is
+/// the bell sound played slowly, the cloud is the bells, low and quiet, and the kit has the clap and the snare forward and the hats back (sound, tune, decay, tone, snap, body, level, pan).
+const HOUSE_KNOBS: [(usize, &[(usize, f32)]); 4] = [
+    (3, &[(7, 1.0)]),
+    (4, &[(4, 0.25), (5, 0.60), (7, 0.18)]),
+    (5, &[(4, 0.40), (7, 0.18)]),
+    (6, &[(0, 0.4375), (2, 0.30), (7, 0.60)]), // the macro as its "fm" engine: an electric piano
+];
+const HOUSE_KIT: [(usize, [f32; 7]); 6] = [
+    (1, [0.5, 0.40, 0.45, 0.55, 0.60, 0.95, 0.5]),
+    (2, [0.5, 0.12, 0.42, 0.5, 0.5, 0.42, 0.38]),
+    (3, [0.5, 0.30, 0.42, 0.5, 0.5, 0.44, 0.62]),
+    (5, [0.5, 0.38, 0.55, 0.5, 0.55, 1.0, 0.5]),
+    (6, [0.5, 0.12, 0.45, 0.5, 0.5, 0.65, 0.45]),
+    (7, [0.5, 0.80, 0.50, 0.5, 0.5, 0.35, 0.6]),
+];
+
 pub fn file(i: usize) -> ProjectFile {
     let i = i.min(7);
-    ProjectFile { project: project(i), instruments: instruments(PRESETS[i].0, PRESETS[i].1) }
+    let mut instruments = instruments(PRESETS[i].0, PRESETS[i].1);
+    if i == 0 {
+        let (names, gain) = (PRESETS[0].0, PRESETS[0].1);
+        instruments[0] = inst_with("drums", names[0], gain, &[], &HOUSE_KIT);
+        for (t, extra) in HOUSE_KNOBS {
+            let name = ["drums", "KickSyn", "FmBass", "resonator", "sampler", "granular", "macro", "MidiOutBridge"][t];
+            instruments[t] = inst_with(name, names[t], gain, extra, &[]);
+        }
+    }
+    ProjectFile { project: project(i), instruments }
 }
 
 #[cfg(test)]

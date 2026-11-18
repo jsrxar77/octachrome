@@ -1562,39 +1562,62 @@ const FILE_NAMES = ["house", "boom bap", "dub", "polyrhythm", "acid", "electro",
 // The eight pieces that come with the machine (crates/op8/src/factory.rs): the same steps, components, chords, effects and LFOs.
 const KICK = 1, SNARE = 2, CHAT = 4, OHAT = 8, TOM = 16, CLAP = 32, RIM = 64, CRASH = 128;
 const PIECE_PRESETS = [ // by track A to H, and the share of each instrument's level that the piece keeps (the same as PRESETS in factory.rs)
-  [["", "punch", "round", "steel", "", "shimmer", "chords", ""], 0.85], [["", "soft", "sub", "nylon", "voice", "rumble", "", ""], 1.0],
+  [["", "punch", "round", "nylon", "bell", "bells", "", ""], 0.67], [["", "soft", "sub", "nylon", "voice", "rumble", "", ""], 1.0],
   [["", "boom", "sub", "bell", "", "dust", "swarm", ""], 0.8], [["", "soft", "", "harp", "bell", "bells", "strings", ""], 1.0],
   [["", "tight", "acid", "", "", "swarm", "", ""], 0.5], [["", "click", "growl", "", "", "glitch", "chip", ""], 0.65],
   [["", "", "", "glass", "pad", "cloud", "strings", ""], 1.0], [["", "hard", "growl", "muted", "tick", "glitch", "", ""], 1.0]];
 function brainOf(key, scale, kind, degrees) { return { key, scale, mode: 1, len: degrees.length, live: null, prog: Array.from({ length: 8 }, (_, k) => ({ degree: degrees[k] || 0, kind, length: 16 })) }; }
-// house as a whole song of about two minutes (house_song in factory.rs): more patterns of each track, seven scenes and the song
+// house as a whole song of about two minutes (house_song in factory.rs): more patterns of each track, eleven scenes and the song.
+// The twin has no parameter locks yet, so the locks that open the pad and the cloud in the build are left out.
 function houseSong(p) {
   const T = p.tracks, st16 = () => Array.from({ length: 16 }, () => newStep());
   const pat = (t, k, fill, o = {}) => { const st = st16(); fill(st); T[t].pats[k] = { steps: st, length: o.length || 16, div: 2, kit: !!o.kit }; };
-  const kitIn = (st, lanes, at) => at.forEach(s => { st[s].lanes |= lanes; st[s].active = true; });
-  const notes = (st, list) => list.forEach(([s, n, comps, gate]) => { st[s] = { ...newStep(true, n), comps: comps || [] }; if (gate) st[s].gate = gate; });
-  pat(0, 1, st => kitIn(st, CHAT, [0, 2, 4, 6, 8, 10, 12, 14]), { kit: true });
-  pat(0, 2, st => { kitIn(st, CHAT, [0, 4, 8, 12]); kitIn(st, RIM, [7, 15]); }, { kit: true });
-  pat(0, 3, st => { kitIn(st, CLAP, [0, 4, 8, 10, 12, 13, 14, 15]); kitIn(st, OHAT, [2, 6]); kitIn(st, CHAT, [0, 2, 4, 6, 8, 10, 12, 14]); }, { kit: true });
-  pat(0, 4, st => { kitIn(st, OHAT, [2, 6, 10, 14]); kitIn(st, CLAP, [4, 12]); kitIn(st, CHAT, [1, 3, 5, 7, 9, 11, 13, 15]); kitIn(st, CRASH, [0]); kitIn(st, TOM, [13, 15]); }, { kit: true });
-  pat(1, 1, st => notes(st, [0, 4, 8, 10, 12, 13, 14, 15].map(s => [s, 36])));
-  pat(2, 1, st => notes(st, [0, 2, 3, 6, 10, 11, 14].map(s => [s, 36, 0, 40]).concat([[7, 43, 0, 40], [13, 43, 0, 40]])));
-  pat(3, 1, st => notes(st, [[0, 60], [10, 60]]));
-  pat(4, 1, st => notes(st, [[0, 60], [6, 67], [10, 60], [12, 64, [C("ratchet", 2)]]]));
-  T[5].link = true; T[5].steps[0] = { ...newStep(true, 72), comps: [C("hold", 14)] }; T[5].fx = { kind: 2, a: 160, b: 150, c: 80 };
-  pat(5, 1, st => notes(st, [[0, 67, [C("hold", 5)]], [6, 72, [C("hold", 5)]]]), { length: 12 });
-  pat(6, 1, st => notes(st, [[0, 60, [C("hold", 6)]], [8, 60, [C("hold", 6)]]]));
-  T[4].steps[4] = newStep(true, 60); T[4].steps[11] = { ...newStep(true, 67), comps: [C("chance", 70)] }; T[4].steps[14] = newStep(true, 60);
-  const h = d => brainOf(9, 1, "seventh", d), groove = h([0, 5, 2, 6]);
+  const hits = (st, list) => list.forEach(([s, lanes, vel, comps]) => { st[s].lanes |= lanes; st[s].active = true; st[s].vel = vel; if (comps) st[s].comps = comps; });
+  const nt = (st, list) => list.forEach(([s, n, vel, gate, comps]) => { st[s] = { ...newStep(true, n), vel, gate, comps: comps || [] }; });
+  const ev = n => C("every", [n, 2]);
+  pat(0, 1, st => hits(st, [[0, CHAT, 70], [2, CHAT, 40], [4, CHAT, 65], [6, CHAT, 40], [8, CHAT, 70], [10, CHAT, 40], [12, CHAT, 65], [14, OHAT, 60]]), { kit: true });
+  pat(0, 2, st => hits(st, [[0, CHAT, 85], [1, CHAT, 40], [2, OHAT, 95], [3, CHAT, 65], [4, CLAP, 108], [5, CHAT, 40], [6, OHAT, 90], [7, CHAT, 70],
+    [8, CHAT, 85], [9, RIM, 55], [10, OHAT, 95], [11, CHAT, 60], [12, CLAP, 108], [13, CHAT, 40], [14, OHAT, 90], [15, CHAT | RIM, 70, [ev(2)]]]), { kit: true });
+  pat(0, 3, st => hits(st, [[0, CHAT, 80], [2, OHAT, 90], [4, CLAP, 100], [6, CHAT, 60], [8, SNARE, 85], [9, SNARE, 60], [10, SNARE, 75], [11, SNARE, 85],
+    [12, SNARE, 95], [13, TOM, 95], [14, SNARE, 105], [15, CLAP | SNARE, 122]]), { kit: true });
+  pat(0, 4, st => hits(st, [[0, CHAT, 60], [4, CHAT, 50], [7, RIM, 60], [8, CHAT, 60], [10, OHAT, 45], [12, CHAT, 50], [15, RIM, 55]]), { kit: true });
+  pat(0, 5, st => hits(st, [[0, CLAP, 40], [4, CLAP, 55], [8, CLAP, 70], [12, CLAP, 90], [2, OHAT, 50], [6, OHAT, 60], [10, OHAT, 70], [14, OHAT, 85]]), { kit: true });
+  pat(0, 6, st => hits(st, Array.from({ length: 16 }, (_, s) => [s, CLAP, 35 + 6 * s])), { kit: true });
+  pat(0, 7, st => hits(st, [[0, CRASH | CHAT, 110], [1, CHAT, 50], [2, OHAT, 100], [3, CHAT, 70], [4, CLAP, 112], [5, CHAT, 50], [6, OHAT, 95], [7, CHAT, 80],
+    [8, CHAT, 88], [9, CHAT, 50], [10, OHAT, 100], [11, CHAT, 70], [12, CLAP, 112], [13, CHAT, 50], [14, OHAT, 95], [15, CHAT, 80]]), { kit: true });
+  pat(0, 8, st => hits(st, [[0, CHAT, 92], [1, CHAT, 50], [2, OHAT, 100], [3, CHAT, 70], [4, CLAP, 112], [5, CHAT, 50], [6, OHAT, 95], [7, CHAT | RIM, 80],
+    [8, CHAT, 88], [9, CHAT, 50], [10, OHAT, 100], [11, CLAP, 45, [ev(1)]], [12, CLAP, 112], [13, CHAT, 50], [14, OHAT, 95], [15, TOM, 78, [ev(2)]]]), { kit: true });
+  pat(1, 1, st => nt(st, [[0, 36, 115, 50], [8, 36, 110, 50]]));
+  pat(1, 2, st => nt(st, [[0, 36, 100, 50], [4, 36, 105, 50], [8, 36, 110, 50], [10, 36, 100, 50], [12, 36, 110, 50], [13, 36, 105, 50], [14, 36, 115, 50], [15, 36, 120, 50]]));
+  pat(2, 1, st => nt(st, [[2, 36, 105, 40], [3, 36, 65, 25], [5, 36, 70, 25], [6, 43, 90, 40], [7, 36, 70, 25], [10, 36, 105, 40], [11, 43, 80, 30], [13, 36, 70, 25], [14, 48, 90, 35], [15, 36, 70, 20]]));
+  pat(2, 2, st => nt(st, [[2, 36, 100, 45], [5, 48, 85, 30], [6, 36, 95, 40], [9, 43, 80, 35], [10, 36, 100, 40], [13, 48, 85, 30], [14, 36, 95, 40], [15, 43, 70, 20, [ev(2)]]]));
+  // G (6), the electric piano: the chord of the song; stabs on the off-beats, long chords for the break, a roll for the build
+  pat(6, 1, st => nt(st, [[0, 60, 85, 100, [C("hold", 6)]], [8, 60, 80, 100, [C("hold", 6)]]]));
+  pat(6, 2, st => nt(st, [[2, 60, 95, 45], [3, 60, 70, 35], [6, 60, 100, 45], [7, 60, 75, 35, [C("chance", 60)]], [10, 60, 95, 45], [11, 60, 100, 45], [14, 60, 95, 45, [C("oct", 1)]], [15, 60, 70, 35, [ev(2)]]]));
+  pat(6, 3, st => nt(st, [[0, 60, 50, 40], [3, 60, 60, 40], [6, 60, 70, 40], [9, 60, 80, 40], [12, 60, 95, 40], [14, 60, 105, 40], [15, 60, 120, 40]]));
+  // E (4), the pad (the bell sound played as a chord)
+  pat(4, 1, st => nt(st, [[0, 48, 85, 100, [C("hold", 7)]], [8, 55, 75, 100, [C("hold", 7)]]]));
+  // D (3), the hook
+  pat(3, 1, st => nt(st, [[0, 76, 80, 80], [6, 72, 70, 60], [10, 76, 75, 60], [14, 79, 65, 60, [ev(2)]]]));
+  pat(3, 2, st => nt(st, [[0, 72, 100, 50], [2, 76, 75, 40, [ev(1)]], [3, 67, 85, 45], [6, 64, 90, 45], [8, 69, 95, 50], [10, 72, 80, 40, [ev(2)]], [11, 76, 90, 45], [14, 67, 85, 45], [15, 72, 70, 35, [C("ratchet", 2)]]]));
+  // F (5), the cloud: low and dark
+  T[5].link = true; T[5].steps[0] = { ...newStep(true, 48), comps: [C("hold", 14)] }; T[5].fx = { kind: 2, a: 180, b: 170, c: 90 };
+  pat(5, 1, st => nt(st, [[0, 43, 100, 50, [C("hold", 5)]], [6, 48, 100, 50, [C("hold", 5)]]]), { length: 12 });
+  pat(5, 2, st => nt(st, [[0, 43, 100, 50, [C("hold", 5)]], [6, 48, 100, 50, [C("hold", 5)]]]), { length: 12 });
+  const h = d => brainOf(9, 1, "seventh", d), vamp = h([0, 3]), song = h([0, 3, 0, 4]);
   const scene = (k, pats, muted, brain) => { p.scenes[k] = { pat: pats, mute: Array.from({ length: 8 }, (_, t) => muted.includes(t)), brain }; };
-  scene(0, [1, 0, 0, 0, 0, 0, 0, 0], [2, 3, 4, 7], h([0, 5]));
-  scene(1, [0, 0, 0, 0, 0, 0, 0, 0], [3, 4, 5, 7], groove);
-  scene(2, [0, 0, 0, 0, 0, 0, 0, 0], [5, 7], groove);
-  scene(3, [2, 0, 0, 1, 1, 1, 0, 0], [1, 2, 7], h([5, 6, 0, 2]));
-  scene(4, [3, 1, 0, 0, 1, 1, 1, 0], [2, 3, 7], h([6]));
-  scene(5, [4, 0, 1, 0, 0, 0, 1, 0], [7], groove);
-  scene(6, [1, 0, 0, 0, 0, 0, 0, 0], [2, 4, 5, 7], h([0, 5]));
-  p.song = { on: true, steps: [[0, 8], [1, 8], [2, 8], [3, 8], [4, 4], [5, 16], [6, 8]].map(([scene, bars]) => ({ scene, bars })) };
+  scene(0, [1, 0, 0, 0, 0, 0, 0, 0], [2, 3, 6, 7], vamp);
+  scene(1, [0, 0, 0, 0, 0, 0, 0, 0], [3, 5, 6, 7], vamp);
+  scene(2, [2, 0, 0, 0, 0, 0, 0, 0], [5, 7], song);
+  scene(3, [3, 0, 0, 0, 0, 0, 0, 0], [3, 5, 6, 7], vamp);
+  scene(4, [4, 0, 0, 1, 1, 1, 1, 0], [1, 2, 7], h([3, 4]));
+  scene(5, [5, 1, 0, 1, 1, 1, 3, 0], [2, 7], h([4]));
+  scene(6, [6, 2, 0, 1, 1, 2, 3, 0], [2, 7], h([4]));
+  scene(7, [0, 0, 0, 0, 0, 0, 0, 0], [0, 1, 2, 3, 6, 7], h([0]));
+  scene(8, [7, 0, 1, 2, 0, 1, 2, 0], [7], song);
+  scene(9, [8, 0, 2, 2, 0, 1, 2, 0], [7], song);
+  scene(10, [1, 0, 0, 0, 0, 0, 0, 0], [2, 3, 6, 7], vamp);
+  p.song = { on: true, steps: [[0, 8], [1, 8], [2, 8], [3, 1], [4, 8], [5, 4], [6, 4], [7, 1], [8, 8], [3, 1], [9, 8], [10, 8]].map(([scene, bars]) => ({ scene, bars })) };
 }
 function factoryProject(i) {
   const p = demoProject();
@@ -1607,11 +1630,19 @@ function factoryProject(i) {
   const pl = (t, mode, chord, speed, oct) => T[t].pl = { mode, chord, speed, oct };
   const lfo = (t, shape, rate, depth, target) => T[t].lfo = { shape, rate, depth, target };
   if (i === 0) { // house
-    p.bpm = 124; p.swing = .54; p.brain = brainOf(9, 1, "seventh", [0, 5, 2, 6]);
-    kit(OHAT, [2, 6, 10, 14]); kit(CLAP, [4, 12]); kit(CHAT, [0, 8, 15]);
-    on(1, [0, 4, 8, 12].map(s => [s, 36])); link(2, 3, 6); on(2, [[2, 36, 0, 40], [6, 36, 0, 40], [10, 36, 0, 40], [13, 43, 0, 40]]);
-    on(3, [3, 6, 11, 14].map(s => [s, 60])); pl(3, 1, 3, 0, 1); fx(3, 1, 160, 100, 110);
-    on(6, [[0, 60, [C("hold", 14)]]]); fx(6, 2, 150, 150, 70);
+    p.bpm = 122; p.swing = .54; p.brain = brainOf(9, 1, "seventh", [0, 3]);
+    A.kit = true;
+    [[0, CHAT, 80], [1, CHAT, 40], [2, OHAT, 95], [3, CHAT, 65], [4, CLAP, 105], [5, CHAT, 40], [6, OHAT, 90], [7, CHAT, 70], [8, CHAT, 80], [9, CHAT, 40], [10, OHAT, 95], [11, CHAT, 60], [12, CLAP, 105], [13, CHAT, 40], [14, OHAT, 90], [15, CHAT, 75]]
+      .forEach(([s, lanes, vel]) => { A.steps[s].lanes |= lanes; A.steps[s].active = true; A.steps[s].vel = vel; });
+    const g = (t, list) => list.forEach(([s, n, vel, gate, comps]) => { T[t].steps[s] = { ...newStep(true, n), vel, gate, comps: comps || [] }; });
+    g(1, [[0, 36, 115, 50], [4, 36, 105, 50], [8, 36, 110, 50], [12, 36, 105, 50]]);
+    link(2, 3, 4, 5, 6);
+    g(2, [[2, 36, 100, 40], [3, 36, 60, 25], [6, 43, 85, 40], [10, 36, 100, 40], [11, 36, 60, 25], [14, 48, 80, 35], [7, 36, 70, 25, [C("every", [1, 2])]], [15, 43, 70, 25, [C("every", [2, 2])]]]);
+    g(3, [[0, 72, 95, 60], [3, 67, 80, 50, [C("every", [1, 2])]], [6, 64, 85, 50, [C("every", [2, 2])]], [8, 69, 90, 60], [11, 72, 85, 50], [14, 67, 80, 50], [1, 76, 70, 40, [C("every", [2, 2])]], [13, 64, 70, 40, [C("every", [1, 2])]]]);
+    fx(3, 1, 150, 90, 100);
+    g(4, [[0, 48, 80, 100, [C("hold", 15)]]]); pl(4, 1, 3, 0, 1); fx(4, 2, 170, 150, 80);
+    g(6, [[3, 60, 100, 45], [6, 60, 80, 40], [11, 60, 100, 45], [14, 60, 75, 40], [10, 60, 70, 35, [C("every", [1, 2])]], [9, 60, 65, 35, [C("every", [2, 2])]]]);
+    pl(6, 1, 3, 0, 1); fx(6, 1, 150, 90, 90);
     houseSong(p);
   } else if (i === 1) { // boom bap
     p.bpm = 90; p.swing = .60; p.brain = brainOf(0, 2, "seventh", [0, 3, 0, 4]);
@@ -1663,6 +1694,9 @@ function factoryProject(i) {
   return p;
 }
 // the standard tracks, in the order of PLUG-IN: A drums, B kick, C fm, D resonator, E sampler, F empty (the granular), G macro, H MIDI out
+// what house changes in its instruments after the preset (HOUSE_KNOBS and HOUSE_KIT in factory.rs): track -> [knob, value] (a level given here is not scaled)
+const HOUSE_KNOBS = { 3: [[7, 1.0]], 4: [[4, .25], [5, .6], [7, .18]], 5: [[4, .4], [7, .18]], 6: [[0, .4375], [2, .3], [7, .6]] };
+const HOUSE_KIT = { 1: [.5, .40, .45, .55, .60, .95, .5], 2: [.5, .12, .42, .5, .5, .42, .38], 3: [.5, .30, .42, .5, .5, .44, .62], 5: [.5, .38, .55, .5, .55, 1.0, .5], 6: [.5, .12, .45, .5, .5, .65, .45], 7: [.5, .80, .50, .5, .5, .35, .6] };
 function applyPiece(i) {
   const [names, gain] = PIECE_PRESETS[i];
   SLOTS.splice(0, 8, "drums", "kick", "fm", "resonator", "sampler", "granular", "macro", "midi");
@@ -1672,8 +1706,11 @@ function applyPiece(i) {
     if (s === "drums") PARAMS[t][7] = .5 / 8;
     const f = factoryPresets(s).find(x => x[0] === names[t]);
     if (f) f[1].forEach((v, k) => { if (v != null && k < PARAMS[t].length) PARAMS[t][k] = v; });
-    if (s !== "drums" && PARAMS[t].length > 7) PARAMS[t][7] = Math.min(1, PARAMS[t][7] * gain);
+    const extra = i === 0 ? HOUSE_KNOBS[t] : null;
+    if (extra) extra.forEach(([k, v]) => PARAMS[t][k] = v);
+    if (s !== "drums" && PARAMS[t].length > 7 && !(extra && extra.some(e => e[0] === 7))) PARAMS[t][7] = Math.min(1, PARAMS[t][7] * gain);
   });
+  if (i === 0) Object.entries(HOUSE_KIT).forEach(([k, v]) => DRUMS.vals[k] = v.slice()); else DRUMS.vals = DRUM_DEFAULTS.map(v => v.slice());
   if (actx) for (let t = 0; t < 8; t++) fxApply(t, true);
 }
 function blankProject() { const p = factoryProject(0); p.tracks.forEach(t => { t.steps = Array.from({ length: 16 }, () => newStep()); t.length = 16; t.kit = false; t.link = false; t.pl = null; t.fx = null; t.lfo = null; ensureTrack(t); }); p.bpm = 120; p.swing = .5; p.brain = brainOf(0, 0, "triad", [0, 5, 3, 4]); return p; }
