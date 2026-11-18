@@ -179,13 +179,16 @@ impl Noise {
     }
 }
 
+/// The pitched sounds of the bank are made on a C, so that a note plays that note (the sampler plays a sound as it is on note 60).
+const C4: f32 = 261.625_57;
+
 fn secs(s: f32) -> usize {
     (s * SAMPLE_RATE) as usize
 }
 
-/// A plucked string: a burst of noise round a short delay line (Karplus–Strong), about A3.
+/// A plucked string: a burst of noise round a short delay line (Karplus–Strong), on C4.
 fn make_pluck() -> Vec<f32> {
-    let period = (SAMPLE_RATE / 220.0) as usize;
+    let period = (SAMPLE_RATE / C4).round() as usize;
     let mut line: Vec<f32> = {
         let mut n = Noise(0x1234_5678);
         (0..period).map(|_| n.next()).collect()
@@ -200,18 +203,19 @@ fn make_pluck() -> Vec<f32> {
     out
 }
 
-/// A struck bell: inharmonic partials, the high ones dying first.
+/// A struck bell on C5, tuned to play chords: its partials are the octave, the twelfth, two octaves and the fifth above them, the high
+/// ones dying first (a bar's own partials, 2.76 and 5.4 times the first, fall between the notes and clash in a chord).
 fn make_bell() -> Vec<f32> {
-    let partials = [(1.0, 1.0, 1.6), (2.76, 0.6, 1.1), (5.4, 0.4, 0.7), (8.93, 0.25, 0.45), (11.34, 0.15, 0.3)];
+    let partials = [(1.0, 1.0, 1.6), (2.0, 0.5, 1.0), (3.0, 0.3, 0.6), (4.0, 0.2, 0.4), (6.0, 0.12, 0.25)];
     (0..secs(2.0))
         .map(|i| {
             let t = i as f32 / SAMPLE_RATE;
-            partials.iter().map(|&(r, a, d)| (TAU * 392.0 * r * t).sin() * a * (-t / d * 3.0).exp()).sum()
+            partials.iter().map(|&(r, a, d)| (TAU * 2.0 * C4 * r * t).sin() * a * (-t / d * 3.0).exp()).sum()
         })
         .collect()
 }
 
-/// A slow pad: a few detuned waves that swell and fade.
+/// A slow pad on C4: a few detuned waves that swell and fade.
 fn make_pad() -> Vec<f32> {
     let n = secs(2.4);
     (0..n)
@@ -219,7 +223,7 @@ fn make_pad() -> Vec<f32> {
             let t = i as f32 / SAMPLE_RATE;
             let env = (t / 0.6).min(1.0) * ((n - i) as f32 / SAMPLE_RATE / 0.8).min(1.0);
             let w: f32 = [-0.07f32, 0.0, 0.06, 0.13].iter().map(|d| {
-                let f = 196.0 * (1.0 + d * 0.01 * 10.0);
+                let f = C4 * (1.0 + d * 0.01 * 10.0);
                 let p = (f * t).fract();
                 (2.0 * p - 1.0) * 0.5 + (TAU * f * 2.0 * t).sin() * 0.3
             }).sum();
@@ -228,16 +232,20 @@ fn make_pad() -> Vec<f32> {
         .collect()
 }
 
-/// A sung "ah": a pulse train through three resonances (the formants of that vowel).
+/// A sung "ah" on C3: a pulse train through three resonances (the formants of that vowel).
 fn make_voice() -> Vec<f32> {
     let n = secs(1.2);
     let formants = [(800.0f32, 1.0f32), (1150.0, 0.5), (2900.0, 0.25)];
     let mut state = [[0.0f32; 2]; 3];
+    let mut phase = 0.0f32;
     (0..n)
         .map(|i| {
             let t = i as f32 / SAMPLE_RATE;
+            // a vibrato of 1.2 % five times a second: the phase moves at the pitch of the moment (a vibrato written as `f * vib * t`
+            // would swing wider and wider as the note goes on)
             let vib = 1.0 + 0.012 * (TAU * 5.0 * t).sin();
-            let pulse = if (130.0 * vib * t).fract() < 0.05 { 1.0 } else { 0.0 };
+            phase = (phase + C4 / 2.0 * vib / SAMPLE_RATE).fract();
+            let pulse = if phase < 0.05 { 1.0 } else { 0.0 };
             let mut out = 0.0;
             for (k, &(f, g)) in formants.iter().enumerate() {
                 let (r, w) = (0.985f32, TAU * f / SAMPLE_RATE);
@@ -281,13 +289,13 @@ fn make_sweep() -> Vec<f32> {
         .collect()
 }
 
-/// A glassy tone: two sines that modulate each other, dying out.
+/// A glassy tone on C5: two sines that modulate each other, dying out.
 fn make_glass() -> Vec<f32> {
     (0..secs(1.3))
         .map(|i| {
             let t = i as f32 / SAMPLE_RATE;
-            let m = (TAU * 1320.0 * t).sin() * 2.2 * (-t * 3.0).exp();
-            ((TAU * 660.0 * t) + m).sin() * (-t * 2.2).exp()
+            let m = (TAU * 4.0 * C4 * t).sin() * 2.2 * (-t * 3.0).exp();
+            ((TAU * 2.0 * C4 * t) + m).sin() * (-t * 2.2).exp()
         })
         .collect()
 }
@@ -747,6 +755,26 @@ mod tests {
             }
         }
         assert_eq!(bank, factory_bank(), "made the same way every time");
+    }
+
+    // F-A31: the pitched sounds of the bank are made on a C, so that a note plays that note: their period (found by autocorrelation, a
+    // tenth of a second in) is a C within 25 cents, in whatever octave.
+    #[test]
+    fn the_pitched_sounds_are_on_c() {
+        let bank = factory_bank();
+        for name in ["pluck", "bell", "pad", "voice", "glass"] {
+            let s = bank.iter().find(|s| s.name == name).unwrap();
+            let x = &s.data[4800..4800 + 4096];
+            let corr = |lag: usize| x[..4096 - lag].iter().zip(&x[lag..]).map(|(a, b)| a * b).sum::<f32>();
+            let lag = (43..800).max_by(|&a, &b| corr(a).total_cmp(&corr(b))).unwrap();
+            // the peak sits between two samples: a parabola through its neighbours finds where
+            let (l, c, r) = (corr(lag - 1), corr(lag), corr(lag + 1));
+            let exact = lag as f32 + 0.5 * (l - r) / (l - 2.0 * c + r);
+            let hz = SAMPLE_RATE / exact;
+            let cents = (1200.0 * (hz / C4).log2()).rem_euclid(1200.0);
+            let off = cents.min(1200.0 - cents);
+            assert!(off < 25.0, "{name}: {hz:.1} Hz is {off:.0} cents from a C");
+        }
     }
 
     // F-A16
