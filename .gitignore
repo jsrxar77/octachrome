@@ -5,3 +5,7 @@
 *.ppm
 *.wav
 /site
+
+# macOS and the local Claude Code permissions of each machine
+.DS_Store
+/.claude/settings.json
