@@ -3,7 +3,7 @@
    (the manual passes that table as `rows`). */
 (function () {
   window.drawUnitMap = function (host, rows) {
-    const M = window.MK3, T = window.OP8.THEMES.matte, NS = "http://www.w3.org/2000/svg";
+    const M = window.MK3, T = window.OCTACHROME.THEMES.matte, NS = "http://www.w3.org/2000/svg";
     const el = (tag, attrs, parent, text) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (text != null) e.textContent = text; (parent || svg).appendChild(e); return e; };
     const svg = document.createElementNS(NS, "svg");
     svg.setAttribute("viewBox", "0 0 " + M.W + " " + M.H); svg.setAttribute("role", "img");

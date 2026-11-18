@@ -1,0 +1,15 @@
+[package]
+name = "octachrome-ui"
+description = "Left (sequencer) and right (instrument) screen layouts"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+octachrome-gfx.workspace = true
+octachrome-cartridge.workspace = true
+octachrome-seq.workspace = true
+octachrome-engine.workspace = true
+
+[dev-dependencies]
+octachrome-cartridges.workspace = true

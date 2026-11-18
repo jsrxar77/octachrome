@@ -4,7 +4,7 @@
 (function () {
   const S = 2.2, X = x => (x - 38) * S, Y = y => (y - 6) * S;
   const R = (x, y, w, h) => [X(x), Y(y), w * S, h * S];
-  const B = [];                                   // [label, x, y, w, h, status y|p|n, what it does in OP-8]
+  const B = [];                                   // [label, x, y, w, h, status y|p|n, what it does in Octachrome]
   const add = (l, r, s, d) => B.push([l, ...r, s, d]);
 
   // 8 screen buttons, above the screens

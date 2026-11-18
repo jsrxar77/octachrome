@@ -1,0 +1,9 @@
+[package]
+name = "octachrome-seq"
+description = "Deterministic OP-XY-style sequencer: polymeter, accumulable step components, Brain harmony track"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+octachrome-cartridge.workspace = true

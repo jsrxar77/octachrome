@@ -5,15 +5,15 @@
 
 The site is a few static files: no server, no network at run time, no build step in the browser.
 guide/site.json holds the placeholders for the day it is published (the address of the site and of the
-repository); the environment variables OP8_SITE_URL and OP8_REPO_URL override them (the Pages workflow sets them).
+repository); the environment variables OCTACHROME_SITE_URL and OCTACHROME_REPO_URL override them (the Pages workflow sets them).
 """
 import json, os, pathlib, re, shutil
 
 root = pathlib.Path(__file__).resolve().parent.parent
 guide, out = root / "guide", root / "site"
 cfg = json.loads((guide / "site.json").read_text())
-site_url = (os.environ.get("OP8_SITE_URL") or cfg["site_url"]).rstrip("/")
-repo_url = (os.environ.get("OP8_REPO_URL") or cfg["repo_url"]).rstrip("/")
+site_url = (os.environ.get("OCTACHROME_SITE_URL") or cfg["site_url"]).rstrip("/")
+repo_url = (os.environ.get("OCTACHROME_REPO_URL") or cfg["repo_url"]).rstrip("/")
 docs_url = repo_url + "/blob/main/docs"
 
 # ---- the button map, for the manual's reference list (docs/buttons.md is the source) -------------------------------
@@ -51,9 +51,9 @@ def piece_rows():
     return "\n".join(rows)
 
 def preset_rows():
-    """The manual's table of the presets that come with the instruments (crates/op8-cartridges/presets.txt)."""
+    """The manual's table of the presets that come with the instruments (crates/octachrome-cartridges/presets.txt)."""
     by = {}
-    for line in (root / "crates/op8-cartridges/presets.txt").read_text().splitlines():
+    for line in (root / "crates/octachrome-cartridges/presets.txt").read_text().splitlines():
         if line.strip() and not line.startswith("#"):
             p = [x.strip() for x in line.split("|")]
             by.setdefault(p[0], []).append(p[1])
@@ -61,14 +61,14 @@ def preset_rows():
     return "\n".join(f"  <tr><td>{label}</td><td>{', '.join(by.get(key, []))}</td></tr>" for label, key in names)
 
 # ---- the parts every page shares -----------------------------------------------------------------------------------
-NAV = [("index.html", "Home"), ("manual.html", "Manual"), ("twin/op8-twin.html", "Try it")]
+NAV = [("index.html", "Home"), ("manual.html", "Manual"), ("twin/octachrome-twin.html", "Try it")]
 
 def header(page):
     cur = ' aria-current="page"'
     links = "".join(f'<a href="{h}"{cur if h == page else ""}>{t}</a>' for h, t in NAV)
     links += f'<a href="{repo_url}">Source</a>'
     return ('<a class="skip" href="#main">Skip to the content</a>\n'
-            '<header class="site"><a class="home" href="index.html"><img src="brand/op8-mark.svg" alt=""><b>OP-8</b></a>'
+            '<header class="site"><a class="home" href="index.html"><img src="brand/octachrome-mark.svg" alt=""><b>Octachrome</b></a>'
             f'<nav aria-label="Site">{links}</nav></header>')
 
 def footer():
@@ -76,10 +76,10 @@ def footer():
                       [("architecture", "How it is built"), ("buttons", "Every button"), ("instruments", "Instruments"), ("design", "Design")])
     return ('<footer class="site">\n'
             f'<p><b>{cfg["name"]}</b> · {cfg["tagline"]}.</p>\n'
-            '<p><a href="index.html">Home</a> · <a href="manual.html">Manual</a> · <a href="twin/op8-twin.html">Try it in the browser</a> · '
+            '<p><a href="index.html">Home</a> · <a href="manual.html">Manual</a> · <a href="twin/octachrome-twin.html">Try it in the browser</a> · '
             f'<a href="{repo_url}">Source</a></p>\n<p>{docs}</p>\n'
-            '<small>OP-8 is an independent project. Maschine is a trademark of Native Instruments and OP-1 and OP-XY of Teenage Engineering; '
-            'OP-8 is not affiliated with either company.</small>\n</footer>')
+            '<small>Octachrome is an independent project. Maschine is a trademark of Native Instruments and OP-1 and OP-XY of Teenage Engineering; '
+            'Octachrome is not affiliated with either company.</small>\n</footer>')
 
 def social(html, page):
     title = re.search(r"<title>(.*?)</title>", html, re.S).group(1).strip()
@@ -125,7 +125,7 @@ shutil.copytree(root / "twin", out / "twin", ignore=shutil.ignore_patterns("*.md
 # the brand page stays apart: not in the menu, not in the sitemap, and search engines are asked to leave it
 brand = (guide / "brand.html").read_text()
 if 'name="robots"' not in brand:
-    brand = brand.replace("<title>", '<meta name="robots" content="noindex">\n<meta name="description" content="The OP-8 mark: eight buttons, four and four, in the order of the rainbow, the eighth white.">\n<title>', 1)
+    brand = brand.replace("<title>", '<meta name="robots" content="noindex">\n<meta name="description" content="The Octachrome mark: eight buttons, four and four, in the order of the rainbow, the eighth white.">\n<title>', 1)
 (out / "brand.html").write_text(brand)
 (out / "404.html").write_text(render((guide / "404.tpl.html").read_text(), "404.html"))
 pages = ["", "manual.html"]

@@ -3,11 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>OP-8 · Guide</title>
-<link rel="icon" href="brand/op8-mark.svg" type="image/svg+xml">
+<title>Octachrome · Guide</title>
+<link rel="icon" href="brand/octachrome-mark.svg" type="image/svg+xml">
 <link rel="stylesheet" href="site.css">
 <!--SOCIAL-->
-<meta name="description" content="How to play OP-8: a groovebox for the Maschine MK3. Interactive guide.">
+<meta name="description" content="How to play Octachrome: a groovebox for the Maschine MK3. Interactive guide.">
 <meta name="color-scheme" content="dark">
 <style>
 @font-face{font-family:Jost;font-weight:300;src:url(fonts/Jost-Light.ttf)}
@@ -109,8 +109,8 @@ a.btn:hover{border-color:var(--acc);color:var(--acc)}a.btn.main{border-color:var
 <main id="main">
 
 <section class="hero" id="s0">
-  <svg class="mark" id="heroMark" role="img" aria-label="OP-8 mark: eight coloured keys, four and four"></svg>
-  <h1>OP-8</h1>
+  <svg class="mark" id="heroMark" role="img" aria-label="Octachrome mark: eight coloured keys, four and four"></svg>
+  <h1>Octachrome</h1>
   <p class="lead">A groovebox you play with a Maschine MK3.</p>
   <div class="scroll">scroll</div>
 </section>
@@ -118,9 +118,9 @@ a.btn:hover{border-color:var(--acc);color:var(--acc)}a.btn.main{border-color:var
 <section id="what">
   <h2>What it is</h2>
   <p class="lead" style="max-width:46ch">A groovebox for people who like to play hardware: eight tracks, steps that drift against each other, a harmony that follows the song, and eight instruments. It runs on a small computer and is played on a Native Instruments Maschine MK3.</p>
-  <div class="shots"><img src="img/r01-start-left.png" width="480" height="272" alt="The left screen of OP-8: the steps of a track, the tempo and the chord."><img src="img/r01-start-right.png" width="480" height="272" alt="The right screen of OP-8: the drum instrument of the selected track, with four knobs."></div>
-  <p class="dim small">The two screens of the MK3 as OP-8 draws them, taken from the real program. The left one is time, the right one is sound.</p>
-  <div class="row"><a class="btn main" href="twin/op8-twin.html">Try it in your browser</a><a class="btn" href="manual.html">Read the manual</a></div>
+  <div class="shots"><img src="img/r01-start-left.png" width="480" height="272" alt="The left screen of Octachrome: the steps of a track, the tempo and the chord."><img src="img/r01-start-right.png" width="480" height="272" alt="The right screen of Octachrome: the drum instrument of the selected track, with four knobs."></div>
+  <p class="dim small">The two screens of the MK3 as Octachrome draws them, taken from the real program. The left one is time, the right one is sound.</p>
+  <div class="row"><a class="btn main" href="twin/octachrome-twin.html">Try it in your browser</a><a class="btn" href="manual.html">Read the manual</a></div>
 </section>
 
 <section id="ideas">
@@ -135,15 +135,15 @@ a.btn:hover{border-color:var(--acc);color:var(--acc)}a.btn.main{border-color:var
 <section id="need">
   <h2>What you need</h2>
   <div class="facts">
-    <div class="fact"><h3>A Maschine MK3</h3><p>The only control surface: its pads, knobs, Smart Strip, lights and <b>both screens</b> are used. OP-8 talks to it directly; no other software is needed.</p></div>
+    <div class="fact"><h3>A Maschine MK3</h3><p>The only control surface: its pads, knobs, Smart Strip, lights and <b>both screens</b> are used. Octachrome talks to it directly; no other software is needed.</p></div>
     <div class="fact"><h3>A small computer</h3><p>A <b>Raspberry Pi 5</b> (4 GB, with its official power supply) is the target, and a Pi 4 should do. On a <b>Mac</b> you can run it today, and without any hardware a simulator plays the whole thing.</p></div>
-    <div class="fact"><h3>Speakers or headphones</h3><p>On the MK3's own outputs. Samples you record come in through its input, or from OP-8 itself.</p></div>
+    <div class="fact"><h3>Speakers or headphones</h3><p>On the MK3's own outputs. Samples you record come in through its input, or from Octachrome itself.</p></div>
   </div>
 </section>
 
 <section id="status">
   <h2>Where it stands</h2>
-  <p class="lead" style="max-width:44ch">OP-8 is young. This is what the buttons of the MK3 do today.</p>
+  <p class="lead" style="max-width:44ch">Octachrome is young. This is what the buttons of the MK3 do today.</p>
   <div class="status"><div class="y"><big>{{N_Y}}</big><span class="dim">work today</span></div><div class="p"><big>{{N_P}}</big><span class="dim">work in part</span></div><div class="n"><big>{{N_N}}</big><span class="dim">are planned</span></div></div>
   <p class="dim small" style="max-width:56ch">Of {{N_ALL}} buttons and controls. Everything that works is tested without hardware on every change, and part of it has also been tried on a real MK3; the manual says honestly what is still missing.</p>
   <div class="row"><a class="btn" href="manual.html#reference">Every button, one by one</a><a class="btn" href="manual.html#notyet">What it does not do yet</a></div>
@@ -203,10 +203,10 @@ a.btn:hover{border-color:var(--acc);color:var(--acc)}a.btn.main{border-color:var
 
 <section id="s6">
   <h2>Start it</h2>
-  <pre id="cmd"><span>$</span> op8</pre>
+  <pre id="cmd"><span>$</span> octachrome</pre>
   <div class="row"><button id="copy">Copy</button></div>
   <p class="lead">Builds, frees the MK3 from NI's services, and plays.</p>
-  <div class="row"><a class="btn" href="manual.html#first">Your first ten minutes</a><a class="btn" href="twin/op8-twin.html">No MK3? Try the twin</a></div>
+  <div class="row"><a class="btn" href="manual.html#first">Your first ten minutes</a><a class="btn" href="twin/octachrome-twin.html">No MK3? Try the twin</a></div>
   <div class="pw">
     <div><big>&lt; 500 mA</big><span class="dim">screens 50, LEDs capped</span></div>
     <div><big>≥ 500 mA</big><span class="dim">screens 80, full LEDs</span></div>
@@ -223,8 +223,8 @@ a.btn:hover{border-color:var(--acc);color:var(--acc)}a.btn.main{border-color:var
 const $ = (s, r = document) => r.querySelector(s);
 const el = (t, a = {}, h = "") => { const e = document.createElement(t); for (const k in a) e.setAttribute(k, a[k]); e.innerHTML = h; return e; };
 const THEMES = {};
-OP8.ORDER.forEach(n => { const t = OP8.THEMES[n]; THEMES[n] = { ...t, k: t.knobs }; });
-let theme = OP8.cur, K = THEMES[theme].k;
+OCTACHROME.ORDER.forEach(n => { const t = OCTACHROME.THEMES[n]; THEMES[n] = { ...t, k: t.knobs }; });
+let theme = OCTACHROME.cur, K = THEMES[theme].k;
 function applyTheme(name) {
   theme = name; const t = THEMES[name]; K = t.k;
   const r = document.documentElement.style;
@@ -232,7 +232,7 @@ function applyTheme(name) {
   K.forEach((c, i) => r.setProperty("--k" + (i + 1), c));
   drawMark($("#heroMark"),t.brand,true);
 }
-OP8.on(applyTheme);
+OCTACHROME.on(applyTheme);
 
 /* nav dots */
 const secs = [...document.querySelectorAll("section")];
@@ -364,7 +364,7 @@ function frame(ms) {
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
-OP8.tabs($("#themeTabs"));
+OCTACHROME.tabs($("#themeTabs"));
 
 /* instruments */
 const INST = [
@@ -387,10 +387,10 @@ function drawCards(ms) {
 requestAnimationFrame(drawCards);
 
 /* copy */
-$("#copy").onclick = async e => { try { await navigator.clipboard.writeText("op8"); e.target.textContent = "Copied"; } catch (x) { e.target.textContent = "Select it"; } setTimeout(() => e.target.textContent = "Copy", 1400); };
+$("#copy").onclick = async e => { try { await navigator.clipboard.writeText("octachrome"); e.target.textContent = "Copied"; } catch (x) { e.target.textContent = "Select it"; } setTimeout(() => e.target.textContent = "Copy", 1400); };
 
-OP8.tabs($("#themeTabs2"));OP8.mount($("#themeMk"), $("#themeCap"));
-applyTheme(OP8.cur);
+OCTACHROME.tabs($("#themeTabs2"));OCTACHROME.mount($("#themeMk"), $("#themeCap"));
+applyTheme(OCTACHROME.cur);
 </script>
 </body>
 </html>

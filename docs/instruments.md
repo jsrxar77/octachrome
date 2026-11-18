@@ -1,12 +1,12 @@
-# OP-8 — Instruments
+# Octachrome — Instruments
 
-**Instruments are the centre of OP-8.** The sequencer, the Brain, Punch-in and the buttons always do the same and stay small. What grows is the collection of instruments ("cartridges"): it starts with a small set, anyone can add a new one, and each is used as quickly as on an OP-XY.
+**Instruments are the centre of Octachrome.** The sequencer, the Brain, Punch-in and the buttons always do the same and stay small. What grows is the collection of instruments ("cartridges"): it starts with a small set, anyone can add a new one, and each is used as quickly as on an OP-XY.
 
 This document rules together with the [UX/UI Treatise](design.md) and the [button map](buttons.md).
 
 ## 1. What an instrument is
 
-An instrument is a piece of code that fulfils the `InstrumentCartridge` contract (`crates/op8-cartridge`). It has four parts, always the same:
+An instrument is a piece of code that fulfils the `InstrumentCartridge` contract (`crates/octachrome-cartridge`). It has four parts, always the same:
 
 | Part | What it is | Limit |
 | :-- | :-- | :-- |
@@ -33,11 +33,11 @@ In three stages, from the simplest to the most open:
 
 | Stage | How | For whom | Status |
 | :-- | :-- | :-- | :-- |
-| **1. In code** | A Rust crate that implements `InstrumentCartridge` and is registered in `builtin_names()` / `create()` (`crates/op8-cartridges/src/lib.rs`). Compiled with OP-8. It can wrap MIT-licensed C/C++ code (like macro) | Us and anyone who knows Rust | ◐ (contract and list done; choosing them with PLUG-IN is missing) |
-| **2. Separate package** | The instrument is compiled as a library (`.so` on the Pi, `.dylib` on Mac) and copied to a `cartridges/` folder. OP-8 loads it at start-up | Anyone who programs, without touching OP-8 | ○ |
-| **3. Without compiling** | Instruments described in a patch language (for example Faust or a format of our own) that OP-8 converts | People who design sound but do not program | ○ (to investigate) |
+| **1. In code** | A Rust crate that implements `InstrumentCartridge` and is registered in `builtin_names()` / `create()` (`crates/octachrome-cartridges/src/lib.rs`). Compiled with Octachrome. It can wrap MIT-licensed C/C++ code (like macro) | Us and anyone who knows Rust | ◐ (contract and list done; choosing them with PLUG-IN is missing) |
+| **2. Separate package** | The instrument is compiled as a library (`.so` on the Pi, `.dylib` on Mac) and copied to a `cartridges/` folder. Octachrome loads it at start-up | Anyone who programs, without touching Octachrome | ○ |
+| **3. Without compiling** | Instruments described in a patch language (for example Faust or a format of our own) that Octachrome converts | People who design sound but do not program | ○ (to investigate) |
 
-**Drawing kit:** `op8-gfx` already has what the drawings need (smoothed circles, arcs, lines and boxes, the Jost typeface, theme and per-knob colours). Later a small library of reusable drawings is added: oscilloscope, envelope, polar waveform, keyboard, waves. That way a new instrument looks good without designing everything from scratch.
+**Drawing kit:** `octachrome-gfx` already has what the drawings need (smoothed circles, arcs, lines and boxes, the Jost typeface, theme and per-knob colours). Later a small library of reusable drawings is added: oscilloscope, envelope, polar waveform, keyboard, waves. That way a new instrument looks good without designing everything from scratch.
 
 ## 4. Initial set and candidates
 
@@ -50,9 +50,9 @@ In three stages, from the simplest to the most open:
 | **MidiOutBridge** | Sends the track out the MK3's DIN MIDI to an external synth | A DIN connector and notes leaving through the cable |
 | **resonator** | A string or a bank of bells that rings when a note strikes it; four voices (a fifth note takes the oldest). Sound: `type` (string, bells), `structure`, `bright`, `damping`. Shape: `decay`, `color`, `spread` (how far apart the four voices sit in the stereo field), `level`. Built on the string and modal engines of the Plaits code (MIT) | A string held at both ends that shivers with the sound (structure bows it, bright thickens it), or eight rings spaced as the modes of a bell are, fading outward with the damping |
 | **drums** | Eight percussion sounds on one track, chosen by the pitch of the note: C kick, C# snare, D closed hat, D# open hat, E tom, F clap, F# rim, G crash (the notes above G wrap round). The knobs edit the sound picked with the `sound` knob and each sound keeps its own values. Sound: `tune`, `decay`, `tone`, `snap`. Shape: `body`, `level`, `pan`, `sound`. Built on the percussion engines of the Plaits code (MIT) | The eight sounds as a 4 × 2 grid of keys, each with a small picture that flashes when it plays; the chosen one large, with the four colours of knobs 5–8 showing tune (height), decay (size), tone (rings) and snap (spikes) |
-| **sampler** | Plays recorded sounds with the keyboard and the steps. Sixteen places like everything else: eight sounds that come with it (pluck, bell, pad, voice, thump, sweep, glass, glitch, all made by the code, so nothing has to be installed; the five that have a pitch are made on a C, so that a note plays that note: pluck and pad on C4, bell and glass on C5, voice on C3, and the bell's partials are the octave, the twelfth, two octaves and the fifth above them, so that it plays chords) and eight for the player's own WAV files from `~/.config/op8/samples/` (`OP8_SAMPLES` overrides it), in the order of their names; any rate, 8–32 bit or float, mono or stereo, up to ten seconds. The folder is read when the instrument is made and again whenever SAMPLING or PLUG-IN is opened: files that are new or changed are put in the instruments that play (a place whose file is gone becomes empty). A note plays the sound at its own pitch for C4 and shifted by the interval for others; eight voices. Sound: `sample`, `start`, `length`, `tune` (± 24 semitones: it is also the root note, to play in tune a sound recorded on another note). Shape: `attack`, `release`, `loop` (`one shot`, `loop`, `slices 8`, `slices 16`, `hits`), `level`. One shot plays through and fades over the last `release`; loop repeats the window while the note is held and fades when it is let go; slices cut the window into equal parts and a note plays one (C3 is the first, the notes go round after the last) at its own pitch; `hits` cuts where the sound hits instead (found when the sound is loaded: a jump of 9 dB or more in loudness, 60 ms apart at least, up to sixteen; a slice runs from one hit to the next) | The wave of the chosen sound across the screen, the part that plays lit between two marks (`start`, `length`), a mark for the tune, a tick between the slices (or at each hit), a white line for every voice that is playing |
+| **sampler** | Plays recorded sounds with the keyboard and the steps. Sixteen places like everything else: eight sounds that come with it (pluck, bell, pad, voice, thump, sweep, glass, glitch, all made by the code, so nothing has to be installed; the five that have a pitch are made on a C, so that a note plays that note: pluck and pad on C4, bell and glass on C5, voice on C3, and the bell's partials are the octave, the twelfth, two octaves and the fifth above them, so that it plays chords) and eight for the player's own WAV files from `~/.config/octachrome/samples/` (`OCTACHROME_SAMPLES` overrides it), in the order of their names; any rate, 8–32 bit or float, mono or stereo, up to ten seconds. The folder is read when the instrument is made and again whenever SAMPLING or PLUG-IN is opened: files that are new or changed are put in the instruments that play (a place whose file is gone becomes empty). A note plays the sound at its own pitch for C4 and shifted by the interval for others; eight voices. Sound: `sample`, `start`, `length`, `tune` (± 24 semitones: it is also the root note, to play in tune a sound recorded on another note). Shape: `attack`, `release`, `loop` (`one shot`, `loop`, `slices 8`, `slices 16`, `hits`), `level`. One shot plays through and fades over the last `release`; loop repeats the window while the note is held and fades when it is let go; slices cut the window into equal parts and a note plays one (C3 is the first, the notes go round after the last) at its own pitch; `hits` cuts where the sound hits instead (found when the sound is loaded: a jump of 9 dB or more in loudness, 60 ms apart at least, up to sixteen; a slice runs from one hit to the next) | The wave of the chosen sound across the screen, the part that plays lit between two marks (`start`, `length`), a mark for the tune, a tick between the slices (or at each hit), a white line for every voice that is playing |
 | **granular** | Plays a sound as a cloud of grains (very short, overlapping pieces). The sound is one of the sampler's sixteen places (the eight that come with it and the player's own; what SAMPLING records goes in at once). Up to four held notes: each grain takes its pitch from them in turn (C4 is the sound's own). Sound: `sample`, `position` (where in the sound grains are cut), `size` (32 ms to 512 ms), `density` (regular below the middle, random above, a dead zone in the middle where only the grain a note starts is heard). Shape: `tune` (± 24 semitones), `texture` (the window of a grain: a trapezoid when low, a raised cosine when high), `spread` (between the speakers), `level`. Up to 32 grains at once; the quality of their interpolation falls as they get busy. Built on the granular player of Clouds (MIT) | The wave of the chosen sound, a band over the part where grains can start, a line where they are cut from (`position`) and one under it as long as a grain (`size`), and every grain that sounds as a bar where it reads, as tall as its window is open and higher or lower as it sits between the speakers (`spread`); the pitch as a mark on a short scale |
-| **macro** | 24 engines in one (virtual analogue, FM, wavetable, chords, voice, strings, percussion), from the Plaits code (MIT, `crates/op8-plaits`). Sound: `engine`, `harmonics`, `timbre`, `morph`. Shape: `decay`, `color`, `variant`, `level` | A ring of 24 engines, a polar waveform that beats with the level, and a timbre × morph field |
+| **macro** | 24 engines in one (virtual analogue, FM, wavetable, chords, voice, strings, percussion), from the Plaits code (MIT, `crates/octachrome-plaits`). Sound: `engine`, `harmonics`, `timbre`, `morph`. Shape: `decay`, `color`, `variant`, `level` | A ring of 24 engines, a polar waveform that beats with the level, and a timbre × morph field |
 
 macro is monophonic and uses gate semantics (the 6-operator FM engines need the held gate). It goes to sleep and gives exact zeros when it is not sounding.
 
@@ -64,32 +64,32 @@ macro is monophonic and uses gate semantics (the 6-operator FM engines need the 
 | **Braids** (Mutable Instruments) | More than 40 oscillators on a single "timbre/colour" control | MIT | **Yes** |
 | **Rings / Elements** (Mutable Instruments) | Physical resonators: strings, bells, tubes | MIT | **Yes** |
 | **Clouds / Beads** (Mutable Instruments) | Granular on a sample | MIT | **Yes** (useful for the future sampler) |
-| **Surge XT** | A huge synth with very many oscillators and filters | GPL-3.0 | **Only if OP-8 becomes GPL**, or if only its ideas are used, without its code |
+| **Surge XT** | A huge synth with very many oscillators and filters | GPL-3.0 | **Only if Octachrome becomes GPL**, or if only its ideas are used, without its code |
 | **Vital** | Wavetable | GPL-3.0 | Same as Surge |
 
 Clouds' granular code was checked on 2026-11-16: the files carry the MIT notice (Copyright 2014 Emilie Gillet), which is kept in the source of the granular.
 
-Legal note on Mutable Instruments: the code of the STM32 modules (Plaits, Braids, Rings, Elements, Clouds, Beads) is MIT, but the name "Mutable Instruments" is a registered trademark and its author asks that the module names not be used in derived works. OP-8 instruments based on that code carry names of their own (for example "macro", "resonator") and say in the credits where they come from.
+Legal note on Mutable Instruments: the code of the STM32 modules (Plaits, Braids, Rings, Elements, Clouds, Beads) is MIT, but the name "Mutable Instruments" is a registered trademark and its author asks that the module names not be used in derived works. Octachrome instruments based on that code carry names of their own (for example "macro", "resonator") and say in the credits where they come from.
 
 ### Proposed order
 
 1. ~~**macro**~~ (from Plaits): done.
 2. ~~**resonator**~~: done (string and bells, from the Plaits modal and string engines).
 3. ~~**drums**~~: done (eight sounds chosen by the pitch of the note).
-4. ~~**sampler**~~, stages 1 and 2 done (plays the eight that come with it and the player's WAV files; SAMPLING records what OP-8 plays or the audio interface's input, cuts it and saves it into one of the player's eight places). Stage 3, BROWSER, is done for every instrument (presets per instrument, the player's eight; the sampler's preset keeps the sound chosen and its cut).
+4. ~~**sampler**~~, stages 1 and 2 done (plays the eight that come with it and the player's WAV files; SAMPLING records what Octachrome plays or the audio interface's input, cuts it and saves it into one of the player's eight places). Stage 3, BROWSER, is done for every instrument (presets per instrument, the player's eight; the sampler's preset keeps the sound chosen and its cut).
 
 ## 5. Budget on the Raspberry Pi 5
 
-It has to be measured on the real Pi, but the target is: 8 tracks sounding at once, 128-sample buffers (2.7 ms), and under 60 % of one core for all the audio. Each instrument declares how many voices it uses and OP-8 warns if a combination does not fit. The CPU on the Pi 5 has not been measured yet.
+It has to be measured on the real Pi, but the target is: 8 tracks sounding at once, 128-sample buffers (2.7 ms), and under 60 % of one core for all the audio. Each instrument declares how many voices it uses and Octachrome warns if a combination does not fit. The CPU on the Pi 5 has not been measured yet.
 
-## 6. What OP-8 is not going to be
+## 6. What Octachrome is not going to be
 
 - A DAW or a VST plug-in host: instruments are few parameters and a drawing, not enormous panels.
 - A box of thousands of parameters: if something needs more than 8 knobs, it is two instruments.
 
 ## 7. Eight and eight
 
-Everything in OP-8 is built on eight, and the MK3 has sixteen pads. So the library is **8 factory instruments plus 8 places for the ones you install**, and the projects are **8 factory projects plus 8 of your own**. On the pads: pads 1–8 (the top two rows) are what ships, pads 9–16 (the bottom two rows) are yours. Decided by Javi on 2026-11-13.
+Everything in Octachrome is built on eight, and the MK3 has sixteen pads. So the library is **8 factory instruments plus 8 places for the ones you install**, and the projects are **8 factory projects plus 8 of your own**. On the pads: pads 1–8 (the top two rows) are what ships, pads 9–16 (the bottom two rows) are yours. Decided by Javi on 2026-11-13.
 
 | | Factory (pads 1–8) | Yours (pads 9–16) |
 | :-- | :-- | :-- |
@@ -124,7 +124,7 @@ Still to come: the chromatic KEYBOARD and PAD MODE, which will play the eight so
 
 ## 8. Presets that come with the instruments
 
-Each of the six sounding instruments has **eight presets** of its own, shown in the top two rows of BROWSER (the player's eight are the bottom two; see [buttons.md](buttons.md)). A preset is the value of the instrument's eight knobs (a knob it does not name, `-`, stays where it is: the drums' presets leave `sound`, `level` and `pan` alone, so a preset shapes whichever sound is chosen). They live in one text file, `crates/op8-cartridges/presets.txt`, read by the program and the tests and copied into the twin (a test keeps the copy equal).
+Each of the six sounding instruments has **eight presets** of its own, shown in the top two rows of BROWSER (the player's eight are the bottom two; see [buttons.md](buttons.md)). A preset is the value of the instrument's eight knobs (a knob it does not name, `-`, stays where it is: the drums' presets leave `sound`, `level` and `pan` alone, so a preset shapes whichever sound is chosen). They live in one text file, `crates/octachrome-cartridges/presets.txt`, read by the program and the tests and copied into the twin (a test keeps the copy equal).
 
 They were written after the kinds of sound that grooveboxes of this family ship (bass, keys, leads, pads, effects and drum kits; no list of any other maker's factory sounds was copied, and the names are our own). The tests check that every one plays, is not silent or clipped, differs from the other seven, and that the names are true (deep is lower than click, boom rings longer than tight, metal is brighter than sub, gong outlasts muted). **They are a first set to be tuned by ear on the unit**: keep the ones that sound right, change the rest by saving yours in BROWSER and sending them over.
 
@@ -157,16 +157,16 @@ An empty place of the player's in FILE opens a **new empty project** (the standa
 
 ## 10. Credits and where each instrument comes from
 
-| Instrument | Written for OP-8 or built on | Licence |
+| Instrument | Written for Octachrome or built on | Licence |
 | :-- | :-- | :-- |
-| drums | The percussion models of Plaits (kick, snare, hi-hat, noise, modal); the lanes, per-sound settings and drawing are OP-8's | MIT (Plaits, `crates/op8-plaits`) |
-| KickSyn | Written for OP-8 (a sine with an exponential pitch sweep, a decay, a noise click and a tanh drive) | OP-8's |
-| FmBass | Written for OP-8 (two-operator FM with a sub-octave) | OP-8's |
+| drums | The percussion models of Plaits (kick, snare, hi-hat, noise, modal); the lanes, per-sound settings and drawing are Octachrome's | MIT (Plaits, `crates/octachrome-plaits`) |
+| KickSyn | Written for Octachrome (a sine with an exponential pitch sweep, a decay, a noise click and a tanh drive) | Octachrome's |
+| FmBass | Written for Octachrome (two-operator FM with a sub-octave) | Octachrome's |
 | resonator | The string and modal engines of Plaits | MIT |
-| sampler | Written for OP-8 | OP-8's |
-| macro | The engines of Plaits (24 in the vendored set), with OP-8's own pages and drawing | MIT |
-| midi out | Written for OP-8 | OP-8's |
-| granular | The granular player of Clouds (Mutable Instruments), rewritten in Rust for a stored sound: how grains are scheduled (regular or random, with a dead zone), the window of a grain, the cut-down of a grain that would run past the end, the gain that follows how many sound, and the interpolation that gets cheaper as grains get busy; the bank of sounds (shared with the sampler), the pages, the drawing and the pitch from held notes are OP-8's | MIT (Clouds; notice in `crates/op8-cartridges/src/granular.rs`) |
+| sampler | Written for Octachrome | Octachrome's |
+| macro | The engines of Plaits (24 in the vendored set), with Octachrome's own pages and drawing | MIT |
+| midi out | Written for Octachrome | Octachrome's |
+| granular | The granular player of Clouds (Mutable Instruments), rewritten in Rust for a stored sound: how grains are scheduled (regular or random, with a dead zone), the window of a grain, the cut-down of a grain that would run past the end, the gain that follows how many sound, and the interpolation that gets cheaper as grains get busy; the bank of sounds (shared with the sampler), the pages, the drawing and the pitch from held notes are Octachrome's | MIT (Clouds; notice in `crates/octachrome-cartridges/src/granular.rs`) |
 
 Plaits is by Émilie Gillet (Mutable Instruments). The name "Mutable Instruments" is a registered trademark: it appears only in credits, never as the name of an instrument. The manual says all of this in plain words under "What each one is for, and where it comes from" ([the manual](../guide/manual.tpl.html) is generated into the site).
 

@@ -1,8 +1,8 @@
 {
-  "_note": "Placeholders for when the site is published. Override with the environment variables OP8_SITE_URL and OP8_REPO_URL (the Pages workflow does). scripts/check-site.py warns while they are still the placeholders below.",
-  "site_url": "https://SITE-URL-PENDING.example/op8",
-  "repo_url": "https://github.com/REPO-OWNER-PENDING/op8",
-  "name": "OP-8",
+  "_note": "The addresses of a local build. Override them with the environment variables OCTACHROME_SITE_URL and OCTACHROME_REPO_URL (the Pages workflow does, from the repository it runs in). scripts/check-site.py warns if they are placeholders.",
+  "site_url": "https://jsrxar77.github.io/octachrome",
+  "repo_url": "https://github.com/jsrxar77/octachrome",
+  "name": "Octachrome",
   "tagline": "A groovebox you play with a Maschine MK3",
-  "description": "OP-8 is a standalone groovebox in Rust for the Raspberry Pi, played with a Native Instruments Maschine MK3: polymetric steps, a chord Brain, eight instruments, a sampler, and every screen and light of the MK3."
+  "description": "Octachrome is a standalone groovebox in Rust for the Raspberry Pi, played with a Native Instruments Maschine MK3: polymetric steps, a chord Brain, eight instruments, a sampler, and every screen and light of the MK3."
 }
