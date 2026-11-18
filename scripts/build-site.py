@@ -120,6 +120,23 @@ for f in ("site.css", "mk3.js", "themes.js", "unit-map.js", "og.png"):
         shutil.copy(guide / f, out / f)
 shutil.copytree(root / "twin", out / "twin", ignore=shutil.ignore_patterns("*.md", ".*"))
 
+# The twin is one self-contained file (it also runs from disk), so the site's menu is added to the published copy only.
+twin_page = out / "twin" / "octachrome-twin.html"
+cur = ' aria-current="page"'
+twin_links = "".join(f'<a href="../{h}"{cur if h.startswith("twin/") else ""}>{t}</a>' for h, t in NAV) + f'<a href="{repo_url}">Source</a>'
+twin_bar = (
+    '<style>header.site{position:sticky;top:0;z-index:50;display:flex;align-items:center;justify-content:space-between;gap:16px;'
+    'padding:10px 18px;margin:0 0 14px;background:rgba(13,14,16,.92);border-bottom:1px solid #262a30;font:400 15px/1 Jost,system-ui,sans-serif}'
+    'header.site a{color:#8e918f;text-decoration:none}header.site a:hover,header.site a[aria-current=page]{color:#f4efe6}'
+    'header.site .home{display:flex;align-items:center;gap:10px;color:#f4efe6;letter-spacing:.06em}header.site .home img{width:34px;height:auto;display:block}'
+    'header.site nav{display:flex;gap:6px 20px;flex-wrap:wrap;justify-content:flex-end}'
+    '@media(max-width:560px){header.site{padding:8px 12px;font-size:14px}header.site .home b{display:none}}</style>\n'
+    '<header class="site"><a class="home" href="../index.html"><img src="../brand/octachrome-mark.svg" alt=""><b>Octachrome</b></a>'
+    f'<nav aria-label="Site">{twin_links}</nav></header>\n')
+twin_html = twin_page.read_text()
+assert '<div class="wrap">' in twin_html
+twin_page.write_text(twin_html.replace('<div class="wrap">', twin_bar + '<div class="wrap">', 1))
+
 (out / "index.html").write_text(render((guide / "index.tpl.html").read_text(), "index.html"))
 (out / "manual.html").write_text(render((guide / "manual.tpl.html").read_text(), "manual.html", button_rows()))
 # the brand page stays apart: not in the menu, not in the sitemap, and search engines are asked to leave it
