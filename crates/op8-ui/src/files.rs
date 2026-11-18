@@ -60,7 +60,16 @@ pub fn pick_left_rows(fb: &mut FrameBuffer480x272, ui: &crate::UiState, st: &Eng
         } else {
             (if name.is_empty() { "empty".to_string() } else { name }, if has { t.fg } else { t.dim })
         };
-        text_v(fb, &label, (x + CELL_W / 2.0) as i32, (y + CELL_H / 2.0) as i32, FontSize::Medium, ink, Align::Center, VAlign::Middle);
+        // a label of two lines (the first one in the ink, the second small and dim)
+        match label.split_once('\n') {
+            Some((a, b)) => {
+                text_v(fb, a, (x + CELL_W / 2.0) as i32, (y + 14.0) as i32, FontSize::Medium, ink, Align::Center, VAlign::Middle);
+                text_v(fb, b, (x + CELL_W / 2.0) as i32, (y + 30.0) as i32, FontSize::Small, if marked { ink } else { t.dim }, Align::Center, VAlign::Middle);
+            }
+            None => {
+                text_v(fb, &label, (x + CELL_W / 2.0) as i32, (y + CELL_H / 2.0) as i32, FontSize::Medium, ink, Align::Center, VAlign::Middle);
+            }
+        }
     }
     if let Some(it) = crate::nav::focused(ui).filter(|it| it.screen == 0) {
         crate::nav::draw_ring(fb, &it, ui);

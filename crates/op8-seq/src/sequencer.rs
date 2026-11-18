@@ -123,6 +123,8 @@ pub struct Sequencer {
     song_mute: Option<u8>,
     /// The harmony of the song's scene while the song plays; its chords count from the start of the step.
     song_brain: Option<Brain>,
+    /// A jump to a step of the song that waits for the next bar (or is made at once): the step, and whether it is at once.
+    song_jump: Option<(usize, bool)>,
     /// The sequencer has just started: the song's first step plays at once instead of waiting for the loops.
     song_fresh: bool,
     rng: [Rng; TRACKS],
@@ -153,6 +155,7 @@ impl Sequencer {
             song_start: 0,
             song_mute: None,
             song_brain: None,
+            song_jump: None,
             song_fresh: false,
             rng: [Rng::new(0); TRACKS],
             repeat: None,
@@ -187,6 +190,18 @@ impl Sequencer {
         self.project.apply(cmd);
         match *cmd {
             Command::SetPattern { track, index, now } => self.switch_pattern(track as usize, index, now),
+            Command::SongJump { step, now } => {
+                if self.playing && self.project.song.on {
+                    self.song_jump = Some((step as usize, now));
+                }
+            }
+            Command::MoveSongStep { from, to } => {
+                // the step that plays goes where it was taken to
+                if let Some(p) = self.song_pos {
+                    let (f, t) = (from as usize, to as usize);
+                    self.song_pos = Some(if p == f { t } else if f < t && p > f && p <= t { p - 1 } else if t < f && p >= t && p < f { p + 1 } else { p });
+                }
+            }
             Command::LaunchScene { index } => {
                 if let Some(sc) = self.project.scenes.get(index as usize).copied().filter(|s| s.used) {
                     for t in 0..TRACKS {
@@ -235,11 +250,21 @@ impl Sequencer {
         let song = self.project.song;
         let len = (song.len as usize).min(crate::SONG_STEPS);
         if !song.on || len == 0 {
-            (self.song_pos, self.song_mute, self.song_brain) = (None, None, None);
+            (self.song_pos, self.song_mute, self.song_brain, self.song_jump) = (None, None, None, None);
             return;
         }
         let bar = 4 * crate::PPQN as u64;
         let span = |i: usize| song.steps[i].bars.max(1) as u64 * bar;
+        // a jump: at the start of the next bar (or now), the step begins from its first step, every track at once
+        if let Some((pos, now)) = self.song_jump {
+            if now || tick % bar == 0 {
+                self.song_jump = None;
+                if pos < len {
+                    self.enter_song_step(pos, tick, true);
+                    return;
+                }
+            }
+        }
         match self.song_pos.filter(|&p| p < len) {
             None => {
                 // where in the song this tick is (a start from the top, from a song position, or the song turned on while playing)
@@ -274,6 +299,11 @@ impl Sequencer {
         }
     }
 
+    /// Ticks since the step of the song that plays began (0 when none plays).
+    pub fn song_elapsed(&self) -> u64 {
+        self.song_pos.filter(|_| self.playing).map_or(0, |_| self.tick.saturating_sub(self.song_start))
+    }
+
     /// The mutes that the song's scene sets while it plays (bit `t`: track `t`), if it is following one.
     pub fn song_mutes(&self) -> Option<u8> {
         self.song_mute.filter(|_| self.playing)
@@ -298,7 +328,7 @@ impl Sequencer {
         // from the top, what the player is looking at is what plays
         self.play = self.project.current;
         (self.queued, self.origin) = ([None; TRACKS], [0; TRACKS]);
-        (self.song_pos, self.song_mute, self.song_brain, self.song_fresh) = (None, None, None, true);
+        (self.song_pos, self.song_mute, self.song_brain, self.song_jump, self.song_fresh) = (None, None, None, None, true);
         self.reseed();
     }
 
