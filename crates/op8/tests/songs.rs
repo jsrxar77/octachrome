@@ -45,13 +45,13 @@ fn f_f07_the_eight_pieces_play() {
         for t in 0..8 {
             let tr = &b.project().tracks[t];
             let has_steps = tr.steps[..tr.length as usize].iter().any(|s| s.active);
-            // house is a whole song whose intro leaves some tracks out on purpose: F-F08 plays all of it
-            if i != 0 && has_steps && b.instrument(t).as_deref() != Some("MidiOutBridge") && b.status().note_count[t].load(Relaxed) == 0 {
+            // a piece that is a whole song leaves tracks out of its intro on purpose: its own test plays all of it
+            if !b.project().song.on && has_steps && b.instrument(t).as_deref() != Some("MidiOutBridge") && b.status().note_count[t].load(Relaxed) == 0 {
                 problems.push(format!("{name}: track {t} never plays"));
             }
         }
-        if i != 0 {
-            rows.push(rms); // house starts with a sparse intro on purpose: F-F08 measures its sections
+        if !b.project().song.on {
+            rows.push(rms); // a song starts with an intro that is sparse on purpose: its own test measures its sections
         }
     }
     let (lo, hi) = rows.iter().fold((0.0f32, -99.0f32), |(l, h), r| (l.min(*r), h.max(*r)));
@@ -61,17 +61,17 @@ fn f_f07_the_eight_pieces_play() {
     assert!(problems.is_empty(), "{problems:#?}");
 }
 
-// F-F08: house is a whole song: eleven scenes in a song that is followed from the start, between a minute and a half and two and a half
-// minutes long; all seven instruments that sound take part; it never goes silent, does not clip, the sections differ in how loud they
-// are (the drop is the fullest) and it goes round at its end.
-#[test]
-fn f_f08_house_is_a_whole_song() {
+/// Play the whole of piece `i` (a song) and check what every song of the machine must be: followed from the moment it loads, at least six
+/// sections and six scenes, between a minute and a half and two and a half minutes long, other chords in some sections, every instrument
+/// that sounds takes part, never silent for a second, never clipping, its fullest section 2 dB over its first, and round to the first
+/// section at its end. Returns the bench, where each section starts (ms) and the loudness of each section.
+fn whole_song(i: usize, name: &str) -> (Bench, Vec<f64>, Vec<f32>) {
     let mut b = Bench::demo();
     b.press(Button::File);
-    b.tap(pad_of(0));
+    b.tap(pad_of(i));
     let p = b.project().clone();
-    assert!(p.song.on, "the song is followed as soon as it loads");
-    assert!(p.song.len >= 6, "at least six sections: {}", p.song.len);
+    assert!(p.song.on, "{name}: the song is followed as soon as it loads");
+    assert!(p.song.len >= 6, "{name}: at least six sections: {}", p.song.len);
     assert!(p.scenes.iter().filter(|s| s.used).count() >= 6);
     let bar_ms = 4.0 * 60_000.0 / p.bpm as f64;
     let starts: Vec<f64> = p.song.steps[..p.song.len as usize].iter().scan(0.0, |at, s| {
@@ -80,34 +80,65 @@ fn f_f08_house_is_a_whole_song() {
         Some(from)
     }).collect();
     let total = starts.last().unwrap() + p.song.steps[p.song.len as usize - 1].bars as f64 * bar_ms;
-    assert!((90_000.0..=150_000.0).contains(&total), "it lasts {:.0} s", total / 1000.0);
+    assert!((90_000.0..=150_000.0).contains(&total), "{name}: it lasts {:.0} s", total / 1000.0);
     // the harmony changes between sections
     let scene_keys: Vec<_> = (0..p.song.len as usize).map(|i| p.scenes[p.song.steps[i].scene as usize].brain.progression[..4].to_vec()).collect();
-    assert!(scene_keys.iter().any(|k| *k != scene_keys[0]), "not every section has the same chords");
+    assert!(scene_keys.iter().any(|k| *k != scene_keys[0]), "{name}: not every section has the same chords");
     b.press(Button::Play);
     b.run_ms(total as u64 + 4_000);
+    b.save_audio(&format!("song-{}-{name}", i + 1)); // with OP8_BENCH_DIR set: a WAV of the whole song to listen to
     for t in 0..8 {
         if b.instrument(t).as_deref() != Some("MidiOutBridge") {
-            assert!(b.status().note_count[t].load(Relaxed) > 0, "track {t} ({:?}) takes part", b.instrument(t));
+            assert!(b.status().note_count[t].load(Relaxed) > 0, "{name}: track {t} ({:?}) takes part", b.instrument(t));
         }
     }
-    b.save_audio("house-song"); // with OP8_BENCH_DIR set: a WAV of the whole song to listen to
     let peaks: Vec<f32> = (0..p.song.len as usize).map(|i| b.peak_db(starts[i] as u64, (starts[i] + p.song.steps[i].bars as f64 * bar_ms) as u64)).collect();
-    eprintln!("section peaks: {peaks:?}");
-    assert!(b.peak_db(0, total as u64) < -0.5, "it does not clip: {peaks:?}");
+    eprintln!("{name} section peaks: {peaks:?}");
+    assert!(b.peak_db(0, total as u64) < -0.5, "{name}: it does not clip: {peaks:?}");
     for from in (1_000..total as u64 - 1_000).step_by(1_000) {
-        assert!(!b.silent(from, from + 1_000), "silent at {from} ms");
+        assert!(!b.silent(from, from + 1_000), "{name}: silent at {from} ms");
     }
-    // sections
     let rms = |i: usize| b.rms_db(starts[i] as u64 + 1_000, (starts[i] + p.song.steps[i].bars as f64 * bar_ms) as u64 - 200);
     let levels: Vec<f32> = (0..p.song.len as usize).map(rms).collect();
-    eprintln!("section levels: {levels:?}");
+    eprintln!("{name} section levels: {levels:?}");
+    let fullest = levels.iter().cloned().fold(f32::MIN, f32::max);
+    assert!(fullest > levels[0] + 2.0, "{name}: its fullest section is fuller than its first: {levels:?}");
+    // and it goes round: four seconds past the end it is in the first section again
+    assert_eq!(b.status().song_step.load(Relaxed), 0, "{name}: it goes back to the first section");
+    (b, starts, levels)
+}
+
+// F-F08: house is a whole song (the checks of every song, `whole_song`), with eleven scenes; the drop is fuller than the intro, the
+// break and the bar of breath before it.
+#[test]
+fn f_f08_house_is_a_whole_song() {
+    let (_, _, levels) = whole_song(0, "house");
     // song steps: 0 intro, 1 groove, 2 main, 3 fill, 4 break, 5 and 6 build, 7 breath, 8 drop, 9 fill, 10 drop again, 11 outro
     assert!(levels[8] > levels[0] + 2.0, "the drop is fuller than the intro: {levels:?}");
     assert!(levels[8] > levels[4] + 1.0, "and than the break: {levels:?}");
     assert!(levels[8] > levels[7] + 3.0, "and than the bar of breath before it: {levels:?}");
-    // and it goes round: four seconds past the end it is in the first section again
-    assert_eq!(b.status().song_step.load(Relaxed), 0, "it goes back to the first section");
+}
+
+// F-F11: techno is a whole song (the checks of every song); the drop is fuller than the intro and the breakdown, and the arpeggio's filter
+// opens: its patterns of the peak and the drop lock TIMBRE higher than the build begins, and the closed one locks nothing.
+#[test]
+fn f_f11_techno_is_a_whole_song() {
+    let (_, _, levels) = whole_song(1, "techno");
+    // song steps: 0 intro, 1 groove, 2 arpeggio, 3 peak, 4 breakdown, 5 and 6 build, 7 breath, 8 drop, 9 fill, 10 outro
+    assert!(levels[8] > levels[0] + 2.0, "the drop is fuller than the intro: {levels:?}");
+    assert!(levels[8] > levels[4] + 4.0, "and than the breakdown: {levels:?}");
+    let mut p = op8::factory::project(1);
+    let timbre = |p: &op8_seq::Project| -> Vec<u8> {
+        p.tracks[6].steps.iter().flat_map(|s| s.components.iter().filter_map(|c| match c { op8_seq::StepComponent::ParamLock { index: 2, value } => Some(*value), _ => None })).collect()
+    };
+    let mut locks = Vec::new();
+    for i in 0..3u8 {
+        p.apply(&op8_seq::Command::SetPattern { track: 6, index: i, now: false });
+        locks.push(timbre(&p));
+    }
+    assert!(locks[0].is_empty(), "the closed arpeggio locks nothing");
+    assert!(locks[1].windows(2).all(|w| w[1] > w[0]), "the build opens it step by step: {:?}", locks[1]);
+    assert!(locks[2].iter().all(|&v| v > locks[1][0]), "the drop is open");
 }
 
 /// Every pattern of a track of the house project, as the steps it has when it plays (`None` if it is empty).

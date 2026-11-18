@@ -9,7 +9,7 @@ use op8_seq::{
     StepComponent as C, TrackFx,
 };
 
-pub const NAMES: [&str; 8] = ["house", "boom bap", "dub", "polyrhythm", "acid", "electro", "ambient", "breaks"];
+pub const NAMES: [&str; 8] = ["house", "techno", "dub", "polyrhythm", "acid", "electro", "ambient", "breaks"];
 
 /// The drum lanes (a kit step is a set of them).
 const KICK: u8 = 1;
@@ -303,6 +303,166 @@ fn house_song(p: &mut Project) {
     p.brain = own;
 }
 
+/// Techno as a whole melodic techno song of about two and a half minutes (74 bars at 124), in D minor: intro, groove, the arpeggio comes
+/// in, a first peak, a breakdown without the kick, a build in two parts, a bar of breath, the drop, a fill and the outro. It is made as the
+/// genre is: a kick on every beat, tuned to the fifth of the key, and air that follows the chord; a rolling bass on the three sixteenths between the kicks; a
+/// sixteenth arpeggio (the macro's analog voice) whose filter stays closed at first and opens in the build; a hook on a plucked string
+/// that only comes in the breakdown and the drop; a pad on open chords (sus2, which fit every chord of the key); hats with accents, a dry
+/// clap, rims on a 3-3-2 and snare rolls. The chords are Dm, Bb, F and C: the arpeggio and the hook play single notes that the Brain
+/// puts on the chord, so every chord sounds as it should.
+fn techno_song(p: &mut Project) {
+    const F: usize = 5;
+    const G: usize = MACRO;
+    p.bpm = 124.0;
+    p.swing = 0.5;
+    p.brain = brain(2, Scale::Minor, ChordKind::Triad, &[0]);
+    let every = |n: u8| C::Every { n, of: 2 };
+    // ---- who plays what ----
+    p.tracks[CC].brain_link = true;
+    p.tracks[CC].lfo = Lfo { shape: LfoShape::Triangle, rate: 40, depth: 70, target: 3 }; // the bass's tone moves slowly (INDEX)
+    p.tracks[D].brain_link = true;
+    p.tracks[D].fx = TrackFx { kind: FxKind::Delay, a: 170, b: 120, c: 110 };
+    let pad = &mut p.tracks[SAMP];
+    pad.brain_link = true;
+    pad.players = Players { mode: PlayMode::Chord, chord: ChordType::Sus2, speed: 0, octaves: 1 };
+    pad.fx = TrackFx { kind: FxKind::Reverb, a: 200, b: 170, c: 90 };
+    p.tracks[F].brain_link = true;
+    p.tracks[F].fx = TrackFx { kind: FxKind::Reverb, a: 190, b: 120, c: 100 };
+    p.tracks[G].brain_link = true;
+    p.tracks[G].fx = TrackFx { kind: FxKind::Delay, a: 150, b: 100, c: 90 };
+    // ---- A, the kit ----
+    let main_hats = |p: &mut Project| {
+        for s in 0..16 {
+            let v = [70, 42, 85, 58][s % 4];
+            hits(&mut p.tracks[A].steps, &[(s, if s % 4 == 2 { OHAT } else { CHAT }, v)]);
+        }
+    };
+    pattern(p, A, 0); // groove: hats, a clap on 2 and 4, rims on a 3-3-2
+    p.tracks[A].kit = true;
+    main_hats(p);
+    hits(&mut p.tracks[A].steps, &[(4, CLAP, 100), (12, CLAP, 100), (3, RIM, 60), (11, RIM, 55), (15, RIM, 50)]);
+    p.tracks[A].steps[15].components.push(every(2));
+    pattern(p, A, 1); // intro: only quiet hats
+    p.tracks[A].kit = true;
+    for s in 0..16 {
+        hits(&mut p.tracks[A].steps, &[(s, if s % 4 == 2 { OHAT } else { CHAT }, [45, 30, 60, 38][s % 4])]);
+    }
+    pattern(p, A, 2); // breakdown: a shaker of ghost hats and two rims
+    p.tracks[A].kit = true;
+    for s in 0..16 {
+        hits(&mut p.tracks[A].steps, &[(s, CHAT, [40, 25, 35, 28][s % 4])]);
+        if s % 2 == 1 {
+            p.tracks[A].steps[s].components.push(C::Chance(70));
+        }
+    }
+    hits(&mut p.tracks[A].steps, &[(6, RIM, 45), (14, RIM, 40)]);
+    pattern(p, A, 3); // build, one: a snare on every beat, louder each time, and the hats
+    p.tracks[A].kit = true;
+    main_hats(p);
+    hits(&mut p.tracks[A].steps, &[(0, SNARE, 60), (4, SNARE, 75), (8, SNARE, 90), (12, SNARE, 105)]);
+    pattern(p, A, 4); // build, two: a snare on every sixteenth, from soft to loud
+    p.tracks[A].kit = true;
+    for s in 0..16 {
+        hits(&mut p.tracks[A].steps, &[(s, SNARE, 40 + 5 * s as u8)]);
+    }
+    hits(&mut p.tracks[A].steps, &[(2, OHAT, 80), (6, OHAT, 85), (10, OHAT, 90), (14, OHAT, 100)]);
+    pattern(p, A, 5); // drop: a crash, the groove, a tom that answers every second bar
+    p.tracks[A].kit = true;
+    main_hats(p);
+    hits(&mut p.tracks[A].steps, &[(0, CRASH, 110), (4, CLAP, 105), (12, CLAP, 105), (3, RIM, 65), (6, RIM, 55), (11, RIM, 60), (13, TOM, 60)]);
+    p.tracks[A].steps[13].components.push(every(2));
+    pattern(p, A, 6); // fill: half a bar of groove, then toms and snares
+    p.tracks[A].kit = true;
+    hits(&mut p.tracks[A].steps, &[(0, CHAT, 70), (2, OHAT, 85), (4, CLAP, 100), (6, OHAT, 85), (8, TOM, 80), (10, TOM, 85), (12, SNARE, 95), (13, SNARE, 100), (14, SNARE, 110), (15, SNARE, 120)]);
+    // ---- B, the kick: on every beat ----
+    pattern(p, B, 0);
+    notes(&mut p.tracks[B].steps, &[(0, 36, 120, 50), (4, 36, 112, 50), (8, 36, 116, 50), (12, 36, 112, 50)]);
+    // ---- C, the bass: the three sixteenths between the kicks, the middle one strongest ----
+    pattern(p, CC, 0);
+    for s in (0..16).filter(|s| s % 4 != 0) {
+        notes(&mut p.tracks[CC].steps, &[(s, 36, [0, 72, 100, 82][s % 4], 30)]);
+    }
+    pattern(p, CC, 1); // drop: the same, with the octave and the fifth in places
+    for s in (0..16).filter(|s| s % 4 != 0) {
+        notes(&mut p.tracks[CC].steps, &[(s, 36, [0, 75, 105, 85][s % 4], 30)]);
+    }
+    notes(&mut p.tracks[CC].steps, &[(7, 48, 85, 25), (14, 43, 100, 30), (15, 48, 80, 25)]);
+    p.tracks[CC].steps[7].components.push(every(2));
+    p.tracks[CC].steps[15].components.push(every(1));
+    // ---- G, the arpeggio: sixteen notes that the Brain puts on the chord, accents every three ----
+    let arp = [60, 67, 72, 64, 67, 72, 76, 67, 60, 67, 72, 64, 79, 76, 72, 67];
+    let arp_steps = |p: &mut Project| {
+        for (s, &n) in arp.iter().enumerate() {
+            notes(&mut p.tracks[G].steps, &[(s, n, if s % 3 == 0 { 110 } else { 72 }, 45)]);
+        }
+    };
+    pattern(p, G, 0); // its filter as the knob leaves it: closed, dull
+    arp_steps(p);
+    pattern(p, G, 1); // the build: the filter opens step by step (TIMBRE locks)
+    arp_steps(p);
+    for s in 0..16 {
+        lock(&mut p.tracks[G].steps[s], 2, 80 + 10 * s as u8);
+    }
+    pattern(p, G, 2); // the peak and the drop: open
+    arp_steps(p);
+    for s in 0..16 {
+        lock(&mut p.tracks[G].steps[s], 2, if s % 3 == 0 { 235 } else { 200 });
+    }
+    // ---- D, the hook: a long phrase on a plucked string, for the breakdown and the drop ----
+    pattern(p, D, 0); // drop
+    notes(&mut p.tracks[D].steps, &[(0, 79, 100, 90), (3, 76, 85, 60), (6, 72, 90, 80), (8, 74, 80, 50), (10, 76, 95, 80), (13, 79, 85, 50), (15, 81, 70, 40)]);
+    p.tracks[D].steps[0].components.push(C::Hold(2));
+    p.tracks[D].steps[10].components.push(C::Hold(2));
+    p.tracks[D].steps[15].components.push(every(2));
+    pattern(p, D, 1); // breakdown: slower, the same shape
+    notes(&mut p.tracks[D].steps, &[(0, 76, 90, 100), (6, 79, 80, 70), (8, 72, 85, 100), (14, 74, 70, 60)]);
+    p.tracks[D].steps[0].components.push(C::Hold(5));
+    p.tracks[D].steps[8].components.push(C::Hold(5));
+    // ---- E, the pad: an open chord held for the bar; in the build, on every eighth (a gate) and louder ----
+    pattern(p, SAMP, 0);
+    notes(&mut p.tracks[SAMP].steps, &[(0, 48, 85, 100)]);
+    p.tracks[SAMP].steps[0].components.push(C::Hold(15));
+    pattern(p, SAMP, 1);
+    for s in (0..16).step_by(2) {
+        notes(&mut p.tracks[SAMP].steps, &[(s, 48, 60 + 4 * s as u8, 40)]);
+    }
+    // ---- F, the air: a soft tone on the chord, held, in a room; denser in the build ----
+    pattern(p, F, 0);
+    notes(&mut p.tracks[F].steps, &[(0, 60, 100, 100)]);
+    p.tracks[F].steps[0].components.push(C::Hold(15));
+    pattern(p, F, 1);
+    notes(&mut p.tracks[F].steps, &[(0, 60, 100, 100), (8, 67, 110, 100)]);
+    p.tracks[F].steps[0].components.push(C::Hold(7));
+    p.tracks[F].steps[8].components.push(C::Hold(7));
+    lock(&mut p.tracks[F].steps[0], 3, 170); // DENSITY
+    lock(&mut p.tracks[F].steps[8], 3, 240);
+    // ---- the scenes ----
+    let h = |degrees: &[u8]| brain(2, Scale::Minor, ChordKind::Triad, degrees);
+    let full = h(&[0, 5, 2, 6]); // Dm, Bb, F, C
+    //                      A  B  C  D  E  F  G  H
+    scene(p, 0, [1, 0, 0, 0, 0, 0, 0, 0], &[CC, D, SAMP, G, 7], h(&[0])); // intro: hats, kick and the air
+    scene(p, 1, [0, 0, 0, 0, 0, 0, 0, 0], &[D, SAMP, G, 7], h(&[0])); // groove: the bass rolls in, the clap and the rims
+    scene(p, 2, [0, 0, 0, 0, 0, 0, 0, 0], &[D, SAMP, 7], h(&[0, 5])); // the arpeggio comes in, closed
+    scene(p, 3, [0, 0, 1, 0, 0, 0, 2, 0], &[D, 7], full); // a first peak: the arpeggio open, the pad, all the chords
+    scene(p, 4, [2, 0, 0, 1, 0, 0, 0, 0], &[B, CC, 7], full); // breakdown: no kick, no bass; the pad, the air, the hook and the arpeggio closed
+    scene(p, 5, [3, 0, 0, 1, 1, 1, 1, 0], &[B, CC, 7], h(&[5, 6])); // build, one: snares, the pad on eighths, the filter opens
+    scene(p, 6, [4, 0, 0, 1, 1, 1, 1, 0], &[B, CC, 7], h(&[6])); // build, two: a snare roll on the last chord
+    scene(p, 7, [0, 0, 0, 1, 0, 0, 0, 0], &[A, B, CC, F, G, 7], h(&[0])); // a bar of breath: the pad and the hook ring
+    scene(p, 8, [5, 0, 1, 0, 0, 0, 2, 0], &[7], full); // drop: everything
+    scene(p, 9, [6, 0, 1, 0, 0, 0, 2, 0], &[7], full); // a fill
+    scene(p, 10, [0, 0, 0, 0, 0, 0, 0, 0], &[D, SAMP, 7], h(&[0])); // outro: the arpeggio closed, it thins out
+    let steps = [(0, 8), (1, 8), (2, 8), (3, 8), (4, 8), (5, 4), (6, 4), (7, 1), (8, 16), (9, 1), (10, 8)];
+    for (i, (scene, bars)) in steps.into_iter().enumerate() {
+        p.apply(&Command::SetSongStep { index: i as u8, scene, bars });
+    }
+    p.apply(&Command::SetSongOn(true));
+    for t in 0..8 {
+        pattern(p, t, 0);
+        p.tracks[t].muted = false;
+    }
+    p.brain = h(&[0]);
+}
+
 pub fn project(i: usize) -> Project {
     let mut p = Project::default();
     match i {
@@ -324,30 +484,8 @@ pub fn project(i: usize) -> Project {
             pad.fx = TrackFx { kind: FxKind::Reverb, a: 170, b: 150, c: 80 };
             house_song(&mut p);
         }
-        // 1 · boom bap: a lazy swing, a sub bass under a soft kick, a voice sample and chords on the off beats
-        1 => {
-            p.bpm = 90.0;
-            p.swing = 0.60;
-            p.brain = brain(0, Scale::Dorian, ChordKind::Seventh, &[0, 3, 0, 4]);
-            p.tracks[A].kit = true;
-            kit(&mut p.tracks[A].steps, SNARE, &[4, 12]);
-            kit(&mut p.tracks[A].steps, CHAT, &[0, 2, 4, 6, 8, 10, 12, 14]);
-            kit(&mut p.tracks[A].steps, RIM, &[15]);
-            p.tracks[A].steps[15].components.push(C::Chance(50));
-            put(&mut p.tracks[B].steps, &[(0, 36), (7, 36), (10, 36)]);
-            p.tracks[CC].brain_link = true;
-            put(&mut p.tracks[CC].steps, &[(0, 36), (7, 36), (10, 38)]);
-            for s in [0, 7, 10] {
-                p.tracks[CC].steps[s].gate = 75;
-            }
-            let keys = &mut p.tracks[D];
-            keys.brain_link = true;
-            put(&mut keys.steps, &[(3, 60), (11, 60)]);
-            keys.players = Players { mode: PlayMode::Chord, chord: ChordType::MinorSeventh, speed: 2, octaves: 1 };
-            keys.fx = TrackFx { kind: FxKind::Reverb, a: 140, b: 130, c: 70 };
-            put(&mut p.tracks[SAMP].steps, &[(0, 60), (11, 67)]);
-            p.tracks[SAMP].steps[11].components.push(C::Chance(70));
-        }
+        // 1 · techno: a melodic techno song (see `techno_song`)
+        1 => techno_song(&mut p),
         // 2 · dub: slow and wide: one deep kick, a sub bass that breathes, bells thrown into an echo, a pad in a big room
         2 => {
             p.bpm = 70.0;
@@ -501,7 +639,7 @@ pub fn project(i: usize) -> Project {
 /// The presets of each piece, by track A to H (`""`: as it comes), and how much of the level of its instruments it keeps.
 const PRESETS: [([&str; 8], f32); 8] = [
     (["", "punch", "round", "nylon", "bell", "bells", "", ""], 0.55),
-    (["", "soft", "sub", "nylon", "voice", "rumble", "", ""], 1.0),
+    (["", "punch", "pluck", "harp", "bell", "bells", "", ""], 0.7),
     (["", "boom", "sub", "bell", "", "dust", "swarm", ""], 0.8),
     (["", "soft", "", "harp", "bell", "bells", "strings", ""], 1.0),
     (["", "tight", "acid", "", "", "swarm", "", ""], 0.5),
@@ -517,15 +655,21 @@ pub fn blank() -> ProjectFile {
     ProjectFile { project, instruments: instruments([""; 8], 1.0) }
 }
 
-/// House voices its instruments after the preset: the hook is a soft string, the chords are an electric piano (the macro's `fm`), the pad is
-/// the bell sound played slowly, the cloud is the bells, low and quiet, and the kit has the clap and the snare forward and the hats back (sound, tune, decay, tone, snap, body, level, pan).
-const HOUSE_KNOBS: [(usize, &[(usize, f32)]); 4] = [
+/// What each piece changes in its instruments after the preset, by track: knobs (index, value; a level given here is kept as it is, not
+/// scaled by the piece's gain), and the sounds of its kit (sound, tune, decay, tone, snap, body, level, pan). They were set by rendering
+/// every track of the piece alone and measuring it (docs/instruments.md §9).
+type Knobs = &'static [(usize, &'static [(usize, f32)])];
+type Kit = &'static [(usize, [f32; 7])];
+
+/// House: the hook is a soft string, the chords an electric piano (the macro's `fm`), the pad the bell sound played slowly, the cloud the
+/// bells, low and quiet; the kit has the clap and the snare forward and the hats back.
+const HOUSE_KNOBS: Knobs = &[
     (3, &[(7, 1.0)]),
     (4, &[(4, 0.25), (5, 0.60), (7, 0.14)]),
     (5, &[(2, 0.60), (4, 0.25), (7, 0.18)]), // longer grains (a cleaner tone); TUNE an octave down (a fraction of one would leave the key)
     (6, &[(0, 0.4375), (2, 0.30), (7, 0.60)]), // the macro as its "fm" engine: an electric piano
 ];
-const HOUSE_KIT: [(usize, [f32; 7]); 6] = [
+const HOUSE_KIT: Kit = &[
     (1, [0.5, 0.40, 0.45, 0.55, 0.60, 0.95, 0.5]),
     (2, [0.5, 0.12, 0.42, 0.5, 0.5, 0.42, 0.38]),
     (3, [0.5, 0.30, 0.42, 0.5, 0.5, 0.44, 0.62]),
@@ -533,17 +677,37 @@ const HOUSE_KIT: [(usize, [f32; 7]); 6] = [
     (6, [0.5, 0.12, 0.45, 0.5, 0.5, 0.65, 0.45]),
     (7, [0.5, 0.80, 0.50, 0.5, 0.5, 0.35, 0.6]),
 ];
+/// Techno: the arpeggio is the macro's `va filter` (TIMBRE is its filter: the build opens it), short; the pad the bell sound played slowly;
+/// the air the granular's bells an octave down; the kit has a dry clap, a snare for the rolls and quiet hats.
+const TECHNO_KNOBS: Knobs = &[
+    (2, &[(7, 0.85)]),
+    (3, &[(2, 0.45), (7, 0.80)]),
+    (4, &[(4, 0.45), (5, 0.70), (7, 0.16)]),
+    (5, &[(2, 0.60), (4, 0.25), (7, 0.30)]), // the bells an octave down, long grains: air on the chord (low, its grains muddy the kick)
+    (6, &[(0, 0.0208), (2, 0.30), (4, 0.35), (7, 0.55)]),
+];
+const TECHNO_KIT: Kit = &[
+    (1, [0.5, 0.35, 0.50, 0.65, 0.50, 0.80, 0.5]),
+    (2, [0.5, 0.10, 0.45, 0.5, 0.5, 0.30, 0.40]),
+    (3, [0.5, 0.25, 0.45, 0.5, 0.5, 0.32, 0.60]),
+    (4, [0.5, 0.35, 0.45, 0.5, 0.5, 0.55, 0.55]),
+    (5, [0.5, 0.30, 0.50, 0.6, 0.45, 1.0, 0.5]),
+    (6, [0.5, 0.10, 0.50, 0.5, 0.5, 0.55, 0.40]),
+    (7, [0.5, 0.85, 0.45, 0.5, 0.5, 0.35, 0.5]),
+];
+const KNOBS: [Knobs; 8] = [HOUSE_KNOBS, TECHNO_KNOBS, &[], &[], &[], &[], &[], &[]];
+const KITS: [Kit; 8] = [HOUSE_KIT, TECHNO_KIT, &[], &[], &[], &[], &[], &[]];
 
 pub fn file(i: usize) -> ProjectFile {
     let i = i.min(7);
-    let mut instruments = instruments(PRESETS[i].0, PRESETS[i].1);
-    if i == 0 {
-        let (names, gain) = (PRESETS[0].0, PRESETS[0].1);
-        instruments[0] = inst_with("drums", names[0], gain, &[], &HOUSE_KIT);
-        for (t, extra) in HOUSE_KNOBS {
-            let name = ["drums", "KickSyn", "FmBass", "resonator", "sampler", "granular", "macro", "MidiOutBridge"][t];
-            instruments[t] = inst_with(name, names[t], gain, extra, &[]);
-        }
+    let (names, gain) = (PRESETS[i].0, PRESETS[i].1);
+    let mut instruments = instruments(names, gain);
+    if !KITS[i].is_empty() {
+        instruments[0] = inst_with("drums", names[0], gain, &[], KITS[i]);
+    }
+    for &(t, extra) in KNOBS[i] {
+        let name = ["drums", "KickSyn", "FmBass", "resonator", "sampler", "granular", "macro", "MidiOutBridge"][t];
+        instruments[t] = inst_with(name, names[t], gain, extra, &[]);
     }
     ProjectFile { project: project(i), instruments }
 }
