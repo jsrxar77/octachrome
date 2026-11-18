@@ -34,3 +34,5 @@ midir = { version = "0.10", optional = true }
 
 [target.'cfg(target_os = "linux")'.dependencies]
 
+[lints]
+workspace = true

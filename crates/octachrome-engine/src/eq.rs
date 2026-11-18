@@ -30,8 +30,6 @@ pub struct Coef {
 }
 
 impl Coef {
-    const FLAT: Coef = Coef { b0: 1.0, b1: 0.0, b2: 0.0, a1: 0.0, a2: 0.0 };
-
     fn new(b: [f32; 3], a: [f32; 3]) -> Self {
         Self { b0: b[0] / a[0], b1: b[1] / a[0], b2: b[2] / a[0], a1: a[1] / a[0], a2: a[2] / a[0] }
     }

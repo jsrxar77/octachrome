@@ -10,3 +10,6 @@ octachrome-cartridge.workspace = true
 octachrome-gfx.workspace = true
 rtrb.workspace = true
 octachrome-plaits.workspace = true
+
+[lints]
+workspace = true

@@ -242,7 +242,7 @@ impl Granular {
 
     fn note_on(&mut self, note: u8, velocity: f32) {
         let slot = self.held.iter().position(|h| h.map(|(n, _)| n) == Some(note)).or_else(|| self.held.iter().position(Option::is_none));
-        let slot = slot.unwrap_or_else(|| {
+        let slot = slot.unwrap_or({
             // a fifth note takes the place of the first
             self.turn % HELD
         });

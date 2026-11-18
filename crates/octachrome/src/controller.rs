@@ -2207,7 +2207,7 @@ impl Controller {
                 let expected = running.then(|| self.clock.expected_tick());
                 // the tempo is looked at every sixteenth (6 pulses), so the commands that go to the sequencer are few
                 let Some(measured) = measured else { return };
-                let due = expected.map_or(true, |e| (e / crate::clockin::TICKS_PER_PULSE) % 6 == 0);
+                let due = expected.is_none_or(|e| (e / crate::clockin::TICKS_PER_PULSE).is_multiple_of(6));
                 if !due {
                     return;
                 }

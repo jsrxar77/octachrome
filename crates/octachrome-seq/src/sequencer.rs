@@ -257,7 +257,7 @@ impl Sequencer {
         let span = |i: usize| song.steps[i].bars.max(1) as u64 * bar;
         // a jump: at the start of the next bar (or now), the step begins from its first step, every track at once
         if let Some((pos, now)) = self.song_jump {
-            if now || tick % bar == 0 {
+            if now || tick.is_multiple_of(bar) {
                 self.song_jump = None;
                 if pos < len {
                     self.enter_song_step(pos, tick, true);
@@ -501,7 +501,7 @@ impl Sequencer {
         if tick == 0 {
             out.sync.push(SyncEvent { offset, kind: SyncKind::Start });
         }
-        if tick % (crate::PPQN as u64 / 24) == 0 {
+        if tick.is_multiple_of(crate::PPQN as u64 / 24) {
             out.sync.push(SyncEvent { offset, kind: SyncKind::Clock });
         }
 
@@ -598,7 +598,7 @@ impl Sequencer {
                 } else {
                     let count = players.arp_count();
                     let each = step_samples / count as f64;
-                    let hold = (each * (r.gate_steps as f64).min(1.0).max(0.1)).floor() as u64;
+                    let hold = (each * (r.gate_steps as f64).clamp(0.1, 1.0)).floor() as u64;
                     for k in 0..count {
                         let idx = players.arp_index(step_global * count as u64 + k as u64, n, &mut self.rng[tr]);
                         let on = (start + k as f64 * each).floor() as u64;

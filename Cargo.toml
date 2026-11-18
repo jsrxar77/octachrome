@@ -17,6 +17,15 @@ version = "0.1.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 
+[workspace.lints.clippy]
+# Deliberate style choices, not slips: index loops that read several arrays at once, the many parameters of a drawing
+# or a voice, `next` on an envelope that is not an Iterator, and tests that start from a Default and set the fields they care about.
+needless_range_loop = "allow"
+too_many_arguments = "allow"
+should_implement_trait = "allow"
+field_reassign_with_default = "allow"
+chunks_exact_to_as_chunks = "allow" # `as_chunks` needs a newer Rust than the Pi's OS packages
+
 [workspace.dependencies]
 octachrome-gfx = { path = "crates/octachrome-gfx" }
 octachrome-cartridge = { path = "crates/octachrome-cartridge" }

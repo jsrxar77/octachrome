@@ -37,7 +37,7 @@ fn f_a24_files_copied_in_are_heard_without_restarting() {
     std::fs::write(d.join("mine.wav"), tone(1.0)).unwrap(); // copied in while it runs
     b.press(Button::Sampling);
     assert_eq!(b.ui().smp.note, "loaded 1 sound from the folder", "{}", b.ui().smp.note);
-    assert!(b.ui().smp.saved[0] == false, "it is a file of her own, not a recording: only rec-N.wav are marked as recordings");
+    assert!(!b.ui().smp.saved[0], "it is a file of her own, not a recording: only rec-N.wav are marked as recordings");
     b.press(Button::Sampling);
     let from = b.now_ms();
     b.press(Button::Play);
@@ -104,7 +104,7 @@ fn f_a23_shift_rec_waits_for_the_sound() {
     // the sound: the sequencer plays
     b.press(Button::Sampling);
     b.press(Button::Sampling); // leaving disarms
-    assert!(!b.ui().smp.armed || b.status().armed.load(Relaxed) == false);
+    assert!(!b.ui().smp.armed || !b.status().armed.load(Relaxed));
     b.run_ms(100);
     assert!(!b.ui().smp.armed, "leaving SAMPLING disarms it");
     b.press(Button::Stop);
