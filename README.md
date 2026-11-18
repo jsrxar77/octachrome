@@ -160,6 +160,7 @@ To add an instrument: a new crate or module that implements `InstrumentCartridge
 * `deploy/pi-setup.sh`: creates the `octachrome` user, installs the udev rules, the real-time limits and the `performance` governor, boots to the console without a desktop and enables `deploy/octachrome.service`.
 * `deploy/octachrome.service`: direct start, automatic restart, a 64-frame buffer (`OCTACHROME_BUFFER`), `LimitRTPRIO`, affinity to cores 1–3.
 * On the Pi it can be compiled natively with `cargo build --release` (`libasound2-dev` is needed).
+* **Without compiling:** each [release](https://github.com/jsrxar77/octachrome/releases) carries `octachrome-linux-aarch64-pi5.tar.gz` (with its `.sha256`). On a 64-bit Raspberry Pi OS: `tar xzf octachrome-linux-aarch64-pi5.tar.gz && sudo bash pi-setup.sh .`. That binary is built for the **Pi 5** (Cortex-A76); on a Pi 4 build it yourself with `RUSTFLAGS="-C target-cpu=cortex-a72" cargo build --release`. The macOS release (`octachrome-macos-arm64`) is for Apple Silicon.
 
 ## Controls
 

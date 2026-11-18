@@ -1,0 +1,64 @@
+name: Release
+
+# Pushing a tag v<major>.<minor>.<patch> builds the binaries and publishes a GitHub release whose notes are the
+# matching section of CHANGELOG.md. The Linux binary is built with `cross` and, as .cargo/config.toml says,
+# for the Raspberry Pi 5 (Cortex-A76); a Pi 4 needs a build of its own (see README, "Raspberry Pi").
+on:
+  push:
+    tags: ["v[0-9]+.[0-9]+.[0-9]+"]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: macos-latest
+            name: octachrome-macos-arm64
+            target: aarch64-apple-darwin
+            tool: cargo
+          - os: ubuntu-latest
+            name: octachrome-linux-aarch64-pi5
+            target: aarch64-unknown-linux-gnu
+            tool: cross
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - if: matrix.tool == 'cross'
+        run: cargo install cross --locked
+      - run: ${{ matrix.tool }} build --release --target ${{ matrix.target }} -p octachrome
+      - name: Pack
+        run: |
+          mkdir dist
+          cp target/${{ matrix.target }}/release/octachrome dist/
+          cp README.md LICENSE-MIT LICENSE-APACHE dist/
+          if [ "${{ matrix.tool }}" = cross ]; then cp deploy/* dist/; fi
+          tar -C dist -czf ${{ matrix.name }}.tar.gz .
+          shasum -a 256 ${{ matrix.name }}.tar.gz > ${{ matrix.name }}.tar.gz.sha256
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.name }}
+          path: ${{ matrix.name }}.tar.gz*
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Notes from CHANGELOG.md
+        run: |
+          v="${GITHUB_REF_NAME#v}"
+          awk -v v="$v" '$0 ~ "^## \\[" v "\\]" {on=1; next} /^## \[/ {on=0} on' CHANGELOG.md > notes.md
+          test -s notes.md || { echo "CHANGELOG.md has no section for $v"; exit 1; }
+      - env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" dist/* --title "Octachrome $GITHUB_REF_NAME" --notes-file notes.md
