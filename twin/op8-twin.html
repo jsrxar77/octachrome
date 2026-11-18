@@ -906,11 +906,11 @@ function playMidiPreview(t, time, note, vel, dur) {
 }
 
 // ======================= sequencer clock (mirrors op8-seq Sequencer) =======================
-const S = { songPos: null, songStart: 0, songMute: null, songBrain: null, songFresh: false, play: Array(8).fill(0), queued: Array(8).fill(null), origin: Array(8).fill(0), playing: false, tick: 0, nextTime: 0, repeat: null, repeatReq: null, rng: [], playhead: Array(8).fill(0), chordSlot: 0, chord: brainChord(P.brain, 0), vis: [], noteCount: Array(8).fill(0), gateOn: false, gateLen: 1 };
+const S = { songPos: null, songStart: 0, songMute: null, songBrain: null, songJump: null, songFresh: false, play: Array(8).fill(0), queued: Array(8).fill(null), origin: Array(8).fill(0), playing: false, tick: 0, nextTime: 0, repeat: null, repeatReq: null, rng: [], playhead: Array(8).fill(0), chordSlot: 0, chord: brainChord(P.brain, 0), vis: [], noteCount: Array(8).fill(0), gateOn: false, gateLen: 1 };
 function play() {
   initAudio(); if (actx.state === "suspended") actx.resume();
   for (let t = 0; t < 8; t++) fxApply(t);
-  S.play = P.tracks.map(tr => tr.cur); S.queued = Array(8).fill(null); S.origin = Array(8).fill(0); S.songPos = null; S.songMute = null; S.songBrain = null; S.songFresh = true;
+  S.play = P.tracks.map(tr => tr.cur); S.queued = Array(8).fill(null); S.origin = Array(8).fill(0); S.songPos = null; S.songMute = null; S.songBrain = null; S.songJump = null; S.songFresh = true;
   S.playing = true; S.tick = 0; S.repeat = null; S.nextTime = actx.currentTime + 0.06;
   S.rng = Array.from({ length: 8 }, (_, i) => makeRng(P.seed ^ (i + 1) * 7919)); S.vis = [];
 }
@@ -927,8 +927,10 @@ function songEnter(pos, start, atStart, eff) {
 }
 function songUpdate(tick, eff) {
   const st = P.song.steps, len = st.length;
-  if (!P.song.on || len === 0) { S.songPos = null; S.songMute = null; S.songBrain = null; return; }
+  if (!P.song.on || len === 0) { S.songPos = null; S.songMute = null; S.songBrain = null; S.songJump = null; return; }
   const span = i => st[i].bars * 384;
+  // a jump: at the start of the next bar (or now), the step begins from its first step (Sequencer::song_update)
+  if (S.songJump) { const { pos, now } = S.songJump; if (now || tick % 384 === 0) { S.songJump = null; if (pos < len) { songEnter(pos, tick, true, eff); return; } } }
   if (S.songPos == null || S.songPos >= len) {
     let total = 0; for (let i = 0; i < len; i++) total += span(i);
     let at = tick % total, pos = 0; while (at >= span(pos)) { at -= span(pos); pos++; }
@@ -936,7 +938,7 @@ function songUpdate(tick, eff) {
     songEnter(pos, tick - at, fresh, eff);
   } else if (tick >= S.songStart + span(S.songPos)) songEnter((S.songPos + 1) % len, S.songStart + span(S.songPos), false, eff);
 }
-function stop() { S.playing = false; setPunch(null, 0); S.repeat = null; }
+function stop() { S.playing = false; S.songJump = null; setPunch(null, 0); S.repeat = null; }
 const spt = () => 60 / (P.bpm * PPQN);
 // the mute as it sounds: the track's own, or the scene of a song that plays silencing it (EngineStatus::muted)
 // the harmony that sounds (Sequencer::harmony_at): the scene of a song that plays brings its own, its chords counted from the start of the step
@@ -1154,6 +1156,7 @@ function padPressure(pad, p) {
 }
 function padUp(pad) {
   if (UI.main === "pattern") { patternPadUp(pad); return; }
+  if (UI.main === "arranger") { arrangerPadUp(pad); return; }
   if (UI.main === "settings" || UI.main === "mixer" || UI.main === "name" || UI.main === "file" || UI.main === "plugin" || UI.main === "pattern" || UI.main === "scene" || UI.main === "arranger" || UI.main === "sampling" || UI.main === "browser") return;
   if (UI.mode === "step") {
     const wasDown = padDownAt[pad] != null; padDownAt[pad] = null;
@@ -1316,6 +1319,7 @@ function navPush() {
   else if (it.k === "grid" && UI.shift && UI.mode === "step") { UI.inspect = it.i; UI.compCursor = 0; UI.focus = { k: "comp", i: 0 }; UI.leftPage = "steps"; UI.shift = false; }
   else if (it.k === "grid" && UI.mode === "punch") { const slot = padOf(it.i); if (punchState.slot === slot) setPunch(null, 0); else { punchState.base = .5; setPunch(slot, .5); } }
   else if (it.k === "grid") { padDown(padOf(it.i), .8); padUp(padOf(it.i)); }
+  else if (it.k === "cell" && UI.main === "arranger") { padDown(padOf(it.i), .8); padUp(padOf(it.i)); } // a push is a tap
   else padDown(padOf(it.i), .8);
 }
 function navRing(g, screen) {
@@ -1944,6 +1948,7 @@ function pickLeft(title, cells, last, rows = true) {
       if (has) rrect(g, x, y, 108, 42, 8, rows && i >= 8 ? FAINT : PANEL);
       rrect(g, x + .5, y + .5, 107, 41, 8, on ? FG : has ? DIM : FAINT, on ? 2 : 1);
       if (UI.confirm === i) { const [fill_, ink] = readable(REC); rrect(g, x, y, 108, 42, 8, fill_); txt(g, "erase?", x + 54, y + 21, "m", ink, "center", "middle"); } // the place ERASE has marked
+      else if (name.includes("\n")) { const [a, b] = name.split("\n"); txt(g, a, x + 54, y + 14, "m", FG, "center", "middle"); txt(g, b, x + 54, y + 30, "s", DIM, "center", "middle"); } // two lines
       else txt(g, name || "empty", x + 54, y + 21, "m", has ? FG : DIM, "center", "middle");
     });
     navRing(g, 0);
@@ -2001,16 +2006,33 @@ function sceneRight(g) {
 // ARRANGER (crates/op8-ui/src/arranger.rs, Controller::arranger_pad and arranger_knob): the sixteen pads are the steps of the song
 UI.arrNote = "";
 const arrSel = () => (UI.focus && UI.focus.k === "cell" ? UI.focus.i : 0);
+let arrHeld = null;
+const songPlays = () => S.playing && S.songPos != null;
+// take the step at `from` to `to` (the ones between move over), and the step that plays goes with it (Project MoveSongStep, Sequencer::apply)
+function arrMove(from, to) {
+  const st = P.song.steps; if (from === to || from >= st.length || to >= st.length) return;
+  st.splice(to, 0, st.splice(from, 1)[0]);
+  if (S.songPos != null) { const p = S.songPos; S.songPos = p === from ? to : (from < to && p > from && p <= to) ? p - 1 : (to < from && p >= to && p < from) ? p + 1 : p; }
+}
 function arrangerPad(pad) {
-  const slot = padToStep(pad); UI.focus = { k: "cell", i: slot };
-  if (UI.erase && slot < P.song.steps.length) { P.song.steps.splice(slot, 1); UI.arrNote = `step ${slot + 1} taken out`; }
-  else if (UI.shift && slot <= P.song.steps.length && P.song.steps.length > 0 && slot < 16) { const from = Math.min(slot, P.song.steps.length - 1); P.song.steps.splice(slot, 0, { ...P.song.steps[from] }); if (P.song.steps.length > 16) P.song.steps.pop(); UI.arrNote = `step ${slot + 1} put in`; }
-  else UI.arrNote = "";
+  const slot = padToStep(pad), st = P.song.steps;
+  if (UI.erase && slot < st.length) { UI.focus = { k: "cell", i: slot }; st.splice(slot, 1); UI.arrNote = `step ${slot + 1} taken out`; }
+  else if (UI.shift && !songPlays() && slot <= st.length && st.length > 0 && slot < 16) { UI.focus = { k: "cell", i: slot }; const from = Math.min(slot, st.length - 1); st.splice(slot, 0, { ...st[from] }); if (st.length > 16) st.pop(); UI.arrNote = `step ${slot + 1} put in`; }
+  else if (arrHeld != null && arrHeld.pad !== pad) { const from = padToStep(arrHeld.pad); if (from < st.length && slot < st.length) { arrMove(from, slot); UI.focus = { k: "cell", i: slot }; UI.arrNote = `step ${from + 1} moved to ${slot + 1}`; } arrHeld.moved = true; }
+  else if (arrHeld == null) arrHeld = { pad, moved: false };
+}
+// the pad lets go: a plain tap chooses the step, and a song that plays goes there (from the next bar, SHIFT: at once)
+function arrangerPadUp(pad) {
+  if (arrHeld == null || arrHeld.pad !== pad) return;
+  const h = arrHeld; arrHeld = null; if (h.moved) return;
+  const slot = padToStep(pad); UI.focus = { k: "cell", i: slot }; UI.arrNote = "";
+  if (songPlays() && slot < P.song.steps.length) { S.songJump = { pos: slot, now: UI.shift }; UI.arrNote = UI.shift ? `step ${slot + 1}: now` : `step ${slot + 1}: from the next bar`; }
 }
 function arrKnob(k, delta) {
-  if (k < 4 || k > 6) return;
+  if (k < 3 || k > 6) return;
   const n = detents(k, delta); if (!n) return;
   const sel = arrSel(), st = P.song.steps;
+  if (k === 3) { if (sel < st.length) { const to = clamp(sel + n, 0, st.length - 1); if (to !== sel) { arrMove(sel, to); UI.focus = { k: "cell", i: to }; UI.arrNote = `step ${sel + 1} moved to ${to + 1}`; } } return; }
   if (k === 6) { P.song.on = n > 0; UI.arrNote = P.song.on ? "the song is followed" : "the song is not followed"; return; }
   const exists = sel < st.length;
   if (!exists) { while (st.length < sel) st.push({ scene: 0, bars: 4 }); st.push({ scene: 0, bars: 4 }); UI.arrNote = `step ${sel + 1} put in`; return; }
@@ -2018,16 +2040,24 @@ function arrKnob(k, delta) {
   UI.arrNote = "";
 }
 function arrangerLeft(g) {
-  const st = P.song.steps, cells = Array.from({ length: 16 }, (_, i) => i < st.length ? [`${st[i].scene + 1} x${st[i].bars}`, true] : [String(i + 1), false]);
-  pickLeft("song", cells, S.playing && S.songPos != null ? S.songPos : null, false)(g);
+  const st = P.song.steps, cells = Array.from({ length: 16 }, (_, i) => i < st.length ? [`scene ${st[i].scene + 1}\n${st[i].bars} bar${st[i].bars === 1 ? "" : "s"}`, true] : [String(i + 1), false]);
+  pickLeft("song", cells, songPlays() ? S.songPos : null, false)(g);
+  // where the step that plays is in its bars: a bar along the bottom of its cell that grows
+  if (songPlays() && S.songPos < st.length) {
+    const x = 12 + (S.songPos % 4) * 114, y = 44 + Math.floor(S.songPos / 4) * 48, done = clamp((S.tick - S.songStart) / (st[S.songPos].bars * 384), 0, 1);
+    g.fillStyle = FG; g.fillRect(x + 8, y + 36, 92 * done, 3);
+  }
+  if (st.length > 1) { txt(g, "move", 420, 236, "s", DIM, "center", "middle"); txt(g, `step ${arrSel() + 1}`, 420, 254, "m", KC[3], "center", "middle"); }
 }
 function arrangerRight(g) {
   const st = P.song.steps, sel = arrSel();
   fill(g, 0, 0, 480, 272, BG); dot(g, 16, 15, 6, FG); txt(g, "song", 30, 6, "mid", FG);
   const [l1, l2] = sel < st.length ? [`step ${sel + 1} of ${st.length}`, `scene ${st[sel].scene + 1} for ${st[sel].bars} bar${st[sel].bars === 1 ? "" : "s"}`] : [`step ${sel + 1} is free`, "turn knob 5 to put a scene in it"];
   txt(g, l1, 30, 76, "mid", FG); txt(g, l2, 30, 100, "m", DIM);
-  txt(g, "tap a pad", 30, 140, "mid", FG); txt(g, "chooses a step; shift + tap puts one in; erase + tap takes it out", 30, 164, "m", DIM);
-  if (UI.arrNote) txt(g, UI.arrNote, 30, 208, "m", FG);
+  txt(g, "tap a pad", 30, 128, "mid", FG); txt(g, "chooses it; while it plays, goes there next bar", 30, 150, "m", DIM);
+  txt(g, "shift + tap: now (stopped: puts one in)", 30, 168, "m", DIM); txt(g, "hold + tap another: moves it", 30, 186, "m", DIM);
+  if (UI.arrNote) txt(g, UI.arrNote, 30, 210, "m", FG);
+  else if (songPlays() && S.songPos < st.length) { const bars = st[S.songPos].bars, bar = Math.min(bars, Math.floor((S.tick - S.songStart) / 384) + 1); txt(g, `playing step ${S.songPos + 1} · bar ${bar} of ${bars}`, 30, 210, "m", FG); }
   [["scene", sel < st.length ? String(st[sel].scene + 1) : "-"], ["bars", sel < st.length ? String(st[sel].bars) : "-"], ["song", P.song.on ? "on" : "off"], ["steps", String(st.length)]].forEach(([a, b], i) => { txt(g, a, 60 + i * 120, 236, "s", DIM, "center"); txt(g, b, 60 + i * 120, 254, "m", FG, "center"); });
 }
 function plugLeft(g) { const { cells, cur } = plugCells(); pickLeft("instruments", cells, cur)(g); }
