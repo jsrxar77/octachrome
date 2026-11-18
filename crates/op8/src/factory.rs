@@ -521,8 +521,8 @@ pub fn blank() -> ProjectFile {
 /// the bell sound played slowly, the cloud is the bells, low and quiet, and the kit has the clap and the snare forward and the hats back (sound, tune, decay, tone, snap, body, level, pan).
 const HOUSE_KNOBS: [(usize, &[(usize, f32)]); 4] = [
     (3, &[(7, 1.0)]),
-    (4, &[(4, 0.25), (5, 0.60), (7, 0.18)]),
-    (5, &[(4, 0.40), (7, 0.18)]),
+    (4, &[(4, 0.25), (5, 0.60), (7, 0.14)]),
+    (5, &[(2, 0.60), (4, 0.25), (7, 0.18)]), // longer grains (a cleaner tone); TUNE an octave down (a fraction of one would leave the key)
     (6, &[(0, 0.4375), (2, 0.30), (7, 0.60)]), // the macro as its "fm" engine: an electric piano
 ];
 const HOUSE_KIT: [(usize, [f32; 7]); 6] = [
