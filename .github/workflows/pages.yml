@@ -1,9 +1,9 @@
 name: Guide
 
-# Publishes the site (built by scripts/build-site.py from guide/, twin/ and docs/buttons.md) as a GitHub Pages site.
-# Needs Settings > Pages > Source: GitHub Actions (and a public repository, or a plan that includes Pages for private ones).
-# The address of the repository for the "Source" and docs links is the one this workflow runs in; the repository variable
-# OCTACHROME_REPO_URL (Settings > Secrets and variables > Actions > Variables) overrides it (a custom address, say).
+# Builds the site (scripts/build-site.py from guide/, twin/ and docs/buttons.md) and checks it. The built site is kept as the artifact
+# `octachrome-site` of each run (to host it anywhere: unzip it), and it is published as a GitHub Pages site only while the repository is public.
+# OCTACHROME_SITE_URL (a repository variable) is the address the site will have; OCTACHROME_REPO_URL overrides the address of the repository
+# for the "Source" and docs links. Pages needs Settings > Pages > Source: GitHub Actions.
 on:
   push:
     branches: [main]
@@ -20,24 +20,36 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/configure-pages@v6
+        id: pages
+        if: ${{ !github.event.repository.private }}
+      - name: Build and check the site
+        env:
+          OCTACHROME_SITE_URL: ${{ steps.pages.outputs.base_url || vars.OCTACHROME_SITE_URL }}
+          OCTACHROME_REPO_URL: ${{ vars.OCTACHROME_REPO_URL || format('{0}/{1}', github.server_url, github.repository) }}
+        run: |
+          python3 scripts/build-site.py
+          python3 scripts/check-site.py
+      - uses: actions/upload-artifact@v7
+        with:
+          name: octachrome-site
+          path: site
+      - uses: actions/upload-pages-artifact@v5
+        if: ${{ !github.event.repository.private }}
+        with:
+          path: site
+
   deploy:
+    needs: build
+    if: ${{ !github.event.repository.private }}
     runs-on: ubuntu-latest
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/configure-pages@v6
-        id: pages
-      - name: Build and check the site
-        env:
-          OCTACHROME_SITE_URL: ${{ steps.pages.outputs.base_url }}
-          OCTACHROME_REPO_URL: ${{ vars.OCTACHROME_REPO_URL || format('{0}/{1}', github.server_url, github.repository) }}
-        run: |
-          python3 scripts/build-site.py
-          python3 scripts/check-site.py
-      - uses: actions/upload-pages-artifact@v5
-        with:
-          path: site
       - id: deployment
         uses: actions/deploy-pages@v4
