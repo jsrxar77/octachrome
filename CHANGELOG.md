@@ -6,7 +6,7 @@ To publish a version: move what is under *Unreleased* to a new `## [x.y.z] - dat
 
 ## [Unreleased]
 
-## [0.1.0] - 2026-11-18
+## [0.1.0] - 2026-11-19
 
 First public version. What the project is today, as [docs/roadmap.md](docs/roadmap.md) keeps it; the screens, the colour order and the buttons have been checked on a real MK3, the rest of the hardware side has not.
 
