@@ -40,7 +40,7 @@ jobs:
           if [ "${{ matrix.tool }}" = cross ]; then cp deploy/* dist/; fi
           tar -C dist -czf ${{ matrix.name }}.tar.gz .
           shasum -a 256 ${{ matrix.name }}.tar.gz > ${{ matrix.name }}.tar.gz.sha256
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: ${{ matrix.name }}
           path: ${{ matrix.name }}.tar.gz*
