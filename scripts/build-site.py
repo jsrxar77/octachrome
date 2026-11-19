@@ -132,7 +132,7 @@ cur = ' aria-current="page"'
 twin_links = "".join(f'<a href="../{h}"{cur if h.startswith("twin/") else ""}>{t}</a>' for h, t in NAV) + f'<a href="{repo_url}">Source</a>'
 twin_bar = (
     '<style>header.site{position:sticky;top:0;z-index:50;display:flex;align-items:center;justify-content:space-between;gap:16px;'
-    'padding:10px 18px;margin:0 0 14px;background:rgba(13,14,16,.92);border-bottom:1px solid #262a30;font:400 15px/1 Jost,system-ui,sans-serif}'
+    'padding:10px 18px;margin:0 0 14px;background:rgba(13,14,16,.92);border-bottom:1px solid #454953;font:400 15px/1 Jost,system-ui,sans-serif}'
     'header.site a{color:#8e918f;text-decoration:none}header.site a:hover,header.site a[aria-current=page]{color:#f4efe6}'
     'header.site .home{display:flex;align-items:center;gap:10px;color:#f4efe6;letter-spacing:.06em}header.site .home img{width:34px;height:auto;display:block}'
     'header.site nav{display:flex;gap:6px 20px;flex-wrap:wrap;justify-content:flex-end}'

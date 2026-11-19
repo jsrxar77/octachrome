@@ -78,8 +78,8 @@ pub const THEMES: [Theme; 3] = [
         bg: c(0x000000),
         fg: c(0xF2F4F8),
         dim: c(0x7E8794),
-        faint: c(0x232831),
-        panel: c(0x0D1118),
+        faint: c(0x424853),
+        panel: c(0x1C2028),
         knobs: [
             c(0x0099FF),
             c(0x00E56A),
@@ -118,8 +118,8 @@ pub const THEMES: [Theme; 3] = [
         bg: c(0x000000),
         fg: c(0xF4EFE6),
         dim: c(0x8E918F),
-        faint: c(0x262A30),
-        panel: c(0x12161D),
+        faint: c(0x454A52),
+        panel: c(0x1F232A),
         knobs: [
             c(0x3B8EBA),
             c(0xD9822B),
@@ -158,8 +158,8 @@ pub const THEMES: [Theme; 3] = [
         bg: c(0x000000),
         fg: c(0xEEF0F5),
         dim: c(0x80858F),
-        faint: c(0x24262C),
-        panel: c(0x0F1014),
+        faint: c(0x454953),
+        panel: c(0x1E2127),
         knobs: [
             c(0xD633FF),
             c(0xA442FF),

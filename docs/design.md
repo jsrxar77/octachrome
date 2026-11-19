@@ -56,8 +56,8 @@ The first four follow the encoder order of each reference device (original OP-1:
 | `bg` | `#000000` | `#000000` | `#000000` | Background |
 | `fg` | `#F4EFE6` | `#F2F4F8` | `#EEF0F5` | Text and main strokes |
 | `dim` | `#8E918F` | `#7E8794` | `#80858F` | Context, not editable now |
-| `faint` | `#262A30` | `#232831` | `#24262C` | Guides, passive borders, empty steps |
-| `panel` | `#12161D` | `#0D1118` | `#0F1014` | Surface of keys and capsules |
+| `faint` | `#454A52` | `#424853` | `#454953` | Guides, passive borders, empty steps |
+| `panel` | `#1F232A` | `#1C2028` | `#1E2127` | Surface of keys and capsules |
 | `rec` | `#E63946` | `#FF3B30` | `#FF2244` | Only REC, erase and peaks |
 
 The track colours (A–H) are part of each theme (`Theme.tracks` in `crates/octachrome-gfx/src/theme.rs`; `track_color(i)` in `octachrome-ui`). The pad and group LEDs take the same colours from the MK3's palette (`track_led_colors` in `crates/octachrome/src/controller.rs`): glossy is the rainbow, matte its softer hues, chrome one range from magenta to blue, then white. The palette order is still to be checked on the unit.
