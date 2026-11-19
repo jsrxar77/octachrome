@@ -13,8 +13,8 @@
 @font-face{font-family:Jost;font-weight:300;src:url(fonts/Jost-Light.ttf)}
 @font-face{font-family:Jost;font-weight:400;src:url(fonts/Jost-Regular.ttf)}
 :root{
-  --bg:#000;--fg:#F2F4F8;--dim:#7E8794;--faint:#232831;--panel:#0D1118;--rec:#FF3B30;
-  --k1:#0099FF;--k2:#00E56A;--k3:#F2F4F8;--k4:#FF4F00;--k5:#8B6CFF;--k6:#FFD21F;--k7:#2ED3E6;--k8:#FF4FA0;
+  --bg:#000;--fg:#EEF0F5;--dim:#80858F;--faint:#24262C;--panel:#0F1014;--rec:#FF2244;
+  --k1:#D633FF;--k2:#A442FF;--k3:#8652FF;--k4:#7361FF;--k5:#707AFF;--k6:#809DFF;--k7:#8FBCFF;--k8:#EEF0F5;
   --acc:var(--k1);
 }
 *{box-sizing:border-box;margin:0}
@@ -183,16 +183,13 @@ a.btn:hover{border-color:var(--acc);color:var(--acc)}a.btn.main{border-color:var
     <div class="scr"><canvas id="cL" width="480" height="272"></canvas></div>
     <div class="scr"><canvas id="cR" width="480" height="272"></canvas></div>
   </div>
-  <div class="row" id="themeTabs"></div>
-  <p class="dim" style="font-size:15px">Themes change the whole page. On the MK3: SETTINGS, then turn the 4D encoder.</p>
 </section>
 
 <section id="s4b">
-  <h2>Three themes</h2>
-  <p class="lead">Soft, bright, monochrome. Matte is where it starts.</p>
-  <svg id="themeMk" role="img" aria-label="The MK3 in the chosen theme" style="width:min(1000px,96vw);height:auto;display:block;margin:auto"></svg>
+  <h2>Chrome, and two more</h2>
+  <p class="lead">Octachrome starts in chrome: one range, violet to blue, then white. Matte (soft) and glossy (bright) are chosen on the unit: SETTINGS, then the 4D encoder.</p>
+  <svg id="themeMk" role="img" aria-label="The MK3 in chrome, the theme Octachrome starts in" style="width:min(1000px,96vw);height:auto;display:block;margin:auto"></svg>
   <div class="cap" id="themeCap"></div>
-  <div class="row" id="themeTabs2"></div>
 </section>
 
 <section id="s5">
@@ -364,7 +361,6 @@ function frame(ms) {
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
-OCTACHROME.tabs($("#themeTabs"));
 
 /* instruments */
 const INST = [
@@ -389,7 +385,7 @@ requestAnimationFrame(drawCards);
 /* copy */
 $("#copy").onclick = async e => { try { await navigator.clipboard.writeText("octachrome"); e.target.textContent = "Copied"; } catch (x) { e.target.textContent = "Select it"; } setTimeout(() => e.target.textContent = "Copy", 1400); };
 
-OCTACHROME.tabs($("#themeTabs2"));OCTACHROME.mount($("#themeMk"), $("#themeCap"));
+OCTACHROME.mount($("#themeMk"), $("#themeCap"));
 applyTheme(OCTACHROME.cur);
 </script>
 </body>
