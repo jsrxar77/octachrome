@@ -176,4 +176,4 @@ Saved on 2026-11-16, after the batch of section 8, and kept current since. Devel
 
 - The CI of GitHub does not start (billing of the account, seen 2026-11-16): the last pull requests were merged after running `cargo test --workspace` locally.
 - Publishing the site: done on 2026-11-18 (the repository is public and Pages serves the site). Left: the social preview image in the repository settings.
-- Releases and upkeep: `CHANGELOG.md`, `release.yml`, `audit.yml`, `dependabot.yml` and `rust-toolchain.toml` are written but **not run yet** (CI is down, see above): the first tag `v0.1.0` is the test of `release.yml`. Left: a GIF or video of the twin and the unit, a recorded song, and a picture of the real unit in the README.
+- Releases and upkeep: `CHANGELOG.md`, `release.yml`, `audit.yml`, `dependabot.yml` and `rust-toolchain.toml` are written but **not run yet** (CI is down, see above): the first tag `v0.1.0` is the test of `release.yml`. The README has a GIF of the twin (`assets/twin-demo.gif`). Left: a video of the real unit, a recorded song, and a picture of the unit in the README.
