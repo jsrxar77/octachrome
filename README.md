@@ -20,6 +20,8 @@ A standalone groovebox in Rust for the **Raspberry Pi 4/5** (developed and teste
 
 **Try it in a minute, with nothing connected:** open `twin/octachrome-twin.html` in Safari or Chrome (no server, no install; it works on an iPad too), press FILE, a pad of the top row, and PLAY.
 
+![The interactive twin: FILE, a song, PLAY; the pads show the pattern and the playhead](assets/twin-demo.gif)
+
 ## Get it and try it
 
 You need a stable Rust (`rustup`) and a C++ compiler, because the macro instrument compiles the Plaits code: on macOS `xcode-select --install` is enough; on Linux or the Pi, `sudo apt install build-essential libasound2-dev`.
