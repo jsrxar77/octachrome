@@ -718,12 +718,13 @@ const tabs=document.getElementById("tabs");
 secs.forEach(s=>{const b=document.createElement("button");b.textContent=s;b.onclick=()=>{sec=s;draw()};tabs.append(b)});
 document.getElementById("q").oninput=e=>{q=e.target.value.toLowerCase();draw()};
 const esc=s=>s.replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+const mdc=s=>esc(s).replace(/`([^`]+)`/g,"<code>$1</code>");
 function draw(){
   [...tabs.children].forEach(b=>b.classList.toggle("on",b.textContent===sec));
   let h="",last="";
   D.filter(r=>(sec==="All"||r.s===sec)&&(!q||(r.n+" "+r.w+" "+r.m+" "+r.x).toLowerCase().includes(q))).forEach(r=>{
     if(r.s!==last){last=r.s;const g=D.filter(x=>x.s===r.s);h+=`<h2 class="ref">${esc(r.s)}<small>${g.filter(x=>x.t==="y").length}/${g.length}</small></h2>`}
-    h+=`<div class="r ${r.t}"><b>${esc(r.n)}</b><span class="d" title="${NAME[r.t]}"></span><div>${esc(r.w)}${r.note?`<small>${esc(r.note)}</small>`:""}${r.m?`<small>Maschine: ${esc(r.m)} · OP-XY: ${esc(r.x)}</small>`:""}</div></div>`});
+    h+=`<div class="r ${r.t}"><b>${esc(r.n)}</b><span class="d" title="${NAME[r.t]}"></span><div>${mdc(r.w)}${r.note?`<small>${mdc(r.note)}</small>`:""}${r.m?`<small>Maschine: ${esc(r.m)} · OP-XY: ${esc(r.x)}</small>`:""}</div></div>`});
   document.getElementById("list").innerHTML=h||"<p style='color:var(--dim)'>Nothing found.</p>";
 }
 draw();
