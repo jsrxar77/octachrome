@@ -7,6 +7,14 @@
   <a href="#licence"><img src="https://img.shields.io/badge/licence-MIT%20or%20Apache--2.0-informational" alt="Licence: MIT or Apache-2.0"></a>
 </p>
 
+<p align="center">
+  <b><a href="https://jsrxar77.github.io/octachrome/">Home</a></b> ·
+  <b><a href="https://jsrxar77.github.io/octachrome/twin/octachrome-twin.html">Try it in the browser</a></b> ·
+  <b><a href="https://jsrxar77.github.io/octachrome/manual.html">Manual</a></b> ·
+  <b><a href="https://github.com/jsrxar77/octachrome/releases/latest">Download</a></b> ·
+  <b><a href="CHANGELOG.md">Changelog</a></b>
+</p>
+
 A standalone groovebox in Rust for the **Raspberry Pi 4/5** (developed and tested on **macOS Apple Silicon**) that uses a **Native Instruments Maschine MK3** as its only control surface: pads, knobs, Smart Strip, LEDs and the two 480×272 screens. No computer in the loop once it runs, and no hardware needed to try it: there is a simulator, a test bench and an interactive twin that runs in a browser.
 
 ![The two screens of Octachrome: the step sequencer on the left, the drum kit on the right](guide/og.png)
@@ -15,10 +23,10 @@ A standalone groovebox in Rust for the **Raspberry Pi 4/5** (developed and teste
 
 * A sequencer inspired by the OP-XY: per-track polymeter, stackable *Step Components* (ratchet, chance, every, velocity, parameter locks…), a harmony track (*Brain*) that puts the notes of every linked track on the chord, scenes and a song (ARRANGER), a mixer with a compressor, an EQ and two sends.
 * Eight instruments that know nothing about the sequencer or the hardware (they are **cartridges** that implement one trait): drums, a kick, an FM bass, a plucked-string and bell resonator, a **sampler**, a **granular** cloud, a 24-engine macro oscillator (from Mutable Instruments' Plaits) and a MIDI out.
-* **Eight whole songs that come with it**, each about two minutes and made as its style is made ([the list](#the-eight-songs)): house, techno, UK garage, drum & bass, trance, amapiano, ambient and lo-fi.
+* **Eight whole songs that come with it**, each about two minutes and made as its style is made ([the list](#the-eight-songs), and [the mp3s](https://github.com/jsrxar77/octachrome/releases/tag/v0.1.0) to listen to): house, techno, UK garage, drum & bass, trance, amapiano, ambient and lo-fi.
 * Every screen, light and button of the MK3 has a job and is designed as one system ([docs/design.md](docs/design.md)): eight colours, absolute black, drawings instead of text, one typeface.
 
-**Try it in a minute, with nothing connected:** open `twin/octachrome-twin.html` in Safari or Chrome (no server, no install; it works on an iPad too), press FILE, a pad of the top row, and PLAY.
+**Try it in a minute, with nothing connected:** [open the twin in your browser](https://jsrxar77.github.io/octachrome/twin/octachrome-twin.html) (or `twin/octachrome-twin.html` from a clone: no server, no install; it works on an iPad too), press FILE, a pad of the top row, and PLAY. The [manual](https://jsrxar77.github.io/octachrome/manual.html) explains every button, with pictures of the unit and tested recipes.
 
 ![The interactive twin: FILE, a song, PLAY; the pads show the pattern and the playhead](assets/twin-demo.gif)
 
