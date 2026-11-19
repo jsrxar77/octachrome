@@ -38,6 +38,12 @@ def button_rows():
                      "note": c[-1][1:].strip(" ()")})
     return rows
 
+def md_inline(text):
+    """The inline Markdown of the documents (**bold**, `code`) as HTML, with everything else escaped."""
+    text = text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+    text = re.sub(r"\*\*(.+?)\*\*", r"<b>\1</b>", text)
+    return re.sub(r"`([^`]+)`", r"<code>\1</code>", text)
+
 def piece_rows():
     """The manual's table of the eight pieces (docs/instruments.md §9 is the source)."""
     text = (root / "docs/instruments.md").read_text()
@@ -47,7 +53,7 @@ def piece_rows():
         c = [x.strip() for x in line.strip().strip("|").split("|")]
         if line.startswith("|") and len(c) == 4 and c[0].isdigit():
             name = c[1].replace("**", "")
-            rows.append(f"  <tr><td>{name}</td><td><b>{c[2].replace(', heavy swing', '')}</b> · {c[3]}</td></tr>")
+            rows.append(f"  <tr><td>{name}</td><td><b>{c[2].replace(', heavy swing', '')}</b> · {md_inline(c[3])}</td></tr>")
     return "\n".join(rows)
 
 def preset_rows():
