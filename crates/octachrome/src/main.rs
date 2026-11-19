@@ -29,12 +29,12 @@ fn main() -> Result<()> {
             .cloned()
     };
     let seconds: Option<f32> = opt("-s", "--seconds").and_then(|s| s.parse().ok());
-    // Screen theme (docs/design.md §2): matte (default), glossy, chrome.
+    // Screen theme (docs/design.md §2): chrome (default), matte, glossy.
     let theme = opt("-t", "--theme").or_else(|| std::env::var("OCTACHROME_THEME").ok());
     let theme_given = theme.is_some();
     if let Some(name) = theme {
         let id = octachrome::settings::theme_from_name(&name)
-            .ok_or_else(|| anyhow::anyhow!("unknown theme {name:?} (matte, glossy, chrome)"))?;
+            .ok_or_else(|| anyhow::anyhow!("unknown theme {name:?} (chrome, matte, glossy)"))?;
         octachrome_gfx::set_theme(id);
     }
     let script = match opt("--script", "--script") {

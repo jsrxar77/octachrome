@@ -1,6 +1,6 @@
 # Octachrome
 
-<p align="center"><img src="guide/brand/octachrome-mark.svg" width="360" alt="Octachrome: eight keys, four and four, in rainbow order, the eighth white"></p>
+<p align="center"><img src="guide/brand/octachrome-mark.svg" width="360" alt="Octachrome: eight keys, four and four, in the chrome range from violet to blue, the eighth white"></p>
 
 <p align="center">
   <a href="https://github.com/jsrxar77/octachrome/actions/workflows/ci.yml"><img src="https://github.com/jsrxar77/octachrome/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
@@ -44,7 +44,7 @@ cargo run --release -- run --script my.ocs   # the script drives the real app: y
 cargo run --release -- hw-test               # with the real MK3: rainbow on the 16 pads + a test frame on both screens + event log
 cargo run --release                          # play with the MK3 (audio, screens, LEDs, MIDI)
 scripts/run.sh                               # the same in one command: builds, frees the MK3 from NI's services, starts (-h for options)
-cargo run --release -- -t chrome              # another theme: matte (default), glossy, chrome
+cargo run --release -- -t matte               # another theme: chrome (default), matte, glossy
 ```
 
 On macOS, close NI's services first (`NIHardwareAgent`, `NIHostIntegrationAgent`, `NTKDaemon`): if they hold USB interface 5, Octachrome keeps working but without screens, and says so on the console. On Linux install `deploy/99-maschine-mk3.rules` to avoid needing root.
@@ -180,7 +180,7 @@ The two screens always say what the eight knobs under them do, and every button 
 * **PLUG-IN**: the 16 places of instruments for the selected track. **BROWSER**: the 16 presets of that instrument (the top rows come with it, yours below).
 * **ARRANGER**: scenes and the song; while a song plays a tap on a step jumps to it at the next bar (SHIFT: at once).
 * **MIXER**: four channels at a time, the compressor of the master, the EQ and the sends. **SAMPLING**: record, cut and keep a sound. **FILE**: the 16 projects (the top two rows are the eight songs).
-* **SETTINGS**: the theme (matte, glossy, chrome), the audio and MIDI devices, the light.
+* **SETTINGS**: the theme (chrome, matte, glossy), the audio and MIDI devices, the light.
 * **Groups A–H** select a track; **MUTE** + group mutes it; **SHIFT** + group links it to the Brain; **ERASE** + pad erases a step; **PERFORM** turns the pads into punch-in effects; the **Smart Strip** is, for now, a master filter; the **4D encoder** moves the focus everywhere.
 
 What every button does, in each context, is in [docs/buttons.md](docs/buttons.md).

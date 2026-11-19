@@ -1,6 +1,6 @@
 /* The three themes, ONE definition for the guide and the brand page (docs/design.md §2).
    Mirrors crates/octachrome-gfx/src/theme.rs: keep the two in step.
-   OCTACHROME.cur is shared between pages through localStorage, so choosing a theme in one changes the other. */
+   The site is always in chrome, the default of the machine; matte and glossy are chosen on the unit (SETTINGS), so nothing is stored. */
 (function () {
   const RB = ["#FF2D2D","#FF8A1F","#FFD21F","#00E56A","#0099FF","#4B4BFF","#B15CFF","#F2F4F8"];
   const CH = ["#D633FF","#A442FF","#8652FF","#7361FF","#707AFF","#809DFF","#8FBCFF","#EEF0F5"];
@@ -22,13 +22,11 @@
       light:{ bl:.8, level:3, mono:.85 }, cap:"Chrome · one range",
       note:"Monochrome: magenta-violet to blue, strong to soft, then white. Screens at 80 % of the backlight, pads and groups at level 3. To be tuned on the unit." },
   };
-  const ORDER = ["matte", "glossy", "chrome"], KEY = "octachrome-theme", subs = [];
-  let cur = "matte";
-  try { const s = localStorage.getItem(KEY); if (THEMES[s]) cur = s; } catch (e) {}
+  const ORDER = ["chrome", "matte", "glossy"], subs = [];
+  let cur = "chrome";
   const OCTACHROME = { THEMES, ORDER, get cur() { return cur; },
-    set(n) { if (!THEMES[n]) return; cur = n; try { localStorage.setItem(KEY, n); } catch (e) {} subs.forEach(f => f(n)); },
+    set(n) { if (!THEMES[n]) return; cur = n; subs.forEach(f => f(n)); },
     on(f) { subs.push(f); } };
-  addEventListener("storage", e => { if (e.key === KEY && THEMES[e.newValue]) { cur = e.newValue; subs.forEach(f => f(cur)); } });
   /* a tab row bound to the shared theme */
   OCTACHROME.tabs = function (box) {
     box.innerHTML = "";

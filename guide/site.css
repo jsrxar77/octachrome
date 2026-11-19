@@ -1,18 +1,18 @@
 /* What every page of the site shares: the skip link, the header, the footer and the focus ring.
    Each page keeps its own palette (the matte theme by default, from themes.js or the manual's own variables). */
-.skip{position:absolute;left:-999px;top:8px;z-index:20;background:var(--panel,#12161D);color:var(--fg,#F4EFE6);border:1px solid var(--dim,#8E918F);border-radius:8px;padding:8px 14px}
+.skip{position:absolute;left:-999px;top:8px;z-index:20;background:var(--panel,#0F1014);color:var(--fg,#EEF0F5);border:1px solid var(--dim,#80858F);border-radius:8px;padding:8px 14px}
 .skip:focus{left:12px}
-header.site{position:fixed;top:0;left:0;right:0;z-index:10;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:10px 18px;background:color-mix(in srgb,var(--bg,#000) 82%,transparent);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border-bottom:1px solid var(--faint,#262A30);font:400 15px/1 Jost,system-ui,sans-serif}
-header.site a{color:var(--dim,#8E918F);text-decoration:none}
-header.site a:hover,header.site a[aria-current=page]{color:var(--fg,#F4EFE6)}
-header.site .home{display:flex;align-items:center;gap:10px;color:var(--fg,#F4EFE6);letter-spacing:.06em}
+header.site{position:fixed;top:0;left:0;right:0;z-index:10;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:10px 18px;background:color-mix(in srgb,var(--bg,#000) 82%,transparent);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border-bottom:1px solid var(--faint,#24262C);font:400 15px/1 Jost,system-ui,sans-serif}
+header.site a{color:var(--dim,#80858F);text-decoration:none}
+header.site a:hover,header.site a[aria-current=page]{color:var(--fg,#EEF0F5)}
+header.site .home{display:flex;align-items:center;gap:10px;color:var(--fg,#EEF0F5);letter-spacing:.06em}
 header.site .home img{width:34px;height:auto;display:block}
 header.site nav{display:flex;gap:6px 20px;flex-wrap:wrap;justify-content:flex-end;position:static;transform:none;flex-direction:row;right:auto;top:auto}
 header.site nav a{width:auto;height:auto;border-radius:0;background:none;transform:none;display:inline}
-footer.site{padding:44px 20px 60px;text-align:center;color:var(--dim,#8E918F);font:300 15px/1.6 Jost,system-ui,sans-serif;border-top:1px solid var(--faint,#262A30)}
-footer.site a{color:var(--fg,#F4EFE6)}
+footer.site{padding:44px 20px 60px;text-align:center;color:var(--dim,#80858F);font:300 15px/1.6 Jost,system-ui,sans-serif;border-top:1px solid var(--faint,#24262C)}
+footer.site a{color:var(--fg,#EEF0F5)}
 footer.site p{margin:6px auto;max-width:70ch}
 footer.site small{display:block;margin-top:14px;font-size:13px;opacity:.8}
-a:focus-visible,button:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--acc,#3B8EBA);outline-offset:3px;border-radius:4px}
+a:focus-visible,button:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--acc,#707AFF);outline-offset:3px;border-radius:4px}
 html{scroll-padding-top:64px}
 @media (max-width:560px){header.site{padding:8px 12px;font-size:14px}header.site .home b{display:none}}

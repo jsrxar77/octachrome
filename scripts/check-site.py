@@ -62,6 +62,10 @@ for f, (p, text) in pages.items():
         errors.append(f"{name}: no meta description")
     if p.h1 != 1 and name != "brand.html":
         errors.append(f"{name}: {p.h1} <h1> (should be one)")
+    # the site is in chrome, the default of the machine (docs/design.md §2.1): no page carries the matte or glossy palette of its own
+    for hexa in ("#12161D", "#F4EFE6", "#0D1118", "#F2F4F8", "#8E918F", "#7E8794"):
+        if hexa.lower() in text.lower():
+            errors.append(f"{name}: a colour of the matte or glossy theme ({hexa}); the site is in chrome")
     for src in p.imgs_no_alt:
         errors.append(f"{name}: image without alt: {src}")
     for marker in ("<!--HEADER-->", "<!--FOOTER-->", "<!--SOCIAL-->", "__DATA__", "{{"):
