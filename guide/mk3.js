@@ -13,20 +13,20 @@
     .forEach((b, i) => add(String(i + 1), R([286, 361, 434, 507, 581, 655, 727, 801][i], 319, 65, 24), b[1], b[0] + ": " + b[2]));
   // left block: two columns, six rows
   [[["CHANNEL","y","Back to composing"],["PLUG-IN","y","Choose the track's instrument: the 16 pads are the 16 places"]],
-   [["ARRANGER","y","The song: a chain of scenes, each for some bars"],["MIXER","p","Level, pan and sends of the tracks, the compressor and the EQ of the master"]],
+   [["ARRANGER","y","The song: a chain of scenes, each for some bars"],["MIXER","y","Level, pan and sends of the tracks, the compressor and the EQ of the master"]],
    [["BROWSER","p","Presets of the instrument: the 16 pads are the 16 presets"],["SAMPLING","p","Record a sound and put it in the sampler"]],
    [["PAGE ◀","n","Previous page of the current mode"],["PAGE ▶","n","Next page of the current mode"]],
    [["FILE","y","Open and save projects: the 16 pads are the 16 slots (factory top, yours bottom); SHIFT + a pad saves"],["SETTINGS","p","Both screens become settings: pick the theme with the 4D encoder"]],
    [["AUTO","n","Hold and turn a knob to record automation"],["MACRO","n","Brain, effect sends and inputs/outputs"]]]
     .forEach((row, r) => row.forEach((b, c) => add(b[0], R(c ? 165 : 90, [321, 361, 408, 455, 485, 518][r], 67, [22, 38, 40, 23, 24, 25][r]), b[1], b[2])));
   // volume / swing / tempo block, beside the 4D encoder
-  [["VOLUME",239,625,68,24,"n","Master volume"],["NOTE REPEAT",316,625,67,54,"n","Repeat the held note"],["SWING",239,656,68,23,"n","Global swing"],["TEMPO",239,689,68,24,"n","Tempo"],["LOCK",316,689,67,24,"n","Snapshot of all the knobs"]]
+  [["VOLUME",239,625,68,24,"y","Master volume"],["NOTE REPEAT",316,625,67,54,"n","Repeat the held note"],["SWING",239,656,68,23,"y","Global swing"],["TEMPO",239,689,68,24,"y","Tempo"],["LOCK",316,689,67,24,"n","Snapshot of all the knobs"]]
     .forEach(b => add(b[0], R(b[1], b[2], b[3], b[4]), b[5], b[6]));
   // pad modes, above the pads
-  [["FIXED VEL",434,66,"n","Fixed velocity"],["PAD MODE",519,89,"y","The pads play the instrument: a kit's eight sounds, or the scale"],["KEYBOARD",616,89,"y","Chromatic keyboard; the 4D encoder ◀ ▶ moves the octave"],["CHORDS",714,89,"y","Brain: pads are chord degrees"],["STEP",812,89,"y","Pads are the 16 steps"]]
+  [["FIXED VEL",434,66,"y","Fixed velocity"],["PAD MODE",519,89,"y","The pads play the instrument: a kit's eight sounds, or the scale"],["KEYBOARD",616,89,"y","Chromatic keyboard; the 4D encoder ◀ ▶ moves the octave"],["CHORDS",714,89,"y","Brain: pads are chord degrees"],["STEP",812,89,"y","Pads are the 16 steps"]]
     .forEach(b => add(b[0], R(b[1], 624, b[2], 24), b[3], b[4]));
   // column left of the pads
-  [["SCENE",224,"y","16 scenes on the pads: tap one to bring it back, SHIFT + tap to store"],["PATTERN",245,"y","16 patterns of the track on the pads: tap to play one, hold and tap to copy"],["EVENTS",275,"n","Components of the selected step"],["VARIATION",299,"n","Random variation"],["DUPLICATE",324,"n","Copy a step, pattern or track"],["SELECT",346,"n","Choose without sounding"],["SOLO",369,"n","Isolate a track"],["MUTE",392,"y","Hold + a group to mute the track"]]
+  [["SCENE",224,"y","16 scenes on the pads: tap one to bring it back, SHIFT + tap to store"],["PATTERN",245,"y","16 patterns of the track on the pads: tap to play one, hold and tap to copy"],["EVENTS",275,"n","Components of the selected step"],["VARIATION",299,"n","Random variation"],["DUPLICATE",324,"n","Copy a step, pattern or track"],["SELECT",346,"p","Held in FILE or BROWSER, a tap on one of your own places names it"],["SOLO",369,"n","Isolate a track"],["MUTE",392,"y","Hold + a group to mute the track"]]
     .forEach((b, i) => add(b[0], R(436, [667, 717, 768, 818, 868, 919, 969, 1020][i], 66, 41), b[2], b[3]));
   // PITCH / MOD / PERFORM / NOTES
   [["PITCH","n","Smart Strip bends pitch"],["MOD","n","Smart Strip sends modulation"],["PERFORM","y","Punch-in FX: pressure is the amount"],["NOTES","n","Smart Strip plays notes"]]
