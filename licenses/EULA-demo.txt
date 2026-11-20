@@ -1,0 +1,21 @@
+Octachrome Demo: end-user licence
+Copyright (c) 2026 Javier, the author of Octachrome ("the Owner"). All rights reserved.
+
+1. What you may do. You may install and use the demo, free of charge, on your own computer or Raspberry Pi and with your own Maschine MK3,
+   to try Octachrome and to listen to its eight songs. The licence is personal, non-exclusive and non-transferable.
+
+2. What you may not do. You may not sell, rent, lend or sublicense the demo; copy it or give it to others (send them to the page it was
+   downloaded from); take it apart, decompile or reverse engineer it, except where the law allows it whatever this licence says; remove the
+   notices it carries; or use it commercially.
+
+3. The demo is limited. It plays the eight songs, starts and stops them and lets you turn the knobs of an instrument; the rest is disabled
+   and nothing can be saved. The full version is sold separately, under its own licence.
+
+4. The songs. The eight songs that come with the demo belong to the Owner. You may listen to them; you may not publish or distribute them.
+
+5. Third-party components keep their own licences (THIRD-PARTY-NOTICES.md, which comes with the demo).
+
+6. No warranty. The demo is provided "as is", without warranty of any kind, and the Owner is not liable for any damage arising from its use,
+   to the extent the law allows. Your rights as a consumer that cannot be waived are not affected.
+
+7. Ending. The licence ends if you break it. Then you must delete the demo and its copies.

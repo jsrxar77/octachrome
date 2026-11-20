@@ -3,7 +3,8 @@ name = "octachrome-cartridges"
 description = "Built-in instrument cartridges: KickSyn, FmBass, macro, MidiOutBridge"
 version.workspace = true
 edition.workspace = true
-license.workspace = true
+license-file.workspace = true
+publish.workspace = true
 
 [dependencies]
 octachrome-cartridge.workspace = true

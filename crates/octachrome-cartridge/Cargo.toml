@@ -3,7 +3,8 @@ name = "octachrome-cartridge"
 description = "The InstrumentCartridge contract: everything an instrument needs, nothing about the sequencer or the hardware"
 version.workspace = true
 edition.workspace = true
-license.workspace = true
+license-file.workspace = true
+publish.workspace = true
 
 [dependencies]
 octachrome-gfx.workspace = true

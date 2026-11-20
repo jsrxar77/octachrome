@@ -36,4 +36,4 @@ The tests are the contract: [docs/features.md](docs/features.md) lists every ver
 * `cargo test --workspace` passes, and `sh .claude/skills/octachrome-docs/check.sh` (the six documents, their links and their test IDs) too.
 * Say what you could not test on a real MK3: part of the hardware is still unverified ([roadmap](docs/roadmap.md#hardware-status)).
 
-By contributing you agree that your work is licensed as the project is: MIT or Apache-2.0, at the user's choice.
+The repository is private and contributions are by invitation. By contributing you agree that your work belongs to the Owner of Octachrome and is licensed as the rest of the code is (see [LICENSE](LICENSE)), including its use in the programs that are sold.

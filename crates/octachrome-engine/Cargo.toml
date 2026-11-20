@@ -3,7 +3,8 @@ name = "octachrome-engine"
 description = "Audio-thread engine: sequencer + cartridge slots + mixer + Punch-in FX, driven by a lock-free command queue"
 version.workspace = true
 edition.workspace = true
-license.workspace = true
+license-file.workspace = true
+publish.workspace = true
 
 [dependencies]
 octachrome-cartridge.workspace = true
