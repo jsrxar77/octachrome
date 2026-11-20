@@ -195,7 +195,7 @@ Issues and pull requests are welcome: [CONTRIBUTING.md](CONTRIBUTING.md) says ho
 
 ## Licence
 
-MIT or Apache-2.0, at your choice ([LICENSE-MIT](LICENSE-MIT), [LICENSE-APACHE](LICENSE-APACHE)).
+Octachrome is a gift to whoever wants to use it: free, open source, to use, change and share. MIT or Apache-2.0, at your choice ([LICENSE-MIT](LICENSE-MIT), [LICENSE-APACHE](LICENSE-APACHE)).
 
 ## Credits and trademarks
 
