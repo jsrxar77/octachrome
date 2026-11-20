@@ -17,7 +17,7 @@
 
 A standalone groovebox in Rust for the **Raspberry Pi 4/5** (developed and tested on **macOS Apple Silicon**) that uses a **Native Instruments Maschine MK3** as its only control surface: pads, knobs, Smart Strip, LEDs and the two 480×272 screens. No computer in the loop once it runs, and no hardware needed to try it: there is a simulator, a test bench and an interactive twin that runs in a browser.
 
-> **Collaborators are welcome.** Octachrome is free and open source, a gift to whoever wants to use it, and anyone who wants to help it go on is invited: see [Contributing](#contributing).
+> **Collaborators are welcome.** Octachrome is free and open source, a gift to whoever wants to use it, and anyone who wants to help it go on, or to extend it with their own instruments, songs or ideas, is invited: see [Contributing](#contributing).
 
 ![The two screens of Octachrome: the step sequencer on the left, the drum kit on the right](guide/og.png)
 
@@ -193,7 +193,7 @@ Status, hardware status and the next steps are kept in [docs/roadmap.md](docs/ro
 
 ## Contributing
 
-**Octachrome is a gift, and it is made to keep growing: if you want to collaborate so that the project goes on, you are welcome.** Code, instruments, songs, tests on a real MK3 or a Raspberry Pi, documents, translations, ideas, bug reports: all of it helps, and you do not need to ask first. Issues and pull requests are welcome: [CONTRIBUTING.md](CONTRIBUTING.md) says how to build, what the tests are and the few rules of the project (English in the repository, no GPL code, the six documents kept current). Security reports: [SECURITY.md](SECURITY.md). Be kind: [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
+**Octachrome is a gift, and it is made to keep growing: if you want to collaborate so that the project goes on, you are welcome.** Code, instruments, songs, tests on a real MK3 or a Raspberry Pi, documents, translations, ideas, bug reports: all of it helps, and you do not need to ask first. **It is also made to be extended**: an instrument is a *cartridge* that implements one trait and knows nothing about the sequencer or the hardware, so you can add your own (start with [docs/instruments.md](docs/instruments.md) and [docs/architecture.md](docs/architecture.md)), and the same goes for new songs, themes and screens. Issues and pull requests are welcome: [CONTRIBUTING.md](CONTRIBUTING.md) says how to build, what the tests are and the few rules of the project (English in the repository, no GPL code, the six documents kept current). Security reports: [SECURITY.md](SECURITY.md). Be kind: [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
 
 ## Licence
 
