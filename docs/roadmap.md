@@ -175,5 +175,5 @@ Saved on 2026-11-16, after the batch of section 8, and kept current since. Devel
 **Outside the code**
 
 - The CI of GitHub does not start (billing of the account, seen 2026-11-16): the last pull requests were merged after running `cargo test --workspace` locally.
-- Public and private (2026-11-19): the repository was public from 2026-11-18 and is private again; only the releases are public, in `jsrxar77/octachrome-releases` (v0.1.0: the programs and the eight songs). The site is no longer served by Pages: it is built by the Guide workflow (artifact `octachrome-site`) and the owner will host it on a server of their own (`OCTACHROME_SITE_URL=<address> python3 scripts/build-site.py`). Left: the token `RELEASES_TOKEN` (a secret of the repository) so that `release.yml` can publish in the public repository; the social preview image.
+- Publishing the site: done on 2026-11-18 (the repository is public and Pages serves the site). Left: the social preview image in the repository settings.
 - Releases and upkeep: `CHANGELOG.md`, `release.yml`, `audit.yml`, `dependabot.yml` and `rust-toolchain.toml` are written but **not run yet** (CI is down, see above): the first tag `v0.1.0` is the test of `release.yml`. The README has a GIF of the twin (`assets/twin-demo.gif`). Left: a video of the real unit, a recorded song, and a picture of the unit in the README.

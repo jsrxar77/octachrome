@@ -3,8 +3,7 @@ name = "octachrome-ui"
 description = "Left (sequencer) and right (instrument) screen layouts"
 version.workspace = true
 edition.workspace = true
-license-file.workspace = true
-publish.workspace = true
+license.workspace = true
 
 [dependencies]
 octachrome-gfx.workspace = true

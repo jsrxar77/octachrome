@@ -142,9 +142,6 @@ impl<S: ControlSurface> App<S> {
             self.handle.slots[track].as_ref(),
             &params,
         );
-        for screen in &mut self.screens {
-            crate::demo_mark(screen);
-        }
 
         for (i, screen) in [Screen::Left, Screen::Right].into_iter().enumerate() {
             let update = self.dirty[i].diff(&self.screens[i]);

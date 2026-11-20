@@ -2,17 +2,9 @@
 
 All notable changes are written here, newest first. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the versions follow [Semantic Versioning](https://semver.org/).
 
-To publish a version: move what is under *Unreleased* to a new `## [x.y.z] - date` section, bump `version` in the root `Cargo.toml`, and push the tag `vx.y.z`; the *Release* workflow builds the binaries and uses that section as the notes of the release, published in the public repository `octachrome-releases`.
+To publish a version: move what is under *Unreleased* to a new `## [x.y.z] - date` section, bump `version` in the root `Cargo.toml`, and push the tag `vx.y.z`; the *Release* workflow builds the binaries and uses that section as the notes of the release.
 
 ## [Unreleased]
-
-### Added
-- A demo build (`--features demo`): it plays the eight songs, starts and stops them and lets the knobs of an instrument turn; everything else is disabled and dark, nothing is saved, and the screens say "demo". It is what the public releases carry; the full version is sold separately.
-- `THIRD-PARTY-NOTICES.md` (written by `scripts/third-party-notices.py`) and the end-user licences of the demo and of the full version.
-
-### Changed
-- The licence of the code and of the programs is "all rights reserved" (`LICENSE`). What was published on 2026-11-18 and 2026-11-19 (up to commit b27dbc9, and the release v0.1.0) keeps the MIT licence or the Apache License 2.0.
-- The repository is private; only the releases are public, in `octachrome-releases`.
 
 ## [0.1.0] - 2026-11-19
 
@@ -30,4 +22,4 @@ First public version. What the project is today, as [docs/roadmap.md](docs/roadm
 - Not verified on hardware: the LED palette beyond red and orange, the CPU load on a Raspberry Pi 5, MIDI in on Linux.
 
 [Unreleased]: https://github.com/jsrxar77/octachrome/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/jsrxar77/octachrome-releases/releases/tag/v0.1.0
+[0.1.0]: https://github.com/jsrxar77/octachrome/releases/tag/v0.1.0

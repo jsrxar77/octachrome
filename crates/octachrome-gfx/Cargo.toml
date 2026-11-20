@@ -3,8 +3,7 @@ name = "octachrome-gfx"
 description = "480x272 RGB565 framebuffer, drawing helpers and dirty-rectangle diffing"
 version.workspace = true
 edition.workspace = true
-license-file.workspace = true
-publish.workspace = true
+license.workspace = true
 
 [dependencies]
 embedded-graphics.workspace = true
