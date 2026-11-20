@@ -1,0 +1,20 @@
+Octachrome: end-user licence
+Copyright (c) 2026 Javier, the author of Octachrome ("the Owner"). All rights reserved.
+
+1. What you may do. When you have bought a licence you may install and use Octachrome, for as long as you want, on the computers and
+   Raspberry Pis that you own and with your own Maschine MK3, to make, play, record and perform music, privately or commercially. The music
+   you make with it is yours. The licence is for one person and is non-exclusive.
+
+2. What you may not do. You may not sell, rent, lend or sublicense Octachrome; copy it or give it to others; share your copy, your download
+   link or the file you received; take it apart, decompile or reverse engineer it, except where the law allows it whatever this licence says;
+   or remove the notices it carries.
+
+3. The songs. The eight songs that come with Octachrome belong to the Owner. You may play them, take them apart and make your own music
+   from them; you may not publish or distribute them as they are.
+
+4. Third-party components keep their own licences (THIRD-PARTY-NOTICES.md, which comes with the program).
+
+5. No warranty. Octachrome is provided "as is", without warranty of any kind, and the Owner is not liable for any damage arising from its use,
+   to the extent the law allows. Your rights as a consumer that cannot be waived are not affected.
+
+6. Ending. The licence ends if you break it. Then you must delete Octachrome and its copies.

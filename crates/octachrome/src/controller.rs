@@ -265,6 +265,9 @@ impl Controller {
 
     pub fn handle(&mut self, ev: ControlEvent, h: &mut EngineHandle, now_ms: u64) {
         self.now = now_ms;
+        if crate::DEMO_BUILD && !crate::limits::allows(&self.ui, &ev) {
+            return;
+        }
         match ev {
             ControlEvent::Button { button, pressed } => self.button(button, pressed, h),
             // In settings the pads and knobs do nothing; the 4D encoder picks the theme.
@@ -770,6 +773,10 @@ impl Controller {
             return;
         };
         if self.held.shift {
+            if crate::DEMO_BUILD {
+                self.ui.browse_note = crate::DEMO_NOTE.into();
+                return;
+            }
             let Some(state) = cart.lock().ok().map(|c| c.save_state()) else { return };
             let mut bytes = b"OCTS\x01".to_vec();
             bytes.extend_from_slice(&state);
@@ -1004,6 +1011,10 @@ impl Controller {
         if slot >= 8 {
             let (a, b) = self.ui.smp.window();
             h.send(EngineCommand::Preview(Some((a as u32, b as u32))));
+            return;
+        }
+        if crate::DEMO_BUILD {
+            self.ui.smp.note = crate::DEMO_NOTE.into();
             return;
         }
         let Some(dir) = self.samples_dir.clone() else {
@@ -1292,6 +1303,10 @@ impl Controller {
         }
         self.pad_down_at[pad as usize] = Some(0);
         let slot = Self::pad_to_step(pad) as usize; // reading order: the top two rows are the factory projects
+        if crate::DEMO_BUILD && slot >= 8 {
+            self.ui.file_note = crate::DEMO_NOTE.into();
+            return;
+        }
         self.ui.file_last = Some(slot);
         if self.held.select {
             let path = (slot >= 8).then(|| self.projects_dir.as_ref().map(|d| crate::projectfile::user_path(d, slot - 8))).flatten();
@@ -1311,6 +1326,10 @@ impl Controller {
         if self.held.shift {
             if slot < 8 {
                 self.ui.file_note = "the factory projects stay as they are".into();
+                return;
+            }
+            if crate::DEMO_BUILD {
+                self.ui.file_note = crate::DEMO_NOTE.into();
                 return;
             }
             let Some(dir) = &self.projects_dir else {
@@ -2751,12 +2770,20 @@ impl Controller {
         // Every other button, from one table (see `lights`): dark, faint white, or strong white.
         let ctx = crate::lights::Context { playing, shift: self.held.shift, mute: self.held.mute, erase: self.held.erase, down: &self.down };
         for b in crate::lights::all() {
-            let l = crate::lights::light(&self.ui, &ctx, b);
+            let l = if crate::DEMO_BUILD && !crate::limits::button(&self.ui, b) { crate::lights::Light::Off } else { crate::lights::light(&self.ui, &ctx, b) };
             if octachrome_hw::leds::button_is_colour(b) {
                 let colour = if b == Button::Play { NiColor::Green } else if b == Button::Rec { NiColor::Red } else { NiColor::White };
                 out.set_button_color(b, colour, match l { crate::lights::Light::Off => 0, crate::lights::Light::Dim => 1, crate::lights::Light::Full => 3 });
             } else {
                 out.set_button(b, match l { crate::lights::Light::Off => 0.0, crate::lights::Light::Dim => FAINT_WHITE, crate::lights::Light::Full => 1.0 });
+            }
+        }
+        // the demo: the pads only choose a song, so only those of the factory projects are lit, and only in FILE
+        if crate::DEMO_BUILD {
+            for pad in 0..16u8 {
+                if self.ui.main != Main::File || Self::pad_to_step(pad) >= 8 {
+                    out.set_pad(pad, NiColor::Off, 0);
+                }
             }
         }
         // Smart Strip shows the filter position.

@@ -3,7 +3,8 @@ name = "octachrome-plaits"
 description = "Macro-oscillator DSP for the Octachrome 'macro' instrument (vendored MIT C++ code behind a safe Rust API)"
 version.workspace = true
 edition.workspace = true
-license.workspace = true
+license-file.workspace = true
+publish.workspace = true
 
 [build-dependencies]
 cc = "1"

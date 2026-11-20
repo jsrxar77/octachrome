@@ -3,7 +3,8 @@ name = "octachrome-hw"
 description = "Control-surface abstraction, a mock surface for tests, and the Maschine MK3 USB/HID driver"
 version.workspace = true
 edition.workspace = true
-license.workspace = true
+license-file.workspace = true
+publish.workspace = true
 
 [features]
 default = []
