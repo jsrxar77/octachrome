@@ -191,6 +191,10 @@ What every button does, in each context, is in [docs/buttons.md](docs/buttons.md
 
 Status, hardware status and the next steps are kept in [docs/roadmap.md](docs/roadmap.md). In short: the screens, the colour order and the buttons have been checked on a real MK3; the LED palette beyond red and orange and the CPU load on the Pi 5 have not.
 
+## Who made it, and a disclaimer
+
+Octachrome was made by **Javi**, a computer engineer who knows little about music, very little, but who had an idea and, with his friend **Claude** (an AI assistant made by Anthropic), worked out how to organise it and put all the pieces together: the sequencer, the instruments, the screens and the songs. So take it for what it is: a sincere and curious project by someone who builds software, not by a trained musician. There will be musical mistakes (in the songs, the sounds, the harmony, the names of things) and engineering ones, and the parts that touch the real hardware are not all tested yet ([status](docs/roadmap.md#hardware-status)). **If you have better ideas, you are more than welcome**: say so, change it, or write it better.
+
 ## Contributing
 
 **Octachrome is a gift, and it is made to keep growing: if you want to collaborate so that the project goes on, you are welcome.** Code, instruments, songs, tests on a real MK3 or a Raspberry Pi, documents, translations, ideas, bug reports: all of it helps, and you do not need to ask first. **It is also made to be extended**: an instrument is a *cartridge* that implements one trait and knows nothing about the sequencer or the hardware, so you can add your own (start with [docs/instruments.md](docs/instruments.md) and [docs/architecture.md](docs/architecture.md)), and the same goes for new songs, themes and screens. Issues and pull requests are welcome: [CONTRIBUTING.md](CONTRIBUTING.md) says how to build, what the tests are and the few rules of the project (English in the repository, no GPL code, the six documents kept current). Security reports: [SECURITY.md](SECURITY.md). Be kind: [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
