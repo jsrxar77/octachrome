@@ -20,10 +20,7 @@ jobs:
       - run: sudo apt-get update && sudo apt-get install -y libasound2-dev g++-aarch64-linux-gnu
       - uses: Swatinem/rust-cache@v2
       - run: cargo test --workspace
-      - run: cargo test -p octachrome --features demo --test demo_build
       - run: cargo clippy --workspace --all-targets
-      - name: Third-party licences
-        run: python3 scripts/third-party-notices.py --check
       - name: Simulator smoke run
         run: cargo run --release -p octachrome -- sim -s 6 -o sim-out
       - uses: actions/upload-artifact@v7

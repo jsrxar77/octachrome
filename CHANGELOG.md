@@ -6,14 +6,6 @@ To publish a version: move what is under *Unreleased* to a new `## [x.y.z] - dat
 
 ## [Unreleased]
 
-### Added
-- A demo build (`--features demo`): it plays the eight songs, starts and stops them and lets the knobs of an instrument turn; everything else is disabled and dark, nothing is saved, and the screens say "demo". It is what the public releases carry; the full version is sold separately.
-- `THIRD-PARTY-NOTICES.md` (written by `scripts/third-party-notices.py`) and the end-user licences of the demo and of the full version.
-
-### Changed
-- The licence of the code and of the programs is "all rights reserved" (`LICENSE`). What was published on 2026-11-18 and 2026-11-19 (up to commit b27dbc9, and the release v0.1.0) keeps the MIT licence or the Apache License 2.0.
-- The repository is private; only the releases are public, in `octachrome-releases`.
-
 ## [0.1.0] - 2026-11-19
 
 First public version. What the project is today, as [docs/roadmap.md](docs/roadmap.md) keeps it; the screens, the colour order and the buttons have been checked on a real MK3, the rest of the hardware side has not.

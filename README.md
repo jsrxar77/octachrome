@@ -4,7 +4,7 @@
 
 <p align="center">
   <a href="https://github.com/jsrxar77/octachrome/actions/workflows/ci.yml"><img src="https://github.com/jsrxar77/octachrome/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
-  <a href="#licence"><img src="https://img.shields.io/badge/licence-all%20rights%20reserved-informational" alt="Licence: all rights reserved"></a>
+  <a href="#licence"><img src="https://img.shields.io/badge/licence-MIT%20or%20Apache--2.0-informational" alt="Licence: MIT or Apache-2.0"></a>
 </p>
 
 <p align="center">
@@ -170,7 +170,7 @@ To add an instrument: a new crate or module that implements `InstrumentCartridge
 * `deploy/pi-setup.sh`: creates the `octachrome` user, installs the udev rules, the real-time limits and the `performance` governor, boots to the console without a desktop and enables `deploy/octachrome.service`.
 * `deploy/octachrome.service`: direct start, automatic restart, a 64-frame buffer (`OCTACHROME_BUFFER`), `LimitRTPRIO`, affinity to cores 1–3.
 * On the Pi it can be compiled natively with `cargo build --release` (`libasound2-dev` is needed).
-* **Without compiling:** the public [releases](https://github.com/jsrxar77/octachrome-releases/releases) carry the **demo** (`octachrome-demo-linux-aarch64-pi5.tar.gz`, with its `.sha256`); the full version is sold separately and is built by the same release workflow (`octachrome-linux-aarch64-pi5.tar.gz`, in the private releases). On a 64-bit Raspberry Pi OS: `tar xzf octachrome-demo-linux-aarch64-pi5.tar.gz && sudo bash pi-setup.sh .`. That binary is built for the **Pi 5** (Cortex-A76); on a Pi 4 build it yourself with `RUSTFLAGS="-C target-cpu=cortex-a72" cargo build --release`. The macOS release (`octachrome-macos-arm64`) is for Apple Silicon.
+* **Without compiling:** each [release](https://github.com/jsrxar77/octachrome-releases/releases) carries `octachrome-linux-aarch64-pi5.tar.gz` (with its `.sha256`). On a 64-bit Raspberry Pi OS: `tar xzf octachrome-linux-aarch64-pi5.tar.gz && sudo bash pi-setup.sh .`. That binary is built for the **Pi 5** (Cortex-A76); on a Pi 4 build it yourself with `RUSTFLAGS="-C target-cpu=cortex-a72" cargo build --release`. The macOS release (`octachrome-macos-arm64`) is for Apple Silicon.
 
 ## Controls
 
@@ -195,11 +195,11 @@ Issues and pull requests are welcome: [CONTRIBUTING.md](CONTRIBUTING.md) says ho
 
 ## Licence
 
-**All rights reserved** ([LICENSE](LICENSE)). The source code is private; the programs are licensed to their users by [the demo licence](licenses/EULA-demo.txt) and [the licence of the full version](licenses/EULA-full.txt). What was published on 2026-11-18 and 2026-11-19 (the source up to commit `b27dbc9` and the release v0.1.0) stays under the MIT licence or the Apache License 2.0, at the choice of whoever got it ([licenses/](licenses/)); nothing added after that commit is. The code of others that Octachrome uses keeps its licence: [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md) (`python3 scripts/third-party-notices.py` writes it; `--check` refuses a licence that is not permissive).
+MIT or Apache-2.0, at your choice ([LICENSE-MIT](LICENSE-MIT), [LICENSE-APACHE](LICENSE-APACHE)).
 
 ## Credits and trademarks
 
-* The code in `crates/octachrome-plaits/vendor` is by Mutable Instruments (MIT, see its `README.md` and licences, and THIRD-PARTY-NOTICES.md); Octachrome does not use their module names. The grain scheduler of the granular instrument follows the one of Clouds (MIT, Copyright 2014 Emilie Gillet, kept in the source).
+* The code in `crates/octachrome-plaits/vendor` is by Mutable Instruments (MIT, see its `README.md` and licences); Octachrome does not use their module names. The grain scheduler of the granular instrument follows the one of Clouds (MIT, Copyright 2014 Emilie Gillet, kept in the source).
 * The typeface is Jost (SIL Open Font License, `guide/fonts/OFL.txt`).
 * The sequencer is inspired by the workflow of Teenage Engineering's OP-XY. The MK3 protocol is implemented separately, from facts only, with no code from GPL projects.
 * **Octachrome is an independent project.** It is not made, endorsed or supported by Native Instruments or by Teenage Engineering. Maschine, Maschine MK3 and Native Instruments are trademarks of Native Instruments GmbH; OP-XY and Teenage Engineering are names of Teenage Engineering AB. They are used here only to say what Octachrome works with and what inspired it.

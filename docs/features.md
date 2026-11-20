@@ -286,12 +286,6 @@ The buttons and their implementation status are in [buttons.md](buttons.md). Thi
 | F-H08 | Closing the program (Ctrl-C, SIGTERM, closing the terminal) leaves the MK3 as it was before Octachrome: every LED off, both screens black, and the device reset as replugging it would; nothing of the last thing played stays lit | `App::shutdown` on the mock: every LED slot 0 and every pixel black after it; the signal and the reset in `octachrome run` are manual review on the real MK3 | ✓ |
 | F-H03 | On the real MK3, five minutes of playing, turning knobs and changing modes and themes with no reset and no reconnect | **manual review**: `OCTACHROME_LOG_EVENTS=1` and `OCTACHROME_DISPLAY_STATS=1`; the log has no `reconnecting` line | R |
 
-## X · Demo build (`tests/demo_build.rs`, run with `--features demo`)
-
-| ID | What must happen | How it is verified | Status |
-|---|---|---|---|
-| F-X01 | In the demo build a song is chosen in FILE (only the factory eight; an empty place says it is the full version) and heard with PLAY and STOP, and the knobs under the right screen turn the instrument; nothing else works: pads do not write steps, MIXER, ARRANGER, SAMPLING, BROWSER, SETTINGS, SCENE, PATTERN, REC, ERASE and SHIFT do nothing, the left screen's knobs do not move the tempo, and nothing is saved. Every button that does nothing is dark. The screens carry the word "demo" | `cargo test -p octachrome --features demo --test demo_build`: the project, the mode, the transport, the lights and the file note | ✓ |
-
 ## Manual review (cannot be automated)
 
 - That the sound is pleasant. The bench measures presence and level, not timbre.
