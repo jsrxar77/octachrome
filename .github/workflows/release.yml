@@ -1,7 +1,7 @@
 name: Release
 
 # Pushing a tag v<major>.<minor>.<patch> builds the binaries and publishes a GitHub release whose notes are the
-# matching section of CHANGELOG.md, in the public repository jsrxar77/octachrome-releases. The Linux binary is built with `cross` and, as .cargo/config.toml says,
+# matching section of CHANGELOG.md. The Linux binary is built with `cross` and, as .cargo/config.toml says,
 # for the Raspberry Pi 5 (Cortex-A76); a Pi 4 needs a build of its own (see README, "Raspberry Pi").
 on:
   push:
@@ -59,8 +59,6 @@ jobs:
           v="${GITHUB_REF_NAME#v}"
           awk -v v="$v" '$0 ~ "^## \\[" v "\\]" {on=1; next} /^## \[/ {on=0} on' CHANGELOG.md > notes.md
           test -s notes.md || { echo "CHANGELOG.md has no section for $v"; exit 1; }
-      # This repository is private: the release is published in the public one, with a token that can write there
-      # (Settings > Secrets and variables > Actions > RELEASES_TOKEN: a fine-grained token with "Contents: read and write" on octachrome-releases only).
       - env:
-          GH_TOKEN: ${{ secrets.RELEASES_TOKEN }}
-        run: gh release create "$GITHUB_REF_NAME" dist/* --repo jsrxar77/octachrome-releases --title "Octachrome $GITHUB_REF_NAME" --notes-file notes.md
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" dist/* --title "Octachrome $GITHUB_REF_NAME" --notes-file notes.md

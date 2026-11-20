@@ -11,7 +11,7 @@
   <b><a href="https://jsrxar77.github.io/octachrome/">Home</a></b> ·
   <b><a href="https://jsrxar77.github.io/octachrome/twin/octachrome-twin.html">Try it in the browser</a></b> ·
   <b><a href="https://jsrxar77.github.io/octachrome/manual.html">Manual</a></b> ·
-  <b><a href="https://github.com/jsrxar77/octachrome-releases/releases/latest">Download</a></b> ·
+  <b><a href="https://github.com/jsrxar77/octachrome/releases/latest">Download</a></b> ·
   <b><a href="CHANGELOG.md">Changelog</a></b>
 </p>
 
@@ -23,7 +23,7 @@ A standalone groovebox in Rust for the **Raspberry Pi 4/5** (developed and teste
 
 * A sequencer inspired by the OP-XY: per-track polymeter, stackable *Step Components* (ratchet, chance, every, velocity, parameter locks…), a harmony track (*Brain*) that puts the notes of every linked track on the chord, scenes and a song (ARRANGER), a mixer with a compressor, an EQ and two sends.
 * Eight instruments that know nothing about the sequencer or the hardware (they are **cartridges** that implement one trait): drums, a kick, an FM bass, a plucked-string and bell resonator, a **sampler**, a **granular** cloud, a 24-engine macro oscillator (from Mutable Instruments' Plaits) and a MIDI out.
-* **Eight whole songs that come with it**, each about two minutes and made as its style is made ([the list](#the-eight-songs), and [the mp3s](https://github.com/jsrxar77/octachrome-releases/releases/tag/v0.1.0) to listen to): house, techno, UK garage, drum & bass, trance, amapiano, ambient and lo-fi.
+* **Eight whole songs that come with it**, each about two minutes and made as its style is made ([the list](#the-eight-songs), and [the mp3s](https://github.com/jsrxar77/octachrome/releases/tag/v0.1.0) to listen to): house, techno, UK garage, drum & bass, trance, amapiano, ambient and lo-fi.
 * Every screen, light and button of the MK3 has a job and is designed as one system ([docs/design.md](docs/design.md)): eight colours, absolute black, drawings instead of text, one typeface.
 
 **Try it in a minute, with nothing connected:** [open the twin in your browser](https://jsrxar77.github.io/octachrome/twin/octachrome-twin.html) (or `twin/octachrome-twin.html` from a clone: no server, no install; it works on an iPad too), press FILE, a pad of the top row, and PLAY. The [manual](https://jsrxar77.github.io/octachrome/manual.html) explains every button, with pictures of the unit and tested recipes.
@@ -170,7 +170,7 @@ To add an instrument: a new crate or module that implements `InstrumentCartridge
 * `deploy/pi-setup.sh`: creates the `octachrome` user, installs the udev rules, the real-time limits and the `performance` governor, boots to the console without a desktop and enables `deploy/octachrome.service`.
 * `deploy/octachrome.service`: direct start, automatic restart, a 64-frame buffer (`OCTACHROME_BUFFER`), `LimitRTPRIO`, affinity to cores 1–3.
 * On the Pi it can be compiled natively with `cargo build --release` (`libasound2-dev` is needed).
-* **Without compiling:** each [release](https://github.com/jsrxar77/octachrome-releases/releases) carries `octachrome-linux-aarch64-pi5.tar.gz` (with its `.sha256`). On a 64-bit Raspberry Pi OS: `tar xzf octachrome-linux-aarch64-pi5.tar.gz && sudo bash pi-setup.sh .`. That binary is built for the **Pi 5** (Cortex-A76); on a Pi 4 build it yourself with `RUSTFLAGS="-C target-cpu=cortex-a72" cargo build --release`. The macOS release (`octachrome-macos-arm64`) is for Apple Silicon.
+* **Without compiling:** each [release](https://github.com/jsrxar77/octachrome/releases) carries `octachrome-linux-aarch64-pi5.tar.gz` (with its `.sha256`). On a 64-bit Raspberry Pi OS: `tar xzf octachrome-linux-aarch64-pi5.tar.gz && sudo bash pi-setup.sh .`. That binary is built for the **Pi 5** (Cortex-A76); on a Pi 4 build it yourself with `RUSTFLAGS="-C target-cpu=cortex-a72" cargo build --release`. The macOS release (`octachrome-macos-arm64`) is for Apple Silicon.
 
 ## Controls
 

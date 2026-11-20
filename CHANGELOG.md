@@ -2,7 +2,7 @@
 
 All notable changes are written here, newest first. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the versions follow [Semantic Versioning](https://semver.org/).
 
-To publish a version: move what is under *Unreleased* to a new `## [x.y.z] - date` section, bump `version` in the root `Cargo.toml`, and push the tag `vx.y.z`; the *Release* workflow builds the binaries and uses that section as the notes of the release, published in the public repository `octachrome-releases`.
+To publish a version: move what is under *Unreleased* to a new `## [x.y.z] - date` section, bump `version` in the root `Cargo.toml`, and push the tag `vx.y.z`; the *Release* workflow builds the binaries and uses that section as the notes of the release.
 
 ## [Unreleased]
 
@@ -22,4 +22,4 @@ First public version. What the project is today, as [docs/roadmap.md](docs/roadm
 - Not verified on hardware: the LED palette beyond red and orange, the CPU load on a Raspberry Pi 5, MIDI in on Linux.
 
 [Unreleased]: https://github.com/jsrxar77/octachrome/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/jsrxar77/octachrome-releases/releases/tag/v0.1.0
+[0.1.0]: https://github.com/jsrxar77/octachrome/releases/tag/v0.1.0
