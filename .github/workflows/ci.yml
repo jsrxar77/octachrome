@@ -35,8 +35,6 @@ jobs:
         run: cargo check --target aarch64-unknown-linux-gnu -p octachrome --no-default-features --features mk3
 
   macos:
-    # Only on main: a macOS minute counts ten times against the quota of a private repository
-    if: github.event_name == 'push'
     runs-on: macos-latest # Apple Silicon
     steps:
       - uses: actions/checkout@v7
