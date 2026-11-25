@@ -36,7 +36,7 @@ octachrome-hw = { path = "crates/octachrome-hw" }
 octachrome-ui = { path = "crates/octachrome-ui" }
 octachrome-plaits = { path = "crates/octachrome-plaits" }
 embedded-graphics = "0.8"
-rtrb = "0.3"
+rtrb = "0.4"
 fontdue = "0.9"
 anyhow = "1"
 
