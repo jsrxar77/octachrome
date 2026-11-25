@@ -25,12 +25,12 @@ octachrome-hw.workspace = true
 octachrome-ui.workspace = true
 rtrb.workspace = true
 anyhow.workspace = true
-cpal = { version = "0.15", optional = true }
+cpal = { version = "0.17", optional = true }
 # Ctrl-C / SIGTERM: `octachrome run` leaves the MK3 clean (see `App::shutdown`).
 libc = "0.2"
 
 [target.'cfg(target_os = "macos")'.dependencies]
-midir = { version = "0.10", optional = true }
+midir = { version = "0.11", optional = true }
 
 [target.'cfg(target_os = "linux")'.dependencies]
 
